@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $desktop = Join-Path $root "desktop"
 $dist = Join-Path $root "dist"
+Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $dist | Out-Null
 
 function Step($name) { Write-Host "`n== $name" -ForegroundColor Cyan }
@@ -41,7 +42,9 @@ Pop-Location
 
 Step "command line tool"
 Push-Location $root
-go build -trimpath -buildvcs=false -ldflags="-w -s" -o "$dist\dawgit.exe" ./cmd/dawgit; Check "cli build"
+# In bin\: Windows file names ignore case, so dawgit.exe and DAWGit.exe
+# cannot share a folder.
+go build -trimpath -buildvcs=false -ldflags="-w -s" -o "$dist\bin\dawgit.exe" ./cmd/dawgit; Check "cli build"
 Pop-Location
 
 Step "installer"
@@ -49,4 +52,4 @@ Push-Location (Join-Path $desktop "build\windows")
 & $makensis /V2 "/DVERSION=$Version" "/DDIST=$dist" installer.nsi; Check "makensis"
 Pop-Location
 
-Get-ChildItem $dist | Format-Table Name, @{n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }
+Get-ChildItem $dist -Recurse -File | Format-Table Name, @{n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }

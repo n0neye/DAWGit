@@ -1,6 +1,6 @@
 ; DAWGit installer for Windows (per-user, no admin rights needed).
 ; Built by scripts/build-windows.ps1:
-;   makensis /DVERSION=0.1.0 /DDIST=<folder with DAWGit.exe and dawgit.exe> installer.nsi
+;   makensis /DVERSION=0.1.0 /DDIST=<folder with DAWGit.exe and bin\dawgit.exe> installer.nsi
 ; Requires WebView2, which ships with Windows 11 and current Windows 10.
 
 Unicode true
@@ -63,13 +63,17 @@ Section "${APP}" SecApp
   !insertmacro CloseApp
   SetOutPath "$INSTDIR"
   File "${DIST}\${APP}.exe"
-  File "${DIST}\dawgit.exe"
   File "icon.ico"
+  ; The CLI lives in bin\: file names ignore case, so dawgit.exe and
+  ; DAWGit.exe cannot share a folder.
+  SetOutPath "$INSTDIR\bin"
+  File "${DIST}\bin\dawgit.exe"
+  SetOutPath "$INSTDIR"
 
   CreateDirectory "$SMPROGRAMS\${APP}"
   CreateShortcut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${APP}.exe"
   ; For whoever hosts the team's server: one click, no command line needed.
-  CreateShortcut "$SMPROGRAMS\${APP}\${APP} Team Server.lnk" "$INSTDIR\dawgit.exe" \
+  CreateShortcut "$SMPROGRAMS\${APP}\${APP} Team Server.lnk" "$INSTDIR\bin\dawgit.exe" \
     'serve --data "$PROFILE\${APP} Server"' "$INSTDIR\icon.ico" 0 SW_SHOWNORMAL "" \
     "Run the DAWGit server for your team (data in your user folder)"
 
@@ -101,7 +105,8 @@ SectionEnd
 Section "Uninstall"
   !insertmacro CloseApp
   Delete "$INSTDIR\${APP}.exe"
-  Delete "$INSTDIR\dawgit.exe"
+  Delete "$INSTDIR\bin\dawgit.exe"
+  RMDir "$INSTDIR\bin"
   Delete "$INSTDIR\icon.ico"
   Delete "$INSTDIR\Uninstall ${APP}.exe"
   RMDir "$INSTDIR"
