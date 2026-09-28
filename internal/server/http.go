@@ -25,6 +25,8 @@ import (
 //	POST /api/v1/objects/missing                  {hashes} -> {missing}
 //	PUT  /api/v1/objects/{hash}                   blob bytes
 //	GET  /api/v1/objects/{hash}
+//	PUT  /api/v1/projects/{pid}/workspaces/{wsid} workspace state (unsaved work)
+//	GET  /api/v1/projects/{pid}/workspaces        -> [workspace state]
 func Handler(s *Storage, token string) http.Handler {
 	mux := http.NewServeMux()
 	h := &handlers{s: s}
@@ -35,6 +37,8 @@ func Handler(s *Storage, token string) http.Handler {
 	mux.HandleFunc("POST /api/v1/projects/{pid}/snapshots/missing", h.project(h.missingSnapshots))
 	mux.HandleFunc("PUT /api/v1/projects/{pid}/snapshots/{id}", h.project(h.putSnapshot))
 	mux.HandleFunc("GET /api/v1/projects/{pid}/snapshots/{id}", h.project(h.getSnapshot))
+	mux.HandleFunc("PUT /api/v1/projects/{pid}/workspaces/{wsid}", h.project(h.putWorkspace))
+	mux.HandleFunc("GET /api/v1/projects/{pid}/workspaces", h.project(h.listWorkspaces))
 	mux.HandleFunc("POST /api/v1/objects/missing", h.missingObjects)
 	mux.HandleFunc("PUT /api/v1/objects/{hash}", h.putObject)
 	mux.HandleFunc("GET /api/v1/objects/{hash}", h.getObject)

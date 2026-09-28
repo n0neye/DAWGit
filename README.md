@@ -35,6 +35,8 @@ dawgit save -m "added drums"                   # save a version and share it (me
 dawgit update                                  # get the team's latest versions
 ```
 
+Keep `dawgit agent` running while you work: it backs up your unsaved sets to the server, shows which tracks teammates are editing (track-level soft locks, with a warning when you edit the same track), and tells you when someone saves a new version. It never changes your files; `dawgit status` shows the same information.
+
 Branches (advanced teams):
 
 ```

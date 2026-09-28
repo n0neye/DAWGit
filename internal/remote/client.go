@@ -175,3 +175,14 @@ func (c *Client) GetObject(hash string) (io.ReadCloser, error) {
 	}
 	return resp.Body, nil
 }
+
+// PutWorkspace stores this workspace's state (any JSON-encodable value).
+func (c *Client) PutWorkspace(pid, wsid string, state any) error {
+	return c.call("PUT", "/projects/"+pid+"/workspaces/"+wsid, state, nil)
+}
+
+// Workspaces decodes all workspace states of a project into out (a pointer
+// to a slice).
+func (c *Client) Workspaces(pid string, out any) error {
+	return c.call("GET", "/projects/"+pid+"/workspaces", nil, out)
+}
