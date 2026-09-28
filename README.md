@@ -25,7 +25,19 @@ dawgit merge <base> <ours> <theirs> -o out.als [--strategy fail|ours|theirs|both
 go test ./...
 ```
 
-Project workflow (inside an Ableton project folder):
+Team workflow:
+
+```
+dawgit serve --data D:\dawgit-data            # on any team machine or NAS; prints the token
+dawgit init && dawgit remote http://host:7331 --token T && dawgit save -m "first version"
+dawgit clone http://host:7331 "Song" --token T  # other members
+dawgit save -m "added drums"                   # save a version and share it (merges others' versions first)
+dawgit update                                  # get the team's latest versions
+```
+
+`save`/`update` merge Live Sets track by track; when you and others changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if others' changes must be merged in.
+
+Local project workflow (inside an Ableton project folder):
 
 ```
 dawgit init [--author NAME]        # creates .dawgit/
@@ -44,6 +56,9 @@ Snapshots store file contents by SHA-256 in `.dawgit/objects` (deduplicated). Sa
 - `internal/store` — content-addressed blob store
 - `internal/project` — snapshots, status, log, checkout with sample relinking
 - `internal/livecheck` — detects a running Live before rewriting sets
+- `internal/manifest` — snapshot manifest shared by client and server
+- `internal/server` — self-hosted server (files on disk, token auth, branch compare-and-swap)
+- `internal/remote` — HTTP client; `internal/project/sync.go` does save/update/clone and snapshot merges
 
 ## Python reference implementation
 

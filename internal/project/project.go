@@ -20,7 +20,16 @@ const metaDir = ".dawgit"
 
 type Config struct {
 	ProjectID string `json:"project_id"`
+	Name      string `json:"name,omitempty"`
 	Author    string `json:"author"`
+	// Branch this workspace follows; empty means "main".
+	Branch string        `json:"branch,omitempty"`
+	Remote *RemoteConfig `json:"remote,omitempty"`
+}
+
+type RemoteConfig struct {
+	URL   string `json:"url"`
+	Token string `json:"token,omitempty"`
 }
 
 type Repo struct {
@@ -50,18 +59,41 @@ func Init(root, author string) (*Repo, error) {
 	if author == "" {
 		author = defaultAuthor()
 	}
-	r := &Repo{Root: root, Dir: filepath.Join(root, metaDir),
-		Config: Config{ProjectID: hex.EncodeToString(id), Author: author}}
+	return create(root, Config{ProjectID: hex.EncodeToString(id), Name: projectName(root), Author: author})
+}
+
+// create lays out .dawgit in root with the given config.
+func create(root string, cfg Config) (*Repo, error) {
+	r := &Repo{Root: root, Dir: filepath.Join(root, metaDir), Config: cfg}
 	for _, d := range []string{"objects", "snapshots"} {
 		if err := os.MkdirAll(filepath.Join(r.Dir, d), 0o755); err != nil {
 			return nil, err
 		}
 	}
-	if err := writeJSON(filepath.Join(r.Dir, "config.json"), r.Config); err != nil {
+	if err := r.SaveConfig(); err != nil {
 		return nil, err
 	}
+	var err error
 	r.Store, err = store.Open(filepath.Join(r.Dir, "objects"))
 	return r, err
+}
+
+func (r *Repo) SaveConfig() error {
+	return writeJSON(filepath.Join(r.Dir, "config.json"), r.Config)
+}
+
+// projectName derives a display name from an Ableton project folder
+// ("My Song Project" -> "My Song").
+func projectName(root string) string {
+	return strings.TrimSuffix(filepath.Base(root), " Project")
+}
+
+// BranchName is the branch this workspace follows.
+func (r *Repo) BranchName() string {
+	if r.Config.Branch == "" {
+		return "main"
+	}
+	return r.Config.Branch
 }
 
 // Open finds the repository containing dir (searching upward).

@@ -15,12 +15,21 @@ import (
 
 const usage = `usage: dawgit <command> [args]
 
-project commands (run inside an Ableton project folder):
+everyday (run inside an Ableton project folder):
+  save -m MESSAGE                        save a version and share it with the team
+  update                                 get the team's latest versions
+  status                                 what changed since your last version
+  log                                    list versions
+
+setup:
+  serve [--data DIR] [--addr :7331]      run the team server
   init [--author NAME]                   start tracking this project
-  status                                 changes since the last snapshot
-  snapshot -m MESSAGE                    record the current state
-  log                                    list snapshots
-  checkout <id|HEAD> [--force]           restore a snapshot and relink samples
+  remote <url> --token TOKEN             connect this project to the team server
+  clone <url> <project> [folder] --token TOKEN
+
+advanced:
+  snapshot -m MESSAGE                    save a version locally only
+  checkout <id|HEAD~N> [--force]         restore a version and relink samples
 
 set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
@@ -53,6 +62,16 @@ func main() {
 		err = cmdLog(os.Args[2:])
 	case "checkout":
 		err = cmdCheckout(os.Args[2:])
+	case "serve":
+		err = cmdServe(os.Args[2:])
+	case "remote":
+		err = cmdRemote(os.Args[2:])
+	case "clone":
+		err = cmdClone(os.Args[2:])
+	case "save":
+		err = cmdSave(os.Args[2:])
+	case "update":
+		err = cmdUpdate(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 	default:
