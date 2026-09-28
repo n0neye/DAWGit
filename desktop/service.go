@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -268,11 +267,11 @@ func (a *App) Connect(root, url, token string) error {
 
 // OpenInLive opens a set with its default application (Ableton Live).
 func (a *App) OpenInLive(root, set string) error {
-	return exec.Command("cmd", "/c", "start", "", filepath.Join(root, set)).Start()
+	return shellOpen(filepath.Join(root, set))
 }
 
 func (a *App) ShowFolder(root string) error {
-	return exec.Command("explorer", root).Start()
+	return shellOpen(root)
 }
 
 // --- state ---

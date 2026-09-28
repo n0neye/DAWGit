@@ -2,27 +2,19 @@
 // copy of a set in memory and overwrite files DAWGit changed on disk.
 package livecheck
 
-import (
-	"os/exec"
-	"runtime"
-	"strings"
-)
+import "strings"
 
 // Running reports whether an Ableton Live process appears to be running.
 // Detection failures report false.
 func Running() bool {
-	var out []byte
-	var err error
-	switch runtime.GOOS {
-	case "windows":
-		out, err = exec.Command("tasklist", "/FO", "CSV", "/NH").Output()
-	case "darwin", "linux":
-		out, err = exec.Command("ps", "-axo", "comm").Output()
-	default:
-		return false
-	}
+	names, err := processNames()
 	if err != nil {
 		return false
 	}
-	return strings.Contains(strings.ToLower(string(out)), "ableton live")
+	for _, n := range names {
+		if strings.Contains(strings.ToLower(n), "ableton live") {
+			return true
+		}
+	}
+	return false
 }
