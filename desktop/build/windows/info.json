@@ -5,11 +5,11 @@
 	"info": {
 		"0000": {
 			"ProductVersion": "0.1.0",
-			"CompanyName": "My Company",
-			"FileDescription": "A probe application",
-			"LegalCopyright": "© 2026, My Company",
-			"ProductName": "My Product",
-			"Comments": "This is a comment"
+			"CompanyName": "DAWGit",
+			"FileDescription": "DAWGit - version control and teamwork for Ableton Live projects",
+			"LegalCopyright": "(c) 2026 DAWGit",
+			"ProductName": "DAWGit",
+			"Comments": "Version control and collaboration for Ableton Live"
 		}
 	}
 }

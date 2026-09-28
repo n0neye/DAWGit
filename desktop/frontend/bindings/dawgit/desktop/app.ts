@@ -31,6 +31,13 @@ export function AddProject(root: string, author: string): $CancellablePromise<$m
 }
 
 /**
+ * Autostart reports whether DAWGit starts when the user signs in to Windows.
+ */
+export function Autostart(): $CancellablePromise<boolean> {
+    return $Call.ByID(4156082814);
+}
+
+/**
  * ChooseFolder asks the user for a folder ("" when cancelled).
  */
 export function ChooseFolder(title: string): $CancellablePromise<string> {
@@ -108,6 +115,13 @@ export function ServerProjects(url: string, token: string): $CancellablePromise<
     return $Call.ByID(898254696, url, token).then(($result: any) => {
         return $$createType7($result);
     });
+}
+
+/**
+ * SetAutostart turns starting DAWGit at sign-in on or off.
+ */
+export function SetAutostart(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1324798748, on);
 }
 
 export function ShowFolder(root: string): $CancellablePromise<void> {

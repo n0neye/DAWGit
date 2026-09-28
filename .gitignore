@@ -35,3 +35,6 @@ MergeTest-*.als
 /desktop/frontend/dist/*
 !/desktop/frontend/dist/.gitkeep
 /desktop/frontend/.graphtest/
+
+# Release output
+/dist/

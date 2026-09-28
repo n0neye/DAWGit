@@ -5,6 +5,8 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
+	"slices"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -73,6 +75,8 @@ func main() {
 		MinHeight:        560,
 		BackgroundColour: application.NewRGB(24, 25, 29),
 		URL:              "/",
+		// Started by Windows at sign-in: stay in the tray.
+		Hidden: slices.Contains(os.Args[1:], backgroundFlag),
 	})
 	// Closing the window keeps DAWGit running in the tray (the agents keep
 	// watching); Quit is in the tray menu.
