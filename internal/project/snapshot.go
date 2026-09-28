@@ -2,8 +2,6 @@ package project
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,46 +12,13 @@ import (
 	"time"
 
 	"dawgit/internal/als"
+	"dawgit/internal/manifest"
 )
 
-type FileEntry struct {
-	Path string `json:"path"`
-	Hash string `json:"hash"`
-	Size int64  `json:"size"`
-}
-
-// Manifest describes one snapshot. Its id is the SHA-256 of its JSON.
-type Manifest struct {
-	Version int      `json:"version"`
-	Parents []string `json:"parents"`
-	Author  string   `json:"author"`
-	Time    string   `json:"time"`
-	Message string   `json:"message"`
-	// Files inside the project folder.
-	Files []FileEntry `json:"files"`
-	// External are samples referenced by a set from outside the project,
-	// keyed by their original absolute path (slash separated).
-	External []FileEntry `json:"external,omitempty"`
-	// Packs are Live packs whose samples are referenced (not stored).
-	Packs []string `json:"packs,omitempty"`
-	// Missing are referenced samples that were not found when snapshotting.
-	Missing []string `json:"missing,omitempty"`
-
-	ID string `json:"-"`
-}
-
-func (m *Manifest) encode() []byte {
-	data, _ := json.MarshalIndent(m, "", "  ")
-	return append(data, '\n')
-}
-
-func (m *Manifest) FileMap() map[string]FileEntry {
-	out := make(map[string]FileEntry, len(m.Files))
-	for _, f := range m.Files {
-		out[f.Path] = f
-	}
-	return out
-}
+type (
+	FileEntry = manifest.FileEntry
+	Manifest  = manifest.Manifest
+)
 
 func (r *Repo) snapshotPath(id string) string { return filepath.Join(r.Dir, "snapshots", id+".json") }
 
@@ -118,22 +83,31 @@ func (r *Repo) Resolve(ref string) (string, error) {
 }
 
 func (r *Repo) Load(id string) (*Manifest, error) {
-	m := &Manifest{}
-	if err := readJSON(r.snapshotPath(id), m); err != nil {
+	data, err := os.ReadFile(r.snapshotPath(id))
+	if err != nil {
 		return nil, err
 	}
-	m.ID = id
-	return m, nil
+	return manifest.Parse(id, data)
 }
 
+// HasSnapshot reports whether a snapshot is stored locally.
+func (r *Repo) HasSnapshot(id string) bool {
+	_, err := os.Stat(r.snapshotPath(id))
+	return err == nil
+}
+
+// save seals m (computing its id) and stores it.
 func (r *Repo) save(m *Manifest) error {
-	data := m.encode()
-	sum := sha256.Sum256(data)
-	m.ID = hex.EncodeToString(sum[:])
-	if err := os.WriteFile(r.snapshotPath(m.ID), data, 0o644); err != nil {
+	data := m.Seal() // sets m.ID
+	return r.storeSnapshot(m.ID, data)
+}
+
+// storeSnapshot writes an encoded manifest after checking its id.
+func (r *Repo) storeSnapshot(id string, data []byte) error {
+	if _, err := manifest.Parse(id, data); err != nil {
 		return err
 	}
-	return nil
+	return os.WriteFile(r.snapshotPath(id), data, 0o644)
 }
 
 // sampleRefs classifies the samples referenced by the sets among files.
@@ -270,18 +244,41 @@ func sameContent(a, b *Manifest) bool {
 	return bytes.Equal(enc(a), enc(b))
 }
 
-// Log returns snapshots from HEAD following first parents.
+// Log returns every version reachable from HEAD (everyone's, including both
+// sides of merges), newest first; a version is always listed before its
+// parents.
 func (r *Repo) Log() ([]*Manifest, error) {
-	var out []*Manifest
-	for id := r.Head(); id != ""; {
+	anc, err := r.ancestors(r.Head())
+	if err != nil {
+		return nil, err
+	}
+	all := map[string]*Manifest{}
+	children := map[string]int{} // unlisted children per version
+	for id := range anc {
 		m, err := r.Load(id)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, m)
-		id = ""
-		if len(m.Parents) > 0 {
-			id = m.Parents[0]
+		all[id] = m
+	}
+	for _, m := range all {
+		for _, p := range m.Parents {
+			children[p]++
+		}
+	}
+	var out []*Manifest
+	for len(all) > 0 {
+		// Among versions whose children are all listed, take the newest.
+		var next *Manifest
+		for _, m := range all {
+			if children[m.ID] == 0 && (next == nil || m.Time > next.Time || (m.Time == next.Time && m.ID > next.ID)) {
+				next = m
+			}
+		}
+		out = append(out, next)
+		delete(all, next.ID)
+		for _, p := range next.Parents {
+			children[p]--
 		}
 	}
 	return out, nil

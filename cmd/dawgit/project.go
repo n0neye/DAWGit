@@ -30,7 +30,7 @@ func cmdInit(args []string) error {
 		return err
 	}
 	fmt.Printf("initialized dawgit project in %s (author %s)\n", r.Root, r.Config.Author)
-	fmt.Println(`next: dawgit snapshot -m "first version"`)
+	fmt.Println("next: dawgit remote <server-url> --token TOKEN, then dawgit save -m \"first version\"")
 	return nil
 }
 
@@ -43,6 +43,16 @@ func cmdStatus(args []string) error {
 		fmt.Printf("on snapshot %s\n", short(head))
 	} else {
 		fmt.Println("no snapshots yet")
+	}
+	if r.Config.Remote != nil {
+		switch incoming, err := r.Incoming(); {
+		case err != nil:
+			fmt.Printf("server: not reachable (%v)\n", err)
+		case incoming:
+			fmt.Println("server: the team saved new versions (run `dawgit update`)")
+		default:
+			fmt.Println("server: up to date")
+		}
 	}
 	changes, err := r.Status()
 	if err != nil {
