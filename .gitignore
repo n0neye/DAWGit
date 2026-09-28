@@ -24,3 +24,6 @@ MergeTest-*.als
 /dawgit
 /dawgit.exe
 /dist/
+
+# DAWGit metadata created when testing inside fixtures
+.dawgit/

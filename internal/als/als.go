@@ -39,20 +39,27 @@ func Load(path string) (*LiveSet, error) {
 		return nil, err
 	}
 	defer f.Close()
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	s, err := FromXML(data)
+	s, err := readGzip(f)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	s.Path = path
 	return s, nil
+}
+
+// FromGzip parses the bytes of an .als file.
+func FromGzip(data []byte) (*LiveSet, error) { return readGzip(bytes.NewReader(data)) }
+
+func readGzip(r io.Reader) (*LiveSet, error) {
+	zr, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	data, err := io.ReadAll(zr)
+	if err != nil {
+		return nil, err
+	}
+	return FromXML(data)
 }
 
 func FromXML(data []byte) (*LiveSet, error) {
