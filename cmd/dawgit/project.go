@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-	"time"
 
 	"dawgit/internal/livecheck"
 	"dawgit/internal/project"
@@ -118,12 +117,21 @@ func cmdLog(args []string) error {
 	if len(log) == 0 {
 		fmt.Println("no snapshots yet")
 	}
-	for _, m := range log {
-		when := m.Time
-		if t, err := time.Parse(time.RFC3339, m.Time); err == nil {
-			when = t.Local().Format("2006-01-02 15:04")
+	// Mark where each server branch is (best effort).
+	tips := map[string][]string{}
+	if r.Config.Remote != nil {
+		if branches, err := r.Branches(); err == nil {
+			for _, b := range branches {
+				tips[b.Head] = append(tips[b.Head], b.Name)
+			}
 		}
-		fmt.Printf("%s  %s  %-12s %s\n", short(m.ID), when, m.Author, m.Message)
+	}
+	for _, m := range log {
+		mark := ""
+		if names := tips[m.ID]; len(names) > 0 {
+			mark = "  [" + strings.Join(names, ", ") + "]"
+		}
+		fmt.Printf("%s  %s  %-12s %s%s\n", short(m.ID), when(m), m.Author, m.Message, mark)
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ const usage = `usage: dawgit <command> [args]
 
 everyday (run inside an Ableton project folder):
   save -m MESSAGE                        save a version and share it with the team
-  update                                 get the team's latest versions
+  update [--preview]                     get the team's latest versions (or just look)
   status                                 what changed since your last version
   log                                    list versions
 
@@ -27,6 +27,12 @@ setup:
   remote <url> --token TOKEN             connect this project to the team server
   clone <url> <project> [folder] --token TOKEN
 
+branches (advanced):
+  branch                                 list branches
+  branch new NAME                        start a branch from your current version
+  switch NAME                            work on another branch
+  merge NAME [--preview]                 merge another branch into yours (or just look)
+
 advanced:
   snapshot -m MESSAGE                    save a version locally only
   checkout <id|HEAD~N> [--force]         restore a version and relink samples
@@ -34,7 +40,7 @@ advanced:
 set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
   diff <a.als> <b.als>                   semantic diff
-  merge <base> <ours> <theirs> -o <out>  track-level 3-way merge
+  merge-sets <base> <ours> <theirs> -o <out>  track-level 3-way merge of files
         [--strategy fail|ours|theirs|both]
 `
 
@@ -50,8 +56,14 @@ func main() {
 		err = cmdInfo(os.Args[2:])
 	case "diff":
 		err = cmdDiff(os.Args[2:])
-	case "merge":
+	case "merge-sets":
 		code, err = cmdMerge(os.Args[2:])
+	case "merge":
+		err = cmdMergeBranch(os.Args[2:])
+	case "branch":
+		err = cmdBranch(os.Args[2:])
+	case "switch":
+		err = cmdSwitch(os.Args[2:])
 	case "init":
 		err = cmdInit(os.Args[2:])
 	case "status":
@@ -179,7 +191,7 @@ func cmdMerge(args []string) (int, error) {
 		}
 	}
 	if len(pos) != 3 || *out == "" {
-		return 2, fmt.Errorf("usage: dawgit merge <base> <ours> <theirs> -o <out> [--strategy ...]")
+		return 2, fmt.Errorf("usage: dawgit merge-sets <base> <ours> <theirs> -o <out> [--strategy ...]")
 	}
 	var sets [3]*als.LiveSet
 	for i, p := range pos {

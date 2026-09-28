@@ -58,7 +58,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 		if err := r.Store.Export(f.Hash, r.Abs(f.Path)); err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", f.Path, err)
 		}
-		if err := ix.record(r.Abs(f.Path), f.Path, f.Hash); err != nil {
+		if err := ix.record(r.Abs(f.Path), f.Path, f.Hash, f.Size); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -122,7 +122,7 @@ func (r *Repo) relink(m *Manifest, ix *index) ([]string, error) {
 		if err := s.Save(abs); err != nil {
 			return nil, err
 		}
-		if err := ix.record(abs, f.Path, f.Hash); err != nil {
+		if err := ix.record(abs, f.Path, f.Hash, f.Size); err != nil {
 			return nil, err
 		}
 	}

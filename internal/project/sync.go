@@ -127,8 +127,14 @@ func (r *Repo) fetchObjects(c *remote.Client, hashes []string) error {
 	return nil
 }
 
-// publish uploads everything HEAD needs and moves the branch from old to HEAD.
+// publish uploads everything HEAD needs and moves the current branch from
+// old to HEAD.
 func (r *Repo) publish(c *remote.Client, old string) error {
+	return r.publishTo(c, r.BranchName(), old)
+}
+
+// publishTo uploads everything HEAD needs and moves branch from old to HEAD.
+func (r *Repo) publishTo(c *remote.Client, branch, old string) error {
 	head := r.Head()
 	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
 		return err
@@ -184,7 +190,7 @@ func (r *Repo) publish(c *remote.Client, old string) error {
 			return err
 		}
 	}
-	return c.UpdateBranch(r.Config.ProjectID, r.BranchName(), old, head)
+	return c.UpdateBranch(r.Config.ProjectID, branch, old, head)
 }
 
 func (r *Repo) uploadObjects(c *remote.Client, hashes []string) error {
@@ -272,21 +278,27 @@ func (r *Repo) Update(strategy string) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	head, remoteHead := r.Head(), branches[r.BranchName()]
+	return r.integrate(c, branches[r.BranchName()], strategy, "Merge versions from the team")
+}
+
+// integrate brings version target (and its history) into the workspace: a
+// fast forward when HEAD is behind, otherwise a merge version with message.
+func (r *Repo) integrate(c *remote.Client, target, strategy, message string) (*SyncResult, error) {
+	head := r.Head()
 	res := &SyncResult{From: head, To: head}
-	if remoteHead == "" || remoteHead == head {
+	if target == "" || target == head {
 		res.Action = "up-to-date"
 		return res, nil
 	}
-	if err := r.fetchSnapshots(c, remoteHead); err != nil {
+	if err := r.fetchSnapshots(c, target); err != nil {
 		return nil, err
 	}
 	if head != "" {
-		if ahead, err := r.isAncestor(remoteHead, head); err != nil || ahead {
+		if ahead, err := r.isAncestor(target, head); err != nil || ahead {
 			res.Action = "ahead"
 			return res, err
 		}
-		// Updating rewrites working files: refuse before doing any work.
+		// Integrating rewrites working files: refuse before doing any work.
 		changes, err := r.Status()
 		if err != nil {
 			return nil, err
@@ -295,15 +307,14 @@ func (r *Repo) Update(strategy string) (*SyncResult, error) {
 			return nil, fmt.Errorf("%w (%d file(s)); save a version first", ErrDirty, len(changes))
 		}
 	}
-	target := remoteHead
 	res.Action = "fast-forward"
 	if head != "" {
-		behind, err := r.isAncestor(head, remoteHead)
+		behind, err := r.isAncestor(head, target)
 		if err != nil {
 			return nil, err
 		}
 		if !behind {
-			merged, log, err := r.mergeWith(c, head, remoteHead, strategy)
+			merged, log, err := r.mergeWith(c, head, target, strategy, message)
 			if err != nil {
 				return nil, err
 			}
@@ -445,7 +456,7 @@ func (e *MergeConflictError) Error() string {
 }
 
 // mergeWith creates a merge snapshot of ours and theirs (not checked out).
-func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy string) (*Manifest, []string, error) {
+func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy, message string) (*Manifest, []string, error) {
 	baseID, err := r.mergeBase(ours, theirs)
 	if err != nil {
 		return nil, nil, err
@@ -478,6 +489,7 @@ func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy string) (*Mani
 	if err != nil {
 		return nil, nil, err
 	}
+	m.Message = message
 	if err := r.save(m); err != nil {
 		return nil, nil, err
 	}

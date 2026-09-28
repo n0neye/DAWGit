@@ -142,9 +142,11 @@ func strategyFlag(fs *flag.FlagSet) *string {
 		"when you and others changed the same track or file: fail (ask), ours (keep yours), theirs (keep theirs), both (keep both)")
 }
 
+var liveRunning = livecheck.Running
+
 // guardLive refuses to rewrite sets while Live runs, unless forced.
 func guardLive(r *project.Repo, force bool) error {
-	if force || !livecheck.Running() {
+	if force || !liveRunning() {
 		return nil
 	}
 	incoming, err := r.Incoming()
@@ -226,6 +228,7 @@ func cmdSave(args []string) error {
 
 func cmdUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
+	preview := fs.Bool("preview", false, "show what the team changed, change nothing")
 	strategy := strategyFlag(fs)
 	force := fs.Bool("force", false, "update even while Ableton Live is running")
 	if _, err := parseArgs(fs, args); err != nil {
@@ -234,6 +237,14 @@ func cmdUpdate(args []string) error {
 	r, err := openRepo()
 	if err != nil {
 		return err
+	}
+	if *preview {
+		p, err := r.PreviewUpdate()
+		if err != nil {
+			return err
+		}
+		printPreview(p, "the team")
+		return nil
 	}
 	if err := guardLive(r, *force); err != nil {
 		return err

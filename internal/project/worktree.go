@@ -58,6 +58,16 @@ type indexEntry struct {
 	Size  int64  `json:"size"`
 	Mtime int64  `json:"mtime"`
 	Hash  string `json:"hash"`
+	// ObjSize is the size of the object Hash names; it differs from Size
+	// when the file was rewritten on checkout (sample relinking).
+	ObjSize int64 `json:"obj_size,omitempty"`
+}
+
+func (e indexEntry) objSize() int64 {
+	if e.ObjSize != 0 {
+		return e.ObjSize
+	}
+	return e.Size
 }
 
 type index struct {
@@ -79,13 +89,13 @@ func (ix *index) save() error {
 	return writeJSON(ix.path, ix.entries)
 }
 
-// record associates the file's current stat with hash.
-func (ix *index) record(abs, rel, hash string) error {
+// record associates the file's current stat with object hash (of objSize bytes).
+func (ix *index) record(abs, rel, hash string, objSize int64) error {
 	fi, err := os.Stat(abs)
 	if err != nil {
 		return err
 	}
-	ix.entries[rel] = indexEntry{fi.Size(), fi.ModTime().UnixNano(), hash}
+	ix.entries[rel] = indexEntry{Size: fi.Size(), Mtime: fi.ModTime().UnixNano(), Hash: hash, ObjSize: objSize}
 	ix.dirty = true
 	return nil
 }
@@ -97,13 +107,13 @@ func (ix *index) hash(abs, rel string) (string, int64, error) {
 		return "", 0, err
 	}
 	if e, ok := ix.entries[rel]; ok && e.Size == fi.Size() && e.Mtime == fi.ModTime().UnixNano() {
-		return e.Hash, e.Size, nil
+		return e.Hash, e.objSize(), nil
 	}
 	h, n, err := store.HashFile(abs)
 	if err != nil {
 		return "", 0, err
 	}
-	ix.entries[rel] = indexEntry{fi.Size(), fi.ModTime().UnixNano(), h}
+	ix.entries[rel] = indexEntry{Size: fi.Size(), Mtime: fi.ModTime().UnixNano(), Hash: h}
 	ix.dirty = true
 	return h, n, nil
 }
