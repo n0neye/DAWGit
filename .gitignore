@@ -13,3 +13,6 @@ __pycache__/
 *.pyc
 .venv/
 node_modules/
+
+# Merge outputs generated for manual testing in Live
+MergeTest-*.als

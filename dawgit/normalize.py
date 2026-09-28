@@ -52,8 +52,8 @@ def _keep_id(tag: str) -> bool:
     return tag in TRACK_TAGS
 
 
-def _feed(e: ET.Element, h) -> None:
-    if e.tag in NOISE_ELEMENTS:
+def _feed(e: ET.Element, h, skip: frozenset[str] = frozenset()) -> None:
+    if e.tag in NOISE_ELEMENTS or e.tag in skip:
         return
     h.update(b"<" + e.tag.encode())
     for k in sorted(e.attrib):
@@ -65,21 +65,14 @@ def _feed(e: ET.Element, h) -> None:
     if text:
         h.update(text.encode())
     for c in e:
-        _feed(c, h)
+        _feed(c, h, skip)
     h.update(b"</>")
 
 
-def fingerprint(e: ET.Element | None) -> str:
+def fingerprint(e: ET.Element | None, skip: frozenset[str] = frozenset()) -> str:
+    """Hash of e's musical content; subtrees whose tag is in skip are ignored."""
     if e is None:
         return "<none>"
     h = hashlib.sha1()
-    _feed(e, h)
-    return h.hexdigest()
-
-
-def fingerprint_many(elems) -> str:
-    h = hashlib.sha1()
-    for e in elems:
-        if e is not None:
-            _feed(e, h)
+    _feed(e, h, skip)
     return h.hexdigest()
