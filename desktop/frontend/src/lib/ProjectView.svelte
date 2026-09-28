@@ -16,8 +16,9 @@
   let busy = $state("");
 
   // dialogs
-  let preview = $state<{ title: string; label: string; data: Preview; run: Action } | null>(null);
-  let conflicts = $state<{ items: Conflict[]; run: Action } | null>(null);
+  let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
+  const UNSAVED = "You have unsaved changes. Save a version instead — the team's changes are merged in as part of saving, and anything you both changed is shown then.";
+  let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string> } | null>(null);
   let connectOpen = $state(false);
   let branchMenu = $state(false);
@@ -69,7 +70,7 @@
       if (r.liveRunning) {
         liveBlocked = { run: a, resolutions };
       } else if (r.conflicts.length) {
-        conflicts = { items: r.conflicts, run: a };
+        conflicts = { items: r.conflicts, run: a, force }; // keep a "Live is closed" confirmation
       } else {
         a.done(r);
         if (r.relinked.length) toast(`Relinked ${r.relinked.length} sample path(s) for this computer`, "info");
@@ -114,7 +115,8 @@
     busy = "preview";
     try {
       const data = await api.PreviewUpdate(root);
-      if (data) preview = { title: "Updates from the team", label: "Get updates", data, run: updateAction };
+      if (data) preview = { title: "Updates from the team", label: "Get updates", data, run: updateAction,
+        blocked: st?.changes.length ? UNSAVED : "" };
     } catch (e) {
       toast(errorText(e), "error");
     } finally {
@@ -130,6 +132,7 @@
       if (!data) return;
       preview = {
         title: `Merge “${name}” into “${st?.branch}”`, label: "Merge and share", data,
+        blocked: st?.changes.length ? "You have unsaved changes. Save a version first, then merge." : "",
         run: {
           name: "merge",
           call: (res, force) => api.MergeBranch(root, name, res, force),
@@ -193,6 +196,8 @@
   }
 </script>
 
+<svelte:window onclick={(e) => { if (branchMenu && !(e.target as HTMLElement).closest(".branch-wrap")) branchMenu = false; }} />
+
 {#if loadError && !st}
   <div class="pad"><p class="error">{loadError}</p></div>
 {:else if st}
@@ -251,7 +256,8 @@
           <span class="muted">{st.incoming.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{st.incoming.length > 3 ? "…" : ""}</span>
         </div>
         <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
-        <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>Get updates</button>
+        <button class="primary" onclick={() => run(updateAction)} disabled={!!busy || st.changes.length > 0}
+          title={st.changes.length ? "You have unsaved changes: save a version to get these too" : ""}>Get updates</button>
       </div>
     {/if}
     {#each st.overlaps as o}
@@ -330,15 +336,15 @@
 
   {#if preview}
     {@const p = preview}
-    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label}
+    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked}
       onclose={() => (preview = null)}
-      onconfirm={() => { preview = null; run(p.run); }} />
+      onconfirm={() => { const action = p.run; preview = null; run(action); }} />
   {/if}
 
   {#if conflicts}
     {@const c = conflicts}
     <ConflictDialog conflicts={c.items} onclose={() => (conflicts = null)}
-      onresolve={(res) => { conflicts = null; run(c.run, res); }} />
+      onresolve={(res) => { const { run: action, force } = c; conflicts = null; run(action, res, force); }} />
   {/if}
 
   {#if liveBlocked}
@@ -349,7 +355,7 @@
       <p class="muted">Save and close the set in Live first (you can leave Live open with another set).</p>
       {#snippet footer()}
         <button onclick={() => (liveBlocked = null)}>Cancel</button>
-        <button class="primary" onclick={() => { liveBlocked = null; run(b.run, b.resolutions, true); }}>
+        <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions, true); }}>
           The set is closed — continue
         </button>
       {/snippet}

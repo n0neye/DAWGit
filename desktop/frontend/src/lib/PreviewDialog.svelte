@@ -3,12 +3,13 @@
   import ChangeList from "./ChangeList.svelte";
   import { ago, type Preview } from "./api";
 
-  let { title, preview, actionLabel, onconfirm, onclose }: {
+  let { title, preview, actionLabel, onconfirm, onclose, blocked = "" }: {
     title: string;
     preview: Preview;
     actionLabel: string;
     onconfirm: () => void;
     onclose: () => void;
+    blocked?: string; // why the action cannot run now
   } = $props();
 
   let nothing = $derived(preview.action === "up-to-date" || preview.action === "ahead");
@@ -37,14 +38,15 @@
           {/each}
         </ul>
       </div>
-    {:else if preview.action === "merge"}
+    {:else if preview.action === "merge" && !blocked}
       <p class="ok">No conflicts — your work and theirs combine automatically.</p>
     {/if}
+    {#if blocked}<p class="blocked">{blocked}</p>{/if}
   {/if}
   {#snippet footer()}
     <button onclick={onclose}>{nothing ? "Close" : "Cancel"}</button>
     {#if !nothing}
-      <button class="primary" onclick={onconfirm}>{actionLabel}</button>
+      <button class="primary" disabled={!!blocked} onclick={onconfirm}>{actionLabel}</button>
     {/if}
   {/snippet}
 </Modal>
@@ -60,4 +62,5 @@
   }
   .conflicts ul { margin: 6px 0 0; padding-left: 20px; }
   .ok { color: var(--accent); margin-top: 14px; }
+  .blocked { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: #1d2c38; border: 1px solid #2c4557; }
 </style>
