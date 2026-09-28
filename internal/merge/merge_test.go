@@ -107,3 +107,30 @@ func TestRealSplit(t *testing.T) {
 		t.Errorf("ours' automation = %v", auto)
 	}
 }
+
+func TestPerConflictResolution(t *testing.T) {
+	base := fixture(t, "SampleAbletonProject_v2.als")
+	a, b := fixture(t, "Split-A.als"), fixture(t, "Split-B.als")
+
+	r := mustMerge(t, base, a, b, "fail")
+	if len(r.Conflicts) != 1 || r.Conflicts[0].Key != "track:14" || !r.Conflicts[0].Unresolved {
+		t.Fatalf("conflicts: %+v", r.Conflicts)
+	}
+
+	// Decide that one track: take theirs (Split-B's bounce track with Amp).
+	res, err := MergeWith(base, a, b, Options{Strategy: "fail", Resolutions: map[string]string{"track:14": "theirs"}})
+	if err != nil || len(res.Issues) > 0 {
+		t.Fatal(err, res.Issues)
+	}
+	if len(res.Conflicts) != 1 || res.Conflicts[0].Unresolved {
+		t.Fatalf("resolved conflict still unresolved: %+v", res.Conflicts)
+	}
+	names := byName(res.Merged)["5 Bounce + Reverb"].DeviceNames()
+	if len(names) != 2 || names[0] != "Amp" {
+		t.Errorf("track 14 devices = %v, want theirs (Amp, Reverb)", names)
+	}
+
+	if _, err := MergeWith(base, a, b, Options{Strategy: "fail", Resolutions: map[string]string{"track:14": "mine"}}); err == nil {
+		t.Error("invalid resolution accepted")
+	}
+}

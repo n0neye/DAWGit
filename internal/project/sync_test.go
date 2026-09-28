@@ -35,7 +35,7 @@ func team(t *testing.T) (a, b *Repo) {
 		t.Fatal(err)
 	}
 	a.SetRemote(url, token)
-	if _, res, err := a.Save("v2", "fail"); err != nil || res.Action != "published" {
+	if _, res, err := a.Save("v2", Strategy("fail")); err != nil || res.Action != "published" {
 		t.Fatalf("first save: %v %+v", err, res)
 	}
 	dirB := filepath.Join(t.TempDir(), "B", "Song Project")
@@ -68,16 +68,16 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 
 	// A groups the audio tracks, B adds a drum track: made by hand in Live.
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
-	if _, res, err := a.Save("group audio", "fail"); err != nil || res.Action != "published" {
+	if _, res, err := a.Save("group audio", Strategy("fail")); err != nil || res.Action != "published" {
 		t.Fatalf("A save: %v %+v", err, res)
 	}
 	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
 
 	// Both changed the bounce track: the default refuses and explains.
-	_, _, err := b.Save("drums", "fail")
+	_, _, err := b.Save("drums", Strategy("fail"))
 	var conflict *MergeConflictError
 	if !errors.As(err, &conflict) || len(conflict.Conflicts) != 1 ||
-		!strings.Contains(conflict.Conflicts[0], "Bounce + Reverb") {
+		!strings.Contains(conflict.Conflicts[0].String(), "Bounce + Reverb") {
 		t.Fatalf("expected one track conflict, got %v", err)
 	}
 	// Nothing was published or written.
@@ -85,7 +85,7 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 		t.Fatal("working set changed after a refused merge")
 	}
 
-	_, res, err := b.Save("drums", "both")
+	_, res, err := b.Save("drums", Strategy("both"))
 	if err != nil || res.Action != "published" || len(res.MergeLog) == 0 {
 		t.Fatalf("B save: %v %+v", err, res)
 	}
@@ -103,7 +103,7 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 	}
 
 	// A takes the merge: a fast forward.
-	up, err := a.Update("fail")
+	up, err := a.Update(Strategy("fail"))
 	if err != nil || up.Action != "fast-forward" || up.To != b.Head() {
 		t.Fatalf("A update: %v %+v", err, up)
 	}
@@ -115,7 +115,7 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 	if _, err := a.Snapshot("nothing"); !errors.Is(err, ErrNothingToSnapshot) {
 		t.Errorf("expected nothing to snapshot after update, got %v", err)
 	}
-	if up, _ := a.Update("fail"); up.Action != "up-to-date" {
+	if up, _ := a.Update(Strategy("fail")); up.Action != "up-to-date" {
 		t.Errorf("second update: %+v", up)
 	}
 	// Everyone's versions are listed, merge first.
@@ -132,9 +132,9 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 func TestUpdateRefusesUnsavedChanges(t *testing.T) {
 	a, b := team(t)
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
-	a.Save("group audio", "fail")
+	a.Save("group audio", Strategy("fail"))
 	os.WriteFile(filepath.Join(b.Root, "Samples", "idea.wav"), []byte("RIFF"), 0o644)
-	if _, err := b.Update("fail"); !errors.Is(err, ErrDirty) {
+	if _, err := b.Update(Strategy("fail")); !errors.Is(err, ErrDirty) {
 		t.Fatalf("expected ErrDirty, got %v", err)
 	}
 }
@@ -142,17 +142,17 @@ func TestUpdateRefusesUnsavedChanges(t *testing.T) {
 func TestSampleChangedOnBothSides(t *testing.T) {
 	a, b := team(t)
 	os.WriteFile(filepath.Join(a.Root, "Samples", "vox.wav"), []byte("RIFF-base"), 0o644)
-	a.Save("vox", "fail")
-	b.Update("fail")
+	a.Save("vox", Strategy("fail"))
+	b.Update(Strategy("fail"))
 
 	os.WriteFile(filepath.Join(a.Root, "Samples", "vox.wav"), []byte("RIFF-yi"), 0o644)
-	a.Save("vox take 2", "fail")
+	a.Save("vox take 2", Strategy("fail"))
 	os.WriteFile(filepath.Join(b.Root, "Samples", "vox.wav"), []byte("RIFF-alex"), 0o644)
 
-	if _, _, err := b.Save("vox alex", "fail"); err == nil || !strings.Contains(err.Error(), "vox.wav") {
+	if _, _, err := b.Save("vox alex", Strategy("fail")); err == nil || !strings.Contains(err.Error(), "vox.wav") {
 		t.Fatalf("expected a sample conflict, got %v", err)
 	}
-	if _, _, err := b.Save("vox alex", "both"); err != nil {
+	if _, _, err := b.Save("vox alex", Strategy("both")); err != nil {
 		t.Fatal(err)
 	}
 	mine, _ := os.ReadFile(filepath.Join(b.Root, "Samples", "vox.wav"))
@@ -166,7 +166,7 @@ func TestServerRejectsBadToken(t *testing.T) {
 	url := newServer(t)
 	r, _ := Init(newProject(t), "yi")
 	r.SetRemote(url, "wrong")
-	if _, _, err := r.Save("v", "fail"); err == nil || !strings.Contains(err.Error(), "token") {
+	if _, _, err := r.Save("v", Strategy("fail")); err == nil || !strings.Contains(err.Error(), "token") {
 		t.Fatalf("expected token error, got %v", err)
 	}
 }
@@ -177,4 +177,33 @@ func keys[V any](m map[string]V) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+// The GUI flow: try, get structured conflicts, decide each, try again.
+func TestSaveWithPerConflictResolutions(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	a.Save("group audio", Strategy("fail"))
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+
+	_, _, err := b.Save("drums", MergeOptions{})
+	var conflict *MergeConflictError
+	if !errors.As(err, &conflict) || len(conflict.Conflicts) != 1 {
+		t.Fatalf("expected one conflict, got %v", err)
+	}
+	c := conflict.Conflicts[0]
+	if c.Key != "Song.als#track:14" || c.File != "Song.als" || !c.CanKeepBoth {
+		t.Fatalf("conflict item: %+v", c)
+	}
+	_, res, err := b.Save("drums", MergeOptions{Resolutions: map[string]string{c.Key: "theirs"}})
+	if err != nil || res.Action != "published" {
+		t.Fatalf("save with resolution: %v %+v", err, res)
+	}
+	tracks := setTracks(t, b)
+	if tracks["# Bounce + Reverb [theirs]"].Elem != nil {
+		t.Error("theirs was chosen, no copy expected")
+	}
+	if tracks["Drum"].Elem == nil || tracks["Audios"].Elem == nil {
+		t.Error("non-conflicting changes missing")
+	}
 }

@@ -54,7 +54,7 @@ func TestSoftLocksAndNotifications(t *testing.T) {
 	}
 
 	// Yi saves: the soft lock disappears, Alex is told about the version.
-	if _, _, err := a.Save("group audio", "fail"); err != nil {
+	if _, _, err := a.Save("group audio", Strategy("fail")); err != nil {
 		t.Fatal(err)
 	}
 	if st, err := a.ReportWorkspace(); err != nil || len(st.Edits) != 0 {

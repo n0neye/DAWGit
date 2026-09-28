@@ -18,16 +18,16 @@ func TestBranchWorkflow(t *testing.T) {
 		t.Error("creating an existing branch should fail")
 	}
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
-	if _, res, err := a.Save("group audio", "fail"); err != nil || res.Action != "published" {
+	if _, res, err := a.Save("group audio", Strategy("fail")); err != nil || res.Action != "published" {
 		t.Fatalf("save on branch: %v %+v", err, res)
 	}
-	if up, err := b.Update("fail"); err != nil || up.Action != "up-to-date" {
+	if up, err := b.Update(Strategy("fail")); err != nil || up.Action != "up-to-date" {
 		t.Fatalf("main should not have moved: %v %+v", err, up)
 	}
 
 	// Alex keeps working on main.
 	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
-	if _, _, err := b.Save("drums", "fail"); err != nil {
+	if _, _, err := b.Save("drums", Strategy("fail")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,12 +49,12 @@ func TestBranchWorkflow(t *testing.T) {
 		!strings.Contains(p.Changes[0].SetDiff.Render(), `GroupTrack "Audios"`) {
 		t.Fatalf("preview changes: %+v", p.Changes)
 	}
-	if len(p.Conflicts) != 1 || !strings.Contains(p.Conflicts[0], "Bounce + Reverb") {
+	if len(p.Conflicts) != 1 || !strings.Contains(p.Conflicts[0].String(), "Bounce + Reverb") {
 		t.Fatalf("preview conflicts: %v", p.Conflicts)
 	}
 	assertClean(t, b) // preview changes nothing
 
-	res, err := b.MergeBranch("yi-ideas", "both")
+	res, err := b.MergeBranch("yi-ideas", Strategy("both"))
 	if err != nil || res.Action != "merged" {
 		t.Fatalf("merge branch: %v %+v", err, res)
 	}
@@ -92,7 +92,7 @@ func TestSwitchRefusesUnsharedVersions(t *testing.T) {
 func TestPreviewUpdate(t *testing.T) {
 	a, b := team(t)
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
-	a.Save("group audio", "fail")
+	a.Save("group audio", Strategy("fail"))
 	p, err := b.PreviewUpdate()
 	if err != nil || p.Action != "fast-forward" || len(p.Changes) != 1 || len(p.Conflicts) != 0 {
 		t.Fatalf("%v %+v", err, p)

@@ -135,7 +135,7 @@ func (r *Repo) SwitchBranch(name string, force bool) (*SyncResult, error) {
 
 // MergeBranch merges another branch's latest version into the workspace and
 // shares the result on the current branch.
-func (r *Repo) MergeBranch(name, strategy string) (*SyncResult, error) {
+func (r *Repo) MergeBranch(name string, opts MergeOptions) (*SyncResult, error) {
 	c, err := r.Client()
 	if err != nil {
 		return nil, err
@@ -151,11 +151,11 @@ func (r *Repo) MergeBranch(name, strategy string) (*SyncResult, error) {
 	if name == r.BranchName() {
 		return nil, errors.New("that is the branch you are on; use `dawgit update`")
 	}
-	res, err := r.integrate(c, target, strategy, "Merge branch "+name)
+	res, err := r.integrate(c, target, opts, "Merge branch "+name)
 	if err != nil || res.Action == "up-to-date" || res.Action == "ahead" {
 		return res, err
 	}
-	_, shared, err := r.Save("", strategy)
+	_, shared, err := r.Save("", opts)
 	if err != nil {
 		return res, err
 	}
@@ -180,8 +180,8 @@ type Preview struct {
 	Action   string
 	Versions []*Manifest // incoming versions, newest first
 	Changes  []FileChange
-	// Conflicts that --strategy would have to resolve.
-	Conflicts []string
+	// Conflicts that need a decision.
+	Conflicts []ConflictItem
 }
 
 // PreviewUpdate previews `update` on the current branch.
@@ -271,7 +271,7 @@ func (r *Repo) previewBranch(name string) (*Preview, error) {
 		if err != nil {
 			return nil, err
 		}
-		_, _, err = r.mergeManifests(base, ours, theirs, "fail")
+		_, _, err = r.mergeManifests(base, ours, theirs, Strategy("fail"))
 		var conflict *MergeConflictError
 		if errors.As(err, &conflict) {
 			p.Conflicts = conflict.Conflicts
