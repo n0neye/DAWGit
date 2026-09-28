@@ -30,10 +30,13 @@ Findings from Live 12.3.1 sets (`SampleProjects/`). Verify against other Live ve
 - `AutomationEnvelopes/Envelopes/AutomationEnvelope/EnvelopeTarget/PointeeId` points at an `AutomationTarget` in the same track. The parameter is the target's parent element (e.g. `Volume` under `Mixer`, `MixDirect` = Reverb dry/wet).
 
 ## Save-to-save noise (not musical changes)
-`LomId`, `LomIdView`, `ViewData`, `ViewStates`, `Transport/CurrentTime`, `HighlightedTrackIndex`, `TimeSelection`, `ClipEnvelopeChooserViewState`, `LastSelected*`, `IsExpanded`, `IsFolded`, plugin window position, `Recorder/IsArmed`, `SavedPlayingSlot`, `TrackUnfolded`, `EffectiveName`, `OverwriteProtectionNumber`, and the serialization counters above.
+`LomId`, `LomIdView`, `ViewData`, `ViewStates`, `Transport/CurrentTime`, `HighlightedTrackIndex`, `TimeSelection`, `ClipEnvelopeChooserViewState`, `LastSelected*`, `IsExpanded`, `IsFolded`, plugin window position, `Recorder/IsArmed`, `SavedPlayingSlot`, `TrackUnfolded`, `EffectiveName`, `TakeId` (lazily set -1 -> 0 on reopen), `OverwriteProtectionNumber`, and the serialization counters above.
 
 ## Samples
 - `SampleRef/FileRef` has `RelativePathType` (3 = project-relative, 5 = Live pack/library), `RelativePath`, absolute `Path`, `LivePackName/Id`, `OriginalFileSize`, `OriginalCrc`.
 
 ## Plugins
 - `PluginDevice/PluginDesc/Vst3PluginInfo` (name, Uid). State is an opaque `Buffer`. Only parameters exposed as `PluginFloatParameter` are diffable.
+
+## Known limitation: plugin state churn
+Reopening and saving a set can rewrite a plugin's opaque state without any user edit. Observed with Vital (VST3): its JSON state contains a `samples` buffer that shifts on every save. Such tracks look modified, so if both sides re-save the same plugin the merge reports a conflict that is not musical. Possible mitigations: per-plugin state normalizers, or comparing only exposed `PluginFloatParameter` values when the user opts in.
