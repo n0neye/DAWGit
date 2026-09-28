@@ -42,6 +42,7 @@ NOISE_ELEMENTS = frozenset({
     "SavedPlayingSlot",  # which session clip was playing at save time
     "EffectiveName",  # derived by Live from UserName, devices and track position
     "TrackUnfolded",  # group fold state
+    "TakeId",  # lazily assigned (-1 -> 0) when Live reopens a set with session clips
 })
 
 # Attributes that are view state.

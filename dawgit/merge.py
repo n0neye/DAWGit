@@ -20,7 +20,7 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
-from .als import LiveSet, Track, is_pointee_tag
+from .als import LiveSet, Track, _val, is_pointee_tag
 from .diff import GLOBAL_SECTIONS, section_elems, section_fingerprint
 from .normalize import fingerprint
 from .validate import ROUTING_TRACK_RE, units, validate
@@ -85,6 +85,16 @@ def _track_fp(t: Track | None) -> str | None:
 
 def _placement_fp(elem: ET.Element) -> str:
     return "|".join(fingerprint(elem.find(p)) for p in PLACEMENT_PATHS)
+
+
+def _replace_child(elem: ET.Element, path: str, new: ET.Element) -> None:
+    """Replace the element at path (relative to elem) with new, keeping its position."""
+    parent = elem.find(path.rsplit("/", 1)[0]) if "/" in path else elem
+    old = elem.find(path)
+    new.tail = old.tail
+    idx = list(parent).index(old)
+    parent.remove(old)
+    parent.insert(idx, new)
 
 
 def _retail(parent: ET.Element) -> None:
@@ -180,6 +190,13 @@ class _Merger:
         for elem in merged_by_id.values():
             self.ident[elem] = self._ident_for(elem.get("Id"))
 
+        # Tracks theirs created with an id ours also used for a different new
+        # track get a fresh id. Known up front so references inside every
+        # imported theirs track can be rewritten at copy time.
+        for tid, t in tt.items():
+            if tid not in tb and tid in to and _track_fp(to[tid]) != _track_fp(t):
+                self.theirs_renumber[tid] = self._new_track_id()
+
         # theirs track id -> merged element representing it (for placement)
         placed: dict[str, ET.Element] = {tid: e for tid, e in merged_by_id.items() if "theirs" in self.ident[e]}
         theirs_order = [t.id for t in self.theirs.tracks()]
@@ -197,20 +214,33 @@ class _Merger:
             tracks_elem.insert(idx, elem)
             placed[tid] = elem
 
-        def add_theirs(tid: str, *, rename: str | None = None, after: ET.Element | None = None) -> ET.Element:
+        def import_theirs(tid: str) -> ET.Element:
+            """Copy theirs' track, pointing its track references at renumbered ids."""
             elem = self._import(tt[tid].elem)
-            new_id = tid
-            if tid in merged_by_id or rename is not None:
-                new_id = self._new_track_id()
-                elem.set("Id", new_id)
-                if rename is None:
-                    self.theirs_renumber[tid] = new_id
+            g = elem.find("TrackGroupId")
+            if g is not None:
+                g.set("Value", self.theirs_renumber.get(g.get("Value"), g.get("Value")))
+            for target in elem.iter("Target"):
+                v = target.get("Value", "")
+                m = ROUTING_TRACK_RE.search(v)
+                if m and m.group(1) in self.theirs_renumber:
+                    target.set("Value", v[:m.start(1)] + self.theirs_renumber[m.group(1)] + v[m.end(1):])
+            return elem
+
+        def add_theirs(tid: str, *, rename: str | None = None, after: ET.Element | None = None) -> ET.Element:
+            elem = import_theirs(tid)
+            new_id = self._new_track_id() if rename is not None else self.theirs_renumber.get(tid, tid)
+            elem.set("Id", new_id)
             if rename is not None:
                 # EffectiveName is derived by Live; an empty UserName means auto-named.
                 user, eff = elem.find("Name/UserName"), elem.find("Name/EffectiveName")
                 name = user.get("Value") or re.sub(r"^\d+-", "", eff.get("Value"))
                 user.set("Value", name + rename)
                 eff.set("Value", name + rename)
+            if after is not None:
+                # A conflict copy sits next to ours' track, in the same group/output.
+                for path in PLACEMENT_PATHS:
+                    _replace_child(elem, path, copy.deepcopy(after.find(path)))
             self.ident[elem] = {"theirs": tid}
             merged_by_id[new_id] = elem
             if after is not None:
@@ -221,7 +251,7 @@ class _Merger:
 
         def replace_with_theirs(tid: str) -> None:
             old = merged_by_id[tid]
-            new = self._import(tt[tid].elem)
+            new = import_theirs(tid)
             idx = list(tracks_elem).index(old)
             tracks_elem.remove(old)
             tracks_elem.insert(idx, new)
@@ -306,11 +336,7 @@ class _Merger:
             donor = src[decision]
             if _placement_fp(donor) != _placement_fp(elem):
                 for path in PLACEMENT_PATHS:
-                    mine, new = elem.find(path), copy.deepcopy(donor.find(path))
-                    parent = elem.find(path.rsplit("/", 1)[0]) if "/" in path else elem
-                    idx = list(parent).index(mine)
-                    parent.remove(mine)
-                    parent.insert(idx, new)
+                    _replace_child(elem, path, copy.deepcopy(donor.find(path)))
                 if decision == "theirs":
                     g = elem.find("TrackGroupId")
                     g.set("Value", self.theirs_renumber.get(g.get("Value"), g.get("Value")))
@@ -365,24 +391,20 @@ class _Merger:
         _retail(tracks_elem)
 
     def fix_references(self) -> None:
-        """Point imported theirs tracks at renumbered track ids; drop missing groups."""
+        """Ungroup tracks whose group is gone; report routing to removed tracks."""
         tracks = self.merged.tracks()
         ids = {t.id for t in tracks}
         groups = {t.id for t in tracks if t.kind == "GroupTrack"}
         for t in tracks:
-            if id(t.elem) in self.imported and "theirs" in self.ident.get(t.elem, {}) and self.theirs_renumber:
-                g = t.elem.find("TrackGroupId")
-                if g is not None and g.get("Value") in self.theirs_renumber:
-                    g.set("Value", self.theirs_renumber[g.get("Value")])
-                for target in t.elem.iter("Target"):
-                    v = target.get("Value", "")
-                    m = ROUTING_TRACK_RE.search(v)
-                    if m and m.group(1) in self.theirs_renumber:
-                        target.set("Value", v[:m.start(1)] + self.theirs_renumber[m.group(1)] + v[m.end(1):])
             g = t.elem.find("TrackGroupId")
             if g is not None and g.get("Value") != "-1" and g.get("Value") not in groups:
                 self.log(f"track \"{t.name}\": group {g.get('Value')} no longer exists, ungrouped")
                 g.set("Value", "-1")
+                # Live routes former group members to the main output.
+                out = t.elem.find("DeviceChain/AudioOutputRouting")
+                if out is not None and _val(out, "Target") == "AudioOut/GroupTrack":
+                    out.find("Target").set("Value", "AudioOut/Main")
+                    out.find("UpperDisplayString").set("Value", "Master")
             for target in t.elem.iter("Target"):
                 m = ROUTING_TRACK_RE.search(target.get("Value", ""))
                 if m and m.group(1) not in ids:
