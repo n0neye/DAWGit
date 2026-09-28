@@ -11,7 +11,7 @@ import math
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
-from .als import LiveSet, Track, _val, device_label
+from .als import LiveSet, Track, _val, device_label, is_pointee_tag
 from .normalize import NOISE_ATTRS, NOISE_ELEMENTS, fingerprint
 
 # Set-wide sections compared as a whole. Name -> paths under <LiveSet>.
@@ -165,6 +165,10 @@ def _plugin_details(a: ET.Element, b: ET.Element, label: str) -> list[str]:
     return out
 
 
+CLIP_PARTS = {"Notes": "notes", "Fades": "fades", "Loop": "loop", "WarpMarkers": "warp markers",
+              "Envelopes": "clip envelopes", "Name": "name", "Color": "color"}
+
+
 def _clip_details(a: Track, b: Track) -> list[str]:
     def key(c):
         return (c.kind, c.name, c.location, c.start, c.end)
@@ -177,26 +181,70 @@ def _clip_details(a: Track, b: Track) -> list[str]:
     for k in sorted(cb.keys() - ca.keys(), key=str):
         c = cb[k]
         out.append(f"+ clip \"{c.name}\" {c.location} {c.start:g}-{c.end:g}")
-    if not out:
-        # Same clip layout: check clip contents (notes, warp, envelopes...).
-        ea = [e for e in a.elem.iter() if e.tag in ("MidiClip", "AudioClip")]
-        eb = [e for e in b.elem.iter() if e.tag in ("MidiClip", "AudioClip")]
-        for x, y in zip(ea, eb):
-            if fingerprint(x) != fingerprint(y):
-                what = "notes" if fingerprint(x.find("Notes")) != fingerprint(y.find("Notes")) else "content"
-                out.append(f"~ clip \"{_val(y, 'Name')}\": {what} changed")
+    for k in sorted(ca.keys() & cb.keys(), key=str):
+        x, y = ca[k].elem, cb[k].elem
+        if fingerprint(x) == fingerprint(y):
+            continue
+        parts = []
+        for child in y:
+            other = x.find(child.tag)
+            if fingerprint(other) != fingerprint(child) and child.tag not in NOISE_ELEMENTS:
+                parts.append(CLIP_PARTS.get(child.tag, child.tag))
+        out.append(f"~ clip \"{cb[k].name}\" {cb[k].location}: {', '.join(parts) or 'content'} changed")
+    return out
+
+
+def _param_labels(unit: ET.Element) -> dict[str, str]:
+    """Pointee id -> human label such as 'Reverb: DryWet' or 'Mixer: Volume'."""
+    labels: dict[str, str] = {}
+
+    def walk(e: ET.Element, owner: str) -> None:
+        for c in e:
+            o = owner
+            if e.tag == "Devices":
+                o = device_label(c)
+            elif c.tag == "Mixer":
+                o = "Mixer"
+            elif c.tag == "TrackSendHolder":
+                o = f"Send {chr(ord('A') + int(c.get('Id', '0')))}"
+            if "Id" in c.attrib and is_pointee_tag(c.tag):
+                labels[c.get("Id")] = f"{o}: {e.tag}" if o else e.tag
+            walk(c, o)
+
+    walk(unit, "")
+    return labels
+
+
+def _envelopes(unit: ET.Element) -> dict[str, str]:
+    labels = _param_labels(unit)
+    out = {}
+    envs = unit.find("AutomationEnvelopes/Envelopes")
+    for env in envs if envs is not None else []:
+        pid = _val(env, "EnvelopeTarget/PointeeId")
+        out[labels.get(pid, f"target {pid}")] = fingerprint(env.find("Automation"))
+    return out
+
+
+def _automation_details(a: ET.Element, b: ET.Element) -> list[str]:
+    ea, eb = _envelopes(a), _envelopes(b)
+    out = [f"- automation {k}" for k in sorted(ea.keys() - eb.keys())]
+    out += [f"+ automation {k}" for k in sorted(eb.keys() - ea.keys())]
+    out += [f"~ automation {k}" for k in sorted(ea.keys() & eb.keys()) if ea[k] != eb[k]]
     return out
 
 
 def diff_tracks(a: Track, b: Track) -> list[str]:
     details = []
-    if a.name != b.name:
+    # EffectiveName also changes when Live renumbers auto-named tracks; only
+    # a UserName change is a rename.
+    if _val(a.elem, "Name/UserName") != _val(b.elem, "Name/UserName"):
         details.append(f"renamed: \"{a.name}\" -> \"{b.name}\"")
+    if a.group_id != b.group_id:
+        details.append(f"group: {a.group_id} -> {b.group_id}")
     details += _device_details(a, b)
     details += _clip_details(a, b)
     details += _mixer_details(a, b)
-    if (fingerprint(a.elem.find("AutomationEnvelopes")) != fingerprint(b.elem.find("AutomationEnvelopes"))):
-        details.append("~ automation changed")
+    details += _automation_details(a.elem, b.elem)
     if not details:
         details.append("~ other changes")
     return details
@@ -211,6 +259,8 @@ def diff_sets(a: LiveSet, b: LiveSet) -> SetDiff:
             continue
         if section_fingerprint(a, name) != section_fingerprint(b, name):
             d.global_changes.append(f"{name} changed")
+    main_a, main_b = a.liveset.find("MainTrack"), b.liveset.find("MainTrack")
+    d.global_changes += [f"main track {x}" for x in _automation_details(main_a, main_b)]
 
     ta, tb = a.track_by_id(), b.track_by_id()
     for tid, t in ta.items():

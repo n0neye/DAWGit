@@ -16,6 +16,7 @@ is dropped and NextPointeeId is advanced.
 from __future__ import annotations
 
 import copy
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
@@ -25,8 +26,10 @@ from .normalize import fingerprint
 from .validate import ROUTING_TRACK_RE, units, validate
 
 STRATEGIES = ("fail", "ours", "theirs", "both")
-# Sends are merged per (track, return); clip slots are compared by content only.
-TRACK_SKIP = frozenset({"Sends", "ClipSlotList"})
+# Sends are merged per (track, return); group membership and output routing
+# ("placement") separately; clip slots are compared by content only.
+PLACEMENT_PATHS = ("TrackGroupId", "DeviceChain/AudioOutputRouting")
+TRACK_SKIP = frozenset({"Sends", "ClipSlotList", "Slots", "TrackGroupId", "AudioOutputRouting"})
 
 
 @dataclass
@@ -78,6 +81,10 @@ def _track_fp(t: Track | None) -> str | None:
             if value is not None and len(value):
                 parts.append(f"{seq}[{i}]={fingerprint(slot)}")
     return "|".join(parts)
+
+
+def _placement_fp(elem: ET.Element) -> str:
+    return "|".join(fingerprint(elem.find(p)) for p in PLACEMENT_PATHS)
 
 
 def _retail(parent: ET.Element) -> None:
@@ -199,10 +206,11 @@ class _Merger:
                 if rename is None:
                     self.theirs_renumber[tid] = new_id
             if rename is not None:
-                for n in ("Name/EffectiveName", "Name/UserName"):
-                    node = elem.find(n)
-                    if node is not None and node.get("Value"):
-                        node.set("Value", node.get("Value") + rename)
+                # EffectiveName is derived by Live; an empty UserName means auto-named.
+                user, eff = elem.find("Name/UserName"), elem.find("Name/EffectiveName")
+                name = user.get("Value") or re.sub(r"^\d+-", "", eff.get("Value"))
+                user.set("Value", name + rename)
+                eff.set("Value", name + rename)
             self.ident[elem] = {"theirs": tid}
             merged_by_id[new_id] = elem
             if after is not None:
@@ -280,11 +288,79 @@ class _Merger:
             else:
                 self.conflict(label, what, "kept ours" if s == "ours" else "unresolved (kept ours)")
 
-        # Returns always come after regular tracks.
-        kids = list(tracks_elem)
-        for k in kids:
+    def merge_placement(self) -> None:
+        """Merge group membership and output routing separately from the track body."""
+        sides = {"base": self.base.track_by_id(), "ours": self.ours.track_by_id(),
+                 "theirs": self.theirs.track_by_id()}
+        for elem, ident in list(self.ident.items()):
+            if not {"base", "ours", "theirs"} <= ident.keys():
+                continue
+            src = {name: sides[name][ident[name]].elem for name in ("base", "ours", "theirs")}
+            decision = _three_way(*(_placement_fp(src[n]) for n in ("base", "ours", "theirs")))
+            label = f"{elem.tag} \"{Track(elem).name}\""
+            if decision == "conflict":
+                decision = "theirs" if self.strategy == "theirs" else "ours"
+                self.conflict(f"{label} placement", "group/output changed on both sides", decision)
+            elif decision == "theirs" and _placement_fp(src["theirs"]) != _placement_fp(src["ours"]):
+                self.log(f"{label}: took theirs' group/output")
+            donor = src[decision]
+            if _placement_fp(donor) != _placement_fp(elem):
+                for path in PLACEMENT_PATHS:
+                    mine, new = elem.find(path), copy.deepcopy(donor.find(path))
+                    parent = elem.find(path.rsplit("/", 1)[0]) if "/" in path else elem
+                    idx = list(parent).index(mine)
+                    parent.remove(mine)
+                    parent.insert(idx, new)
+                if decision == "theirs":
+                    g = elem.find("TrackGroupId")
+                    g.set("Value", self.theirs_renumber.get(g.get("Value"), g.get("Value")))
+
+    def merge_order(self) -> None:
+        """3-way merge of track order, then keep groups contiguous and returns last."""
+        tracks_elem = self.merged.tracks_elem
+        current = list(tracks_elem)
+        orders = {name: [t.id for t in s.tracks()] for name, s in self.sides.items()}
+        common = [tid for tid in orders["base"] if tid in orders["ours"] and tid in orders["theirs"]]
+        ob, oo, ot = ([tid for tid in orders[n] if tid in common] for n in ("base", "ours", "theirs"))
+        decision = _three_way(ob, oo, ot)
+        if decision == "conflict":
+            decision = "theirs" if self.strategy == "theirs" else "ours"
+            self.conflict("track order", "reordered on both sides", decision)
+        if decision == "theirs" and ot != oo:
+            self.log("track order: took theirs")
+            rank = {tid: i for i, tid in enumerate(orders["theirs"])}
+            ordered = sorted((e for e in current if "theirs" in self.ident.get(e, {})),
+                             key=lambda e: rank[self.ident[e]["theirs"]])
+            # Ours-only tracks stay right after their previous neighbour in ours' layout.
+            for i, e in enumerate(current):
+                if e in ordered:
+                    continue
+                prev = next((p for p in reversed(current[:i]) if p in ordered), None)
+                ordered.insert(ordered.index(prev) + 1 if prev is not None else 0, e)
+            current = ordered
+
+        # Group members follow their group track contiguously; returns go last.
+        groups = {e.get("Id") for e in current if e.tag == "GroupTrack"}
+        children: dict[str, list[ET.Element]] = {}
+        roots = []
+        for e in current:
+            if e.tag == "ReturnTrack":
+                continue
+            gid = Track(e).group_id
+            (children.setdefault(gid, []) if gid in groups else roots).append(e)
+        final: list[ET.Element] = []
+
+        def emit(e: ET.Element) -> None:
+            final.append(e)
+            for c in children.get(e.get("Id"), []) if e.tag == "GroupTrack" else []:
+                emit(c)
+
+        for e in roots:
+            emit(e)
+        final += [e for e in current if e.tag == "ReturnTrack"]
+        for k in list(tracks_elem):
             tracks_elem.remove(k)
-        for k in [k for k in kids if k.tag != "ReturnTrack"] + [k for k in kids if k.tag == "ReturnTrack"]:
+        for k in final:
             tracks_elem.append(k)
         _retail(tracks_elem)
 
@@ -385,7 +461,18 @@ class _Merger:
                           if cs.find("ClipSlot/Value") is not None and len(cs.find("ClipSlot/Value")) == 0), None)
             if empty is not None:
                 break
+        group_slot = next((gs for s in (self.merged, self.ours, self.theirs, self.base)
+                           for gs in s.root.iter("GroupTrackSlot")), None)
         for t in self.merged.tracks():
+            if t.kind == "GroupTrack":
+                slots = t.elem.find("Slots")
+                if group_slot is not None and slots is not None:
+                    while len(slots) < scenes:
+                        slots.append(copy.deepcopy(group_slot))
+                    del slots[scenes:]
+                    for i, gs in enumerate(slots):
+                        gs.set("Id", str(i))
+                    _retail(slots)
             if t.kind == "ReturnTrack":
                 continue
             for seq in ("MainSequencer", "FreezeSequencer"):
@@ -459,7 +546,9 @@ class _Merger:
     def run(self) -> MergeResult:
         self.merge_globals()
         self.merge_tracks()
+        self.merge_placement()
         self.fix_references()
+        self.merge_order()
         self.rebuild_sends()
         self.fit_clip_slots()
         self.renumber_pointees()

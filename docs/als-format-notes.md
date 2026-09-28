@@ -19,11 +19,18 @@ Findings from Live 12.3.1 sets (`SampleProjects/`). Verify against other Live ve
 - Every track (including returns) has one `TrackSendHolder` per return track, in return-track order (by position, not id).
 - `LiveSet/SendsPre` has one `SendPreBool` per return track.
 - Non-return tracks have `ClipSlotList` in both `MainSequencer` and `FreezeSequencer`, one slot per scene. Return tracks have none.
-- `TrackGroupId` references a `GroupTrack` id or `-1`.
+- `TrackGroupId` references a `GroupTrack` id or `-1`. Group members directly follow their group track (nested groups inside); tracks routed into their group use `AudioOutputRouting/Target` = `AudioOut/GroupTrack` (no id).
+- `GroupTrack` has no `MainSequencer`; its session row is `Slots/GroupTrackSlot` (one per scene) plus `FreezeSequencer/ClipSlotList`.
 - Routing targets may reference tracks as `.../Track.<id>/...`.
 
+## Names
+- `Name/UserName` is what the user typed (empty = auto-named, `#` = track number placeholder). `Name/EffectiveName` is derived by Live (auto names get an `N-` prefix and are renumbered when tracks move), so it is display-only.
+
+## Automation
+- `AutomationEnvelopes/Envelopes/AutomationEnvelope/EnvelopeTarget/PointeeId` points at an `AutomationTarget` in the same track. The parameter is the target's parent element (e.g. `Volume` under `Mixer`, `MixDirect` = Reverb dry/wet).
+
 ## Save-to-save noise (not musical changes)
-`LomId`, `LomIdView`, `ViewData`, `ViewStates`, `Transport/CurrentTime`, `HighlightedTrackIndex`, `TimeSelection`, `ClipEnvelopeChooserViewState`, `LastSelected*`, `IsExpanded`, `IsFolded`, plugin window position, `Recorder/IsArmed`, `OverwriteProtectionNumber`, and the serialization counters above.
+`LomId`, `LomIdView`, `ViewData`, `ViewStates`, `Transport/CurrentTime`, `HighlightedTrackIndex`, `TimeSelection`, `ClipEnvelopeChooserViewState`, `LastSelected*`, `IsExpanded`, `IsFolded`, plugin window position, `Recorder/IsArmed`, `SavedPlayingSlot`, `TrackUnfolded`, `EffectiveName`, `OverwriteProtectionNumber`, and the serialization counters above.
 
 ## Samples
 - `SampleRef/FileRef` has `RelativePathType` (3 = project-relative, 5 = Live pack/library), `RelativePath`, absolute `Path`, `LivePackName/Id`, `OriginalFileSize`, `OriginalCrc`.

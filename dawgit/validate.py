@@ -47,6 +47,18 @@ def validate(s: LiveSet) -> list[str]:
     if "ReturnTrack" in kinds and any(k != "ReturnTrack" for k in kinds[kinds.index("ReturnTrack"):]):
         issues.append("return tracks must come after all other tracks")
 
+    # Group members must directly follow their group track (nested groups inside).
+    open_groups: list[str] = []
+    for t in tracks:
+        if t.kind == "ReturnTrack":
+            break
+        while open_groups and open_groups[-1] != t.group_id:
+            open_groups.pop()
+        if t.group_id != "-1" and (not open_groups or open_groups[-1] != t.group_id):
+            issues.append(f"track {t.id}: not placed inside its group {t.group_id}")
+        if t.kind == "GroupTrack":
+            open_groups.append(t.id)
+
     scenes = s.scene_count()
     n_returns = kinds.count("ReturnTrack")
     group_ids = {t.id for t in tracks if t.kind == "GroupTrack"}
@@ -56,6 +68,9 @@ def validate(s: LiveSet) -> list[str]:
             slots = t.elem.find(f"DeviceChain/{seq}/ClipSlotList")
             if slots is not None and len(slots) != scenes:
                 issues.append(f"track {t.id} {seq}: {len(slots)} clip slots, {scenes} scenes")
+        group_slots = t.elem.find("Slots") if t.kind == "GroupTrack" else None
+        if group_slots is not None and len(group_slots) != scenes:
+            issues.append(f"group {t.id}: {len(group_slots)} slots, {scenes} scenes")
         holders = t.elem.findall("DeviceChain/Mixer/Sends/TrackSendHolder")
         if len(holders) != n_returns:
             issues.append(f"track {t.id}: {len(holders)} sends, {n_returns} return tracks")
