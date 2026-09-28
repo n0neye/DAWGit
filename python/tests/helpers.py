@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dawgit.als import LiveSet, Track, is_pointee_tag
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 PROJECT = ROOT / "SampleProjects" / "SampleAbletonProject Project"
 CURRENT = PROJECT / "SampleAbletonProject.als"
 
