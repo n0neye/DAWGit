@@ -25,6 +25,8 @@ type Config struct {
 	// Branch this workspace follows; empty means "main".
 	Branch string        `json:"branch,omitempty"`
 	Remote *RemoteConfig `json:"remote,omitempty"`
+	// WorkspaceID identifies this copy of the project to the server.
+	WorkspaceID string `json:"workspace_id,omitempty"`
 }
 
 type RemoteConfig struct {
