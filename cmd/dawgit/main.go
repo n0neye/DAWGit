@@ -15,7 +15,14 @@ import (
 
 const usage = `usage: dawgit <command> [args]
 
-commands:
+project commands (run inside an Ableton project folder):
+  init [--author NAME]                   start tracking this project
+  status                                 changes since the last snapshot
+  snapshot -m MESSAGE                    record the current state
+  log                                    list snapshots
+  checkout <id|HEAD> [--force]           restore a snapshot and relink samples
+
+set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
   diff <a.als> <b.als>                   semantic diff
   merge <base> <ours> <theirs> -o <out>  track-level 3-way merge
@@ -36,6 +43,16 @@ func main() {
 		err = cmdDiff(os.Args[2:])
 	case "merge":
 		code, err = cmdMerge(os.Args[2:])
+	case "init":
+		err = cmdInit(os.Args[2:])
+	case "status":
+		err = cmdStatus(os.Args[2:])
+	case "snapshot":
+		err = cmdSnapshot(os.Args[2:])
+	case "log":
+		err = cmdLog(os.Args[2:])
+	case "checkout":
+		err = cmdCheckout(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 	default:

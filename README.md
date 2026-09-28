@@ -25,10 +25,25 @@ dawgit merge <base> <ours> <theirs> -o out.als [--strategy fail|ours|theirs|both
 go test ./...
 ```
 
+Project workflow (inside an Ableton project folder):
+
+```
+dawgit init [--author NAME]        # creates .dawgit/
+dawgit snapshot -m "message"       # record .als files, Samples/ and external samples
+dawgit status                      # changed files; semantic diff for modified sets
+dawgit log
+dawgit checkout <id|HEAD~N> [--force]   # restore and relink samples for this machine
+```
+
+Snapshots store file contents by SHA-256 in `.dawgit/objects` (deduplicated). Samples referenced from outside the project are stored too and, on a machine that lacks them, materialized under `.dawgit/external/` with the set's sample paths rewritten. Samples from Live packs are only recorded by pack name. `Backup/` and `*.asd` are ignored.
+
 - `internal/xmltree` — ordered XML tree with byte-exact round-trip of Live's output
 - `internal/als` — Live Set model, content fingerprints (noise-aware), structural validator
 - `internal/diff` — track-level semantic diff
 - `internal/merge` — track-level 3-way merge (tracks, placement, order, sends, globals) with id repair
+- `internal/store` — content-addressed blob store
+- `internal/project` — snapshots, status, log, checkout with sample relinking
+- `internal/livecheck` — detects a running Live before rewriting sets
 
 ## Python reference implementation
 
