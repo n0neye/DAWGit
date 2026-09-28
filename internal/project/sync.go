@@ -266,7 +266,7 @@ type SyncResult struct {
 // Update brings the workspace up to date with the server branch: a fast
 // forward when only the server moved, a merge when both did. The working
 // files must match HEAD.
-func (r *Repo) Update(strategy string) (*SyncResult, error) {
+func (r *Repo) Update(opts MergeOptions) (*SyncResult, error) {
 	c, err := r.Client()
 	if err != nil {
 		return nil, err
@@ -278,12 +278,12 @@ func (r *Repo) Update(strategy string) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.integrate(c, branches[r.BranchName()], strategy, "Merge versions from the team")
+	return r.integrate(c, branches[r.BranchName()], opts, "Merge versions from the team")
 }
 
 // integrate brings version target (and its history) into the workspace: a
 // fast forward when HEAD is behind, otherwise a merge version with message.
-func (r *Repo) integrate(c *remote.Client, target, strategy, message string) (*SyncResult, error) {
+func (r *Repo) integrate(c *remote.Client, target string, opts MergeOptions, message string) (*SyncResult, error) {
 	head := r.Head()
 	res := &SyncResult{From: head, To: head}
 	if target == "" || target == head {
@@ -314,7 +314,7 @@ func (r *Repo) integrate(c *remote.Client, target, strategy, message string) (*S
 			return nil, err
 		}
 		if !behind {
-			merged, log, err := r.mergeWith(c, head, target, strategy, message)
+			merged, log, err := r.mergeWith(c, head, target, opts, message)
 			if err != nil {
 				return nil, err
 			}
@@ -338,7 +338,7 @@ func (r *Repo) integrate(c *remote.Client, target, strategy, message string) (*S
 
 // Save records the working files as a version and shares it: versions saved
 // by others in the meantime are merged in first.
-func (r *Repo) Save(message, strategy string) (*Manifest, *SyncResult, error) {
+func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, error) {
 	m, err := r.Snapshot(message)
 	if err != nil && !errors.Is(err, ErrNothingToSnapshot) {
 		return nil, nil, err
@@ -370,7 +370,7 @@ func (r *Repo) Save(message, strategy string) (*Manifest, *SyncResult, error) {
 			}
 		}
 		if !ahead {
-			up, err := r.Update(strategy)
+			up, err := r.Update(opts)
 			if err != nil {
 				return m, nil, err
 			}
@@ -435,7 +435,7 @@ func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	res, err := r.Update("fail")
+	res, err := r.Update(Strategy("fail"))
 	if err != nil {
 		return r, nil, err
 	}
@@ -449,14 +449,18 @@ func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
 // --- snapshot merge ---
 
 // MergeConflictError lists what could not be merged automatically.
-type MergeConflictError struct{ Conflicts []string }
+type MergeConflictError struct{ Conflicts []ConflictItem }
 
 func (e *MergeConflictError) Error() string {
-	return fmt.Sprintf("%d conflict(s) need a decision:\n  %s", len(e.Conflicts), strings.Join(e.Conflicts, "\n  "))
+	lines := make([]string, len(e.Conflicts))
+	for i, c := range e.Conflicts {
+		lines[i] = c.String()
+	}
+	return fmt.Sprintf("%d conflict(s) need a decision:\n  %s", len(e.Conflicts), strings.Join(lines, "\n  "))
 }
 
 // mergeWith creates a merge snapshot of ours and theirs (not checked out).
-func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy, message string) (*Manifest, []string, error) {
+func (r *Repo) mergeWith(c *remote.Client, ours, theirs string, opts MergeOptions, message string) (*Manifest, []string, error) {
 	baseID, err := r.mergeBase(ours, theirs)
 	if err != nil {
 		return nil, nil, err
@@ -485,7 +489,7 @@ func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy, message strin
 	if err := r.fetchObjects(c, need); err != nil {
 		return nil, nil, err
 	}
-	m, log, err := r.mergeManifests(b, o, t, strategy)
+	m, log, err := r.mergeManifests(b, o, t, opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -498,7 +502,7 @@ func (r *Repo) mergeWith(c *remote.Client, ours, theirs, strategy, message strin
 
 // mergeManifests 3-way merges file lists; Live Sets changed on both sides are
 // merged track by track.
-func (r *Repo) mergeManifests(base, ours, theirs *Manifest, strategy string) (*Manifest, []string, error) {
+func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (*Manifest, []string, error) {
 	bf, of, tf := base.FileMap(), ours.FileMap(), theirs.FileMap()
 	paths := map[string]bool{}
 	for _, m := range []map[string]FileEntry{bf, of, tf} {
@@ -513,7 +517,8 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, strategy string) (*M
 	sort.Strings(sorted)
 
 	var files []FileEntry
-	var log, conflicts []string
+	var log []string
+	var conflicts []ConflictItem
 	for _, p := range sorted {
 		b, o, t := bf[p], of[p], tf[p]
 		switch {
@@ -533,7 +538,7 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, strategy string) (*M
 		}
 		// Changed on both sides.
 		if isSet(p) && b.Hash != "" && o.Hash != "" && t.Hash != "" {
-			entry, setLog, setConflicts, err := r.mergeSet(p, b.Hash, o.Hash, t.Hash, strategy)
+			entry, setLog, setConflicts, err := r.mergeSet(p, b.Hash, o.Hash, t.Hash, opts)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -542,19 +547,20 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, strategy string) (*M
 			files = append(files, entry)
 			continue
 		}
-		what := p + ": changed on both sides"
+		what := "changed on both sides"
 		switch {
 		case o.Hash == "":
-			what = p + ": deleted by you, changed by others"
+			what = "deleted by you, changed by others"
 		case t.Hash == "":
-			what = p + ": changed by you, deleted by others"
+			what = "changed by you, deleted by others"
 		}
-		switch strategy {
+		key := "file:" + p
+		switch opts.choice(key) {
 		case "theirs":
 			if t.Hash != "" {
 				files = append(files, t)
 			}
-			log = append(log, what+" -> took theirs")
+			log = append(log, p+": "+what+" -> took theirs")
 		case "both":
 			if o.Hash != "" {
 				files = append(files, o)
@@ -563,15 +569,16 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, strategy string) (*M
 				alt := t
 				alt.Path = theirsName(p, paths)
 				files = append(files, alt)
-				log = append(log, what+" -> kept both (theirs as "+alt.Path+")")
+				log = append(log, p+": "+what+" -> kept both (theirs as "+alt.Path+")")
 			}
 		case "ours":
 			if o.Hash != "" {
 				files = append(files, o)
 			}
-			log = append(log, what+" -> kept yours")
+			log = append(log, p+": "+what+" -> kept yours")
 		default:
-			conflicts = append(conflicts, what)
+			conflicts = append(conflicts, ConflictItem{Key: key, File: p, Unit: p, Description: what,
+				CanKeepBoth: o.Hash != "" && t.Hash != ""})
 		}
 	}
 	if len(conflicts) > 0 {

@@ -40,7 +40,22 @@ var (
 )
 
 type Conflict struct {
+	// Key identifies the merge unit, stable for the same inputs:
+	// "track:<id>", "placement:<id>", "send:<track>:<return>", "section:<name>"
+	// or "order". Pass it back in Options.Resolutions to decide this conflict.
+	Key                           string
 	Unit, Description, Resolution string
+	// Unresolved is set when the strategy for this conflict was "fail".
+	Unresolved bool
+}
+
+// Options control conflict resolution.
+type Options struct {
+	// Strategy applies to conflicts without an entry in Resolutions:
+	// fail | ours | theirs | both.
+	Strategy string
+	// Resolutions decide individual conflicts by Conflict.Key.
+	Resolutions map[string]string
 }
 
 type Result struct {
@@ -76,14 +91,28 @@ func (r *Result) Report() string {
 // Merge performs a 3-way merge; ours is the starting point and theirs' changes
 // are applied on top.
 func Merge(base, ours, theirs *als.LiveSet, strategy string) (*Result, error) {
-	valid := false
-	for _, s := range Strategies {
-		valid = valid || s == strategy
+	return MergeWith(base, ours, theirs, Options{Strategy: strategy})
+}
+
+// MergeWith is Merge with per-conflict resolutions.
+func MergeWith(base, ours, theirs *als.LiveSet, opts Options) (*Result, error) {
+	valid := func(s string) bool {
+		for _, x := range Strategies {
+			if s == x {
+				return true
+			}
+		}
+		return false
 	}
-	if !valid {
-		return nil, fmt.Errorf("unknown strategy %q", strategy)
+	if !valid(opts.Strategy) {
+		return nil, fmt.Errorf("unknown strategy %q", opts.Strategy)
 	}
-	m := newMerger(base, ours, theirs, strategy)
+	for k, v := range opts.Resolutions {
+		if !valid(v) {
+			return nil, fmt.Errorf("unknown resolution %q for %s", v, k)
+		}
+	}
+	m := newMerger(base, ours, theirs, opts)
 	m.run()
 	return m.result, nil
 }
@@ -160,6 +189,7 @@ type merger struct {
 	base, ours, theirs *als.LiveSet
 	sides              map[string]*als.LiveSet
 	strategy           string
+	resolutions        map[string]string
 	merged             *als.LiveSet
 	result             *Result
 
@@ -179,11 +209,12 @@ type merger struct {
 	fpMem map[*xmltree.Node]string
 }
 
-func newMerger(base, ours, theirs *als.LiveSet, strategy string) *merger {
+func newMerger(base, ours, theirs *als.LiveSet, opts Options) *merger {
 	m := &merger{
 		base: base, ours: ours, theirs: theirs,
 		sides:          map[string]*als.LiveSet{"base": base, "ours": ours, "theirs": theirs},
-		strategy:       strategy,
+		strategy:       opts.Strategy,
+		resolutions:    opts.Resolutions,
 		merged:         ours.Clone(),
 		imported:       map[*xmltree.Node]bool{},
 		idents:         map[*xmltree.Node]ident{},
@@ -212,8 +243,17 @@ func (m *merger) log(format string, a ...any) {
 	m.result.Log = append(m.result.Log, fmt.Sprintf(format, a...))
 }
 
-func (m *merger) conflict(unit, description, resolution string) {
-	m.result.Conflicts = append(m.result.Conflicts, Conflict{unit, description, resolution})
+func (m *merger) conflict(key, unit, description, resolution string) {
+	m.result.Conflicts = append(m.result.Conflicts, Conflict{Key: key, Unit: unit, Description: description,
+		Resolution: resolution, Unresolved: m.choice(key) == "fail"})
+}
+
+// choice is the strategy for one conflict.
+func (m *merger) choice(key string) string {
+	if r, ok := m.resolutions[key]; ok {
+		return r
+	}
+	return m.strategy
 }
 
 func (m *merger) importNode(e *xmltree.Node) *xmltree.Node {
@@ -307,8 +347,9 @@ func (m *merger) newTrackID() string {
 	return id
 }
 
-func (m *merger) resolve() string {
-	if m.strategy == "theirs" {
+// resolve picks a side for a conflict that cannot keep both.
+func (m *merger) resolve(key string) string {
+	if m.choice(key) == "theirs" {
 		return "theirs"
 	}
 	return "ours"
@@ -324,8 +365,9 @@ func (m *merger) mergeGlobals() {
 		decision := threeWay(diff.SectionFingerprint(m.base, sec), diff.SectionFingerprint(m.ours, sec),
 			diff.SectionFingerprint(m.theirs, sec))
 		if decision == "conflict" {
-			decision = m.resolve()
-			m.conflict(sec.Name, "changed on both sides", decision)
+			key := "section:" + sec.Name
+			decision = m.resolve(key)
+			m.conflict(key, sec.Name, "changed on both sides", decision)
 		} else if decision == "theirs" {
 			m.log("%s: took theirs", sec.Name)
 		}
@@ -516,7 +558,8 @@ func (m *merger) mergeTracks() {
 		} else if t == nil {
 			what = "modified in ours, deleted in theirs"
 		}
-		switch m.strategy {
+		key := "track:" + tid
+		switch m.choice(key) {
 		case "theirs":
 			switch {
 			case t == nil:
@@ -526,22 +569,22 @@ func (m *merger) mergeTracks() {
 			default:
 				replaceWithTheirs(tid)
 			}
-			m.conflict(label, what, "theirs")
+			m.conflict(key, label, what, "theirs")
 		case "both":
 			switch {
 			case o != nil && t != nil:
 				addTheirs(tid, " [theirs]", mergedByID[tid])
-				m.conflict(label, what, "kept both (theirs added as a copy)")
+				m.conflict(key, label, what, "kept both (theirs added as a copy)")
 			case o == nil:
 				addTheirs(tid, "", nil)
-				m.conflict(label, what, "restored theirs")
+				m.conflict(key, label, what, "restored theirs")
 			default:
-				m.conflict(label, what, "kept ours")
+				m.conflict(key, label, what, "kept ours")
 			}
 		case "ours":
-			m.conflict(label, what, "kept ours")
+			m.conflict(key, label, what, "kept ours")
 		default:
-			m.conflict(label, what, "unresolved (kept ours)")
+			m.conflict(key, label, what, "unresolved (kept ours)")
 		}
 	}
 }
@@ -567,8 +610,9 @@ func (m *merger) mergePlacement() {
 		decision := threeWay(placementFP(src["base"]), placementFP(src["ours"]), placementFP(src["theirs"]))
 		label := fmt.Sprintf("%s \"%s\"", e.Tag, als.Track{Elem: e}.Name())
 		if decision == "conflict" {
-			decision = m.resolve()
-			m.conflict(label+" placement", "group/output changed on both sides", decision)
+			key := "placement:" + id["ours"]
+			decision = m.resolve(key)
+			m.conflict(key, label+" placement", "group/output changed on both sides", decision)
 		} else if decision == "theirs" && placementFP(src["theirs"]) != placementFP(src["ours"]) {
 			m.log("%s: took theirs' group/output", label)
 		}
@@ -645,8 +689,8 @@ func (m *merger) mergeOrder() {
 	ob, oo, ot := filter(orders["base"]), filter(orders["ours"]), filter(orders["theirs"])
 	decision := threeWay(ob, oo, ot)
 	if decision == "conflict" {
-		decision = m.resolve()
-		m.conflict("track order", "reordered on both sides", decision)
+		decision = m.resolve("order")
+		m.conflict("order", "track order", "reordered on both sides", decision)
 	}
 	if decision == "theirs" && ot != oo {
 		m.log("track order: took theirs")
@@ -780,8 +824,9 @@ func (m *merger) rebuildSends() {
 			hb, ho, ht := holder("base", tident, rident), holder("ours", tident, rident), holder("theirs", tident, rident)
 			decision := threeWay(fp(hb), fp(ho), fp(ht))
 			if decision == "conflict" {
-				decision = m.resolve()
-				m.conflict(fmt.Sprintf("send \"%s\" -> \"%s\"", t.Name(), r.Name()), "changed on both sides", decision)
+				key := "send:" + t.ID() + ":" + r.ID()
+				decision = m.resolve(key)
+				m.conflict(key, fmt.Sprintf("send \"%s\" -> \"%s\"", t.Name(), r.Name()), "changed on both sides", decision)
 			}
 			chosen := ho
 			if decision == "theirs" {

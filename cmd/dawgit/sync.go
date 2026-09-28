@@ -194,7 +194,7 @@ func cmdSave(args []string) error {
 			return err
 		}
 	}
-	m, res, err := r.Save(*msg, *strategy)
+	m, res, err := r.Save(*msg, project.Strategy(*strategy))
 	if errors.Is(err, project.ErrNoRemote) {
 		if m != nil {
 			fmt.Printf("saved version %s locally (no server configured; see `dawgit remote`)\n", short(m.ID))
@@ -250,7 +250,7 @@ func cmdUpdate(args []string) error {
 	if err := guardLive(r, *force); err != nil {
 		return err
 	}
-	res, err := r.Update(*strategy)
+	res, err := r.Update(project.Strategy(*strategy))
 	if err != nil {
 		return explainConflict(err)
 	}

@@ -1,0 +1,98 @@
+// Command desktop is the DAWGit desktop app: a tray app that runs the agent for
+// each project and a window to save versions, get updates and manage branches.
+package main
+
+import (
+	"embed"
+	"log"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/services/notifications"
+)
+
+//go:embed all:frontend/dist
+var assets embed.FS
+
+//go:embed build/windows/icon.ico
+var trayIcon []byte
+
+func main() {
+	svc := NewApp()
+	ns := notifications.New()
+
+	var window *application.WebviewWindow
+	showWindow := func() {
+		if window != nil {
+			window.Show()
+			window.Restore()
+			window.Focus()
+		}
+	}
+
+	app := application.New(application.Options{
+		Name:        "DAWGit",
+		Description: "Version control and collaboration for Ableton Live projects",
+		Services: []application.Service{
+			application.NewService(svc),
+			application.NewService(ns),
+		},
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
+		},
+		SingleInstance: &application.SingleInstanceOptions{
+			UniqueID: "com.dawgit.desktop",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				showWindow()
+			},
+		},
+		Windows: application.WindowsOptions{},
+	})
+
+	svc.emit = func(name string, data any) { app.Event.Emit(name, data) }
+	svc.notify = func(title, body string) {
+		if err := ns.SendNotification(notifications.NotificationOptions{ID: title, Title: title, Body: body}); err != nil {
+			log.Printf("notification: %v", err)
+		}
+	}
+	svc.pickDir = func(title string) (string, error) {
+		return app.Dialog.OpenFile().
+			CanChooseDirectories(true).
+			CanChooseFiles(false).
+			CanCreateDirectories(true).
+			SetTitle(title).
+			PromptForSingleSelection()
+	}
+
+	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
+		Title:            "DAWGit",
+		Width:            1180,
+		Height:           760,
+		MinWidth:         900,
+		MinHeight:        560,
+		BackgroundColour: application.NewRGB(24, 25, 29),
+		URL:              "/",
+	})
+	// Closing the window keeps DAWGit running in the tray (the agents keep
+	// watching); Quit is in the tray menu.
+	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
+		window.Hide()
+		e.Cancel()
+	})
+
+	menu := app.NewMenu()
+	menu.Add("Open DAWGit").OnClick(func(*application.Context) { showWindow() })
+	menu.AddSeparator()
+	menu.Add("Quit").OnClick(func(*application.Context) { app.Quit() })
+
+	tray := app.SystemTray.New()
+	tray.SetIcon(trayIcon)
+	tray.SetTooltip("DAWGit")
+	tray.SetMenu(menu)
+	tray.OnClick(showWindow)
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}

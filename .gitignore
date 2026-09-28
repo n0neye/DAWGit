@@ -27,3 +27,11 @@ MergeTest-*.als
 
 # DAWGit metadata created when testing inside fixtures
 .dawgit/
+
+# Desktop app build output
+/desktop/bin/
+/desktop/*.syso
+/desktop/frontend/node_modules/
+/desktop/frontend/dist/*
+!/desktop/frontend/dist/.gitkeep
+/desktop/frontend/.graphtest/

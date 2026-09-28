@@ -103,7 +103,7 @@ func printPreview(p *project.Preview, what string) {
 	if len(p.Conflicts) > 0 {
 		fmt.Printf("\n%d conflict(s) with your versions (you will choose with --strategy ours|theirs|both):\n", len(p.Conflicts))
 		for _, c := range p.Conflicts {
-			fmt.Println("  ! " + c)
+			fmt.Println("  ! " + c.String())
 		}
 	} else if p.Action == "merge" {
 		fmt.Println("\nno conflicts: merges automatically")
@@ -137,7 +137,7 @@ func cmdMergeBranch(args []string) error {
 	if err := guardLiveAlways(*force); err != nil {
 		return err
 	}
-	res, err := r.MergeBranch(pos[0], *strategy)
+	res, err := r.MergeBranch(pos[0], project.Strategy(*strategy))
 	if err != nil {
 		return explainConflict(err)
 	}
