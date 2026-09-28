@@ -1,0 +1,15 @@
+# OS
+Desktop.ini
+Thumbs.db
+.DS_Store
+
+# Ableton derived / cache files
+*.asd
+*_unpacked.xml
+
+# Build output
+/target/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
