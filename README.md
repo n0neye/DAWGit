@@ -13,20 +13,34 @@ Version control and collaboration tool for music production, targeting Ableton L
 
 - `SampleProjects/` — real Ableton projects used as test fixtures (audio stored via Git LFS)
 
-## Prototype (Python, stdlib only)
+## Build & test (Go)
+
+Requires Go 1.27+.
 
 ```
-python -m dawgit info <set.als>                  # tracks, devices, clips, plugins, samples
-python -m dawgit diff <a.als> <b.als>            # semantic diff
-python -m dawgit merge <base> <ours> <theirs> -o out.als [--strategy fail|ours|theirs|both]
-python -m unittest discover -s tests -t .        # tests
-python -m tests.make_live_samples                # write MergeTest-*.als to open in Live
+go build -o dawgit.exe ./cmd/dawgit
+dawgit info <set.als>                            # tracks, devices, clips, automation, plugins, samples
+dawgit diff <a.als> <b.als>                      # semantic diff
+dawgit merge <base> <ours> <theirs> -o out.als [--strategy fail|ours|theirs|both]
+go test ./...
 ```
 
-- `dawgit/als.py` — byte-exact load/save and model access
-- `dawgit/normalize.py` — content fingerprints ignoring save-to-save noise
-- `dawgit/diff.py` — track-level semantic diff
-- `dawgit/merge.py` — track-level 3-way merge (tracks, per-send, global sections) with id repair
-- `dawgit/validate.py` — structural invariants a set must satisfy
+- `internal/xmltree` — ordered XML tree with byte-exact round-trip of Live's output
+- `internal/als` — Live Set model, content fingerprints (noise-aware), structural validator
+- `internal/diff` — track-level semantic diff
+- `internal/merge` — track-level 3-way merge (tracks, placement, order, sends, globals) with id repair
+
+## Python reference implementation
+
+`python/` holds the original prototype. The Go port must stay output-identical to it:
+
+```
+cd python
+python -m unittest discover -s tests -t .        # reference tests
+python -m tests.make_golden                      # writes ../testdata/golden for Go differential tests
+python -m tests.make_live_samples                # MergeTest-*.als to open in Live
+```
+
+`go test ./internal/merge` compares Go merge/diff/validate output byte-for-byte against the golden data (skipped when absent).
 
 See [docs/als-format-notes.md](docs/als-format-notes.md) for findings about the .als format.
