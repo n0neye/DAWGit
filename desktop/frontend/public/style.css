@@ -1,0 +1,85 @@
+@font-face {
+  font-family: "Inter";
+  src: url("./Inter-Medium.ttf") format("truetype");
+  font-weight: 400 700;
+}
+
+:root {
+  --bg: #18191d;
+  --panel: #202227;
+  --panel-2: #272a30;
+  --line: #34373e;
+  --text: #e6e7ea;
+  --muted: #9a9ea8;
+  --faint: #6c707a;
+  --accent: #3fc3a9;
+  --accent-ink: #0d2b25;
+  --warn: #e8b04b;
+  --warn-bg: #3a2f1a;
+  --danger: #e5675f;
+  --add: #6fcf7f;
+  --del: #e5675f;
+  --mod: #6ab0f3;
+  --radius: 8px;
+  --lane-0: #3fc3a9;
+  --lane-1: #6ab0f3;
+  --lane-2: #c792ea;
+  --lane-3: #e8b04b;
+  --lane-4: #f07178;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 "Inter", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+#app { height: 100%; }
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: #4a4e57; background: #2e3138; }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #52d4ba; border-color: #52d4ba; }
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+button.ghost:hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+button.danger { color: var(--danger); }
+
+input, textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: 100%;
+  user-select: text;
+}
+input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+textarea { resize: vertical; }
+
+label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.mono { font-family: "Cascadia Mono", Consolas, monospace; font-size: 12.5px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.spacer { flex: 1; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #33363d; border-radius: 5px; border: 2px solid var(--bg); }

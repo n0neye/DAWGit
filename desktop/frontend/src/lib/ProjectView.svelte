@@ -1,0 +1,435 @@
+<script lang="ts">
+  import { api, ago, errorText, type State, type Result, type Preview, type Conflict } from "./api";
+  import { toast } from "./notify.svelte";
+  import ChangeList from "./ChangeList.svelte";
+  import History from "./History.svelte";
+  import Modal from "./Modal.svelte";
+  import PreviewDialog from "./PreviewDialog.svelte";
+  import ConflictDialog from "./ConflictDialog.svelte";
+
+  let { root, refreshKey, onchanged }: { root: string; refreshKey: number; onchanged: () => void } = $props();
+
+  let st = $state<State | null>(null);
+  let loadError = $state("");
+  let tab = $state<"changes" | "history" | "team">("changes");
+  let message = $state("");
+  let busy = $state("");
+
+  // dialogs
+  let preview = $state<{ title: string; label: string; data: Preview; run: Action } | null>(null);
+  let conflicts = $state<{ items: Conflict[]; run: Action } | null>(null);
+  let liveBlocked = $state<{ run: Action; resolutions: Record<string, string> } | null>(null);
+  let connectOpen = $state(false);
+  let branchMenu = $state(false);
+  let newBranch = $state<string | null>(null);
+
+  type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>; done: (r: Result) => void };
+
+  async function load() {
+    try {
+      st = await api.State(root);
+      loadError = "";
+    } catch (e) {
+      loadError = errorText(e);
+    }
+  }
+
+  $effect(() => {
+    root; refreshKey;
+    load();
+  });
+
+  $effect(() => {
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  });
+
+  let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
+  let editedTracks = $derived.by(() => {
+    const m = new Map<string, string[]>();
+    for (const w of st?.teammates ?? []) {
+      for (const e of w.edits) {
+        // A track someone just created is not the same track as yours even
+        // if Live gave both the same id.
+        if (!e.track_id || e.change === "added") continue;
+        const k = e.set + "|" + e.track_id;
+        m.set(k, [...(m.get(k) ?? []), w.author]);
+      }
+    }
+    return m;
+  });
+
+  // Runs an action; handles conflicts (ask, retry with decisions) and a
+  // running Live (ask, retry with force).
+  async function run(a: Action, resolutions: Record<string, string> = {}, force = false) {
+    busy = a.name;
+    try {
+      const r = await a.call(resolutions, force);
+      if (!r) return;
+      if (r.liveRunning) {
+        liveBlocked = { run: a, resolutions };
+      } else if (r.conflicts.length) {
+        conflicts = { items: r.conflicts, run: a };
+      } else {
+        a.done(r);
+        if (r.relinked.length) toast(`Relinked ${r.relinked.length} sample path(s) for this computer`, "info");
+      }
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
+      await load();
+      onchanged();
+    }
+  }
+
+  const saveAction: Action = {
+    name: "save",
+    call: (res, force) => api.Save(root, message, res, force),
+    done: (r) => {
+      const text: Record<string, string> = {
+        "published": "Version saved and shared with the team",
+        "saved-locally": "Version saved on this computer (not connected to a server)",
+        "fast-forward": "You had nothing new; updated to the team's latest version",
+        "nothing": "Nothing changed since your last version",
+      };
+      toast(text[r.action] ?? "Version saved", r.action === "nothing" ? "info" : "ok");
+      if (r.log.length && r.action === "published") toast("The team's changes were merged into your files — reopen the set in Live", "warn", 9000);
+      if (r.action !== "nothing") message = "";
+    },
+  };
+
+  const updateAction: Action = {
+    name: "update",
+    call: (res, force) => api.Update(root, res, force),
+    done: (r) => {
+      if (r.action === "fast-forward" || r.action === "merged") {
+        toast("You're up to date — reopen the set in Live to see the changes", "ok", 8000);
+        if (r.action === "merged") toast("Your versions and the team's were combined. Save a version to share the result.", "info", 9000);
+      } else toast("Already up to date", "info");
+    },
+  };
+
+  async function openUpdatePreview() {
+    busy = "preview";
+    try {
+      const data = await api.PreviewUpdate(root);
+      if (data) preview = { title: "Updates from the team", label: "Get updates", data, run: updateAction };
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
+  async function openMergePreview(name: string) {
+    branchMenu = false;
+    busy = "preview";
+    try {
+      const data = await api.PreviewMerge(root, name);
+      if (!data) return;
+      preview = {
+        title: `Merge “${name}” into “${st?.branch}”`, label: "Merge and share", data,
+        run: {
+          name: "merge",
+          call: (res, force) => api.MergeBranch(root, name, res, force),
+          done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
+            ? `Nothing to merge from ${name}` : `Merged ${name} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
+        },
+      };
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
+  function switchTo(name: string) {
+    branchMenu = false;
+    run({
+      name: "switch",
+      call: (_res, force) => api.SwitchBranch(root, name, force),
+      done: () => toast(`Now working on “${name}” — reopen the set in Live`, "ok", 8000),
+    });
+  }
+
+  async function createBranch() {
+    const name = (newBranch ?? "").trim();
+    if (!name) return;
+    busy = "branch";
+    try {
+      await api.CreateBranch(root, name);
+      toast(`Created “${name}”. Versions you save now go there.`, "ok");
+      newBranch = null;
+      await load();
+      onchanged();
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
+  let connectUrl = $state("");
+  let connectToken = $state("");
+  async function connect() {
+    busy = "connect";
+    try {
+      await api.Connect(root, connectUrl.trim(), connectToken.trim());
+      connectOpen = false;
+      toast("Connected. Save a version to share this project.", "ok");
+      await load();
+      onchanged();
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
+  function editors(set: string, trackId: string | undefined, change: string): string[] {
+    if (!trackId || change === "added") return [];
+    return editedTracks.get(set + "|" + trackId) ?? [];
+  }
+</script>
+
+{#if loadError && !st}
+  <div class="pad"><p class="error">{loadError}</p></div>
+{:else if st}
+  <div class="view">
+    <header>
+      <div class="title">
+        <h1>{st.name}</h1>
+        <div class="sub">
+          <div class="branch-wrap">
+            <button class="branch" onclick={() => (branchMenu = !branchMenu)} disabled={!st.remoteUrl}
+              title={st.remoteUrl ? "Branches" : "Connect to a server to use branches"}>
+              ⑂ {st.branch} ▾
+            </button>
+            {#if branchMenu}
+              <div class="menu" role="menu">
+                <div class="menu-h">Switch to</div>
+                {#each st.branches as b (b.name)}
+                  <button class="item" disabled={b.current} onclick={() => switchTo(b.name)}>
+                    <span>{b.name}</span>
+                    <span class="faint">{b.current ? "current" : b.latest ? `${b.latest.author} · ${ago(b.latest.time)}` : ""}</span>
+                  </button>
+                {/each}
+                <div class="sep"></div>
+                <div class="menu-h">Merge into {st.branch}</div>
+                {#each st.branches.filter((b) => !b.current) as b (b.name)}
+                  <button class="item" onclick={() => openMergePreview(b.name)}>{b.name}</button>
+                {:else}
+                  <div class="item faint">no other branches</div>
+                {/each}
+                <div class="sep"></div>
+                <button class="item" onclick={() => { branchMenu = false; newBranch = ""; }}>New branch from here…</button>
+              </div>
+            {/if}
+          </div>
+          {#if st.remoteUrl}
+            <span class="dot" class:on={st.online}></span>
+            <span class="faint" title={st.offline}>{st.online ? st.remoteUrl : "server offline"}</span>
+          {:else}
+            <button class="ghost" onclick={() => (connectOpen = true)}>Connect to team server…</button>
+          {/if}
+        </div>
+      </div>
+      <div class="actions">
+        {#each st.sets as s}
+          <button onclick={() => api.OpenInLive(st!.root, s)} title="Open in Ableton Live">▶ {s}</button>
+        {/each}
+        <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title="Show folder">📁</button>
+      </div>
+    </header>
+
+    {#if st.incoming.length}
+      <div class="banner info">
+        <div>
+          <strong>{[...new Set(st.incoming.map((v) => v.author))].join(", ")}</strong>
+          saved {st.incoming.length} new version{st.incoming.length === 1 ? "" : "s"}:
+          <span class="muted">{st.incoming.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{st.incoming.length > 3 ? "…" : ""}</span>
+        </div>
+        <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
+        <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>Get updates</button>
+      </div>
+    {/if}
+    {#each st.overlaps as o}
+      <div class="banner warn">⚠ {o[0].toUpperCase() + o.slice(1)} — talk before you both save.</div>
+    {/each}
+
+    <nav>
+      <button class:on={tab === "changes"} onclick={() => (tab = "changes")}>
+        Changes {#if st.changes.length}<span class="count">{st.changes.length}</span>{/if}
+      </button>
+      <button class:on={tab === "history"} onclick={() => (tab = "history")}>History</button>
+      <button class:on={tab === "team"} onclick={() => (tab = "team")} disabled={!st.remoteUrl}>
+        Team {#if st.teammates.length}<span class="count">{st.teammates.length}</span>{/if}
+      </button>
+    </nav>
+
+    <main>
+      {#if tab === "changes"}
+        <div class="changes-grid">
+          <section>
+            {#if st.myEdits.length}
+              <h3>Tracks you changed</h3>
+              <ul class="tracks">
+                {#each st.myEdits as e}
+                  {@const who = editors(e.set, e.track_id, e.change)}
+                  <li>
+                    <span class="chg {e.change}"></span>
+                    <span>{e.name}</span>
+                    <span class="faint">{e.set}</span>
+                    {#if who.length}<span class="lock" title="Also being edited">✎ {who.join(", ")}</span>{/if}
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+            <h3>Files</h3>
+            <ChangeList changes={st.changes}
+              empty="No unsaved changes. Work in Live and press Ctrl+S — your changes show up here." />
+          </section>
+          <aside class="save">
+            <h3>Save a version</h3>
+            <textarea rows="4" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"></textarea>
+            <button class="primary wide" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}>
+              {busy === "save" ? "Saving…" : st.remoteUrl ? "Save version & share" : "Save version"}
+            </button>
+            <p class="faint small">
+              {#if st.remoteUrl}
+                Saves the current state of the project folder and shares it with the team on “{st.branch}”.
+                If others saved in the meantime, their changes are merged in first.
+              {:else}
+                Saves on this computer. Connect to a team server to share.
+              {/if}
+            </p>
+          </aside>
+        </div>
+      {:else if tab === "history"}
+        <History versions={st.history} head={st.head} incoming={incomingIds} />
+      {:else}
+        <section>
+          <h3>Being edited right now (not saved yet)</h3>
+          {#each st.teammates as w (w.author)}
+            <div class="mate">
+              <div class="row"><strong>{w.author}</strong><span class="faint">updated {ago(w.updated)}</span></div>
+              <ul class="tracks">
+                {#each w.edits as e}
+                  <li><span class="chg {e.change}"></span><span>{e.name}</span><span class="faint">{e.set}</span></li>
+                {/each}
+              </ul>
+            </div>
+          {:else}
+            <p class="muted">Nobody else has unsaved work at the moment.</p>
+          {/each}
+        </section>
+      {/if}
+    </main>
+  </div>
+
+  {#if preview}
+    {@const p = preview}
+    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label}
+      onclose={() => (preview = null)}
+      onconfirm={() => { preview = null; run(p.run); }} />
+  {/if}
+
+  {#if conflicts}
+    {@const c = conflicts}
+    <ConflictDialog conflicts={c.items} onclose={() => (conflicts = null)}
+      onresolve={(res) => { conflicts = null; run(c.run, res); }} />
+  {/if}
+
+  {#if liveBlocked}
+    {@const b = liveBlocked}
+    <Modal title="Ableton Live is running" onclose={() => (liveBlocked = null)}>
+      <p>DAWGit is about to change files in this project. If the set is open in Live, Live keeps the old
+        version in memory and would overwrite the changes the next time you save.</p>
+      <p class="muted">Save and close the set in Live first (you can leave Live open with another set).</p>
+      {#snippet footer()}
+        <button onclick={() => (liveBlocked = null)}>Cancel</button>
+        <button class="primary" onclick={() => { liveBlocked = null; run(b.run, b.resolutions, true); }}>
+          The set is closed — continue
+        </button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if connectOpen}
+    <Modal title="Connect to your team server" onclose={() => (connectOpen = false)}>
+      <p class="muted">Ask whoever runs the server (<span class="mono">dawgit serve</span>) for the address and token.</p>
+      <label for="url">Server address</label>
+      <input id="url" bind:value={connectUrl} placeholder="http://192.168.0.11:7331" />
+      <label for="token">Access token</label>
+      <input id="token" bind:value={connectToken} />
+      {#snippet footer()}
+        <button onclick={() => (connectOpen = false)}>Cancel</button>
+        <button class="primary" disabled={!connectUrl.trim() || busy === "connect"} onclick={connect}>Connect</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if newBranch !== null}
+    <Modal title="New branch" onclose={() => (newBranch = null)}>
+      <p class="muted">A branch is your own line of versions (e.g. to try an idea). The team keeps working on
+        “{st.branch}”; merge back when you're happy.</p>
+      <label for="bn">Branch name</label>
+      <input id="bn" bind:value={newBranch} placeholder="yi-chorus-idea" />
+      {#snippet footer()}
+        <button onclick={() => (newBranch = null)}>Cancel</button>
+        <button class="primary" disabled={!newBranch?.trim() || busy === "branch"} onclick={createBranch}>Create</button>
+      {/snippet}
+    </Modal>
+  {/if}
+{/if}
+
+<style>
+  .view { display: flex; flex-direction: column; height: 100%; }
+  .pad { padding: 24px; }
+  .error { color: var(--danger); }
+  header { display: flex; align-items: flex-start; padding: 18px 24px 10px; gap: 16px; }
+  .title { flex: 1; min-width: 0; }
+  h1 { margin: 0 0 6px; font-size: 22px; font-weight: 650; }
+  .sub { display: flex; align-items: center; gap: 10px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .branch { padding: 3px 10px; font-size: 13px; }
+  .branch-wrap { position: relative; }
+  .menu {
+    position: absolute; top: 32px; left: 0; z-index: 20; min-width: 260px; padding: 6px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+  }
+  .menu-h { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 6px 8px 2px; }
+  .item { display: flex; justify-content: space-between; width: 100%; border: none; background: transparent; padding: 6px 8px; text-align: left; gap: 12px; }
+  .item:hover:not(:disabled) { background: #33363d; }
+  .sep { height: 1px; background: var(--line); margin: 6px 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+  .dot.on { background: var(--accent); }
+
+  .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
+  .banner > div { flex: 1; }
+  .banner.info { background: #1d2c38; border: 1px solid #2c4557; }
+  .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
+
+  nav { display: flex; gap: 4px; padding: 10px 24px 0; border-bottom: 1px solid var(--line); }
+  nav button { border: none; background: transparent; border-radius: 6px 6px 0 0; padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; }
+  nav button.on { color: var(--text); border-bottom-color: var(--accent); }
+  .count { margin-left: 4px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; }
+
+  main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
+  .changes-grid { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+  .save { position: sticky; top: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .wide { width: 100%; margin-top: 10px; padding: 9px; }
+  .small { font-size: 12px; margin: 10px 0 0; }
+
+  .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
+  .tracks li { display: flex; align-items: center; gap: 10px; }
+  .chg { width: 8px; height: 8px; border-radius: 2px; background: var(--mod); }
+  .chg.added { background: var(--add); }
+  .chg.removed { background: var(--del); }
+  .lock { font-size: 12px; color: var(--warn); background: var(--warn-bg); padding: 0 8px; border-radius: 8px; }
+  .mate { padding: 12px 14px; margin-bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .mate .tracks { margin: 8px 0 0; }
+</style>
