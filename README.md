@@ -35,6 +35,17 @@ dawgit save -m "added drums"                   # save a version and share it (me
 dawgit update                                  # get the team's latest versions
 ```
 
+Branches (advanced teams):
+
+```
+dawgit branch                    # list branches and their latest versions
+dawgit branch new yi-ideas       # start a branch from your current version
+dawgit switch main
+dawgit merge yi-ideas --preview  # what would come in (semantic diff) and what conflicts
+dawgit merge yi-ideas            # merge into your branch and share
+dawgit update --preview          # what the team changed, without applying it
+```
+
 `save`/`update` merge Live Sets track by track; when you and others changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if others' changes must be merged in.
 
 Local project workflow (inside an Ableton project folder):

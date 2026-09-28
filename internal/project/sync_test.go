@@ -111,6 +111,10 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 		t.Error("A did not receive the drum track")
 	}
 	assertClean(t, a)
+	// The relinked set still counts as that version: no empty version.
+	if _, err := a.Snapshot("nothing"); !errors.Is(err, ErrNothingToSnapshot) {
+		t.Errorf("expected nothing to snapshot after update, got %v", err)
+	}
 	if up, _ := a.Update("fail"); up.Action != "up-to-date" {
 		t.Errorf("second update: %+v", up)
 	}
