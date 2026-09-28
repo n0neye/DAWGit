@@ -148,6 +148,17 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 			return nil, nil, nil, err
 		}
 		for _, ref := range s.SampleRefs() {
+			if hash, ok := r.cacheHash(ref.Path); ok {
+				// Relinked into an external cache (Live may since have saved it
+				// as project-relative): keep it external under its original key.
+				orig := r.originalExternalPath(hash, ref.Path)
+				if !seenExt[orig] {
+					seenExt[orig] = true
+					fi, _ := os.Stat(r.Store.Path(hash))
+					external = append(external, FileEntry{Path: orig, Hash: hash, Size: fi.Size()})
+				}
+				continue
+			}
 			switch {
 			case ref.Pack != "":
 				if !seenPack[ref.Pack] {
@@ -161,16 +172,6 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 					missing = append(missing, ref.RelativePath)
 				}
 			case ref.Path != "":
-				if hash, ok := r.cacheHash(ref.Path); ok {
-					// Relinked into the external cache: keep the original key.
-					orig := r.originalExternalPath(hash, ref.Path)
-					if !seenExt[orig] {
-						seenExt[orig] = true
-						fi, _ := os.Stat(r.Store.Path(hash))
-						external = append(external, FileEntry{Path: orig, Hash: hash, Size: fi.Size()})
-					}
-					continue
-				}
 				if r.inProject(ref.Path) || seenExt[ref.Path] {
 					continue
 				}

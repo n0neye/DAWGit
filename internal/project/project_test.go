@@ -204,6 +204,8 @@ func TestExternalSampleRoundTrip(t *testing.T) {
 	for _, fr := range s.Root.Iter("FileRef") {
 		if strings.Contains(fr.Val("RelativePath", ""), "Bounce") {
 			fr.Find("RelativePathType").Set("Value", "1")
+			rel, _ := filepath.Rel(root, ext)
+			fr.Find("RelativePath").Set("Value", filepath.ToSlash(rel))
 			fr.Find("Path").Set("Value", filepath.ToSlash(ext))
 		}
 	}
@@ -238,14 +240,45 @@ func TestExternalSampleRoundTrip(t *testing.T) {
 	if err != nil || string(data) != "RIFF-kick" {
 		t.Fatalf("relinked sample %q: %v %q", relinked, err, data)
 	}
+	for _, ref := range s2.SampleRefs() {
+		if ref.Path == relinked && !strings.HasPrefix(ref.RelativePath, ".dawgit/external/") {
+			t.Errorf("relative path not updated: %s", ref.RelativePath)
+		}
+	}
 	assertClean(t, r2)
 
-	// Saved again in Live on that machine (path now in its cache): the
-	// snapshot still records the original external path.
+	// Saved again in Live on that machine; Live may record the cached file
+	// as project-relative. The snapshot still records the original path.
+	for _, sr := range s2.Root.Iter("SampleRef") {
+		if fr := sr.Child("FileRef"); strings.HasSuffix(fr.Val("Path", ""), "/kick.wav") {
+			fr.Find("RelativePathType").Set("Value", "3")
+		}
+	}
 	s2.Save(filepath.Join(other, "Song.als"))
 	os.WriteFile(filepath.Join(other, "Samples", "touch.txt"), []byte("x"), 0o644)
 	m2 := mustSnapshot(t, r2, "resaved")
 	if len(m2.External) != 1 || m2.External[0].Path != filepath.ToSlash(ext) {
 		t.Fatalf("external after resave = %+v", m2.External)
 	}
+
+	// A third machine gets a set pointing into the second machine's cache.
+	third := filepath.Join(t.TempDir(), "Song Project")
+	copyTree(t, other, third)
+	os.RemoveAll(filepath.Join(third, ".dawgit", "external"))
+	r3, _ := Open(third)
+	if _, _, err := r3.Checkout("HEAD", true); err != nil {
+		t.Fatal(err)
+	}
+	s3, _ := als.Load(filepath.Join(third, "Song.als"))
+	for _, ref := range s3.SampleRefs() {
+		if strings.HasSuffix(ref.Path, "/kick.wav") {
+			if !strings.HasPrefix(ref.Path, filepath.ToSlash(third)) {
+				t.Errorf("not relinked into this machine's cache: %s", ref.Path)
+			}
+			if data, err := os.ReadFile(filepath.FromSlash(ref.Path)); err != nil || string(data) != "RIFF-kick" {
+				t.Errorf("sample not materialized: %v", err)
+			}
+		}
+	}
+	assertClean(t, r3)
 }

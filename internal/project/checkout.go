@@ -137,7 +137,14 @@ func (r *Repo) relinkRef(fr *xmltree.Node, external map[string]FileEntry) (bool,
 		return false, "", nil
 	}
 	orig := pathNode.Attr("Value")
-	if rel := fr.Val("RelativePath", ""); fr.Val("RelativePathType", "") == "3" && rel != "" {
+	rel := fr.Val("RelativePath", "")
+	// A path into someone's external cache (possibly saved by Live as
+	// project-relative) is resolved like the external sample it stands for.
+	e, cached := r.externalByCachePath(orig, external)
+	if !cached {
+		e, cached = r.externalByCachePath("/"+rel, external)
+	}
+	if !cached && fr.Val("RelativePathType", "") == "3" && rel != "" {
 		// Project-relative: point the absolute path at this machine's project.
 		// Routine, so no note.
 		local := filepath.ToSlash(r.Abs(rel))
@@ -150,29 +157,49 @@ func (r *Repo) relinkRef(fr *xmltree.Node, external map[string]FileEntry) (bool,
 	if orig == "" {
 		return false, "", nil
 	}
-	if _, err := os.Stat(filepath.FromSlash(orig)); err == nil {
+	if _, err := os.Stat(filepath.FromSlash(orig)); err == nil && !cached {
 		return false, "", nil // exists here too
 	}
-	e, ok := external[orig]
+	// Cached paths are always re-resolved: pointing into another project's
+	// .dawgit would break when that project moves.
+	ok := cached
 	if !ok {
-		e, ok = r.externalByCachePath(orig, external)
+		e, ok = external[orig]
 	}
 	if !ok {
 		return false, "missing sample " + orig, nil
 	}
-	if _, err := os.Stat(filepath.FromSlash(e.Path)); err == nil {
-		// Relinked elsewhere, but the original file exists on this machine.
-		pathNode.Set("Value", e.Path)
-		return true, fmt.Sprintf("%s -> %s", orig, e.Path), nil
+	target := filepath.FromSlash(e.Path)
+	if _, err := os.Stat(target); err != nil {
+		target = r.externalCachePath(e)
+		if _, err := os.Stat(target); err != nil {
+			if err := r.Store.Export(e.Hash, target); err != nil {
+				return false, "", err
+			}
+		}
+	} // else: relinked elsewhere, but the original file exists on this machine
+	if !r.pointAt(fr, target) {
+		return false, "", nil
 	}
-	dst := r.externalCachePath(e)
-	if _, err := os.Stat(dst); err != nil {
-		if err := r.Store.Export(e.Hash, dst); err != nil {
-			return false, "", err
+	return true, fmt.Sprintf("%s -> %s", orig, filepath.ToSlash(target)), nil
+}
+
+// pointAt sets a FileRef's absolute path and its project-relative path (Live
+// stores both for samples outside the project, e.g. "../Samples/x.wav").
+// It reports whether anything changed.
+func (r *Repo) pointAt(fr *xmltree.Node, abs string) bool {
+	changed := false
+	set := func(n *xmltree.Node, v string) {
+		if n != nil && n.Attr("Value") != v {
+			n.Set("Value", v)
+			changed = true
 		}
 	}
-	pathNode.Set("Value", filepath.ToSlash(dst))
-	return true, fmt.Sprintf("%s -> %s", orig, filepath.ToSlash(dst)), nil
+	set(fr.Child("Path"), filepath.ToSlash(abs))
+	if rel, err := filepath.Rel(r.Root, abs); err == nil {
+		set(fr.Child("RelativePath"), filepath.ToSlash(rel))
+	}
+	return changed
 }
 
 // externalCachePath is where an external sample is materialized:
