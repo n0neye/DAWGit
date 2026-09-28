@@ -85,8 +85,8 @@ class MergeTest(unittest.TestCase):
         r = merge_sets(base, ours, theirs, strategy="both")
         self.assertClean(r)
         n = names(r.merged)
-        self.assertIn("1-Basic Saturated Bass [theirs]", n)
-        self.assertEqual(n.index("1-Basic Saturated Bass [theirs]"), n.index("1-Basic Saturated Bass") + 1)
+        self.assertIn("Basic Saturated Bass [theirs]", n)
+        self.assertEqual(n.index("Basic Saturated Bass [theirs]"), n.index("1-Basic Saturated Bass") + 1)
 
     def test_theirs_adds_return_track(self):
         base = load(CURRENT)

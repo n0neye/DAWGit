@@ -94,8 +94,10 @@ def add_scene(s: LiveSet) -> None:
     for t in s.tracks():
         if t.kind == "ReturnTrack":
             continue
-        for seq in ("MainSequencer", "FreezeSequencer"):
-            slots = t.elem.find(f"DeviceChain/{seq}/ClipSlotList")
+        lists = ["DeviceChain/FreezeSequencer/ClipSlotList"]
+        lists.append("Slots" if t.kind == "GroupTrack" else "DeviceChain/MainSequencer/ClipSlotList")
+        for path in lists:
+            slots = t.elem.find(path)
             slot = copy.deepcopy(slots[-1])
             slot.set("Id", str(len(slots)))
             slots.append(slot)
@@ -103,3 +105,10 @@ def add_scene(s: LiveSet) -> None:
 
 def delete_track(s: LiveSet, tid: str) -> None:
     s.tracks_elem.remove(track(s, tid).elem)
+
+
+CURRENT_V2 = PROJECT / "SampleAbletonProject_v2.als"
+
+
+def backup_v2(stamp: str) -> Path:
+    return PROJECT / "Backup" / f"SampleAbletonProject_v2 [2026-09-28 {stamp}].als"

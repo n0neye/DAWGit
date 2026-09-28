@@ -39,6 +39,9 @@ NOISE_ELEMENTS = frozenset({
     "WinPosY",
     "OverwriteProtectionNumber",
     "IsArmed",  # record arm is per-session operator state
+    "SavedPlayingSlot",  # which session clip was playing at save time
+    "EffectiveName",  # derived by Live from UserName, devices and track position
+    "TrackUnfolded",  # group fold state
 })
 
 # Attributes that are view state.

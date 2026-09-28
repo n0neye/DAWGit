@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import gzip
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterator
 
@@ -81,6 +81,7 @@ class Clip:
     start: float
     end: float
     location: str  # "arrangement" | "session[<slot>]"
+    elem: ET.Element = field(repr=False, compare=False, default=None)
 
 
 @dataclass
@@ -145,6 +146,7 @@ def _clip(c: ET.Element, location: str) -> Clip:
         start=float(_val(c, "CurrentStart", "0")),
         end=float(_val(c, "CurrentEnd", "0")),
         location=location,
+        elem=c,
     )
 
 
