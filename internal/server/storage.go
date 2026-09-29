@@ -5,7 +5,8 @@
 //	<data>/objects/ab/cdef...              blobs (sha256)
 //	<data>/projects/<id>/project.json       {id, name}
 //	<data>/projects/<id>/snapshots/<id>.json
-//	<data>/projects/<id>/branches.json      {"main": "<snapshot id>"}
+//	<data>/projects/<id>/branches/<name>    version id (one file per branch)
+//	<data>/projects/<id>/workspaces/<id>.json
 package server
 
 import (
@@ -16,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 
 	"dawgit/internal/manifest"
@@ -41,7 +43,7 @@ func (e *ErrConflict) Error() string { return "branch was updated by someone els
 type Storage struct {
 	dir     string
 	Objects *store.Store
-	mu      sync.Mutex // guards branches.json and project.json
+	mu      sync.Mutex // guards branch files and project.json
 }
 
 func OpenStorage(dir string) (*Storage, error) {
@@ -133,28 +135,69 @@ func (s *Storage) PutSnapshot(pid, id string, data []byte) error {
 	return os.WriteFile(s.snapshotPath(pid, id), data, 0o644)
 }
 
-func (s *Storage) branchesPath(pid string) string {
-	return filepath.Join(s.projectDir(pid), "branches.json")
+// Branches are stored one file per branch (projects/<pid>/branches/<name>,
+// body = version id), the same layout as the object-storage backend.
+func (s *Storage) branchDir(pid string) string { return filepath.Join(s.projectDir(pid), "branches") }
+
+// migrateBranches converts the older single branches.json file.
+func (s *Storage) migrateBranches(pid string) error {
+	old := filepath.Join(s.projectDir(pid), "branches.json")
+	b := map[string]string{}
+	if err := readJSON(old, &b); errors.Is(err, os.ErrNotExist) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(s.branchDir(pid), 0o755); err != nil {
+		return err
+	}
+	for name, id := range b {
+		if branchRE.MatchString(name) {
+			if err := writeFileAtomic(filepath.Join(s.branchDir(pid), name), []byte(id+"\n")); err != nil {
+				return err
+			}
+		}
+	}
+	return os.Rename(old, old+".migrated")
 }
 
 func (s *Storage) Branches(pid string) (map[string]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.branches(pid)
-}
-
-func (s *Storage) branches(pid string) (map[string]string, error) {
-	b := map[string]string{}
-	if err := readJSON(s.branchesPath(pid), &b); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := s.migrateBranches(pid); err != nil {
 		return nil, err
 	}
+	entries, err := os.ReadDir(s.branchDir(pid))
+	b := map[string]string{}
+	if errors.Is(err, os.ErrNotExist) {
+		return b, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		if !branchRE.MatchString(e.Name()) || strings.HasSuffix(e.Name(), ".tmp") {
+			continue
+		}
+		if id := s.branchHead(pid, e.Name()); id != "" {
+			b[e.Name()] = id
+		}
+	}
 	return b, nil
+}
+
+func (s *Storage) branchHead(pid, name string) string {
+	data, err := os.ReadFile(filepath.Join(s.branchDir(pid), name))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 // UpdateBranch moves a branch from old to new atomically. old is "" for a
 // new branch; new is "" to delete it.
 func (s *Storage) UpdateBranch(pid, name, old, new string) error {
-	if !branchRE.MatchString(name) {
+	if !branchRE.MatchString(name) || strings.HasSuffix(name, ".tmp") {
 		return fmt.Errorf("invalid branch name %q", name)
 	}
 	if new != "" && !s.HasSnapshot(pid, new) {
@@ -162,19 +205,20 @@ func (s *Storage) UpdateBranch(pid, name, old, new string) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	b, err := s.branches(pid)
-	if err != nil {
+	if err := s.migrateBranches(pid); err != nil {
 		return err
 	}
-	if b[name] != old {
-		return &ErrConflict{Current: b[name]}
+	if current := s.branchHead(pid, name); current != old {
+		return &ErrConflict{Current: current}
 	}
+	path := filepath.Join(s.branchDir(pid), name)
 	if new == "" {
-		delete(b, name)
-	} else {
-		b[name] = new
+		return os.Remove(path)
 	}
-	return writeJSON(s.branchesPath(pid), b)
+	if err := os.MkdirAll(s.branchDir(pid), 0o755); err != nil {
+		return err
+	}
+	return writeFileAtomic(path, []byte(new+"\n"))
 }
 
 func writeJSON(path string, v any) error {
@@ -182,8 +226,12 @@ func writeJSON(path string, v any) error {
 	if err != nil {
 		return err
 	}
+	return writeFileAtomic(path, append(data, '\n'))
+}
+
+func writeFileAtomic(path string, data []byte) error {
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)
