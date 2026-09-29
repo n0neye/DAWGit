@@ -142,7 +142,7 @@ func (a *App) SelectTeam(id string) error {
 	if err != nil {
 		return err
 	}
-	if store.Find(id) == nil {
+	if id != teams.LocalID && store.Find(id) == nil {
 		return errors.New("unknown team")
 	}
 	store.Current = id
@@ -273,6 +273,7 @@ func (a *App) AddLocalProject(folder string) (TeamProject, error) {
 		return TeamProject{}, errors.New("this project belongs to a team: connect to that team to open it")
 	}
 	store.AddLocal(r.Root)
+	store.Current = teams.LocalID // show it
 	if err := store.Save(); err != nil {
 		return TeamProject{}, err
 	}

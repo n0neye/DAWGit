@@ -151,6 +151,9 @@ func DefaultName(cfg remote.Config) string {
 }
 
 // Remove forgets a team and its project locations (folders stay on disk).
+// LocalID as Current selects the projects kept on this computer only.
+const LocalID = "local"
+
 func (s *Store) Remove(id string) {
 	out := s.Teams[:0]
 	for _, t := range s.Teams {

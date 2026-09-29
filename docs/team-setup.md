@@ -53,9 +53,9 @@ The **Team** menu at the top of the sidebar connects to another team, switches b
 
 ## 4. Share a project (the person who has it)
 
-In the sidebar, click **+ Add local project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
+In the sidebar, click **+ Add project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
 
-A project kept with **Keep a project on this computer only…** can be shared later with **Share with a team…** at the top of the project.
+To keep a project's versions on this computer only, pick **Local** in the Team menu and add it there. It can be shared later with **Share with a team…** at the top of the project.
 
 ## 5. Get a project (everyone else)
 

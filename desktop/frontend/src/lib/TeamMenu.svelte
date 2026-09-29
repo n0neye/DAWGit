@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, errorText, type Overview, type TeamSummary } from "./api";
+  import { api, errorText, LOCAL, type Overview, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
   import ConnectForm from "./ConnectForm.svelte";
@@ -13,6 +13,8 @@
   let confirmRemove = $state<TeamSummary | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
+  // "Local" (projects kept on this computer only) sits in the menu like a team.
+  let isLocal = $derived(!current);
 
   async function select(id: string) {
     open = false;
@@ -61,9 +63,9 @@
 <svelte:window onclick={(e) => { if (open && !(e.target as HTMLElement).closest(".team-menu")) open = false; }} />
 
 <div class="team-menu">
-  <button class="current" onclick={() => (open = !open)} title={current?.address ?? ""}>
-    <span class="label">Team</span>
-    <span class="name">{current?.name ?? "No team"}</span>
+  <button class="current" onclick={() => (open = !open)} title={current?.address ?? "Projects kept on this computer only"}>
+    <span class="label">{isLocal ? "Local" : "Team"}</span>
+    <span class="name">{current?.name ?? "This computer"}</span>
     <span class="caret">▾</span>
   </button>
   {#if open}
@@ -76,6 +78,12 @@
         </button>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}
+      <button class="item" onclick={() => select(LOCAL)}>
+        <span class="check">{isLocal ? "✓" : ""}</span>
+        <span class="tname">Local</span>
+        <span class="faint small">this computer only</span>
+      </button>
+      <div class="sep"></div>
       <button class="item" onclick={() => { open = false; connecting = true; }}>
         <span class="check">+</span>Connect to {overview.teams.length ? "another" : "a"} team…
       </button>

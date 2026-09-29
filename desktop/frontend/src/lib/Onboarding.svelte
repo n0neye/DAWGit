@@ -163,7 +163,7 @@
       {/if}
       {#if error}<p class="error">{error}</p>{/if}
       <div class="row actions">
-        <button onclick={addFolder} disabled={!!busy}>{busy === "add" ? "Sharing…" : "+ Add a local project"}</button>
+        <button onclick={addFolder} disabled={!!busy}>{busy === "add" ? "Sharing…" : "+ Add a project"}</button>
         <span class="spacer"></span>
         <button class="primary" onclick={() => onfinish(downloaded[0])}>
           {mine.length || downloaded.length ? "Done" : "Skip for now"}

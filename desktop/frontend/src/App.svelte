@@ -72,11 +72,11 @@
   let firstShare = $state("");
 
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
-  let entries = $derived(overview?.projects ?? []);
-  let selectedEntry = $derived.by(() => {
-    const all = [...entries, ...(overview?.local ?? [])];
-    return all.find((p) => (selected.root ? p.root === selected.root : !!selected.id && p.id === selected.id && !p.root));
-  });
+  // Local (this computer only) is picked in the team menu like a team.
+  let isLocal = $derived(!current);
+  let entries = $derived((isLocal ? overview?.local : overview?.projects) ?? []);
+  let selectedEntry = $derived(
+    entries.find((p) => (selected.root ? p.root === selected.root : !!selected.id && p.id === selected.id && !p.root)));
 
   function select(p: TeamProject) {
     selected = p.root ? { root: p.root } : { id: p.id };
@@ -87,8 +87,8 @@
   $effect(() => {
     if (!overview || selectedEntry) return;
     const last = recall(SELECTED_KEY);
-    const all = [...entries, ...overview.local];
-    const pick = all.find((p) => p.root && p.root === last) ?? all.find((p) => p.status === "downloaded") ?? all[0];
+    const pick = entries.find((p) => p.root && p.root === last) ??
+      entries.find((p) => p.status === "downloaded" || p.status === "local") ?? entries[0];
     if (pick) select(pick);
   });
 
@@ -142,7 +142,7 @@
     busy = "delete";
     try {
       await api.DeleteProjectFromTeam(overview!.currentTeam, p.id);
-      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy is kept on this computer.`
+      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy is kept under Local.`
         : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
       if (!p.root) selected = {};
       await reload();
@@ -225,7 +225,7 @@
     };
   });
 
-  const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found", local: "not shared" };
+  const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found" };
   const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪", local: "♪" };
 </script>
 
@@ -248,38 +248,29 @@
       <TeamMenu {overview} {reload} />
 
       <div class="list">
-        {#if current}
-          <div class="section row-h">
-            <span>Projects</span>
+        <div class="section row-h">
+          <span>Projects</span>
+          {#if current}
             <button class="ghost tiny" class:spin={reloading} onclick={reload} title="Check the team for new projects">↻</button>
-          </div>
-          {#if overview.teamError}
-            <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
           {/if}
-          <ul>
-            {#each entries as p (p.root || p.id)}
-              {@render row(p)}
-            {:else}
-              <li class="empty faint">No projects in this team yet.</li>
-            {/each}
-          </ul>
-          <button class="add" onclick={addToTeam} disabled={busy === "add"}>+ Add local project</button>
-        {:else}
-          <p class="faint small pad">Connect to a team to share projects.</p>
+        </div>
+        {#if current && overview.teamError}
+          <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
         {/if}
-
-        {#if overview.local.length}
-          <div class="section">On this computer only</div>
-          <ul>
-            {#each overview.local as p (p.root)}
-              {@render row(p)}
-            {/each}
-          </ul>
-        {/if}
+        <ul>
+          {#each entries as p (p.root || p.id)}
+            {@render row(p)}
+          {:else}
+            <li class="empty faint">{current ? "No projects in this team yet." : "No projects on this computer yet."}</li>
+          {/each}
+        </ul>
+        <button class="add" onclick={current ? addToTeam : addLocal} disabled={busy === "add"}>
+          <span>+ Add project</span>
+          <span class="hint">{current ? `Select a project folder and add it to ${current.name}` : "Select a project folder to keep its versions on this computer"}</span>
+        </button>
       </div>
 
       <div class="bottom">
-        <button class="link" onclick={addLocal}>Keep a project on this computer only…</button>
         <label class="autostart" title="Keeps DAWGit in the tray so teammates see what you edit and you hear about new versions">
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
@@ -327,8 +318,9 @@
         </div>
       {:else}
         <div class="placeholder">
-          <h1>{current ? current.name : "DAWGit"}</h1>
-          <p class="muted">{current ? "Pick a song on the left, or add a local project to share it with the team." : "Connect to a team from the menu at the top left."}</p>
+          <h1>{current ? current.name : "Local"}</h1>
+          <p class="muted">{current ? "Pick a song on the left, or add a project to share it with the team."
+            : "Projects here keep their versions on this computer only. Pick one on the left, or add one."}</p>
         </div>
       {/if}
     </section>
@@ -426,7 +418,6 @@
   .proj.remote .name { color: var(--muted); font-weight: 500; }
   .proj.remote .icon { color: var(--faint); }
   .proj.missing .icon, .proj.missing .meta { color: var(--warn); }
-  .proj.local .icon { color: var(--mod); }
   .more {
     position: absolute; top: 4px; right: 4px; visibility: hidden; padding: 0 6px; line-height: 18px;
     font-size: 15px; color: var(--muted); border-radius: 6px;
@@ -447,7 +438,8 @@
   .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
   .offline { font-size: 12px; color: var(--danger); padding: 0 8px 4px; }
-  .add { width: 100%; margin: 8px 0 4px; }
+  .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px; }
+  .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; line-height: 1.3; }
   .pad { padding: 0 8px; }
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
