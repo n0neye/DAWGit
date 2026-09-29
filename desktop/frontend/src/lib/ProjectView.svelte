@@ -5,6 +5,7 @@
     type Progress, type Version } from "./api";
   import { toast } from "./notify.svelte";
   import ChangeList from "./ChangeList.svelte";
+  import CombineDialog from "./CombineDialog.svelte";
   import ProgressBar from "./ProgressBar.svelte";
   import History from "./History.svelte";
   import Modal from "./Modal.svelte";
@@ -40,7 +41,16 @@
   let leaving = $state<{ target: Version | null; message: string } | null>(null); // null target: latest
   let keepOpen = $state<string | null>(null); // message for "Make this the latest version"
 
-  type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>; done: (r: Result) => void };
+  // message: for a save, what to describe the version with (asked again when
+  // the team committed in the meantime: see combine).
+  type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>;
+    done: (r: Result) => void; message?: string };
+
+  // Teammates committed on this branch while you were working: preview, then
+  // combine, put your work on a branch, or discard it.
+  let combine = $state<{ data: Preview; message: string } | null>(null);
+  let branchThenCommit = $state(""); // commit this after creating the branch
+  let discardOpen = $state(false);
 
   async function load() {
     try {
@@ -140,7 +150,9 @@
     try {
       const r = await a.call(resolutions, force);
       if (!r) return;
-      if (r.liveRunning) {
+      if (r.action === "behind") {
+        openCombine(a.message ?? message); // nothing changed yet: let the user decide
+      } else if (r.liveRunning) {
         liveBlocked = { run: a, resolutions, set: r.openSet };
       } else if (r.conflicts.length) {
         conflicts = { items: r.conflicts, run: a, force }; // keep a "Live is closed" confirmation
@@ -158,10 +170,7 @@
     }
   }
 
-  const saveAction: Action = {
-    name: "save",
-    call: (res, force) => api.Save(root, message, res, force),
-    done: (r) => {
+  const saveDone = (r: Result) => {
       const text: Record<string, string> = {
         "published": "Version committed and shared with the team",
         "saved-locally": "Version committed on this computer (not shared with a team)",
@@ -171,8 +180,56 @@
       toast(text[r.action] ?? "Version committed", r.action === "nothing" ? "info" : "ok");
       if (r.log.length && r.action === "published") toast("The team's changes were merged into your files — reopen the set in Live", "warn", 9000);
       if (r.action !== "nothing") message = "";
-    },
   };
+
+  const saveAction = (msg: string, combineWithTeam = false): Action => ({
+    name: "save",
+    message: msg,
+    call: (res, force) => api.Save(root, msg, combineWithTeam, res, force),
+    done: saveDone,
+  });
+
+  // Commit from the commit box: when the team is ahead, ask first.
+  function commit() {
+    if (!message.trim() || busy || st?.olderVersion) return;
+    if (st?.incoming.length) openCombine(message);
+    else run(saveAction(message));
+  }
+
+  async function openCombine(msg: string) {
+    busy = "preview";
+    try {
+      const data = await api.PreviewUpdate(root);
+      if (data) combine = { data, message: msg };
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
+  function combineAndShare() {
+    const msg = combine!.message.trim();
+    combine = null;
+    message = msg;
+    run(saveAction(msg, true));
+  }
+
+  function putOnBranch(msg: string) {
+    combine = null;
+    message = msg.trim();
+    branchThenCommit = msg.trim();
+    newBranch = "";
+  }
+
+  function discardAndUpdate() {
+    discardOpen = false;
+    run({
+      name: "update",
+      call: (res, force) => api.DiscardAndUpdate(root, res, force),
+      done: () => toast("Your changes were discarded and you have the team's latest versions — reopen the set in Live", "ok", 8000),
+    });
+  }
 
   const updateAction: Action = {
     name: "update",
@@ -280,7 +337,8 @@
     let committed = false;
     await run({
       name: "save",
-      call: (res, force) => api.Save(root, l.message, res, force),
+      message: l.message,
+      call: (res, force) => api.Save(root, l.message, false, res, force),
       done: () => (committed = true),
     });
     if (committed) run(goAction(l.target?.id ?? "latest", false, l.target?.message ?? ""));
@@ -324,8 +382,16 @@
     busy = "branch";
     try {
       await api.CreateBranch(root, name);
-      toast(`Created “${name}”. Versions you save now go there.`, "ok");
       newBranch = null;
+      const msg = branchThenCommit;
+      branchThenCommit = "";
+      if (msg) {
+        busy = "";
+        await run({ ...saveAction(msg), done: (r) => { saveDone(r);
+          toast(`Your work is on the new branch “${name}”; “${st?.branch}” is unchanged. Merge it when you're ready.`, "info", 9000); } });
+        return;
+      }
+      toast(`Created “${name}”. Versions you save now go there.`, "ok");
       await load();
       onchanged();
     } catch (e) {
@@ -360,7 +426,7 @@
     onfirstshared?.(); // started: don't start again if this view is reopened
     run({
       name: "first-share",
-      call: (res, force) => api.Save(root, "First version", res, force),
+      call: (res, force) => api.Save(root, "First version", true, res, force),
       done: () => {
         toast(`“${st?.name ?? folderName}” is shared with ${team}`, "ok");
       },
@@ -485,13 +551,21 @@
       <div class="banner info">
         <div>
           <strong>{[...new Set(st.incoming.map((v) => v.author))].join(", ")}</strong>
-          saved {st.incoming.length} new version{st.incoming.length === 1 ? "" : "s"}:
+          {st.changes.length && !st.olderVersion ? "committed" : "saved"} {st.incoming.length} new version{st.incoming.length === 1 ? "" : "s"}{st.changes.length && !st.olderVersion ? " while you were working" : ""}:
           <span class="muted">{st.incoming.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{st.incoming.length > 3 ? "…" : ""}</span>
         </div>
-        {#if !st.olderVersion}
-        <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
-        <button class="primary" onclick={() => run(updateAction)} disabled={!!busy || st.changes.length > 0}
-          title={st.changes.length ? "You have uncommitted changes: commit a version to get these too" : ""}>Get updates</button>
+        {#if st.olderVersion}
+          <!-- back to the latest version first -->
+        {:else if st.changes.length}
+          <button class="ghost" onclick={() => (discardOpen = true)} disabled={!!busy}
+            title="Drop your uncommitted changes and take the team's versions">Discard my changes…</button>
+          <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
+            title="Commit your work on a new branch; this branch stays as the team left it">Put my work on a new branch…</button>
+          <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
+            title="See what they changed, then combine it with your work">Preview & combine</button>
+        {:else}
+          <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
+          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>Get updates</button>
         {/if}
       </div>
     {/if}
@@ -558,7 +632,7 @@
     {#if tab === "changes"}
       <footer class="save">
         <textarea rows="2" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
-          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey && message.trim() && !busy && !st?.olderVersion) run(saveAction); }}></textarea>
+          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey) commit(); }}></textarea>
         <div class="save-row">
           <p class="faint small">
             {#if st.olderVersion}
@@ -571,7 +645,7 @@
               Commits on this computer. Share the project with a team to work on it together.
             {/if}
           </p>
-          <button class="primary" disabled={!message.trim() || !!busy || !!st.olderVersion} onclick={() => run(saveAction)}
+          <button class="primary" disabled={!message.trim() || !!busy || !!st.olderVersion} onclick={commit}
             title="Ctrl+Enter">
             {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
           </button>
@@ -579,6 +653,23 @@
       </footer>
     {/if}
   </div>
+
+  {#if combine}
+    <CombineDialog preview={combine.data} branch={st.branch} bind:message={combine.message} busy={!!busy}
+      onclose={() => (combine = null)} oncombine={combineAndShare} onbranch={() => putOnBranch(combine!.message)} />
+  {/if}
+
+  {#if discardOpen}
+    <Modal title="Discard your changes?" onclose={() => (discardOpen = false)}>
+      <p>Your {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"} will be lost, and the project
+        gets the team's latest versions of “{st.branch}”.</p>
+      <p class="muted">To keep them instead, combine them with the team's work or put them on a new branch.</p>
+      {#snippet footer()}
+        <button onclick={() => (discardOpen = false)}>Cancel</button>
+        <button class="danger" onclick={discardAndUpdate}>Discard and update</button>
+      {/snippet}
+    </Modal>
+  {/if}
 
   {#if preview}
     {@const p = preview}
