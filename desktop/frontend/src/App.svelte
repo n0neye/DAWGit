@@ -266,7 +266,7 @@
         </ul>
         <button class="add" onclick={current ? addToTeam : addLocal} disabled={busy === "add"}>
           <span>+ Add project</span>
-          <span class="hint">{current ? `Select a project folder and add it to ${current.name}` : "Select a project folder to keep its versions on this computer"}</span>
+          <span class="hint">Select project folder</span>
         </button>
       </div>
 
@@ -438,8 +438,8 @@
   .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
   .offline { font-size: 12px; color: var(--danger); padding: 0 8px 4px; }
-  .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px; }
-  .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; line-height: 1.3; }
+  .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 10px; line-height: 1.3; }
+  .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; }
   .pad { padding: 0 8px; }
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
