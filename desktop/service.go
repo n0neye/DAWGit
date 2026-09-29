@@ -30,6 +30,7 @@ type App struct {
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
 	pickDir func(title string) (string, error)
+	openURL func(url string) error
 }
 
 func NewApp() *App {
@@ -198,9 +199,13 @@ func (a *App) handleEvent(root, name string, e agent.Event) {
 	}
 	switch e.Kind {
 	case agent.NewVersions:
+		var names map[string]string
+		if r, err := project.Open(root); err == nil {
+			names = a.memberNames(r)
+		}
 		var lines []string
 		for _, m := range e.Versions {
-			lines = append(lines, fmt.Sprintf("%s: %s", m.Author, m.Message))
+			lines = append(lines, fmt.Sprintf("%s: %s", project.AuthorName(m, names), m.Message))
 		}
 		a.notify(name+": new version from the team", strings.Join(lines, "\n"))
 	case agent.Overlap:
@@ -303,6 +308,21 @@ func (a *App) State(root string) (*State, error) {
 		return nil, err
 	}
 	st.History = toVersions(all, tips)
+	if r.Config.Remote != nil && st.Online {
+		names := a.memberNames(r)
+		renameAuthors(names, st.History)
+		renameAuthors(names, st.Incoming)
+		for _, b := range st.Branches {
+			if b.Latest != nil {
+				if n := names[b.Latest.AuthorID]; n != "" {
+					b.Latest.Author = n
+				}
+			}
+		}
+		if v := st.OlderVersion; v != nil && names[v.AuthorID] != "" {
+			v.Author = names[v.AuthorID]
+		}
+	}
 	if in, err := r.InBranch(); err == nil {
 		for i := range st.History {
 			st.History[i].InBranch = in[st.History[i].ID]
@@ -408,9 +428,10 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 	return out, nil
 }
 
-func toPreview(p *project.Preview) *Preview {
+func toPreview(p *project.Preview, names map[string]string) *Preview {
 	out := &Preview{Action: p.Action, Versions: toVersions(p.Versions, nil), Changes: []Change{},
 		Conflicts: toConflicts(p.Conflicts)}
+	renameAuthors(names, out.Versions)
 	for _, c := range p.Changes {
 		out.Changes = append(out.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
 	}
@@ -427,7 +448,7 @@ func (a *App) PreviewUpdate(root string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toPreview(p), nil
+	return toPreview(p, a.memberNames(r)), nil
 }
 
 // Update brings in the team's latest versions.
@@ -593,7 +614,7 @@ func (a *App) PreviewMerge(root, name string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toPreview(p), nil
+	return toPreview(p, a.memberNames(r)), nil
 }
 
 // PreviewMergeVersion previews merging any version (e.g. one in the middle
@@ -608,7 +629,7 @@ func (a *App) PreviewMergeVersion(root, id string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toPreview(p), nil
+	return toPreview(p, a.memberNames(r)), nil
 }
 
 func (a *App) MergeVersion(root, id string, resolutions map[string]string, force bool) (*Result, error) {

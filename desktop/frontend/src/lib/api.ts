@@ -5,7 +5,7 @@ export type {
   Overview, TeamSummary, TeamProject,
 } from "../../bindings/dawgit/desktop/models";
 export type { TrackEdit } from "../../bindings/dawgit/internal/project/models";
-export type { Project as ServerProject } from "../../bindings/dawgit/internal/remote/models";
+export type { Project as ServerProject, Member } from "../../bindings/dawgit/internal/remote/models";
 
 export const api = App;
 

@@ -3,6 +3,7 @@
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
   import ConnectForm from "./ConnectForm.svelte";
+  import IdentityForm from "./IdentityForm.svelte";
 
   let { overview, reload }: { overview: Overview; reload: () => Promise<void> } = $props();
 
@@ -11,6 +12,10 @@
   let managing = $state(false);
   let names = $state<Record<string, string>>({});
   let confirmRemove = $state<TeamSummary | null>(null);
+  // Who you are in a team (after connecting, or to rename yourself).
+  let identityFor = $state<TeamSummary | null>(null);
+  // Your name for projects kept on this computer only.
+  let localName = $state<string | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
   const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
@@ -31,6 +36,24 @@
     connecting = false;
     toast(`Connected to ${t.name}`, "ok");
     await reload();
+    if (!t.memberId) identityFor = t;
+  }
+
+  async function identitySaved(t: TeamSummary, renamed: boolean) {
+    identityFor = null;
+    await reload();
+    toast(renamed ? `You're “${t.memberName}” in ${t.name} — on all your versions` : `You're “${t.memberName}” in ${t.name}`, "ok");
+  }
+
+  async function saveLocalName() {
+    const n = (localName ?? "").trim();
+    localName = null;
+    try {
+      await api.SetAuthor(n);
+      await reload();
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
   }
 
   function manage() {
@@ -84,6 +107,12 @@
     <span class="name">{current?.name ?? "This computer"}</span>
     <span class="caret">▾</span>
   </button>
+  {#if current && !current.memberId}
+    <button class="who" onclick={() => (identityFor = current!)}
+      title="Versions you commit here show this name, for everyone in the team">
+      ☺ Choose your name in {current.name}
+    </button>
+  {/if}
   {#if open}
     <div class="menu" role="menu">
       {#each overview.teams as t (t.id)}
@@ -100,6 +129,15 @@
         <span class="faint small">this computer only</span>
       </button>
       <div class="sep"></div>
+      {#if current}
+        <button class="item" onclick={() => { open = false; identityFor = current!; }}>
+          <span class="check">☺</span>Your name in {current.name}{current.memberName ? `: ${current.memberName}` : "…"}
+        </button>
+      {:else}
+        <button class="item" onclick={() => { open = false; localName = overview.author; }}>
+          <span class="check">☺</span>Your name on this computer{overview.author ? `: ${overview.author}` : "…"}
+        </button>
+      {/if}
       <button class="item" onclick={() => { open = false; connecting = true; }}>
         <span class="check">+</span>Connect to {overview.teams.length ? "another" : "a"} team…
       </button>
@@ -109,6 +147,25 @@
     </div>
   {/if}
 </div>
+
+{#if identityFor}
+  {@const t = identityFor}
+  <Modal title={t.memberId ? `Your name in ${t.name}` : `Who are you in ${t.name}?`} onclose={() => (identityFor = null)}>
+    <IdentityForm team={t} suggested={overview.author} submitLabel="Save"
+      onsaved={(saved) => identitySaved(saved, !!t.memberId && saved.memberName !== t.memberName)} />
+  </Modal>
+{/if}
+
+{#if localName !== null}
+  <Modal title="Your name on this computer" onclose={() => (localName = null)}>
+    <p class="muted">Used for projects kept on this computer only, and suggested when you join a team.</p>
+    <input bind:value={localName} placeholder="e.g. Yi" />
+    {#snippet footer()}
+      <button onclick={() => (localName = null)}>Cancel</button>
+      <button class="primary" disabled={!localName?.trim()} onclick={saveLocalName}>Save</button>
+    {/snippet}
+  </Modal>
+{/if}
 
 {#if connecting}
   <Modal title="Connect to a team" onclose={() => (connecting = false)}>
@@ -180,6 +237,10 @@
   .check { width: 14px; color: var(--accent); }
   .tname { flex: 1; }
   .small { font-size: 12px; }
+  .who {
+    width: 100%; margin-top: 6px; padding: 5px 10px; font-size: 12.5px; text-align: left;
+    background: var(--warn-bg); color: var(--warn); border: 1px solid #5a4623; border-radius: 8px;
+  }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
   .teams { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
   .teams li { display: flex; align-items: flex-start; gap: 8px; }

@@ -505,6 +505,12 @@ export class TeamSummary {
     "address": string;
     "isStorage": boolean;
 
+    /**
+     * Who this computer is in the team ("" until chosen).
+     */
+    "memberId": string;
+    "memberName": string;
+
     /** Creates a new TeamSummary instance. */
     constructor($$source: Partial<TeamSummary> = {}) {
         if (!("id" in $$source)) {
@@ -518,6 +524,12 @@ export class TeamSummary {
         }
         if (!("isStorage" in $$source)) {
             this["isStorage"] = false;
+        }
+        if (!("memberId" in $$source)) {
+            this["memberId"] = "";
+        }
+        if (!("memberName" in $$source)) {
+            this["memberName"] = "";
         }
 
         Object.assign(this, $$source);
@@ -565,6 +577,46 @@ export class Teammate {
     }
 }
 
+/**
+ * UpdateInfo describes a newer release than the one running.
+ */
+export class UpdateInfo {
+    "version": string;
+
+    /**
+     * what's new
+     */
+    "pageUrl": string;
+
+    /**
+     * the installer ("" if none)
+     */
+    "downloadUrl": string;
+
+    /** Creates a new UpdateInfo instance. */
+    constructor($$source: Partial<UpdateInfo> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("pageUrl" in $$source)) {
+            this["pageUrl"] = "";
+        }
+        if (!("downloadUrl" in $$source)) {
+            this["downloadUrl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateInfo($$parsedSource as Partial<UpdateInfo>);
+    }
+}
+
 export class Version {
     "id": string;
     "short": string;
@@ -581,6 +633,11 @@ export class Version {
      * server branches whose latest version this is
      */
     "branches": string[];
+
+    /**
+     * team member id ("" for older versions)
+     */
+    "authorId": string;
 
     /**
      * InBranch: the current branch already contains this version (only set
@@ -610,6 +667,9 @@ export class Version {
         }
         if (!("branches" in $$source)) {
             this["branches"] = [];
+        }
+        if (!("authorId" in $$source)) {
+            this["authorId"] = "";
         }
         if (!("inBranch" in $$source)) {
             this["inBranch"] = false;

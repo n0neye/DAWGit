@@ -72,7 +72,7 @@ Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
 - Tested with Ableton Live 12 (12.3). Other versions may work but are not verified.
 - Some plugins store changing state even when you did not touch them, which can show up as a change or a conflict on that track.
 - Deleted projects and old data are not cleaned up from team storage yet, so it only grows.
-- No automatic updates: download new versions from the Releases page.
+- No automatic updates yet: DAWGit tells you when a new version is out (it checks this repository's Releases page) and links to the installer.
 
 ## More
 

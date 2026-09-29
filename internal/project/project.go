@@ -138,6 +138,51 @@ func looksLikeProject(root string) bool {
 	return len(sets) > 0
 }
 
+// Identity is who commits here: in a team, the member chosen on this computer
+// (id and name); otherwise the name set on this computer, or the project's.
+func (r *Repo) Identity() (id, name string) {
+	store, _ := teams.Load()
+	if store != nil && r.Config.Remote != nil {
+		if t := store.FindByURL(r.Config.Remote.URL); t != nil && t.MemberID != "" {
+			return t.MemberID, t.MemberName
+		}
+	}
+	if a := os.Getenv("DAWGIT_AUTHOR"); a != "" {
+		return "", a
+	}
+	if store != nil && store.Author != "" {
+		return "", store.Author
+	}
+	return "", r.Config.Author
+}
+
+// MemberNames maps the team's member ids to their current names (empty for
+// projects without a team, or when the team cannot be reached).
+func (r *Repo) MemberNames() map[string]string {
+	names := map[string]string{}
+	c, err := r.Client()
+	if err != nil {
+		return names
+	}
+	ms, err := c.Members()
+	if err != nil {
+		return names
+	}
+	for _, m := range ms {
+		names[m.ID] = m.Name
+	}
+	return names
+}
+
+// AuthorName is the name to show for a version: the member's current name
+// when known, else the name recorded with it.
+func AuthorName(m *Manifest, names map[string]string) string {
+	if n := names[m.AuthorID]; n != "" {
+		return n
+	}
+	return m.Author
+}
+
 func defaultAuthor() string {
 	if a := os.Getenv("DAWGIT_AUTHOR"); a != "" {
 		return a

@@ -42,6 +42,36 @@ func Run(t *testing.T, b remote.Backend) {
 	t.Run("branch race", func(t *testing.T) { branchRace(t, b) })
 	t.Run("workspaces", func(t *testing.T) { workspaces(t, b) })
 	t.Run("delete project", func(t *testing.T) { deleteProject(t, b) })
+	t.Run("members", func(t *testing.T) { members(t, b) })
+}
+
+func members(t *testing.T, b remote.Backend) {
+	id := newID(16)
+	if err := b.PutMember(remote.Member{ID: id, Name: "Contract Tester"}); err != nil {
+		t.Fatalf("PutMember: %v", err)
+	}
+	if err := b.PutMember(remote.Member{ID: id, Name: "Renamed Tester"}); err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if err := b.PutMember(remote.Member{ID: "nope", Name: "x"}); err == nil {
+		t.Error("invalid member id accepted")
+	}
+	ms, err := b.Members()
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, m := range ms {
+		if m.ID == id {
+			found++
+			if m.Name != "Renamed Tester" {
+				t.Errorf("name = %q", m.Name)
+			}
+		}
+	}
+	if found != 1 {
+		t.Fatalf("member listed %d times in %+v", found, ms)
+	}
 }
 
 func deleteProject(t *testing.T, b remote.Backend) {

@@ -73,6 +73,25 @@
   let firstShare = $state("");
   let appVersion = $state("");
 
+  // A newer release on GitHub: offered until the user hides that version.
+  let update = $state<{ version: string; pageUrl: string; downloadUrl: string } | null>(null);
+  const DISMISSED_KEY = "dawgit.dismissedUpdate";
+  async function checkUpdate() {
+    try {
+      const u = await api.CheckUpdate();
+      update = u && u.version !== recall(DISMISSED_KEY) ? u : null;
+    } catch {
+      /* offline: try again later */
+    }
+  }
+  $effect(() => {
+    const t = setInterval(checkUpdate, 6 * 3600 * 1000);
+    return () => clearInterval(t);
+  });
+  function openLink(url: string) {
+    api.OpenURL(url).catch(() => window.open(url, "_blank"));
+  }
+
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
   // Local (this computer only) is picked in the team menu like a team.
   let isLocal = $derived(!current);
@@ -204,6 +223,7 @@
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
     api.Version().then((v) => (appVersion = v)).catch(() => {});
+    checkUpdate();
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
@@ -251,6 +271,23 @@
         <img src="/icon.png" alt="" /> DAWGit
         {#if appVersion}<span class="version faint" title="DAWGit version">v{appVersion}</span>{/if}
       </div>
+      {#if update}
+        {@const u = update}
+        <div class="update">
+          <div class="update-h">
+            <span>DAWGit {u.version} is available</span>
+            <button class="ghost x" title="Hide until the next version"
+              onclick={() => { remember(DISMISSED_KEY, u.version); update = null; }}>✕</button>
+          </div>
+          <div class="update-a">
+            {#if u.downloadUrl}
+              <button class="primary" onclick={() => openLink(u.downloadUrl)}
+                title="Download the installer; run it to update (your projects and teams are kept)">Download</button>
+            {/if}
+            <button class="ghost" onclick={() => openLink(u.pageUrl)}>What's new</button>
+          </div>
+        </div>
+      {/if}
       <TeamMenu {overview} {reload} />
 
       <div class="list">
@@ -443,6 +480,12 @@
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
   .version { margin-left: auto; font-size: 11px; font-weight: 400; }
+  .update { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: #1f3b35; border: 1px solid #2c5a4e; font-size: 12.5px; }
+  .update-h { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent); }
+  .update-h span { flex: 1; }
+  .update-a { display: flex; gap: 6px; margin-top: 6px; }
+  .update-a button { padding: 3px 10px; font-size: 12.5px; }
+  .x { padding: 0 5px; line-height: 16px; color: var(--muted); }
   .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
   .autostart input { width: auto; }
   .small { font-size: 12.5px; }

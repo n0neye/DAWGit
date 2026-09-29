@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"dawgit/internal/remote"
 	"dawgit/internal/version"
 )
 
@@ -19,6 +20,8 @@ import (
 //
 //	GET  /api/v1/info                             -> {name, version} (team name, server version)
 //	PUT  /api/v1/info                             {name} (rename the team)
+//	GET  /api/v1/members                          -> [{id,name}]
+//	PUT  /api/v1/members/{id}                     {name} (join or rename)
 //	GET  /api/v1/projects                         -> [{id,name}]
 //	PUT  /api/v1/projects/{pid}                   {name}
 //	DELETE /api/v1/projects/{pid}                 (moved to <data>/trash)
@@ -50,6 +53,30 @@ func Handler(s *Storage, token string) http.Handler {
 		}
 		if err := s.SetName(name); err != nil {
 			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("GET /api/v1/members", func(w http.ResponseWriter, r *http.Request) {
+		ms, err := s.Members()
+		if err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, ms)
+	})
+	mux.HandleFunc("PUT /api/v1/members/{id}", func(w http.ResponseWriter, r *http.Request) {
+		var m remote.Member
+		if !decode(w, r, &m) {
+			return
+		}
+		m.ID, m.Name = r.PathValue("id"), strings.TrimSpace(m.Name)
+		if m.Name == "" || len(m.Name) > 100 {
+			httpError(w, http.StatusBadRequest, "a name needs 1 to 100 characters")
+			return
+		}
+		if err := s.PutMember(m); err != nil {
+			httpError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

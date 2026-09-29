@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"dawgit/internal/manifest"
+	"dawgit/internal/remote"
 	"dawgit/internal/store"
 )
 
@@ -267,6 +268,38 @@ func (s *Storage) Name() string {
 	var info struct{ Name string }
 	readJSON(filepath.Join(s.dir, "team.json"), &info)
 	return info.Name
+}
+
+func (s *Storage) memberPath(id string) string { return filepath.Join(s.dir, "members", id+".json") }
+
+// Members lists <data>/members/<id>.json.
+func (s *Storage) Members() ([]remote.Member, error) {
+	entries, err := os.ReadDir(filepath.Join(s.dir, "members"))
+	out := []remote.Member{}
+	if errors.Is(err, os.ErrNotExist) {
+		return out, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		var m remote.Member
+		if readJSON(filepath.Join(s.dir, "members", e.Name()), &m) == nil && remote.ValidMemberID(m.ID) {
+			out = append(out, m)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
+}
+
+func (s *Storage) PutMember(m remote.Member) error {
+	if !remote.ValidMemberID(m.ID) {
+		return fmt.Errorf("invalid member id")
+	}
+	if err := os.MkdirAll(filepath.Join(s.dir, "members"), 0o755); err != nil {
+		return err
+	}
+	return writeJSON(s.memberPath(m.ID), m)
 }
 
 func (s *Storage) SetName(name string) error {

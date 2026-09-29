@@ -24,12 +24,13 @@ type TrackEdit struct {
 
 // WorkspaceState is what a member's agent reports to the server.
 type WorkspaceState struct {
-	ID      string      `json:"id"`
-	Author  string      `json:"author"`
-	Branch  string      `json:"branch"`
-	Base    string      `json:"base"` // version the edits are relative to
-	Updated string      `json:"updated"`
-	Edits   []TrackEdit `json:"edits"`
+	ID       string      `json:"id"`
+	Author   string      `json:"author"`
+	AuthorID string      `json:"author_id,omitempty"`
+	Branch   string      `json:"branch"`
+	Base     string      `json:"base"` // version the edits are relative to
+	Updated  string      `json:"updated"`
+	Edits    []TrackEdit `json:"edits"`
 	// Files are backups of the modified sets (objects on the server).
 	Files []FileEntry `json:"files,omitempty"`
 }
@@ -140,7 +141,8 @@ func (r *Repo) ReportWorkspace() (*WorkspaceState, error) {
 	if err := r.uploadObjects(c, hashes); err != nil {
 		return nil, err
 	}
-	st := &WorkspaceState{ID: id, Author: r.Config.Author, Branch: r.BranchName(), Base: r.Head(),
+	authorID, author := r.Identity()
+	st := &WorkspaceState{ID: id, Author: author, AuthorID: authorID, Branch: r.BranchName(), Base: r.Head(),
 		Updated: time.Now().UTC().Format(time.RFC3339), Edits: edits, Files: files}
 	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
 		return nil, err

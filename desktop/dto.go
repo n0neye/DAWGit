@@ -17,6 +17,7 @@ type Version struct {
 	Message  string   `json:"message"`
 	Parents  []string `json:"parents"`
 	Branches []string `json:"branches"` // server branches whose latest version this is
+	AuthorID string   `json:"authorId"` // team member id ("" for older versions)
 	// InBranch: the current branch already contains this version (only set
 	// in State.History); other versions can be merged in.
 	InBranch bool `json:"inBranch"`
@@ -103,7 +104,17 @@ func toVersion(m *project.Manifest, tips map[string][]string) Version {
 		parents = []string{}
 	}
 	return Version{ID: m.ID, Short: m.ID[:10], Author: m.Author, Time: m.Time, Message: m.Message,
-		Parents: parents, Branches: tips[m.ID]}
+		Parents: parents, Branches: tips[m.ID], AuthorID: m.AuthorID}
+}
+
+// renameAuthors shows members' current names (a rename applies to
+// everything they did).
+func renameAuthors(names map[string]string, vs []Version) {
+	for i := range vs {
+		if n := names[vs[i].AuthorID]; n != "" {
+			vs[i].Author = n
+		}
+	}
 }
 
 func toVersions(ms []*project.Manifest, tips map[string][]string) []Version {
