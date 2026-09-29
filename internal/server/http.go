@@ -11,13 +11,17 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"dawgit/internal/version"
 )
 
 // API (all JSON, Bearer token auth):
 //
-//	GET  /api/v1/info                             -> {name} (team name)
+//	GET  /api/v1/info                             -> {name, version} (team name, server version)
+//	PUT  /api/v1/info                             {name} (rename the team)
 //	GET  /api/v1/projects                         -> [{id,name}]
 //	PUT  /api/v1/projects/{pid}                   {name}
+//	DELETE /api/v1/projects/{pid}                 (moved to <data>/trash)
 //	GET  /api/v1/projects/{pid}/branches          -> {name: snapshot}
 //	POST /api/v1/projects/{pid}/branches/{name}   {old,new} -> 200 | 409 {current}
 //	POST /api/v1/projects/{pid}/snapshots/missing {ids} -> {missing}
@@ -32,10 +36,27 @@ func Handler(s *Storage, token string) http.Handler {
 	mux := http.NewServeMux()
 	h := &handlers{s: s}
 	mux.HandleFunc("GET /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
-		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name()})
+		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name(), "version": version.Version})
+	})
+	mux.HandleFunc("PUT /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Name string }
+		if !decode(w, r, &body) {
+			return
+		}
+		name := strings.TrimSpace(body.Name)
+		if name == "" || len(name) > 100 {
+			httpError(w, http.StatusBadRequest, "a team name needs 1 to 100 characters")
+			return
+		}
+		if err := s.SetName(name); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /api/v1/projects", h.listProjects)
 	mux.HandleFunc("PUT /api/v1/projects/{pid}", h.putProject)
+	mux.HandleFunc("DELETE /api/v1/projects/{pid}", h.project(h.deleteProject))
 	mux.HandleFunc("GET /api/v1/projects/{pid}/branches", h.project(h.getBranches))
 	mux.HandleFunc("POST /api/v1/projects/{pid}/branches/{name}", h.project(h.updateBranch))
 	mux.HandleFunc("POST /api/v1/projects/{pid}/snapshots/missing", h.project(h.missingSnapshots))
@@ -113,6 +134,14 @@ func (h *handlers) putProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.s.PutProject(Project{ID: r.PathValue("pid"), Name: body.Name}); err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handlers) deleteProject(w http.ResponseWriter, r *http.Request) {
+	if err := h.s.DeleteProject(r.PathValue("pid")); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

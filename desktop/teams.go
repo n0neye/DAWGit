@@ -96,7 +96,18 @@ func (a *App) Overview() (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
-	if b, err := remote.Open(t.Remote); err != nil {
+	b, err := remote.Open(t.Remote)
+	if err == nil {
+		// Follow the team's name when whoever runs it renames it.
+		if info, err := b.Info(); err == nil && store.SyncName(t.ID, info.Name) && store.Save() == nil {
+			for i := range ov.Teams {
+				if ov.Teams[i].ID == t.ID {
+					ov.Teams[i].Name = info.Name
+				}
+			}
+		}
+	}
+	if err != nil {
 		ov.TeamError = err.Error()
 	} else if ps, err := b.Projects(); err != nil {
 		ov.TeamError = err.Error()
@@ -142,7 +153,7 @@ func (a *App) SelectTeam(id string) error {
 	if err != nil {
 		return err
 	}
-	if store.Find(id) == nil {
+	if id != teams.LocalID && store.Find(id) == nil {
 		return errors.New("unknown team")
 	}
 	store.Current = id
@@ -158,10 +169,42 @@ func (a *App) RenameTeam(id, name string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	if name = strings.TrimSpace(name); name == "" {
-		return errors.New("a team needs a name")
+	if err := store.Rename(t.ID, name); err != nil {
+		return err
 	}
-	t.Name = name
+	if !t.CustomName { // back to the team's own name
+		if b, err := remote.Open(t.Remote); err == nil {
+			if info, err := b.Info(); err == nil {
+				store.SyncName(t.ID, info.Name)
+			}
+		}
+	}
+	return store.Save()
+}
+
+// RenameTeamForEveryone changes the team's own name, on its server or
+// storage; every member's DAWGit follows it.
+func (a *App) RenameTeamForEveryone(id, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 100 {
+		return errors.New("a team name needs 1 to 100 characters")
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return err
+	}
+	t := store.Find(id)
+	if t == nil {
+		return errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return err
+	}
+	if err := b.SetInfo(remote.TeamInfo{Name: name}); err != nil {
+		return err
+	}
+	t.Name, t.CustomName = name, false
 	return store.Save()
 }
 
@@ -273,6 +316,7 @@ func (a *App) AddLocalProject(folder string) (TeamProject, error) {
 		return TeamProject{}, errors.New("this project belongs to a team: connect to that team to open it")
 	}
 	store.AddLocal(r.Root)
+	store.Current = teams.LocalID // show it
 	if err := store.Save(); err != nil {
 		return TeamProject{}, err
 	}
@@ -318,6 +362,42 @@ func (a *App) ForgetProject(root string) error {
 		}
 	}
 	store.RemoveLocal(root)
+	return store.Save()
+}
+
+// DeleteProjectFromTeam removes a project from the team's server or storage
+// for everyone. The copy on this computer (if any) is kept, with its history,
+// as a project on this computer only.
+func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
+	store, err := teams.Load()
+	if err != nil {
+		return err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return err
+	}
+	if err := b.DeleteProject(projectID); err != nil {
+		return err
+	}
+	root := store.ProjectRoot(teamID, projectID)
+	store.ForgetProject(teamID, projectID)
+	if root != "" {
+		a.stopAgent(root)
+		unlock := a.lock(root)
+		defer unlock()
+		if r, err := project.Open(root); err == nil {
+			r.Config.Remote = nil
+			if err := r.SaveConfig(); err != nil {
+				return err
+			}
+			store.AddLocal(r.Root)
+		}
+	}
 	return store.Save()
 }
 

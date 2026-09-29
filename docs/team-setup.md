@@ -49,19 +49,21 @@ The first time DAWGit opens, it walks you through three steps:
 2. **Your name** — shown next to the versions you commit.
 3. **Projects** — download the songs you work on, or add a project folder of your own.
 
-The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
+The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). To rename a team, type the new name in **Manage teams…**: **Rename for everyone** changes it on the team server or storage and every member's DAWGit follows; **Only on this computer** keeps your own name for it. Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
 ## 4. Share a project (the person who has it)
 
-In the sidebar, click **+ Add project folder** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
+In the sidebar, click **+ Add project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
 
-A project kept with **Keep a project on this computer only…** can be shared later with **Share with a team…** at the top of the project.
+To keep a project's versions on this computer only, pick **Local** in the Team menu and add it there. It can be shared later with **Share with a team…** at the top of the project.
 
 ## 5. Get a project (everyone else)
 
 The sidebar lists every song in the current team. Songs not on this computer yet are dimmed (☁): pick one and click **Download**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
 
 If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
+
+The **⋯** menu next to a song removes it from this computer's list (the folder stays), or deletes it from the team server for everyone (you type the song's name to confirm). Copies already on someone's computer are kept; on a self-hosted server the deleted song is moved to the `trash` folder in the server's data folder.
 
 ## Everyday use
 

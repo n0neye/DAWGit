@@ -1,12 +1,16 @@
 # Builds the Windows release: desktop app, CLI and installer.
 #
-#   powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1 [-Version 0.1.0]
+#   powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
 #
+# The version comes from internal/version/version.go.
 # Needs: Go, Node.js (npm), NSIS (makensis). Output: dist\
-param([string]$Version = "0.1.0")
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
+$src = Get-Content (Join-Path $root "internal\version\version.go") -Raw
+if ($src -notmatch 'Version = "(\d+\.\d+\.\d+)"') { throw "no version in internal/version/version.go" }
+$Version = $Matches[1]
+Write-Host "DAWGit $Version"
 $desktop = Join-Path $root "desktop"
 $dist = Join-Path $root "dist"
 Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
@@ -31,8 +35,17 @@ Pop-Location
 
 Step "Windows resources (icon, manifest, version info)"
 Push-Location $desktop
+# info.json with this version filled in (file properties of DAWGit.exe).
+$info = Get-Content build/windows/info.json -Raw | ConvertFrom-Json
+$info.fixed.file_version = "$Version.0"
+$info.fixed.product_version = "$Version.0"
+$info.info."0409".ProductVersion = $Version
+$info.info."0409".FileVersion = $Version
+$infoFile = Join-Path $env:TEMP "dawgit-info.json"
+[IO.File]::WriteAllText($infoFile, ($info | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest `
-  -info build/windows/info.json -out wails_windows_amd64.syso; Check "syso"
+  -info $infoFile -out wails_windows_amd64.syso; Check "syso"
+Remove-Item $infoFile
 
 Step "desktop app"
 $ldflags = "-w -s -H windowsgui"

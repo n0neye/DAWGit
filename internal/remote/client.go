@@ -37,6 +37,9 @@ func (e *ErrConflict) Error() string { return "branch was updated by someone els
 // ErrNotFound is returned for unknown projects, snapshots or objects.
 var ErrNotFound = errors.New("not found on server")
 
+// ErrOldServer means the team's server predates a feature.
+var ErrOldServer = errors.New("the team's server is out of date: whoever runs it should install the current DAWGit")
+
 func (c *Client) do(method, path string, body io.Reader, contentType string) (*http.Response, error) {
 	req, err := http.NewRequest(method, c.URL+"/api/v1"+path, body)
 	if err != nil {
@@ -64,6 +67,8 @@ func apiError(resp *http.Response) error {
 		return &ErrConflict{Current: body.Current}
 	case http.StatusNotFound:
 		return ErrNotFound
+	case http.StatusMethodNotAllowed:
+		return ErrOldServer
 	case http.StatusUnauthorized:
 		return errors.New("server rejected the access token (check `dawgit remote`)")
 	}
@@ -104,6 +109,10 @@ func (c *Client) Projects() ([]Project, error) {
 
 func (c *Client) PutProject(p Project) error {
 	return c.call("PUT", "/projects/"+p.ID, map[string]string{"name": p.Name}, nil)
+}
+
+func (c *Client) DeleteProject(pid string) error {
+	return c.call("DELETE", "/projects/"+pid, nil, nil)
 }
 
 func (c *Client) Branches(pid string) (map[string]string, error) {
@@ -195,4 +204,12 @@ func (c *Client) Info() (TeamInfo, error) {
 		return TeamInfo{}, nil
 	}
 	return info, err
+}
+
+func (c *Client) SetInfo(info TeamInfo) error {
+	err := c.call("PUT", "/info", info, nil)
+	if errors.Is(err, ErrNotFound) {
+		return ErrOldServer
+	}
+	return err
 }

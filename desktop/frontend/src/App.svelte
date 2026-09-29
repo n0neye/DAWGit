@@ -17,6 +17,10 @@
   let busy = $state("");
   let autostart = $state(false);
   let confirmShare = $state<string | null>(null);
+  let rowMenu = $state(""); // key of the project whose ⋯ menu is open
+  let confirmDelete = $state<TeamProject | null>(null);
+  let deleteWord = $state("");
+  const rowKey = (p: TeamProject) => p.root || p.id;
 
   const SELECTED_KEY = "dawgit.selected";
   const DOWNLOAD_DIR_KEY = "dawgit.downloadDir";
@@ -66,13 +70,14 @@
   // A project just added to a team: its view commits and uploads the first
   // version.
   let firstShare = $state("");
+  let appVersion = $state("");
 
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
-  let entries = $derived(overview?.projects ?? []);
-  let selectedEntry = $derived.by(() => {
-    const all = [...entries, ...(overview?.local ?? [])];
-    return all.find((p) => (selected.root ? p.root === selected.root : !!selected.id && p.id === selected.id && !p.root));
-  });
+  // Local (this computer only) is picked in the team menu like a team.
+  let isLocal = $derived(!current);
+  let entries = $derived((isLocal ? overview?.local : overview?.projects) ?? []);
+  let selectedEntry = $derived(
+    entries.find((p) => (selected.root ? p.root === selected.root : !!selected.id && p.id === selected.id && !p.root)));
 
   function select(p: TeamProject) {
     selected = p.root ? { root: p.root } : { id: p.id };
@@ -83,8 +88,8 @@
   $effect(() => {
     if (!overview || selectedEntry) return;
     const last = recall(SELECTED_KEY);
-    const all = [...entries, ...overview.local];
-    const pick = all.find((p) => p.root && p.root === last) ?? all.find((p) => p.status === "downloaded") ?? all[0];
+    const pick = entries.find((p) => p.root && p.root === last) ??
+      entries.find((p) => p.status === "downloaded" || p.status === "local") ?? entries[0];
     if (pick) select(pick);
   });
 
@@ -131,6 +136,22 @@
     toast(`Removed “${p.name}” from this computer's list (files untouched)`, "info");
     selected = {};
     await reload();
+  }
+
+  async function deleteFromTeam(p: TeamProject) {
+    confirmDelete = null;
+    busy = "delete";
+    try {
+      await api.DeleteProjectFromTeam(overview!.currentTeam, p.id);
+      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy is kept under Local.`
+        : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
+      if (!p.root) selected = {};
+      await reload();
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
+    }
   }
 
   async function addToTeam() {
@@ -181,6 +202,7 @@
       if (overview && overview.teams.length === 0 && overview.local.length === 0) onboarding = true;
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
+    api.Version().then((v) => (appVersion = v)).catch(() => {});
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
@@ -205,11 +227,12 @@
     };
   });
 
-  const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found", local: "not shared" };
+  const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found" };
   const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪", local: "♪" };
 </script>
 
-<svelte:window onfocus={reloadIfStale} />
+<svelte:window onfocus={reloadIfStale}
+  onclick={(e) => { if (rowMenu && !(e.target as HTMLElement).closest(".row-menu, .more")) rowMenu = ""; }} />
 
 {#if !overview}
   <div class="loading faint">Loading…</div>
@@ -223,42 +246,36 @@
 {:else}
   <div class="shell">
     <aside>
-      <div class="brand"><img src="/icon.png" alt="" /> DAWGit</div>
+      <div class="brand">
+        <img src="/icon.png" alt="" /> DAWGit
+        {#if appVersion}<span class="version faint" title="DAWGit version">v{appVersion}</span>{/if}
+      </div>
       <TeamMenu {overview} {reload} />
 
       <div class="list">
-        {#if current}
-          <div class="section row-h">
-            <span>Projects</span>
+        <div class="section row-h">
+          <span>Projects</span>
+          {#if current}
             <button class="ghost tiny" class:spin={reloading} onclick={reload} title="Check the team for new projects">↻</button>
-          </div>
-          {#if overview.teamError}
-            <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
           {/if}
-          <ul>
-            {#each entries as p (p.root || p.id)}
-              {@render row(p)}
-            {:else}
-              <li class="empty faint">No projects in this team yet.</li>
-            {/each}
-          </ul>
-          <button class="add" onclick={addToTeam} disabled={busy === "add"}>+ Add project folder</button>
-        {:else}
-          <p class="faint small pad">Connect to a team to share projects.</p>
+        </div>
+        {#if current && overview.teamError}
+          <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
         {/if}
-
-        {#if overview.local.length}
-          <div class="section">On this computer only</div>
-          <ul>
-            {#each overview.local as p (p.root)}
-              {@render row(p)}
-            {/each}
-          </ul>
-        {/if}
+        <ul>
+          {#each entries as p (p.root || p.id)}
+            {@render row(p)}
+          {:else}
+            <li class="empty faint">{current ? "No projects in this team yet." : "No projects on this computer yet."}</li>
+          {/each}
+        </ul>
+        <button class="add" onclick={current ? addToTeam : addLocal} disabled={busy === "add"}>
+          <span>+ Add project</span>
+          <span class="hint">Select project folder</span>
+        </button>
       </div>
 
       <div class="bottom">
-        <button class="link" onclick={addLocal}>Keep a project on this computer only…</button>
         <label class="autostart" title="Keeps DAWGit in the tray so teammates see what you edit and you hear about new versions">
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
@@ -306,8 +323,9 @@
         </div>
       {:else}
         <div class="placeholder">
-          <h1>{current ? current.name : "DAWGit"}</h1>
-          <p class="muted">{current ? "Pick a song on the left, or add a project folder to share it with the team." : "Connect to a team from the menu at the top left."}</p>
+          <h1>{current ? current.name : "Local"}</h1>
+          <p class="muted">{current ? "Pick a song on the left, or add a project to share it with the team."
+            : "Projects here keep their versions on this computer only. Pick one on the left, or add one."}</p>
         </div>
       {/if}
     </section>
@@ -326,8 +344,21 @@
         </span>
       </span>
     </button>
-    {#if p.root && p.status !== "missing"}
-      <button class="ghost rm" title="Remove from this computer's list (files stay)" onclick={() => forget(p)}>✕</button>
+    <button class="ghost more" class:open={rowMenu === rowKey(p)} title="More"
+      onclick={() => (rowMenu = rowMenu === rowKey(p) ? "" : rowKey(p))}>⋯</button>
+    {#if rowMenu === rowKey(p)}
+      <div class="row-menu" role="menu">
+        {#if p.root}
+          <button class="item" onclick={() => { rowMenu = ""; forget(p); }}>
+            Remove from list<span class="faint">the folder stays on this computer</span>
+          </button>
+        {/if}
+        {#if p.status !== "local"}
+          <button class="item danger-text" onclick={() => { rowMenu = ""; deleteWord = ""; confirmDelete = p; }}>
+            Delete from server…<span class="faint">for everyone in {current?.name}</span>
+          </button>
+        {/if}
+      </div>
     {/if}
   </li>
 {/snippet}
@@ -341,6 +372,21 @@
     {#snippet footer()}
       <button onclick={() => (confirmShare = null)}>Cancel</button>
       <button class="primary" onclick={() => share(folder)}>Share</button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if confirmDelete}
+  {@const p = confirmDelete}
+  <Modal title="Delete “{p.name}” from the server?" onclose={() => (confirmDelete = null)}>
+    <p>This removes the song and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
+      Copies already on someone's computer are not touched{p.root ? " — yours stays here as a project on this computer only" : ""}.</p>
+    <label for="delete-word">Type <strong>{p.name}</strong> to confirm</label>
+    <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
+      onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) deleteFromTeam(p); }} />
+    {#snippet footer()}
+      <button onclick={() => (confirmDelete = null)}>Cancel</button>
+      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => deleteFromTeam(p)}>Delete</button>
     {/snippet}
   </Modal>
 {/if}
@@ -365,8 +411,8 @@
   .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
   .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { display: flex; align-items: center; }
-  .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 10px; border-radius: 8px; text-align: left; }
+  li { display: flex; align-items: center; position: relative; }
+  .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 28px 7px 10px; border-radius: 8px; text-align: left; }
   .proj:hover { background: var(--panel); }
   .proj.on { background: var(--panel-2); }
   .icon { width: 16px; text-align: center; color: var(--accent); }
@@ -377,15 +423,32 @@
   .proj.remote .name { color: var(--muted); font-weight: 500; }
   .proj.remote .icon { color: var(--faint); }
   .proj.missing .icon, .proj.missing .meta { color: var(--warn); }
-  .proj.local .icon { color: var(--mod); }
-  .rm { visibility: hidden; padding: 2px 6px; }
-  li:hover .rm { visibility: visible; }
+  .more {
+    position: absolute; top: 4px; right: 4px; visibility: hidden; padding: 0 6px; line-height: 18px;
+    font-size: 15px; color: var(--muted); border-radius: 6px;
+  }
+  li:hover .more, .more.open { visibility: visible; }
+  .more:hover, .more.open { background: #33363d; color: var(--text); }
+  .row-menu {
+    position: absolute; top: 26px; right: 4px; z-index: 30; min-width: 220px; padding: 6px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+  }
+  .row-menu .item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; border: none;
+    background: transparent; padding: 6px 8px; text-align: left;
+  }
+  .row-menu .item:hover { background: #33363d; }
+  .row-menu .item .faint { font-size: 11px; }
+  .danger-text { color: var(--danger); }
+  .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
   .offline { font-size: 12px; color: var(--danger); padding: 0 8px 4px; }
-  .add { width: 100%; margin: 8px 0 4px; }
+  .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 10px; line-height: 1.3; }
+  .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; }
   .pad { padding: 0 8px; }
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
+  .version { margin-left: auto; font-size: 11px; font-weight: 400; }
   .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
   .autostart input { width: auto; }
   .small { font-size: 12.5px; }

@@ -24,9 +24,14 @@ import (
 type Backend interface {
 	// Info describes the team (its name); empty for backends that have none.
 	Info() (TeamInfo, error)
+	// SetInfo renames the team for everyone.
+	SetInfo(info TeamInfo) error
 
 	Projects() ([]Project, error)
 	PutProject(p Project) error
+	// DeleteProject removes a project from the team: its versions, branches
+	// and workspaces. Stored files may stay until they are cleaned up.
+	DeleteProject(pid string) error
 
 	// Branches maps branch name to version id.
 	Branches(pid string) (map[string]string, error)

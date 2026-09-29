@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, errorText, type Overview, type TeamSummary } from "./api";
+  import { api, errorText, LOCAL, type Overview, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
   import ConnectForm from "./ConnectForm.svelte";
@@ -13,6 +13,9 @@
   let confirmRemove = $state<TeamSummary | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
+  const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
+  // "Local" (projects kept on this computer only) sits in the menu like a team.
+  let isLocal = $derived(!current);
 
   async function select(id: string) {
     open = false;
@@ -40,9 +43,24 @@
     try {
       await api.RenameTeam(t.id, names[t.id]);
       await reload();
+      names[t.id] = overview.teams.find((x) => x.id === t.id)?.name ?? names[t.id];
       toast("Renamed", "ok");
     } catch (e) {
       toast(errorText(e), "error");
+    }
+  }
+
+  let renaming = $state("");
+  async function renameForEveryone(t: TeamSummary) {
+    renaming = t.id;
+    try {
+      await api.RenameTeamForEveryone(t.id, names[t.id]);
+      await reload();
+      toast(`Renamed to ${names[t.id].trim()} for everyone`, "ok");
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      renaming = "";
     }
   }
 
@@ -61,9 +79,9 @@
 <svelte:window onclick={(e) => { if (open && !(e.target as HTMLElement).closest(".team-menu")) open = false; }} />
 
 <div class="team-menu">
-  <button class="current" onclick={() => (open = !open)} title={current?.address ?? ""}>
-    <span class="label">Team</span>
-    <span class="name">{current?.name ?? "No team"}</span>
+  <button class="current" onclick={() => (open = !open)} title={current?.address ?? "Projects kept on this computer only"}>
+    <span class="label">{isLocal ? "Local" : "Team"}</span>
+    <span class="name">{current?.name ?? "This computer"}</span>
     <span class="caret">▾</span>
   </button>
   {#if open}
@@ -72,10 +90,16 @@
         <button class="item" onclick={() => select(t.id)}>
           <span class="check">{t.id === overview.currentTeam ? "✓" : ""}</span>
           <span class="tname">{t.name}</span>
-          <span class="faint small">{t.isStorage ? "storage" : t.address.replace(/^https?:\/\//, "")}</span>
+          <span class="faint small">{t.isStorage ? "storage" : hostOf(t) === t.name ? "" : hostOf(t)}</span>
         </button>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}
+      <button class="item" onclick={() => select(LOCAL)}>
+        <span class="check">{isLocal ? "✓" : ""}</span>
+        <span class="tname">Local</span>
+        <span class="faint small">this computer only</span>
+      </button>
+      <div class="sep"></div>
       <button class="item" onclick={() => { open = false; connecting = true; }}>
         <span class="check">+</span>Connect to {overview.teams.length ? "another" : "a"} team…
       </button>
@@ -98,14 +122,28 @@
       {#each overview.teams as t (t.id)}
         <li>
           <div class="fields">
-            <input bind:value={names[t.id]} aria-label="Team name" />
+            <input bind:value={names[t.id]} aria-label="Team name" placeholder="The team's own name" />
             <div class="faint small mono">{t.address}</div>
+            {#if names[t.id] !== t.name}
+              <div class="rename">
+                {#if names[t.id]?.trim()}
+                  <button class="primary" disabled={!!renaming} onclick={() => renameForEveryone(t)}>
+                    {renaming === t.id ? "Renaming…" : "Rename for everyone"}
+                  </button>
+                  <button disabled={!!renaming} onclick={() => rename(t)}>Only on this computer</button>
+                {:else}
+                  <button onclick={() => rename(t)}>Use the team's name</button>
+                {/if}
+                <button class="ghost" onclick={() => (names[t.id] = t.name)}>Cancel</button>
+              </div>
+            {/if}
           </div>
-          <button disabled={!names[t.id]?.trim() || names[t.id] === t.name} onclick={() => rename(t)}>Rename</button>
           <button class="danger" onclick={() => (confirmRemove = t)}>Disconnect</button>
         </li>
       {/each}
     </ul>
+    <p class="faint small note"><strong>Rename for everyone</strong> changes the team's name on its server or storage,
+      and every member sees the new name. <strong>Only on this computer</strong> keeps your own name for it here.</p>
     {#snippet footer()}
       <button onclick={() => (managing = false)}>Close</button>
     {/snippet}
@@ -144,7 +182,10 @@
   .small { font-size: 12px; }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
   .teams { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-  .teams li { display: flex; align-items: center; gap: 8px; }
+  .teams li { display: flex; align-items: flex-start; gap: 8px; }
+  .rename { display: flex; gap: 6px; margin-top: 8px; }
+  .rename button { padding: 5px 10px; font-size: 13px; }
   .fields { flex: 1; min-width: 0; }
+  .note { margin: 14px 0 0; }
   .fields .mono { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

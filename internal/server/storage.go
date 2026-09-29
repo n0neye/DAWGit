@@ -7,6 +7,7 @@
 //	<data>/projects/<id>/snapshots/<id>.json
 //	<data>/projects/<id>/branches/<name>    version id (one file per branch)
 //	<data>/projects/<id>/workspaces/<id>.json
+//	<data>/trash/<id>-<time>/               deleted projects
 package server
 
 import (
@@ -19,6 +20,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"dawgit/internal/manifest"
 	"dawgit/internal/store"
@@ -86,6 +88,21 @@ func (s *Storage) PutProject(p Project) error {
 		return err
 	}
 	return writeJSON(filepath.Join(s.projectDir(p.ID), "project.json"), p)
+}
+
+// DeleteProject moves the project to <data>/trash, where whoever runs the
+// server can still recover it.
+func (s *Storage) DeleteProject(pid string) error {
+	if !s.HasProject(pid) {
+		return os.ErrNotExist
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	trash := filepath.Join(s.dir, "trash")
+	if err := os.MkdirAll(trash, 0o755); err != nil {
+		return err
+	}
+	return os.Rename(s.projectDir(pid), filepath.Join(trash, pid+"-"+time.Now().UTC().Format("20060102-150405")))
 }
 
 func (s *Storage) HasProject(pid string) bool {
