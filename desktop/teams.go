@@ -209,7 +209,9 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 		return TeamProject{}, errors.New("the project is no longer on the team")
 	}
 	dir := filepath.Join(parent, name+" Project")
-	r, _, err := project.CloneFromTeam(t, projectID, dir, store.Author)
+	report, done := a.progressFor(dir)
+	r, _, err := project.CloneFromTeam(t, projectID, dir, store.Author, report)
+	done()
 	if err != nil {
 		return TeamProject{}, err
 	}
@@ -217,40 +219,41 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 	return folderProject(r.Root, "downloaded"), nil
 }
 
-// AddProjectToTeam starts tracking an Ableton project folder and shares it
-// with the team right away (first version).
-func (a *App) AddProjectToTeam(teamID, folder string, force bool) (*Result, error) {
+// AddProjectToTeam starts tracking an Ableton project folder as part of a
+// team. It returns quickly; the frontend then commits and uploads the first
+// version with Save, showing its progress.
+func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
 	store, err := teams.Load()
 	if err != nil {
-		return nil, err
+		return TeamProject{}, err
 	}
 	t := store.Find(teamID)
 	if t == nil {
-		return nil, errors.New("unknown team")
+		return TeamProject{}, errors.New("unknown team")
 	}
 	r, err := project.Open(folder)
 	switch {
 	case errors.Is(err, project.ErrNotRepo):
 		if r, err = project.Init(folder, store.Author); err != nil {
-			return nil, err
+			return TeamProject{}, err
 		}
 	case err != nil:
-		return nil, err
+		return TeamProject{}, err
 	case r.Config.Remote != nil && teams.NormalizeURL(r.Config.Remote.URL) != t.Remote.URL:
-		return nil, fmt.Errorf("this project already belongs to another team (%s)", r.Config.Remote.URL)
+		return TeamProject{}, fmt.Errorf("this project already belongs to another team (%s)", r.Config.Remote.URL)
 	}
 	unlock := a.lock(r.Root)
 	if err := r.JoinTeam(t); err != nil {
 		unlock()
-		return nil, err
+		return TeamProject{}, err
 	}
 	unlock()
 	// The project now lives in this team, so show that team.
 	if err := a.SelectTeam(teamID); err != nil {
-		return nil, err
+		return TeamProject{}, err
 	}
 	a.startAgent(r.Root)
-	return a.Save(r.Root, "First version", nil, force)
+	return folderProject(r.Root, "downloaded"), nil
 }
 
 // AddLocalProject tracks a folder on this computer only (no team).
@@ -276,9 +279,9 @@ func (a *App) AddLocalProject(folder string) (TeamProject, error) {
 	return folderProject(r.Root, "local"), nil
 }
 
-// ShareProject moves a local-only project into a team (first shared version).
-func (a *App) ShareProject(root, teamID string, force bool) (*Result, error) {
-	return a.AddProjectToTeam(teamID, root, force)
+// ShareProject moves a local-only project into a team (see AddProjectToTeam).
+func (a *App) ShareProject(root, teamID string) (TeamProject, error) {
+	return a.AddProjectToTeam(teamID, root)
 }
 
 // LocateProject points a team project at a folder that was moved.

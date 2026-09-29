@@ -7,7 +7,7 @@
   let { overview, reload, onfinish }: {
     overview: Overview;
     reload: () => Promise<void>;
-    onfinish: (root?: string) => void;
+    onfinish: (root?: string, share?: boolean) => void;
   } = $props();
 
   let step = $state(1);
@@ -64,9 +64,10 @@
     busy = "add";
     error = "";
     try {
-      await api.AddProjectToTeam(team.id, folder, false);
-      downloaded = [...downloaded, folder];
-      await reload();
+      // Open it right away: its view uploads the first version and shows how
+      // that is going.
+      const p = await api.AddProjectToTeam(team.id, folder);
+      onfinish(p.root, true);
     } catch (e) {
       error = errorText(e);
     } finally {

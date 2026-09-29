@@ -39,6 +39,9 @@ type Repo struct {
 	Dir    string // Root/.dawgit
 	Store  *store.Store
 	Config Config
+
+	// OnProgress, when set, hears about long steps (see Progress).
+	OnProgress func(Progress)
 }
 
 // ErrNotRepo is returned when no .dawgit directory is found.

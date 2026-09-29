@@ -45,6 +45,27 @@ export function lineKind(line: string): string {
 }
 
 /** A connection code bundles storage address and keys; no token needed. */
+// How a long step (save, upload, download) is going; "progress" events.
+export type Progress = { root: string; stage: string; done: number; total: number };
+
+export function progressText(p: Progress, team = "the team"): string {
+  const n = p.total ? ` · ${Math.min(p.done + 1, p.total)} of ${p.total}` : "";
+  switch (p.stage) {
+    case "scanning": return "Looking for changed files…";
+    case "storing": return `Adding files to the history${n}`;
+    case "uploading": return `Uploading to ${team}${n}`;
+    case "downloading": return `Downloading${n}`;
+  }
+  return "Working…";
+}
+
+// Short form for the sidebar.
+export function progressShort(p: Progress): string {
+  const n = p.total ? ` ${Math.min(p.done + 1, p.total)}/${p.total}` : "…";
+  return ({ scanning: "reading files…", storing: "saving" + n, uploading: "uploading" + n,
+    downloading: "downloading" + n } as Record<string, string>)[p.stage] ?? "working…";
+}
+
 export function isConnectionCode(s: string): boolean {
   return s.trim().startsWith("dawgit-s3:");
 }

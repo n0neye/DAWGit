@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, errorText, type Overview, type TeamProject } from "./lib/api";
+  import { api, errorText, progressShort, progressText, type Overview, type Progress, type TeamProject } from "./lib/api";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
   import Onboarding from "./lib/Onboarding.svelte";
@@ -23,13 +23,49 @@
   const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* not persisted */ } };
   const recall = (k: string) => { try { return localStorage.getItem(k) ?? ""; } catch { return ""; } };
 
+  let reloading = $state(false);
+  let lastReload = 0;
   async function reload() {
+    reloading = true;
+    lastReload = Date.now();
     try {
       overview = await api.Overview();
     } catch (e) {
       toast(errorText(e), "error");
+    } finally {
+      reloading = false;
     }
   }
+
+  // New projects on the team show up without a manual refresh: every minute,
+  // and when the window comes back to the front.
+  function reloadIfStale() {
+    if (!onboarding && !reloading && Date.now() - lastReload > 5000) reload();
+  }
+  $effect(() => {
+    const t = setInterval(reloadIfStale, 60000);
+    return () => clearInterval(t);
+  });
+
+  // Save/upload/download progress per project folder, for the sidebar.
+  let activity = $state<Record<string, Progress>>({});
+  let lastProgress = $state<Progress | null>(null);
+  const activityTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+  function onProgress(p: Progress) {
+    clearTimeout(activityTimers[p.root]);
+    if (p.stage === "done") {
+      delete activity[p.root];
+      return;
+    }
+    activity[p.root] = p;
+    lastProgress = p;
+    // In case the final event is missed.
+    activityTimers[p.root] = setTimeout(() => delete activity[p.root], 10 * 60000);
+  }
+
+  // A project just added to a team: its view commits and uploads the first
+  // version.
+  let firstShare = $state("");
 
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
   let entries = $derived(overview?.projects ?? []);
@@ -60,6 +96,7 @@
       remember(DOWNLOAD_DIR_KEY, parent);
     }
     busy = p.id;
+    lastProgress = null;
     try {
       const got = await api.DownloadProject(overview!.currentTeam, p.id, parent);
       toast(`Downloaded “${got.name}” to ${got.root}`, "ok", 7000);
@@ -105,11 +142,10 @@
     confirmShare = null;
     busy = "add";
     try {
-      await api.AddProjectToTeam(overview!.currentTeam, folder, false);
-      toast(`Shared with ${current?.name}`, "ok");
+      const got = await api.AddProjectToTeam(overview!.currentTeam, folder);
+      firstShare = got.root;
       await reload();
-      const got = overview?.projects.find((p) => p.root === folder);
-      if (got) select(got);
+      select(got);
     } catch (e) {
       toast(errorText(e), "error", 9000);
     } finally {
@@ -145,7 +181,8 @@
       if (overview && overview.teams.length === 0 && overview.local.length === 0) onboarding = true;
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
-    return Events.On("agent", (ev: { data: AgentEvent }) => {
+    const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
+    const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
       const all = [...entries, ...(overview?.local ?? [])];
       const name = all.find((p) => p.root === e.root)?.name ?? "";
@@ -162,17 +199,24 @@
       }
       if (e.root === selected.root && e.kind !== "backed-up") refreshKey++;
     });
+    return () => {
+      offProgress();
+      offAgent();
+    };
   });
 
   const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found", local: "not shared" };
   const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪", local: "♪" };
 </script>
 
+<svelte:window onfocus={reloadIfStale} />
+
 {#if !overview}
   <div class="loading faint">Loading…</div>
 {:else if onboarding}
-  <Onboarding {overview} {reload} onfinish={async (root) => {
+  <Onboarding {overview} {reload} onfinish={async (root, share) => {
     onboarding = false;
+    if (root && share) firstShare = root;
     await reload();
     if (root) selected = { root };
   }} />
@@ -184,7 +228,10 @@
 
       <div class="list">
         {#if current}
-          <div class="section">Projects</div>
+          <div class="section row-h">
+            <span>Projects</span>
+            <button class="ghost tiny" class:spin={reloading} onclick={reload} title="Check the team for new projects">↻</button>
+          </div>
           {#if overview.teamError}
             <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
           {/if}
@@ -222,7 +269,8 @@
     <section class="content">
       {#if selectedEntry && (selectedEntry.status === "downloaded" || selectedEntry.status === "local")}
         {#key selectedEntry.root}
-          <ProjectView root={selectedEntry.root} {refreshKey} teams={overview.teams} onchanged={reload} />
+          <ProjectView root={selectedEntry.root} {refreshKey} teams={overview.teams} onchanged={reload}
+            firstShare={firstShare === selectedEntry.root} onfirstshared={() => (firstShare = "")} />
         {/key}
       {:else if selectedEntry && selectedEntry.status === "remote"}
         {@const p = selectedEntry}
@@ -233,6 +281,14 @@
           <button class="primary" onclick={() => download(p)} disabled={!!busy}>
             {busy === p.id ? "Downloading…" : "↓ Download"}
           </button>
+          {#if busy === p.id && lastProgress}
+            <div class="dl-progress">
+              <span class="small muted">{progressText(lastProgress)}</span>
+              {#if lastProgress.total}
+                <div class="bar"><div style="width: {Math.round((100 * lastProgress.done) / lastProgress.total)}%"></div></div>
+              {/if}
+            </div>
+          {/if}
           <p class="faint small">Into {recall(DOWNLOAD_DIR_KEY) || "a folder you choose"} ·
             <button class="link" onclick={changeDownloadDir}>change</button></p>
         </div>
@@ -265,7 +321,9 @@
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
         <span class="name">{p.name}</span>
-        <span class="meta">{statusText[p.status] ?? `⑂ ${p.branch}`}</span>
+        <span class="meta" class:busy={p.root && activity[p.root]}>
+          {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText[p.status] ?? `⑂ ${p.branch}`}
+        </span>
       </span>
     </button>
     {#if p.root && p.status !== "missing"}
@@ -297,6 +355,15 @@
   .brand img { width: 20px; height: 20px; }
   .list { flex: 1; overflow: auto; min-height: 0; }
   .section { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 8px 8px 4px; }
+  .row-h { display: flex; align-items: center; justify-content: space-between; }
+  .tiny { padding: 0 6px; font-size: 13px; line-height: 18px; color: var(--faint); }
+  .tiny:hover { color: var(--text); }
+  .spin { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .meta.busy { color: var(--accent); }
+  .dl-progress { width: 280px; margin: 10px auto 0; display: flex; flex-direction: column; gap: 6px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; }
   .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 10px; border-radius: 8px; text-align: left; }

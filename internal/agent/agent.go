@@ -5,11 +5,7 @@ package agent
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"dawgit/internal/project"
@@ -40,21 +36,6 @@ type Event struct {
 // Label formats an edit as "Song.als: Bass".
 func Label(e project.TrackEdit) string { return e.Set + ": " + e.Name }
 
-// setSignature changes whenever a set in the project root is saved or the
-// workspace moves to another version.
-func setSignature(r *project.Repo) string {
-	sets, _ := filepath.Glob(filepath.Join(r.Root, "*.als"))
-	sort.Strings(sets)
-	var b strings.Builder
-	b.WriteString(r.Head())
-	for _, s := range sets {
-		if fi, err := os.Stat(s); err == nil {
-			fmt.Fprintf(&b, "|%s:%d:%d", filepath.Base(s), fi.Size(), fi.ModTime().UnixNano())
-		}
-	}
-	return b.String()
-}
-
 // Watcher holds the agent's memory between checks.
 type Watcher struct {
 	Root string
@@ -84,7 +65,7 @@ func (w *Watcher) Check() []Event {
 	}
 
 	// 1. Report unsaved work when a set was saved in Live (or hourly).
-	if sig := setSignature(r); sig != w.lastSig || time.Since(w.lastReport) > time.Hour {
+	if sig := r.SetsSignature(); sig != w.lastSig || time.Since(w.lastReport) > time.Hour {
 		st, err := r.ReportWorkspace()
 		if err == nil {
 			w.lastSig, w.lastReport, w.myEdits = sig, time.Now(), st.Edits

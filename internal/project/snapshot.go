@@ -199,15 +199,21 @@ var ErrNothingToSnapshot = errors.New("nothing changed since the last snapshot")
 // Snapshot records the working files as a new snapshot on top of HEAD.
 func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	ix := r.loadIndex()
+	r.report(StageScanning, 0, 0)
 	files, err := r.workingFiles(ix)
 	if err != nil {
 		return nil, err
 	}
+	var toStore []FileEntry
 	for _, f := range files {
 		if !r.Store.Has(f.Hash) {
-			if _, _, err := r.Store.PutFile(r.Abs(f.Path)); err != nil {
-				return nil, err
-			}
+			toStore = append(toStore, f)
+		}
+	}
+	for i, f := range toStore {
+		r.report(StageStoring, i, len(toStore))
+		if _, _, err := r.Store.PutFile(r.Abs(f.Path)); err != nil {
+			return nil, err
 		}
 	}
 	external, packs, missing, err := r.sampleRefs(files)

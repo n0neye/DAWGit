@@ -30,12 +30,13 @@ export function AddLocalProject(folder: string): $CancellablePromise<$models.Tea
 }
 
 /**
- * AddProjectToTeam starts tracking an Ableton project folder and shares it
- * with the team right away (first version).
+ * AddProjectToTeam starts tracking an Ableton project folder as part of a
+ * team. It returns quickly; the frontend then commits and uploads the first
+ * version with Save, showing its progress.
  */
-export function AddProjectToTeam(teamID: string, folder: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(1141302713, teamID, folder, force).then(($result: any) => {
-        return $$createType2($result);
+export function AddProjectToTeam(teamID: string, folder: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(1141302713, teamID, folder).then(($result: any) => {
+        return $$createType0($result);
     });
 }
 
@@ -59,7 +60,7 @@ export function ChooseFolder(title: string): $CancellablePromise<string> {
  */
 export function ConnectTeam(address: string, token: string): $CancellablePromise<$models.TeamSummary> {
     return $Call.ByID(225746720, address, token).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType1($result);
     });
 }
 
@@ -94,7 +95,7 @@ export function LocateProject(teamID: string, projectID: string, folder: string)
 
 export function MergeBranch(root: string, name: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(3631821023, root, name, resolutions, force).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -143,7 +144,7 @@ export function RenameTeam(id: string, name: string): $CancellablePromise<void> 
  */
 export function Save(root: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(1993570256, root, message, resolutions, force).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -172,16 +173,25 @@ export function SetAutostart(on: boolean): $CancellablePromise<void> {
 }
 
 /**
- * ShareProject moves a local-only project into a team (first shared version).
+ * ShareProject moves a local-only project into a team (see AddProjectToTeam).
  */
-export function ShareProject(root: string, teamID: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(1658918021, root, teamID, force).then(($result: any) => {
-        return $$createType2($result);
+export function ShareProject(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(1658918021, root, teamID).then(($result: any) => {
+        return $$createType0($result);
     });
 }
 
 export function ShowFolder(root: string): $CancellablePromise<void> {
     return $Call.ByID(2097789072, root);
+}
+
+/**
+ * Signature changes when a set in the project is saved (or the project moves
+ * to another version). It only looks at file sizes and times, and takes no
+ * lock, so the frontend polls it to notice Ctrl+S in Live right away.
+ */
+export function Signature(root: string): $CancellablePromise<string> {
+    return $Call.ByID(1626727493, root);
 }
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
@@ -192,7 +202,7 @@ export function State(root: string): $CancellablePromise<$models.State | null> {
 
 export function SwitchBranch(root: string, name: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4167079521, root, name, force).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -201,15 +211,15 @@ export function SwitchBranch(root: string, name: string, force: boolean): $Cance
  */
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4141298428, root, resolutions, force).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.TeamProject.createFrom;
-const $$createType1 = $models.Result.createFrom;
-const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $models.TeamSummary.createFrom;
+const $$createType1 = $models.TeamSummary.createFrom;
+const $$createType2 = $models.Result.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
 const $$createType4 = $models.Overview.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
 const $$createType6 = $models.Preview.createFrom;

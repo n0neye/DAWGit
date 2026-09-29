@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary } from "./api";
+  import { untrack } from "svelte";
+  import { Events } from "@wailsio/runtime";
+  import { api, ago, errorText, progressText, type State, type Result, type Preview, type Conflict, type TeamSummary,
+    type Progress } from "./api";
   import { toast } from "./notify.svelte";
   import ChangeList from "./ChangeList.svelte";
   import History from "./History.svelte";
@@ -7,8 +10,11 @@
   import PreviewDialog from "./PreviewDialog.svelte";
   import ConflictDialog from "./ConflictDialog.svelte";
 
-  let { root, refreshKey, teams, onchanged }: {
-    root: string; refreshKey: number; teams: TeamSummary[]; onchanged: () => void;
+  // firstShare: the project was just added to a team; commit and upload its
+  // first version right away.
+  let { root, refreshKey, teams, firstShare = false, onchanged, onfirstshared }: {
+    root: string; refreshKey: number; teams: TeamSummary[]; firstShare?: boolean;
+    onchanged: () => void; onfirstshared?: () => void;
   } = $props();
 
   let st = $state<State | null>(null);
@@ -16,6 +22,8 @@
   let tab = $state<"changes" | "history" | "team">("changes");
   let message = $state("");
   let busy = $state("");
+  let progress = $state<Progress | null>(null);
+  let refreshing = $state(false);
 
   // dialogs
   let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
@@ -39,15 +47,72 @@
     }
   }
 
+  let firstShareStarted = false;
   $effect(() => {
     root; refreshKey;
+    if (untrack(() => firstShare) && !firstShareStarted) {
+      firstShareStarted = true;
+      shareFirstVersion();
+      return;
+    }
     load();
   });
 
+  // Team state (new versions, teammates) is polled slowly...
   $effect(() => {
-    const t = setInterval(load, 15000);
+    const t = setInterval(() => { if (!busy) load(); }, 15000);
     return () => clearInterval(t);
   });
+
+  // ...but a Ctrl+S in Live shows up within a couple of seconds: the set's
+  // size and time are checked every second, and the changes are read once the
+  // file has stopped changing.
+  $effect(() => {
+    const r = root;
+    let sig = "", pending = "";
+    const t = setInterval(async () => {
+      if (busy) return;
+      let s: string;
+      try {
+        s = await api.Signature(r);
+      } catch {
+        return;
+      }
+      if (!sig || s === sig) {
+        sig = s;
+        pending = "";
+      } else if (s !== pending) {
+        pending = s;
+      } else {
+        sig = s;
+        pending = "";
+        load();
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  });
+
+  $effect(() => {
+    const r = root;
+    let timer: ReturnType<typeof setTimeout>;
+    const off = Events.On("progress", (ev: { data: Progress }) => {
+      if (ev.data.root !== r) return;
+      progress = ev.data.stage === "done" ? null : ev.data;
+      // In case the final event is missed (e.g. the window reloaded).
+      clearTimeout(timer);
+      timer = setTimeout(() => (progress = null), 10 * 60000);
+    });
+    return () => {
+      off();
+      clearTimeout(timer);
+    };
+  });
+
+  async function refresh() {
+    refreshing = true;
+    await load();
+    refreshing = false;
+  }
 
   let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
   let editedTracks = $derived.by(() => {
@@ -83,6 +148,7 @@
       toast(errorText(e), "error", 9000);
     } finally {
       busy = "";
+      progress = null;
       await load();
       onchanged();
     }
@@ -183,16 +249,33 @@
     shareOpen = true;
   }
 
-  function shareWithTeam() {
+  async function shareWithTeam() {
     const teamId = shareTeam;
-    const name = teams.find((t) => t.id === teamId)?.name ?? "the team";
     shareOpen = false;
+    try {
+      await api.ShareProject(root, teamId);
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+      return;
+    }
+    onchanged(); // the project moves to the team's list
+    shareFirstVersion(teams.find((t) => t.id === teamId)?.name);
+  }
+
+  // Commits and uploads the first version of a project that just joined a
+  // team.
+  function shareFirstVersion(team = "the team") {
+    onfirstshared?.(); // started: don't start again if this view is reopened
     run({
-      name: "share",
-      call: (_res, force) => api.ShareProject(root, teamId, force),
-      done: () => toast(`Shared with ${name}`, "ok"),
+      name: "first-share",
+      call: (res, force) => api.Save(root, "First version", res, force),
+      done: () => {
+        toast(`“${st?.name ?? folderName}” is shared with ${team}`, "ok");
+      },
     });
   }
+
+  let folderName = $derived(root.split(/[\\/]/).pop()?.replace(/ Project$/, "") ?? root);
 
   function editors(set: string, trackId: string | undefined, change: string): string[] {
     if (!trackId || change === "added") return [];
@@ -200,15 +283,33 @@
   }
 </script>
 
-<svelte:window onclick={(e) => {
+<svelte:window onfocus={() => { if (!busy) load(); }} onclick={(e) => {
   const t = e.target as HTMLElement;
   if (branchMenu && !t.closest(".branch-wrap")) branchMenu = false;
   if (setMenu && !t.closest(".open-wrap")) setMenu = false;
 }} />
 
-{#if loadError && !st}
+{#snippet progressBar(p: Progress, team?: string)}
+  <div class="progress">
+    <span>{progressText(p, team)}</span>
+    {#if p.total}<div class="bar"><div style="width: {Math.round((100 * p.done) / p.total)}%"></div></div>{/if}
+  </div>
+{/snippet}
+
+{#if loadError && !st && !busy}
   <div class="pad"><p class="error">{loadError}</p></div>
-{:else if st}
+{:else if !st}
+  <div class="preparing">
+    <h1>{folderName}</h1>
+    {#if busy === "first-share"}
+      <p class="muted">Sharing with the team: DAWGit commits a first version and uploads it, samples included.
+        Large projects can take a few minutes — you can keep using DAWGit meanwhile.</p>
+    {:else}
+      <p class="muted">Reading the project…</p>
+    {/if}
+    {#if progress}{@render progressBar(progress)}{/if}
+  </div>
+{:else}
   <div class="view">
     <header>
       <div class="title">
@@ -267,9 +368,16 @@
             {/if}
           </div>
         {/if}
+        <button class="ghost refresh" class:spin={refreshing} onclick={refresh} title="Refresh">↻</button>
         <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title="Show folder">📁</button>
       </div>
     </header>
+
+    {#if progress}
+      <div class="banner info">{@render progressBar(progress, st.teamName || undefined)}</div>
+    {:else if busy === "first-share"}
+      <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
+    {/if}
 
     {#if st.incoming.length}
       <div class="banner info">
@@ -323,7 +431,7 @@
             <h3>Commit a version</h3>
             <textarea rows="4" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"></textarea>
             <button class="primary wide" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}>
-              {busy === "save" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
+              {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
             </button>
             <p class="faint small">
               {#if st.remoteUrl}
@@ -422,6 +530,13 @@
   .team { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
   .team input { width: auto; }
   .pad { padding: 24px; }
+  .preparing { padding: 60px 40px; max-width: 560px; }
+  .preparing h1 { font-size: 22px; margin: 0 0 8px; }
+  .progress { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
+  .refresh.spin { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .error { color: var(--danger); }
   header { display: flex; align-items: flex-start; padding: 18px 24px 10px; gap: 16px; }
   .title { flex: 1; min-width: 0; }

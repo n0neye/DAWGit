@@ -301,3 +301,48 @@ func TestTeamOverObjectStorage(t *testing.T) {
 		t.Fatalf("teammates over storage: %v %+v", err, mates)
 	}
 }
+
+func TestSaveAndCloneReportProgress(t *testing.T) {
+	url := newServer(t)
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(url, token); err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]int{}
+	a.OnProgress = func(p Progress) {
+		seen[p.Stage]++
+		if p.Total > 0 && (p.Done < 0 || p.Done >= p.Total) {
+			t.Errorf("progress out of range: %+v", p)
+		}
+	}
+	sig := a.SetsSignature()
+	if _, _, err := a.Save("v1", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{StageScanning, StageStoring, StageUploading} {
+		if seen[s] == 0 {
+			t.Errorf("no %q progress while saving: %v", s, seen)
+		}
+	}
+	if a.SetsSignature() == sig {
+		t.Error("signature did not change with the new version")
+	}
+
+	downloads := 0
+	tm, err := a.Team()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = CloneFromTeam(tm, a.Config.ProjectID, filepath.Join(t.TempDir(), "B"), "alex",
+		func(p Progress) {
+			if p.Stage == StageDownloading {
+				downloads++
+			}
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if downloads == 0 {
+		t.Error("no download progress while cloning")
+	}
+}
