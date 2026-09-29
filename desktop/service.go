@@ -221,13 +221,21 @@ func (a *App) RemoveProject(root string) error {
 
 // ServerProjects lists the projects on a server (for joining one).
 func (a *App) ServerProjects(url, token string) ([]remote.Project, error) {
-	ps, err := remote.New(url, token).Projects()
+	ps, err := serverProjects(url, token)
 	return nonNil(ps), err
+}
+
+func serverProjects(url, token string) ([]remote.Project, error) {
+	b, err := remote.Open(remote.Config{URL: url, Token: token})
+	if err != nil {
+		return nil, err
+	}
+	return b.Projects()
 }
 
 // JoinProject downloads a project from the server into parent/<name> Project.
 func (a *App) JoinProject(url, token, projectID, parent, author string) (ProjectSummary, error) {
-	ps, err := remote.New(url, token).Projects()
+	ps, err := serverProjects(url, token)
 	if err != nil {
 		return ProjectSummary{}, err
 	}

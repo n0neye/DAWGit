@@ -47,7 +47,7 @@ func (r *Repo) Branches() ([]BranchInfo, error) {
 var ErrUnshared = errors.New("you have versions that are not shared yet; run `dawgit save` first")
 
 // shared reports whether HEAD is already on the current server branch.
-func (r *Repo) shared(c *remote.Client) (bool, error) {
+func (r *Repo) shared(c remote.Backend) (bool, error) {
 	heads, err := c.Branches(r.Config.ProjectID)
 	if errors.Is(err, remote.ErrNotFound) {
 		return r.Head() == "", nil
