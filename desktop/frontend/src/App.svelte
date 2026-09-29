@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, errorText, progressShort, progressText, type Overview, type Progress, type TeamProject } from "./lib/api";
+  import { api, errorText, progressShort, type Overview, type Progress, type TeamProject } from "./lib/api";
+  import ProgressBar from "./lib/ProgressBar.svelte";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
   import Onboarding from "./lib/Onboarding.svelte";
@@ -299,12 +300,7 @@
             {busy === p.id ? "Downloading…" : "↓ Download"}
           </button>
           {#if busy === p.id && lastProgress}
-            <div class="dl-progress">
-              <span class="small muted">{progressText(lastProgress)}</span>
-              {#if lastProgress.total}
-                <div class="bar"><div style="width: {Math.round((100 * lastProgress.done) / lastProgress.total)}%"></div></div>
-              {/if}
-            </div>
+            <div class="dl-progress"><ProgressBar p={lastProgress} /></div>
           {/if}
           <p class="faint small">Into {recall(DOWNLOAD_DIR_KEY) || "a folder you choose"} ·
             <button class="link" onclick={changeDownloadDir}>change</button></p>
@@ -407,9 +403,7 @@
   .spin { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .meta.busy { color: var(--accent); }
-  .dl-progress { width: 280px; margin: 10px auto 0; display: flex; flex-direction: column; gap: 6px; }
-  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
+  .dl-progress { width: 360px; max-width: 100%; margin: 10px auto 0; display: flex; text-align: left; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; position: relative; }
   .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 28px 7px 10px; border-radius: 8px; text-align: left; }

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"dawgit/internal/livecheck"
 	"dawgit/internal/project"
 )
 
@@ -158,11 +157,11 @@ func cmdCheckout(args []string) error {
 	if ref == "" {
 		return errors.New("usage: dawgit checkout <id|HEAD> [--force]")
 	}
-	if livecheck.Running() && !*force {
-		return errors.New("Ableton Live is running; close the set first (Live would overwrite the restored files on save), or use --force")
-	}
 	r, err := openRepo()
 	if err != nil {
+		return err
+	}
+	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
 	m, notes, err := r.GoTo(ref, *force)

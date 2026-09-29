@@ -122,6 +122,7 @@ func (r *Repo) SwitchBranch(name string, force bool) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	r.knowSizes(m)
 	if err := r.fetchObjects(c, m.Objects()); err != nil {
 		return nil, err
 	}
@@ -318,6 +319,7 @@ func (r *Repo) previewTarget(c remote.Backend, target string) (*Preview, error) 
 			need = append(need, f.Hash)
 		}
 	}
+	r.knowSizes(theirs, base)
 	if err := r.fetchObjects(c, need); err != nil {
 		return nil, err
 	}

@@ -201,18 +201,22 @@ func (r *Repo) fetchSnapshots(c remote.Backend, id string) error {
 // fetchObjects downloads blobs that are not stored locally.
 func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	var need []string
+	var total int64
 	for _, h := range hashes {
 		if !r.Store.Has(h) {
 			need = append(need, h)
+			total += r.sizes[h] // 0 when not known
 		}
 	}
+	t := r.newTransfer(StageDownloading, len(need), total)
 	for i, h := range need {
-		r.report(StageDownloading, i, len(need))
+		t.done = i
+		t.report()
 		body, err := c.GetObject(h)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
 		}
-		got, _, err := r.Store.Put(body)
+		got, _, err := r.Store.Put(t.reader(body, -1))
 		body.Close()
 		if err != nil {
 			return err
@@ -295,13 +299,27 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	if err != nil {
 		return err
 	}
+	sizes := map[string]int64{}
+	var total int64
+	for _, h := range missing {
+		if fi, err := os.Stat(r.Store.Path(h)); err == nil {
+			sizes[h] = fi.Size()
+			total += fi.Size()
+		}
+	}
+	t := r.newTransfer(StageUploading, len(missing), total)
 	for i, h := range missing {
-		r.report(StageUploading, i, len(missing))
+		t.done = i
+		t.report()
 		f, err := r.Store.Open(h)
 		if err != nil {
 			return err
 		}
-		err = c.PutObject(h, f)
+		size, ok := sizes[h]
+		if !ok {
+			size = -1
+		}
+		err = c.PutObject(h, t.reader(f, size))
 		f.Close()
 		if err != nil {
 			return fmt.Errorf("upload %s: %w", short(h), err)
@@ -426,6 +444,7 @@ func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, mes
 	if err != nil {
 		return nil, err
 	}
+	r.knowSizes(m)
 	if err := r.fetchObjects(c, m.Objects()); err != nil {
 		return nil, err
 	}
@@ -607,6 +626,7 @@ func (r *Repo) mergeWith(c remote.Backend, ours, theirs string, opts MergeOption
 			need = append(need, f.Hash)
 		}
 	}
+	r.knowSizes(t, b)
 	if err := r.fetchObjects(c, need); err != nil {
 		return nil, nil, err
 	}

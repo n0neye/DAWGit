@@ -95,6 +95,9 @@ type ProgressEvent struct {
 	Stage string `json:"stage"`
 	Done  int    `json:"done"`
 	Total int    `json:"total"`
+	// Transfers: bytes so far and in all (0 when not known).
+	Bytes      int64 `json:"bytes"`
+	TotalBytes int64 `json:"totalBytes"`
 }
 
 // progressFor emits "progress" events for root, at most every 150 ms unless
@@ -108,7 +111,8 @@ func (a *App) progressFor(root string) (report func(project.Progress), done func
 			return
 		}
 		last, stage = time.Now(), p.Stage
-		a.emit("progress", ProgressEvent{Root: root, Stage: p.Stage, Done: p.Done, Total: p.Total})
+		a.emit("progress", ProgressEvent{Root: root, Stage: p.Stage, Done: p.Done, Total: p.Total,
+			Bytes: p.Bytes, TotalBytes: p.TotalBytes})
 	}
 	done = func() {
 		if a.emit != nil && stage != "" {
@@ -227,7 +231,7 @@ func (a *App) State(root string) (*State, error) {
 		r.AdoptBranchAtHead()
 	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
-		Head: r.Head(), LiveRunning: livecheck.Running(), Sets: []string{},
+		Head: r.Head(), LiveRunning: livecheck.OpenSet(r.Root) != "", Sets: []string{},
 		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, Teammates: []Teammate{},
 		Overlaps: []string{}, History: []Version{}, Branches: []Branch{}}
 	if st.Name == "" {
@@ -309,8 +313,23 @@ func (a *App) State(root string) (*State, error) {
 
 // --- actions ---
 
-// liveGuard reports whether Live must close the set before rewriting files.
-func liveGuard(force bool) bool { return !force && livecheck.Running() }
+// liveGuard returns the set of this project open in Live ("?" when Live
+// runs but that cannot be told), which must be closed before DAWGit rewrites
+// files; "" when it is safe or forced.
+func liveGuard(r *project.Repo, force bool) string {
+	if force {
+		return ""
+	}
+	return livecheck.OpenSet(r.Root)
+}
+
+// blocked asks the user to close the set in Live first.
+func blocked(set string) *Result {
+	if set == "?" {
+		set = ""
+	}
+	return &Result{Action: "blocked", LiveRunning: true, OpenSet: set, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}
+}
 
 func conflictResult(err error) (*Result, error) {
 	var c *project.MergeConflictError
@@ -342,9 +361,9 @@ func (a *App) Save(root, message string, resolutions map[string]string, force bo
 	if strings.TrimSpace(message) == "" {
 		return nil, errors.New("describe what changed")
 	}
-	if r.Config.Remote != nil && liveGuard(force) {
+	if set := liveGuard(r, force); r.Config.Remote != nil && set != "" {
 		if incoming, err := r.Incoming(); err == nil && incoming {
-			return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+			return blocked(set), nil
 		}
 	}
 	m, res, err := r.Save(message, opts(resolutions))
@@ -396,8 +415,8 @@ func (a *App) Update(root string, resolutions map[string]string, force bool) (*R
 		return nil, err
 	}
 	defer unlock()
-	if liveGuard(force) {
-		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
 	}
 	res, err := r.Update(opts(resolutions))
 	if err != nil {
@@ -416,8 +435,8 @@ func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error)
 		return nil, err
 	}
 	defer unlock()
-	if liveGuard(force) {
-		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
 	}
 	_, notes, err := r.GoTo(id, discard)
 	if errors.Is(err, project.ErrDirty) {
@@ -504,8 +523,8 @@ func (a *App) SwitchBranch(root, name string, force bool) (*Result, error) {
 		return nil, err
 	}
 	defer unlock()
-	if liveGuard(force) {
-		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
 	}
 	res, err := r.SwitchBranch(name, false)
 	if err != nil {
@@ -549,8 +568,8 @@ func (a *App) MergeVersion(root, id string, resolutions map[string]string, force
 		return nil, err
 	}
 	defer unlock()
-	if liveGuard(force) {
-		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
 	}
 	res, err := r.MergeVersion(id, opts(resolutions))
 	if err != nil {
@@ -566,8 +585,8 @@ func (a *App) MergeBranch(root, name string, resolutions map[string]string, forc
 		return nil, err
 	}
 	defer unlock()
-	if liveGuard(force) {
-		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
 	}
 	res, err := r.MergeBranch(name, opts(resolutions))
 	if err != nil {

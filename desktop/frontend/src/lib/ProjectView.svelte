@@ -1,10 +1,11 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, ago, errorText, progressText, type State, type Result, type Preview, type Conflict, type TeamSummary,
+  import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary,
     type Progress, type Version } from "./api";
   import { toast } from "./notify.svelte";
   import ChangeList from "./ChangeList.svelte";
+  import ProgressBar from "./ProgressBar.svelte";
   import History from "./History.svelte";
   import Modal from "./Modal.svelte";
   import PreviewDialog from "./PreviewDialog.svelte";
@@ -29,7 +30,7 @@
   let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
   const UNSAVED = "You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.";
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
-  let liveBlocked = $state<{ run: Action; resolutions: Record<string, string> } | null>(null);
+  let liveBlocked = $state<{ run: Action; resolutions: Record<string, string>; set: string } | null>(null);
   let shareOpen = $state(false);
   let shareTeam = $state("");
   let branchMenu = $state(false);
@@ -140,7 +141,7 @@
       const r = await a.call(resolutions, force);
       if (!r) return;
       if (r.liveRunning) {
-        liveBlocked = { run: a, resolutions };
+        liveBlocked = { run: a, resolutions, set: r.openSet };
       } else if (r.conflicts.length) {
         conflicts = { items: r.conflicts, run: a, force }; // keep a "Live is closed" confirmation
       } else {
@@ -380,13 +381,6 @@
   if (setMenu && !t.closest(".open-wrap")) setMenu = false;
 }} />
 
-{#snippet progressBar(p: Progress, team?: string)}
-  <div class="progress">
-    <span>{progressText(p, team)}</span>
-    {#if p.total}<div class="bar"><div style="width: {Math.round((100 * p.done) / p.total)}%"></div></div>{/if}
-  </div>
-{/snippet}
-
 {#if loadError && !st && !busy}
   <div class="pad"><p class="error">{loadError}</p></div>
 {:else if !st}
@@ -398,7 +392,7 @@
     {:else}
       <p class="muted">Reading the project…</p>
     {/if}
-    {#if progress}{@render progressBar(progress)}{/if}
+    {#if progress}<ProgressBar p={progress} />{/if}
   </div>
 {:else}
   <div class="view">
@@ -465,7 +459,7 @@
     </header>
 
     {#if progress}
-      <div class="banner info">{@render progressBar(progress, st.teamName || undefined)}</div>
+      <div class="banner info"><ProgressBar p={progress} team={st.teamName || undefined} /></div>
     {:else if busy === "first-share"}
       <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
     {/if}
@@ -601,14 +595,18 @@
 
   {#if liveBlocked}
     {@const b = liveBlocked}
-    <Modal title="Ableton Live is running" onclose={() => (liveBlocked = null)}>
-      <p>DAWGit is about to change files in this project. If the set is open in Live, Live keeps the old
-        version in memory and would overwrite the changes the next time you save.</p>
-      <p class="muted">Save and close the set in Live first (you can leave Live open with another set).</p>
+    <Modal title={b.set ? `“${b.set}” is open in Live` : "Ableton Live is running"} onclose={() => (liveBlocked = null)}>
+      <p>DAWGit is about to change files in this project. Live keeps the open set in memory and would
+        overwrite the changes the next time you save it.</p>
+      <p class="muted">Save and close the set in Live first — you can leave Live open with another set.</p>
       {#snippet footer()}
         <button onclick={() => (liveBlocked = null)}>Cancel</button>
-        <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions, true); }}>
-          The set is closed — continue
+        <button class="ghost" title="Go ahead although the set looks open"
+          onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions, true); }}>
+          Continue anyway
+        </button>
+        <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }}>
+          I closed it — continue
         </button>
       {/snippet}
     </Modal>
@@ -690,9 +688,6 @@
   .pad { padding: 24px; }
   .preparing { padding: 60px 40px; max-width: 560px; }
   .preparing h1 { font-size: 22px; margin: 0 0 8px; }
-  .progress { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
   .refresh.spin { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .error { color: var(--danger); }

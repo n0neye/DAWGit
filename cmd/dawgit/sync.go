@@ -202,19 +202,34 @@ func strategyFlag(fs *flag.FlagSet) *string {
 		"when you and others changed the same track or file: fail (ask), ours (keep yours), theirs (keep theirs), both (keep both)")
 }
 
-var liveRunning = livecheck.Running
+var openSet = livecheck.OpenSet
 
-// guardLive refuses to rewrite sets while Live runs, unless forced.
+// liveOpenError explains that set ("?" if unknown) must be closed in Live.
+func liveOpenError(set, why string) error {
+	what := "a set of this project is open in Ableton Live"
+	if set != "?" {
+		what = fmt.Sprintf("%q is open in Ableton Live", set)
+	}
+	if why != "" {
+		what = why + ", but " + what
+	}
+	return errors.New(what + ".\nSave and close it in Live, then run this again (or use --force if it is not open)")
+}
+
+// guardLive refuses to rewrite sets while one is open in Live, unless forced.
 func guardLive(r *project.Repo, force bool) error {
-	if force || !liveRunning() {
+	set := ""
+	if !force {
+		set = openSet(r.Root)
+	}
+	if set == "" {
 		return nil
 	}
 	incoming, err := r.Incoming()
 	if err != nil || !incoming {
 		return err
 	}
-	return errors.New("others saved new versions that must be merged into your files, but Ableton Live is running.\n" +
-		"Save and close the set in Live, then run this again (or use --force if the set is not open)")
+	return liveOpenError(set, "others saved new versions that must be merged into your files")
 }
 
 func printMerge(res *project.SyncResult) {
