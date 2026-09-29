@@ -24,6 +24,8 @@ import (
 type Backend interface {
 	// Info describes the team (its name); empty for backends that have none.
 	Info() (TeamInfo, error)
+	// SetInfo renames the team for everyone.
+	SetInfo(info TeamInfo) error
 
 	Projects() ([]Project, error)
 	PutProject(p Project) error

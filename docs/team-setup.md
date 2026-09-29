@@ -49,7 +49,7 @@ The first time DAWGit opens, it walks you through three steps:
 2. **Your name** — shown next to the versions you commit.
 3. **Projects** — download the songs you work on, or add a project folder of your own.
 
-The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). Everyone sees the name the team was given (`serve --name`, or `connection-code --name` for team storage), and it follows when that name changes; a name you give in **Manage teams…** applies to your computer only. Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
+The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). To rename a team, type the new name in **Manage teams…**: **Rename for everyone** changes it on the team server or storage and every member's DAWGit follows; **Only on this computer** keeps your own name for it. Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
 ## 4. Share a project (the person who has it)
 

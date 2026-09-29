@@ -111,7 +111,7 @@ func cmdRemote(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("team %q at %s\n", t.Name, t.Remote.Display())
+		fmt.Printf("team %q at %s\n", refreshTeamName(t.ID), t.Remote.Display())
 		return nil
 	}
 	if err := r.SetRemote(pos[0], *token); err != nil {
@@ -122,6 +122,25 @@ func cmdRemote(args []string) error {
 	return nil
 }
 
+// refreshTeamName picks up the name the team's server or storage gives now
+// (unless the user renamed the team here) and returns the name to show.
+func refreshTeamName(id string) string {
+	store, err := teams.Load()
+	if err != nil {
+		return ""
+	}
+	t := store.Find(id)
+	if t == nil {
+		return ""
+	}
+	if b, err := remote.Open(t.Remote); err == nil {
+		if info, err := b.Info(); err == nil && store.SyncName(id, info.Name) {
+			store.Save()
+		}
+	}
+	return t.Name
+}
+
 func cmdTeams(args []string) error {
 	store, err := teams.Load()
 	if err != nil {
@@ -130,6 +149,9 @@ func cmdTeams(args []string) error {
 	if len(store.Teams) == 0 {
 		fmt.Println("not connected to any team (use `dawgit remote` in a project, or `dawgit clone`)")
 		return nil
+	}
+	for i := range store.Teams {
+		store.Teams[i].Name = refreshTeamName(store.Teams[i].ID)
 	}
 	for _, t := range store.Teams {
 		mark := "  "
@@ -335,7 +357,7 @@ func cmdConnectionCode(args []string) error {
 		return fmt.Errorf("could not use the bucket with these credentials: %w", err)
 	}
 	if *name != "" {
-		if err := b.(*remote.S3Backend).SetInfo(remote.TeamInfo{Name: *name}); err != nil {
+		if err := b.SetInfo(remote.TeamInfo{Name: *name}); err != nil {
 			return fmt.Errorf("could not save the team name: %w", err)
 		}
 	}

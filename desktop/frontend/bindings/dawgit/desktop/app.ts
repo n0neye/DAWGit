@@ -149,6 +149,14 @@ export function RenameTeam(id: string, name: string): $CancellablePromise<void> 
 }
 
 /**
+ * RenameTeamForEveryone changes the team's own name, on its server or
+ * storage; every member's DAWGit follows it.
+ */
+export function RenameTeamForEveryone(id: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(280692036, id, name);
+}
+
+/**
  * Save records a version and shares it (merging the team's versions first).
  */
 export function Save(root: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {

@@ -182,6 +182,32 @@ func (a *App) RenameTeam(id, name string) error {
 	return store.Save()
 }
 
+// RenameTeamForEveryone changes the team's own name, on its server or
+// storage; every member's DAWGit follows it.
+func (a *App) RenameTeamForEveryone(id, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 100 {
+		return errors.New("a team name needs 1 to 100 characters")
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return err
+	}
+	t := store.Find(id)
+	if t == nil {
+		return errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return err
+	}
+	if err := b.SetInfo(remote.TeamInfo{Name: name}); err != nil {
+		return err
+	}
+	t.Name, t.CustomName = name, false
+	return store.Save()
+}
+
 // RemoveTeam disconnects this computer from a team. Project folders stay on
 // disk; they are no longer listed or watched.
 func (a *App) RemoveTeam(id string) error {

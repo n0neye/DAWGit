@@ -16,8 +16,10 @@ import (
 // API (all JSON, Bearer token auth):
 //
 //	GET  /api/v1/info                             -> {name} (team name)
+//	PUT  /api/v1/info                             {name} (rename the team)
 //	GET  /api/v1/projects                         -> [{id,name}]
 //	PUT  /api/v1/projects/{pid}                   {name}
+//	DELETE /api/v1/projects/{pid}                 (moved to <data>/trash)
 //	GET  /api/v1/projects/{pid}/branches          -> {name: snapshot}
 //	POST /api/v1/projects/{pid}/branches/{name}   {old,new} -> 200 | 409 {current}
 //	POST /api/v1/projects/{pid}/snapshots/missing {ids} -> {missing}
@@ -33,6 +35,22 @@ func Handler(s *Storage, token string) http.Handler {
 	h := &handlers{s: s}
 	mux.HandleFunc("GET /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
 		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name()})
+	})
+	mux.HandleFunc("PUT /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
+		var body struct{ Name string }
+		if !decode(w, r, &body) {
+			return
+		}
+		name := strings.TrimSpace(body.Name)
+		if name == "" || len(name) > 100 {
+			httpError(w, http.StatusBadRequest, "a team name needs 1 to 100 characters")
+			return
+		}
+		if err := s.SetName(name); err != nil {
+			httpError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
 	})
 	mux.HandleFunc("GET /api/v1/projects", h.listProjects)
 	mux.HandleFunc("PUT /api/v1/projects/{pid}", h.putProject)

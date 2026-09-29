@@ -21,8 +21,18 @@ import (
 // Run checks b against the Backend contract. b must start empty.
 func Run(t *testing.T, b remote.Backend) {
 	t.Run("info", func(t *testing.T) {
-		if _, err := b.Info(); err != nil {
+		old, err := b.Info()
+		if err != nil {
 			t.Fatalf("Info: %v", err)
+		}
+		if err := b.SetInfo(remote.TeamInfo{Name: "Contract Test Team"}); err != nil {
+			t.Fatalf("SetInfo: %v", err)
+		}
+		if got, _ := b.Info(); got.Name != "Contract Test Team" {
+			t.Fatalf("Info after SetInfo = %+v", got)
+		}
+		if old.Name != "" { // leave a live team as it was
+			b.SetInfo(old)
 		}
 	})
 	t.Run("objects", func(t *testing.T) { objects(t, b) })

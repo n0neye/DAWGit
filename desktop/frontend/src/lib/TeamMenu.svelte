@@ -50,6 +50,20 @@
     }
   }
 
+  let renaming = $state("");
+  async function renameForEveryone(t: TeamSummary) {
+    renaming = t.id;
+    try {
+      await api.RenameTeamForEveryone(t.id, names[t.id]);
+      await reload();
+      toast(`Renamed to ${names[t.id].trim()} for everyone`, "ok");
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      renaming = "";
+    }
+  }
+
   async function remove(t: TeamSummary) {
     confirmRemove = null;
     try {
@@ -110,14 +124,26 @@
           <div class="fields">
             <input bind:value={names[t.id]} aria-label="Team name" placeholder="The team's own name" />
             <div class="faint small mono">{t.address}</div>
+            {#if names[t.id] !== t.name}
+              <div class="rename">
+                {#if names[t.id]?.trim()}
+                  <button class="primary" disabled={!!renaming} onclick={() => renameForEveryone(t)}>
+                    {renaming === t.id ? "Renaming…" : "Rename for everyone"}
+                  </button>
+                  <button disabled={!!renaming} onclick={() => rename(t)}>Only on this computer</button>
+                {:else}
+                  <button onclick={() => rename(t)}>Use the team's name</button>
+                {/if}
+                <button class="ghost" onclick={() => (names[t.id] = t.name)}>Cancel</button>
+              </div>
+            {/if}
           </div>
-          <button disabled={names[t.id] === t.name} onclick={() => rename(t)}>Rename</button>
           <button class="danger" onclick={() => (confirmRemove = t)}>Disconnect</button>
         </li>
       {/each}
     </ul>
-    <p class="faint small note">A name you give here is used on this computer only. Leave it empty to use the name
-      the team's server or storage gives, which follows when it is renamed.</p>
+    <p class="faint small note"><strong>Rename for everyone</strong> changes the team's name on its server or storage,
+      and every member sees the new name. <strong>Only on this computer</strong> keeps your own name for it here.</p>
     {#snippet footer()}
       <button onclick={() => (managing = false)}>Close</button>
     {/snippet}
@@ -156,7 +182,9 @@
   .small { font-size: 12px; }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
   .teams { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-  .teams li { display: flex; align-items: center; gap: 8px; }
+  .teams li { display: flex; align-items: flex-start; gap: 8px; }
+  .rename { display: flex; gap: 6px; margin-top: 8px; }
+  .rename button { padding: 5px 10px; font-size: 13px; }
   .fields { flex: 1; min-width: 0; }
   .note { margin: 14px 0 0; }
   .fields .mono { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
