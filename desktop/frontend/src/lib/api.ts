@@ -1,7 +1,8 @@
 // Thin wrapper over the generated Go bindings plus small UI helpers.
 import * as App from "../../bindings/dawgit/desktop/app";
 export type {
-  State, Version, Change, Conflict, Preview, Result, ProjectSummary, Teammate, Branch,
+  State, Version, Change, Conflict, Preview, Result, Teammate, Branch,
+  Overview, TeamSummary, TeamProject,
 } from "../../bindings/dawgit/desktop/models";
 export type { TrackEdit } from "../../bindings/dawgit/internal/project/models";
 export type { Project as ServerProject } from "../../bindings/dawgit/internal/remote/models";
@@ -41,4 +42,9 @@ export function lineKind(line: string): string {
   if (t.startsWith("-")) return "del";
   if (t.startsWith("~")) return "mod";
   return "";
+}
+
+/** A connection code bundles storage address and keys; no token needed. */
+export function isConnectionCode(s: string): boolean {
+  return s.trim().startsWith("dawgit-s3:");
 }

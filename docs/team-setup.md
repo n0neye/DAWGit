@@ -41,15 +41,27 @@ Instead of running a server, a team can keep its data in an S3-compatible bucket
 
 Everywhere the app asks for a server address, paste the connection code instead (no token needed). Notices about teammates arrive a little later than with a server (every 20 seconds).
 
-## 3. Share a project (the person who has it)
+## 3. Connect (everyone)
 
-1. Open DAWGit → **+ Add project folder** → choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`).
-2. Click **Connect to team server…**, enter the address and token (or the connection code).
-3. Write what the song is at and click **Commit version & share**.
+The first time DAWGit opens, it walks you through three steps:
 
-## 4. Join a project (everyone else)
+1. **Connect** — enter the team server address and token, or paste your connection code.
+2. **Your name** — shown next to the versions you commit.
+3. **Projects** — download the songs you work on, or add a project folder of your own.
 
-DAWGit → **Join from team server** → enter the address and token (or the connection code) → **Find projects** → pick the song and a folder to download it into → **Join**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
+The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
+
+## 4. Share a project (the person who has it)
+
+In the sidebar, click **+ Add project folder** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
+
+A project kept with **Keep a project on this computer only…** can be shared later with **Share with a team…** at the top of the project.
+
+## 5. Get a project (everyone else)
+
+The sidebar lists every song in the current team. Songs not on this computer yet are dimmed (☁): pick one and click **Download**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
+
+If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
 
 ## Everyday use
 
