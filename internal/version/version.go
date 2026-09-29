@@ -2,4 +2,4 @@
 // from here too (installer, Windows file properties).
 package version
 
-const Version = "0.3.3"
+const Version = "0.4.0"
