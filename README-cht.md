@@ -81,3 +81,7 @@ Ableton Live 專案的版本紀錄與團隊協作工具。為你的歌曲保存�
 - [建置與開發](docs/development.md)（英文）
 
 歡迎在 [Issues](../../issues) 回報問題或提供意見。
+
+## 授權
+
+[MIT](LICENSE)

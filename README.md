@@ -81,3 +81,7 @@ Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
 - [Building and development](docs/development.md)
 
 Feedback and bug reports are welcome in [Issues](../../issues).
+
+## License
+
+[MIT](LICENSE)
