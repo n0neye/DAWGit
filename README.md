@@ -6,6 +6,8 @@ Version history and teamwork for Ableton Live projects. Commit versions of your 
 
 > **Work in progress.** DAWGit is an early preview. Expect rough edges and changes (including to how data is stored) before 1.0. Keep your own backups of projects that matter. Windows only for now; tested with Ableton Live 12.
 
+![DAWGit showing the tracks changed in a project, ready to commit a version](docs/images/screenshot.png)
+
 ## Features
 
 - **Versions of the whole project** — Live Sets and samples, committed with a message. Unchanged files are stored once.
