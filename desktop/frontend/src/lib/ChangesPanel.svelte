@@ -39,24 +39,46 @@
   let changedCount = $derived(files.filter((f) => f.status !== "unchanged" && f.status !== "ignored").length);
 
   // Folders as groups, files under them (flat list of rows).
-  let rows = $derived.by(() => {
-    const out: { dir: string; file?: ProjectFile; depth: number }[] = [];
-    let lastDir = "\u0000";
-    const dirOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
-    // Files in the project folder itself first, then each folder.
-    const sorted = [...files].sort((a, b) => {
-      const da = dirOf(a.path), db = dirOf(b.path);
-      return da === db ? a.path.localeCompare(b.path) : da === "" ? -1 : db === "" ? 1 : da.localeCompare(db);
-    });
-    for (const f of sorted) {
-      const i = f.path.lastIndexOf("/");
-      const dir = i < 0 ? "" : f.path.slice(0, i);
-      if (dir !== lastDir) {
-        if (dir) out.push({ dir, depth: 0 });
-        lastDir = dir;
+  // The folder tree: at each level folders first, then files. Folders start
+  // closed; a folder shows how many changed files it holds.
+  type Folder = { path: string; name: string; folders: Map<string, Folder>; files: ProjectFile[];
+    changed: number; tracked: boolean };
+  let open = $state<Record<string, boolean>>({});
+
+  let tree = $derived.by(() => {
+    const mk = (path: string, name: string): Folder =>
+      ({ path, name, folders: new Map(), files: [], changed: 0, tracked: false });
+    const top = mk("", "");
+    for (const f of files) {
+      const parts = f.path.split("/");
+      let node = top;
+      const chain = [top];
+      for (let k = 0; k < parts.length - 1; k++) {
+        const path = parts.slice(0, k + 1).join("/");
+        if (!node.folders.has(parts[k])) node.folders.set(parts[k], mk(path, parts[k]));
+        node = node.folders.get(parts[k])!;
+        chain.push(node);
       }
-      out.push({ dir, file: f, depth: dir ? 1 : 0 });
+      node.files.push(f);
+      for (const n of chain) {
+        if (f.status !== "unchanged" && f.status !== "ignored") n.changed++;
+        if (f.status !== "ignored") n.tracked = true;
+      }
     }
+    return top;
+  });
+
+  type Row = { folder?: Folder; file?: ProjectFile; depth: number };
+  let rows = $derived.by(() => {
+    const out: Row[] = [];
+    const walk = (node: Folder, depth: number) => {
+      for (const sub of [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name))) {
+        out.push({ folder: sub, depth });
+        if (open[sub.path]) walk(sub, depth + 1);
+      }
+      for (const f of [...node.files].sort((a, b) => a.path.localeCompare(b.path))) out.push({ file: f, depth });
+    };
+    walk(tree, 0);
     return out;
   });
 
@@ -123,11 +145,22 @@
       <p class="muted empty">{all ? "The project folder is empty." : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here."}</p>
     {:else}
       <ul>
-        {#each rows as row (row.file ? row.file.path : "dir:" + row.dir)}
-          {#if !row.file}
-            <li class="dir" title={row.dir}>▾ {row.dir}</li>
+        {#each rows as row (row.file ? row.file.path : "dir:" + row.folder!.path)}
+          {#if row.folder}
+            {@const d = row.folder}
+            <li>
+              <button class="file dir" class:untracked={!d.tracked} class:changed={d.changed > 0} style:padding-left="{8 + row.depth * 14}px"
+                onclick={() => (open[d.path] = !open[d.path])} title={d.tracked ? d.path : `${d.path} — not tracked`}>
+                <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <span class="fname">{d.name}</span>
+                {#if d.changed && !open[d.path]}<span class="count" title="Changed files inside">{d.changed}</span>{/if}
+                {#if !d.tracked}<span class="tag">not tracked</span>{/if}
+              </button>
+            </li>
           {:else}
-            {@const f = row.file}
+            {@const f = row.file!}
             <li>
               <button class="file {f.status}" class:on={f.path === selected} style:padding-left="{8 + row.depth * 14}px"
                 onclick={() => select(f.path)} oncontextmenu={(e) => openMenu(e, f.path)} title={f.path}>
@@ -259,7 +292,14 @@
   .empty { padding: 0 8px; font-size: 13px; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { position: relative; display: flex; }
-  .dir { padding: 6px 8px 2px; font-size: 12px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .12s; }
+  .chev.open { transform: rotate(90deg); }
+  /* Folders read like files: bright when they hold changes, muted otherwise,
+     faint when nothing inside is tracked. */
+  .dir .fname { color: var(--muted); }
+  .dir.changed .fname { color: var(--text); }
+  .dir.untracked .fname, .dir.untracked .chev { color: var(--faint); }
+  .count { font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; color: var(--mod); }
   .file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; border: none; background: transparent;
     padding: 5px 30px 5px 8px; border-radius: 6px; text-align: left; font-size: 13.5px; }
   .file:hover { background: var(--panel); }
