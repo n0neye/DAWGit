@@ -380,11 +380,14 @@
 
   {#if connectOpen}
     <Modal title="Connect to your team server" onclose={() => (connectOpen = false)}>
-      <p class="muted">Ask whoever runs the server (<span class="mono">dawgit serve</span>) for the address and token.</p>
-      <label for="url">Server address</label>
-      <input id="url" bind:value={connectUrl} placeholder="http://192.168.0.11:7331" />
-      <label for="token">Access token</label>
-      <input id="token" bind:value={connectToken} />
+      <p class="muted">Ask whoever set up your team for the server address and token, or for a
+        connection code (team storage).</p>
+      <label for="url">Server address or connection code</label>
+      <input id="url" bind:value={connectUrl} placeholder="http://192.168.0.11:7331  or  dawgit-s3:…" />
+      {#if !connectUrl.trim().startsWith("dawgit-s3:")}
+        <label for="token">Access token</label>
+        <input id="token" bind:value={connectToken} />
+      {/if}
       {#snippet footer()}
         <button onclick={() => (connectOpen = false)}>Cancel</button>
         <button class="primary" disabled={!connectUrl.trim() || busy === "connect"} onclick={connect}>Connect</button>

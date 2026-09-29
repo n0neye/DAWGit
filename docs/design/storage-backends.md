@@ -1,6 +1,6 @@
 # Design: pluggable storage backends
 
-Status: proposed. Nothing here changes behaviour of the current release.
+Status: steps 1–5 of the implementation plan are done. The direct object storage backend passes the contract tests against an in-memory fake, Versity S3 Gateway v1.8.0 and Cloudflare R2 (including concurrent branch updates). Step 6 is open.
 
 ## Summary
 
@@ -9,7 +9,7 @@ Today a DAWGit client talks to exactly one kind of backend: the `dawgit serve` H
 | Mode | Backend | Runs where |
 |---|---|---|
 | **Server** (today) | HTTP API of `dawgit serve` | a team member's computer, a NAS, a VM |
-| **Direct object storage** | clients read and write an S3-compatible bucket directly | any S3-compatible service, or MinIO on a NAS |
+| **Direct object storage** | clients read and write an S3-compatible bucket directly | any S3-compatible service, or a self-hosted S3-compatible server (e.g. on a NAS) |
 | **Hosted service** (possible later) | HTTP API for metadata; file transfers go straight to object storage via presigned URLs | a managed deployment |
 
 Because all three use the same object layout, a team can move between them by copying data.
@@ -140,8 +140,8 @@ With a shared layout, moving a team is a copy: objects and manifests first, then
 ## Implementation plan
 
 1. Extract the `Backend` interface; make `remote.Client` implement it; `internal/project` uses the interface. No behaviour change.
-2. Backend contract tests: one suite (branch CAS races, idempotent uploads, missing checks, workspace round trip) run against every implementation.
+2. Backend contract tests: one suite (branch CAS races, idempotent uploads, missing checks, workspace round trip) run against every implementation. Against a real service: `DAWGIT_TEST_STORAGE=<connection code> go test ./internal/remote -run Live -v`. The branch race test also catches services that accept conditional headers without enforcing them.
 3. Server storage: one object per branch, with a one-time migration of `branches.json`.
-4. S3-compatible backend (AWS SDK or a minimal signed-request client), tested against MinIO and at least one hosted service.
+4. S3-compatible backend (a minimal signed-request client), tested against a self-hosted S3-compatible server and at least one hosted service.
 5. Connection codes in the desktop app and CLI; slower polling for this backend.
 6. `dawgit migrate`, then `dawgit gc`.

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"dawgit/internal/remote"
 	"dawgit/internal/store"
 )
 
@@ -29,10 +30,8 @@ type Config struct {
 	WorkspaceID string `json:"workspace_id,omitempty"`
 }
 
-type RemoteConfig struct {
-	URL   string `json:"url"`
-	Token string `json:"token,omitempty"`
-}
+// RemoteConfig selects the team's backend (server address and token).
+type RemoteConfig = remote.Config
 
 type Repo struct {
 	Root   string // Ableton project folder

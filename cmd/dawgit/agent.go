@@ -47,7 +47,7 @@ func printEvent(e agent.Event) {
 
 func cmdAgent(args []string) error {
 	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
-	interval := fs.Duration("interval", 5*time.Second, "how often to check")
+	interval := fs.Duration("interval", 0, "how often to check (default: 5s for a server, 20s for storage)")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
 	}
@@ -62,6 +62,9 @@ func cmdAgent(args []string) error {
 	defer stop()
 	fmt.Printf("watching %q (branch %s); Ctrl+C to stop\n", r.Config.Name, r.BranchName())
 	fmt.Println("your unsaved work is backed up and shown to the team; nothing here changes your files")
+	if *interval == 0 {
+		*interval = r.PollInterval()
+	}
 	agent.Run(ctx, r.Root, *interval, printEvent)
 	fmt.Println("stopped")
 	return nil

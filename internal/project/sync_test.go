@@ -7,8 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"dawgit/internal/als"
+	"dawgit/internal/remote"
+	"dawgit/internal/remote/s3test"
 	"dawgit/internal/server"
 )
 
@@ -205,5 +208,55 @@ func TestSaveWithPerConflictResolutions(t *testing.T) {
 	}
 	if tracks["Drum"].Elem == nil || tracks["Audios"].Elem == nil {
 		t.Error("non-conflicting changes missing")
+	}
+}
+
+// The same team workflow with no DAWGit server: an S3-compatible bucket,
+// joined with a connection code.
+func TestTeamOverObjectStorage(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+
+	a, err := Init(newProject(t), "yi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	if a.PollInterval() < 10*time.Second {
+		t.Errorf("storage backends should poll slowly, got %v", a.PollInterval())
+	}
+	if _, res, err := a.Save("v2", Strategy("fail")); err != nil || res.Action != "published" {
+		t.Fatalf("first save: %v %+v", err, res)
+	}
+	b, m, err := Clone(code, "", "Song", filepath.Join(t.TempDir(), "B", "Song Project"), "alex")
+	if err != nil || m == nil || m.ID != a.Head() {
+		t.Fatalf("clone: %v %v", err, m)
+	}
+
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	if _, _, err := a.Save("group audio", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+	if _, res, err := b.Save("drums", Strategy("both")); err != nil || res.Action != "published" {
+		t.Fatalf("B save with merge: %v %+v", err, res)
+	}
+	if up, err := a.Update(Strategy("fail")); err != nil || up.Action != "fast-forward" {
+		t.Fatalf("A update: %v %+v", err, up)
+	}
+	if setTracks(t, a)["Drum"].Elem == nil || setTracks(t, a)["Audios"].Elem == nil {
+		t.Error("merged result incomplete")
+	}
+	// Soft locks work over storage too.
+	copyFile(t, filepath.Join(fixtureProject, "SampleAbletonProject_v2.als"), filepath.Join(a.Root, "Song.als"))
+	if _, err := a.ReportWorkspace(); err != nil {
+		t.Fatal(err)
+	}
+	if mates, err := b.Teammates(); err != nil || len(mates) != 1 || mates[0].Author != "yi" {
+		t.Fatalf("teammates over storage: %v %+v", err, mates)
 	}
 }

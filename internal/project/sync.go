@@ -15,16 +15,33 @@ import (
 // ErrNoRemote is returned by sync operations without a configured server.
 var ErrNoRemote = errors.New("no server configured (run `dawgit remote <url>`)")
 
-func (r *Repo) Client() (*remote.Client, error) {
+func (r *Repo) Client() (remote.Backend, error) {
 	if r.Config.Remote == nil || r.Config.Remote.URL == "" {
 		return nil, ErrNoRemote
 	}
-	return remote.New(r.Config.Remote.URL, r.Config.Remote.Token), nil
+	return remote.Open(*r.Config.Remote)
 }
 
-func (r *Repo) SetRemote(url, token string) error {
-	r.Config.Remote = &RemoteConfig{URL: strings.TrimRight(url, "/"), Token: token}
+// SetRemote connects the project to a server (address + token) or to
+// storage (a connection code as address).
+func (r *Repo) SetRemote(address, token string) error {
+	cfg, err := remote.ParseAddress(address, token)
+	if err != nil {
+		return err
+	}
+	if _, err := remote.Open(cfg); err != nil {
+		return err
+	}
+	r.Config.Remote = &cfg
 	return r.SaveConfig()
+}
+
+// PollInterval is how often the agent should check the backend.
+func (r *Repo) PollInterval() time.Duration {
+	if r.Config.Remote == nil {
+		return 5 * time.Second
+	}
+	return r.Config.Remote.PollInterval()
 }
 
 // --- history ---
@@ -84,7 +101,7 @@ func (r *Repo) mergeBase(a, b string) (string, error) {
 // --- transfer ---
 
 // fetchSnapshots downloads id and any ancestors not stored locally.
-func (r *Repo) fetchSnapshots(c *remote.Client, id string) error {
+func (r *Repo) fetchSnapshots(c remote.Backend, id string) error {
 	stack := []string{id}
 	for len(stack) > 0 {
 		cur := stack[len(stack)-1]
@@ -106,7 +123,7 @@ func (r *Repo) fetchSnapshots(c *remote.Client, id string) error {
 }
 
 // fetchObjects downloads blobs that are not stored locally.
-func (r *Repo) fetchObjects(c *remote.Client, hashes []string) error {
+func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	for _, h := range hashes {
 		if r.Store.Has(h) {
 			continue
@@ -129,12 +146,12 @@ func (r *Repo) fetchObjects(c *remote.Client, hashes []string) error {
 
 // publish uploads everything HEAD needs and moves the current branch from
 // old to HEAD.
-func (r *Repo) publish(c *remote.Client, old string) error {
+func (r *Repo) publish(c remote.Backend, old string) error {
 	return r.publishTo(c, r.BranchName(), old)
 }
 
 // publishTo uploads everything HEAD needs and moves branch from old to HEAD.
-func (r *Repo) publishTo(c *remote.Client, branch, old string) error {
+func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 	head := r.Head()
 	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
 		return err
@@ -193,7 +210,7 @@ func (r *Repo) publishTo(c *remote.Client, branch, old string) error {
 	return c.UpdateBranch(r.Config.ProjectID, branch, old, head)
 }
 
-func (r *Repo) uploadObjects(c *remote.Client, hashes []string) error {
+func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	missing, err := c.MissingObjects(dedupe(hashes))
 	if err != nil {
 		return err
@@ -283,7 +300,7 @@ func (r *Repo) Update(opts MergeOptions) (*SyncResult, error) {
 
 // integrate brings version target (and its history) into the workspace: a
 // fast forward when HEAD is behind, otherwise a merge version with message.
-func (r *Repo) integrate(c *remote.Client, target string, opts MergeOptions, message string) (*SyncResult, error) {
+func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, message string) (*SyncResult, error) {
 	head := r.Head()
 	res := &SyncResult{From: head, To: head}
 	if target == "" || target == head {
@@ -398,8 +415,15 @@ func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, 
 }
 
 // Clone downloads a project from a server into dir.
-func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
-	c := remote.New(url, token)
+func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error) {
+	cfg, err := remote.ParseAddress(address, token)
+	if err != nil {
+		return nil, nil, err
+	}
+	c, err := remote.Open(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
 	projects, err := c.Projects()
 	if err != nil {
 		return nil, nil, err
@@ -412,7 +436,7 @@ func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
 	}
 	switch {
 	case len(match) == 0:
-		return nil, nil, fmt.Errorf("no project %q on %s", project, url)
+		return nil, nil, fmt.Errorf("no project %q on %s", project, cfg.Display())
 	case len(match) > 1:
 		return nil, nil, fmt.Errorf("%q matches %d projects; use the project id", project, len(match))
 	}
@@ -431,7 +455,7 @@ func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
 		author = defaultAuthor()
 	}
 	r, err := create(root, Config{ProjectID: p.ID, Name: p.Name, Author: author,
-		Remote: &RemoteConfig{URL: c.URL, Token: token}})
+		Remote: &cfg})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -460,7 +484,7 @@ func (e *MergeConflictError) Error() string {
 }
 
 // mergeWith creates a merge snapshot of ours and theirs (not checked out).
-func (r *Repo) mergeWith(c *remote.Client, ours, theirs string, opts MergeOptions, message string) (*Manifest, []string, error) {
+func (r *Repo) mergeWith(c remote.Backend, ours, theirs string, opts MergeOptions, message string) (*Manifest, []string, error) {
 	baseID, err := r.mergeBase(ours, theirs)
 	if err != nil {
 		return nil, nil, err

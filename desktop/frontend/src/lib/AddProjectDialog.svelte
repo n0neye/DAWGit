@@ -80,11 +80,12 @@
     <p class="faint small">The folder that contains your .als file and the “Ableton Project Info” folder.
       DAWGit keeps its data in a hidden <span class="mono">.dawgit</span> folder inside it.</p>
   {:else}
-    <label for="url">Server address</label>
-    <input id="url" bind:value={url} placeholder="http://192.168.0.11:7331" />
-    <label for="token">Access token</label>
-    <div class="row">
-      <input id="token" bind:value={token} />
+    <label for="url">Server address or connection code</label>
+    <input id="url" bind:value={url} placeholder="http://192.168.0.11:7331  or  dawgit-s3:…" />
+    <div class="row find">
+      {#if !url.trim().startsWith("dawgit-s3:")}
+        <input id="token" bind:value={token} placeholder="Access token" aria-label="Access token" />
+      {/if}
       <button disabled={!url.trim() || busy} onclick={find}>Find projects</button>
     </div>
     {#if serverProjects}
@@ -122,6 +123,7 @@
 
 <style>
   .small { font-size: 12px; }
+  .find { margin-top: 8px; }
   .error { color: var(--danger); }
   .list { display: flex; flex-wrap: wrap; gap: 6px; }
   .list button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }

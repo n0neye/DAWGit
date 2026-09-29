@@ -27,7 +27,10 @@ setup:
   serve [--data DIR] [--addr :7331]      run the team server
   init [--author NAME]                   start tracking this project
   remote <url> --token TOKEN             connect this project to the team server
-  clone <url> <project> [folder] --token TOKEN
+  remote <connection-code>               ...or to team storage (S3-compatible bucket)
+  clone <url|code> <project> [folder] [--token TOKEN]
+  connection-code --endpoint URL --bucket NAME --access-key K --secret-key S [--prefix P]
+                                         create a code for team storage
 
 branches (advanced):
   branch                                 list branches
@@ -80,6 +83,8 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "remote":
 		err = cmdRemote(os.Args[2:])
+	case "connection-code":
+		err = cmdConnectionCode(os.Args[2:])
 	case "clone":
 		err = cmdClone(os.Args[2:])
 	case "agent":

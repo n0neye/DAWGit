@@ -106,7 +106,7 @@ func (a *App) startAgent(root string) {
 
 	go func() {
 		w := agent.New(root)
-		t := time.NewTicker(5 * time.Second)
+		t := time.NewTicker(r.PollInterval())
 		defer t.Stop()
 		for {
 			unlock := a.lock(root)
@@ -168,7 +168,7 @@ func summary(root string) ProjectSummary {
 		s.Name = filepath.Base(root)
 	}
 	if r.Config.Remote != nil {
-		s.RemoteURL = r.Config.Remote.URL
+		s.RemoteURL = r.Config.Remote.Display()
 	}
 	return s
 }
@@ -221,13 +221,25 @@ func (a *App) RemoveProject(root string) error {
 
 // ServerProjects lists the projects on a server (for joining one).
 func (a *App) ServerProjects(url, token string) ([]remote.Project, error) {
-	ps, err := remote.New(url, token).Projects()
+	ps, err := serverProjects(url, token)
 	return nonNil(ps), err
+}
+
+func serverProjects(url, token string) ([]remote.Project, error) {
+	cfg, err := remote.ParseAddress(url, token)
+	if err != nil {
+		return nil, err
+	}
+	b, err := remote.Open(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return b.Projects()
 }
 
 // JoinProject downloads a project from the server into parent/<name> Project.
 func (a *App) JoinProject(url, token, projectID, parent, author string) (ProjectSummary, error) {
-	ps, err := remote.New(url, token).Projects()
+	ps, err := serverProjects(url, token)
 	if err != nil {
 		return ProjectSummary{}, err
 	}
@@ -307,7 +319,7 @@ func (a *App) State(root string) (*State, error) {
 
 	tips := map[string][]string{}
 	if r.Config.Remote != nil {
-		st.RemoteURL = r.Config.Remote.URL
+		st.RemoteURL = r.Config.Remote.Display()
 		branches, err := r.Branches()
 		if err != nil {
 			st.Offline = err.Error()
