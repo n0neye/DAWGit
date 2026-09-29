@@ -13,7 +13,7 @@ Requires Windows 10 (21H2 or later) or Windows 11.
 Start menu → **DAWGit → DAWGit Team Server**. A window opens and shows:
 
 ```
-DAWGit server 0.3.1 for team "Team on STUDIO-PC"
+DAWGit server 0.3.2 for team "Team on STUDIO-PC"
   data:  C:\Users\you\DAWGit Server
   token: 3f9c…
 
