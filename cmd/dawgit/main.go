@@ -24,12 +24,13 @@ everyday (run inside an Ableton project folder):
   log                                    list versions
 
 setup:
-  serve [--data DIR] [--addr :7331]      run the team server
+  serve [--data DIR] [--addr :7331] [--name TEAM]   run the team server
   init [--author NAME]                   start tracking this project
   remote <url> --token TOKEN             connect this project to the team server
   remote <connection-code>               ...or to team storage (S3-compatible bucket)
   clone <url|code> <project> [folder] [--token TOKEN]
-  connection-code --endpoint URL --bucket NAME --access-key K --secret-key S [--prefix P]
+  teams                                  teams this computer is connected to
+  connection-code --endpoint URL --bucket NAME --access-key K --secret-key S [--prefix P] [--name TEAM]
                                          create a code for team storage
 
 branches (advanced):
@@ -83,6 +84,8 @@ func main() {
 		err = cmdServe(os.Args[2:])
 	case "remote":
 		err = cmdRemote(os.Args[2:])
+	case "teams":
+		err = cmdTeams(os.Args[2:])
 	case "connection-code":
 		err = cmdConnectionCode(os.Args[2:])
 	case "clone":

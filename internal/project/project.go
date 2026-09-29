@@ -15,6 +15,7 @@ import (
 
 	"dawgit/internal/remote"
 	"dawgit/internal/store"
+	"dawgit/internal/teams"
 )
 
 const metaDir = ".dawgit"
@@ -132,6 +133,9 @@ func looksLikeProject(root string) bool {
 func defaultAuthor() string {
 	if a := os.Getenv("DAWGIT_AUTHOR"); a != "" {
 		return a
+	}
+	if s, err := teams.Load(); err == nil && s.Author != "" {
+		return s.Author
 	}
 	if u, err := user.Current(); err == nil {
 		name := u.Username

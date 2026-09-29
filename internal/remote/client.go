@@ -186,3 +186,13 @@ func (c *Client) PutWorkspace(pid, wsid string, state any) error {
 func (c *Client) Workspaces(pid string, out any) error {
 	return c.call("GET", "/projects/"+pid+"/workspaces", nil, out)
 }
+
+// Info returns the server's team name (empty for servers that predate it).
+func (c *Client) Info() (TeamInfo, error) {
+	var info TeamInfo
+	err := c.call("GET", "/info", nil, &info)
+	if errors.Is(err, ErrNotFound) {
+		return TeamInfo{}, nil
+	}
+	return info, err
+}

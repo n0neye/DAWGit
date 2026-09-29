@@ -13,6 +13,7 @@ import (
 	"dawgit/internal/remote"
 	"dawgit/internal/remote/s3test"
 	"dawgit/internal/server"
+	"dawgit/internal/teams"
 )
 
 const token = "test-token"
@@ -168,9 +169,49 @@ func TestSampleChangedOnBothSides(t *testing.T) {
 func TestServerRejectsBadToken(t *testing.T) {
 	url := newServer(t)
 	r, _ := Init(newProject(t), "yi")
-	r.SetRemote(url, "wrong")
-	if _, _, err := r.Save("v", Strategy("fail")); err == nil || !strings.Contains(err.Error(), "token") {
+	// Connecting checks the token right away.
+	if err := r.SetRemote(url, "wrong"); err == nil || !strings.Contains(err.Error(), "token") {
 		t.Fatalf("expected token error, got %v", err)
+	}
+	if r.Config.Remote != nil {
+		t.Error("project joined a team despite the bad token")
+	}
+}
+
+// Credentials live in the per-user team store, never in the project folder;
+// older project configs that still hold them are migrated.
+func TestCredentialsStayOutOfProjectFolder(t *testing.T) {
+	url := newServer(t)
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(url, token); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(a.Dir, "config.json"))
+	if strings.Contains(string(data), token) {
+		t.Fatalf("token written to the project folder: %s", data)
+	}
+	if _, _, err := a.Save("v1", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := teams.Load()
+	tm := store.FindByURL(url)
+	if tm == nil || tm.Remote.Token != token || store.ProjectRoot(tm.ID, a.Config.ProjectID) != a.Root {
+		t.Fatalf("team store: %+v", store)
+	}
+
+	// An older project (0.1.x) with the token in its config.
+	b, _ := Init(newProject(t), "alex")
+	b.Config.Remote = &RemoteConfig{URL: url, Token: token}
+	b.SaveConfig()
+	if _, err := b.Client(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(filepath.Join(b.Dir, "config.json"))
+	if strings.Contains(string(data), token) {
+		t.Fatalf("token not migrated out of the project folder: %s", data)
+	}
+	if _, _, err := b.Save("v1", Strategy("fail")); err != nil {
+		t.Fatalf("migrated project cannot sync: %v", err)
 	}
 }
 

@@ -559,3 +559,30 @@ func (b *S3Backend) Workspaces(pid string, out any) error {
 	data, _ := json.Marshal(docs)
 	return json.Unmarshal(data, out)
 }
+
+// Info reads the team name from team.json in the storage folder.
+func (b *S3Backend) Info() (TeamInfo, error) {
+	var info TeamInfo
+	r, err := b.get("team.json")
+	if errors.Is(err, ErrNotFound) {
+		return info, nil
+	}
+	if err != nil {
+		return info, err
+	}
+	json.Unmarshal(r.body, &info)
+	return info, nil
+}
+
+// SetInfo names the team (written by whoever sets up the storage).
+func (b *S3Backend) SetInfo(info TeamInfo) error {
+	data, _ := json.Marshal(info)
+	r, err := b.put("team.json", data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}

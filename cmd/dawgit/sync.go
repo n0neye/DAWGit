@@ -14,6 +14,7 @@ import (
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 	"dawgit/internal/server"
+	"dawgit/internal/teams"
 )
 
 // parseArgs parses flags that may appear before or after positional args.
@@ -37,12 +38,24 @@ func cmdServe(args []string) error {
 	data := fs.String("data", "dawgit-data", "folder for all server data (back this up)")
 	addr := fs.String("addr", ":7331", "listen address")
 	token := fs.String("token", os.Getenv("DAWGIT_TOKEN"), "team access token (default: generated and kept in <data>/token)")
+	name := fs.String("name", "", "team name shown to members (kept in <data>/team.json)")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
 	}
 	st, err := server.OpenStorage(*data)
 	if err != nil {
 		return err
+	}
+	switch {
+	case *name != "":
+		if err := st.SetName(*name); err != nil {
+			return err
+		}
+	case st.Name() == "":
+		host, _ := os.Hostname()
+		if err := st.SetName("Team on " + host); err != nil {
+			return err
+		}
 	}
 	if *token == "" {
 		tokenFile := filepath.Join(*data, "token")
@@ -61,7 +74,7 @@ func cmdServe(args []string) error {
 		hosts = lanIPs()
 	}
 	abs, _ := filepath.Abs(*data)
-	fmt.Printf("DAWGit server\n  data:  %s\n  token: %s\n\nteam members connect with:\n", abs, *token)
+	fmt.Printf("DAWGit server for team %q\n  data:  %s\n  token: %s\n\nteam members connect with:\n", st.Name(), abs, *token)
 	for _, h := range hosts {
 		fmt.Printf("  dawgit remote http://%s:%s --token %s\n", h, port, *token)
 	}
@@ -94,21 +107,43 @@ func cmdRemote(args []string) error {
 		return err
 	}
 	if len(pos) == 0 {
-		if r.Config.Remote == nil {
-			fmt.Println("not connected to a team server or storage")
-		} else {
-			fmt.Println(r.Config.Remote.Display())
+		t, err := r.Team()
+		if err != nil {
+			return err
 		}
+		fmt.Printf("team %q at %s\n", t.Name, t.Remote.Display())
 		return nil
 	}
 	if err := r.SetRemote(pos[0], *token); err != nil {
 		return err
 	}
-	c, _ := r.Client()
-	if _, err := c.Projects(); err != nil {
-		return fmt.Errorf("saved, but the server did not answer: %w", err)
+	t, _ := r.Team()
+	fmt.Printf("connected to team %q (%s)\nnext: dawgit save -m \"message\" to share this project\n", t.Name, t.Remote.Display())
+	return nil
+}
+
+func cmdTeams(args []string) error {
+	store, err := teams.Load()
+	if err != nil {
+		return err
 	}
-	fmt.Printf("connected to %s\nnext: dawgit save -m \"message\" to share this project\n", r.Config.Remote.Display())
+	if len(store.Teams) == 0 {
+		fmt.Println("not connected to any team (use `dawgit remote` in a project, or `dawgit clone`)")
+		return nil
+	}
+	for _, t := range store.Teams {
+		mark := "  "
+		if t.ID == store.Current {
+			mark = "* "
+		}
+		n := 0
+		for k := range store.Projects {
+			if strings.HasPrefix(k, t.ID+"/") {
+				n++
+			}
+		}
+		fmt.Printf("%s%-24s %s  (%d project(s) on this computer)\n", mark, t.Name, t.Remote.Display(), n)
+	}
 	return nil
 }
 
@@ -279,6 +314,7 @@ func cmdConnectionCode(args []string) error {
 	region := fs.String("region", "auto", "region")
 	access := fs.String("access-key", "", "access key id (one per team member)")
 	secret := fs.String("secret-key", "", "secret access key")
+	name := fs.String("name", "", "team name shown to members (stored in the bucket)")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
 	}
@@ -297,6 +333,15 @@ func cmdConnectionCode(args []string) error {
 	}
 	if _, err := b.Projects(); err != nil {
 		return fmt.Errorf("could not use the bucket with these credentials: %w", err)
+	}
+	if *name != "" {
+		if err := b.(*remote.S3Backend).SetInfo(remote.TeamInfo{Name: *name}); err != nil {
+			return fmt.Errorf("could not save the team name: %w", err)
+		}
+	}
+	info, _ := b.Info()
+	if info.Name == "" {
+		fmt.Println("tip: add --name \"Team name\" once so members see a name instead of the address")
 	}
 	fmt.Println("storage OK. Connection code (contains the key: share it privately):")
 	fmt.Println()
