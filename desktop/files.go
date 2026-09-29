@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"dawgit/internal/audio"
@@ -192,6 +196,10 @@ func safeRel(p string) bool {
 // view can play.
 func (a *App) fileServer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/dawgit-peaks" {
+			a.servePeaks(w, req)
+			return
+		}
 		if req.URL.Path != "/dawgit-file" {
 			next.ServeHTTP(w, req)
 			return
@@ -240,6 +248,73 @@ func (a *App) fileServer(next http.Handler) http.Handler {
 		}
 		http.ServeContent(w, req, name, time.Time{}, f)
 	})
+}
+
+// peaksCache keeps waveforms of files in versions (they never change).
+var peaksCache = struct {
+	sync.Mutex
+	m map[string]*audio.Waveform
+}{m: map[string]*audio.Waveform{}}
+
+// servePeaks answers /dawgit-peaks (same parameters as /dawgit-file, plus
+// n slices) with a waveform overview as JSON, for WAV and AIFF. Other
+// formats get 415: the page decodes those itself.
+func (a *App) servePeaks(w http.ResponseWriter, req *http.Request) {
+	q := req.URL.Query()
+	root, rel, version := q.Get("root"), q.Get("path"), q.Get("version")
+	n, _ := strconv.Atoi(q.Get("n"))
+	if n < 50 || n > 4000 {
+		n = 800
+	}
+	if !safeRel(rel) || !knownProject(root) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	ext := strings.ToLower(path.Ext(rel))
+	if ext != ".wav" && ext != ".aif" && ext != ".aiff" {
+		http.Error(w, "decode it in the page", http.StatusUnsupportedMediaType)
+		return
+	}
+	key := fmt.Sprintf("%s|%s|%s|%d", root, rel, version, n)
+	peaksCache.Lock()
+	wf := peaksCache.m[key]
+	peaksCache.Unlock()
+	if wf == nil {
+		r, err := project.Open(root)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		f, err := r.OpenFile(rel, version)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if ext == ".wav" {
+			wf, err = audio.WAVPeaks(f, n)
+		} else {
+			var data []byte
+			if data, err = io.ReadAll(f); err == nil {
+				wf, err = audio.AIFFPeaks(data, n)
+			}
+		}
+		f.Close()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+			return
+		}
+		if version != "" {
+			peaksCache.Lock()
+			if len(peaksCache.m) > 500 {
+				peaksCache.m = map[string]*audio.Waveform{}
+			}
+			peaksCache.m[key] = wf
+			peaksCache.Unlock()
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(wf)
 }
 
 // knownProject reports whether root is a project folder the app lists.
