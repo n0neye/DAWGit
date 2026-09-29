@@ -120,6 +120,42 @@ export class Conflict {
     }
 }
 
+/**
+ * FileVersion is a version that changed a file.
+ */
+export class FileVersion {
+    "version": Version;
+
+    /**
+     * added | modified | deleted
+     */
+    "status": string;
+
+    /** Creates a new FileVersion instance. */
+    constructor($$source: Partial<FileVersion> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = (new Version());
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FileVersion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FileVersion {
+        const $$createField0_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("version" in $$parsedSource) {
+            $$parsedSource["version"] = $$createField0_0($$parsedSource["version"]);
+        }
+        return new FileVersion($$parsedSource as Partial<FileVersion>);
+    }
+}
+
 export class Overview {
     "author": string;
     "teams": TeamSummary[];
@@ -226,6 +262,50 @@ export class Preview {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
         }
         return new Preview($$parsedSource as Partial<Preview>);
+    }
+}
+
+/**
+ * ProjectFile is a file as the Changes tab lists it.
+ */
+export class ProjectFile {
+    "path": string;
+
+    /**
+     * added | modified | deleted | unchanged | ignored
+     */
+    "status": string;
+    "size": number;
+
+    /**
+     * set | audio | other
+     */
+    "kind": string;
+
+    /** Creates a new ProjectFile instance. */
+    constructor($$source: Partial<ProjectFile> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectFile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectFile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectFile($$parsedSource as Partial<ProjectFile>);
     }
 }
 
