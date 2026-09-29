@@ -119,6 +119,58 @@ func (a *App) DiscardFile(root, file string, force bool) (*Result, error) {
 	return &Result{Action: "discarded", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
 }
 
+// RestoreFileVersion puts one file back as it was in a version; the rest of
+// the project stays. The result is an uncommitted change.
+func (a *App) RestoreFileVersion(root, file, version string, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if version == "" {
+		return nil, errors.New("pick a version")
+	}
+	if fileKind(file) == "set" {
+		if set := liveGuard(r, force); set != "" {
+			return blocked(set), nil
+		}
+	}
+	if err := r.RestoreFile(file, version); err != nil {
+		return nil, err
+	}
+	return &Result{Action: "restored", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+}
+
+// DiscardAll drops every uncommitted change: the project folder goes back to
+// the version it is on.
+func (a *App) DiscardAll(root string, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	changes, err := r.Status()
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range changes { // only rewriting a set needs Live to let go of it
+		if fileKind(c.Path) == "set" {
+			if set := liveGuard(r, force); set != "" {
+				return blocked(set), nil
+			}
+			break
+		}
+	}
+	head := r.Head()
+	if head == "" {
+		return nil, errors.New("no version yet: nothing to go back to")
+	}
+	if _, _, err := r.Checkout(head, true); err != nil {
+		return nil, err
+	}
+	return &Result{Action: "discarded", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+}
+
 // ShowFile opens Explorer with the file selected.
 func (a *App) ShowFile(root, file string) error {
 	if !safeRel(file) {

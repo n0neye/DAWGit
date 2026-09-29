@@ -7,11 +7,13 @@
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, or the sample to listen to, now and before). "All files" lists
   // the whole project folder. Each file has a menu (⋯ or right click).
-  let { root, st, summary, ondiscard }: {
+  let { root, st, summary, ondiscard, ondiscardall, onrestore }: {
     root: string;
     st: State;
     summary: Snippet; // shown when no file is selected (tracks you changed)
     ondiscard: (path: string) => void;
+    ondiscardall: () => void;
+    onrestore: (path: string, version: string, label: string) => void; // one file from a version
   } = $props();
 
   let all = $state(false);
@@ -137,6 +139,9 @@
   <aside class="files">
     <div class="files-h">
       <span>{all ? "All files" : `Changed files${changedCount ? ` (${changedCount})` : ""}`}</span>
+      {#if changedCount}
+        <button class="ghost discard-all" onclick={ondiscardall} title="Drop all uncommitted changes">Discard all…</button>
+      {/if}
       <label class="all" title="List every file in the project folder">
         <input type="checkbox" bind:checked={all} /> All files
       </label>
@@ -235,6 +240,13 @@
             {@const h = history.find((x) => x.version.id === picked)!}
             {@const prev = before(picked)}
             <div class="picked">
+              {#if h.status !== "deleted"}
+                <div class="restore">
+                  <button onclick={() => onrestore(selected, h.version.id, h.version.message || h.version.short)}
+                    title="Put this file back as it was in this version; the rest of the project stays">Restore this version</button>
+                  <span class="faint small">Only this file changes; commit it when you're happy.</span>
+                </div>
+              {/if}
               {#if current.kind === "audio"}
                 <AudioAB
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
@@ -341,6 +353,9 @@
   .vsym.modified { color: var(--mod); }
   .vmsg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .picked { border-top: 1px solid var(--line); padding-top: 14px; }
+  .restore { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .restore button { padding: 5px 12px; font-size: 13px; }
+  .discard-all { padding: 0 6px; font-size: 11.5px; text-transform: none; letter-spacing: 0; color: var(--muted); }
 
   .ctx { position: fixed; z-index: 40; min-width: 210px; padding: 6px; background: var(--panel-2);
     border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }

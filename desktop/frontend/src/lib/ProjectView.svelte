@@ -52,6 +52,8 @@
   let branchThenCommit = $state(""); // commit this after creating the branch
   let discardOpen = $state(false);
   let discardFile = $state(""); // one file's changes, after confirming
+  let discardAllOpen = $state(false);
+  let restoreFile = $state<{ path: string; version: string; label: string } | null>(null);
 
   async function load() {
     try {
@@ -221,6 +223,25 @@
     message = msg.trim();
     branchThenCommit = msg.trim();
     newBranch = "";
+  }
+
+  function discardEverything() {
+    discardAllOpen = false;
+    run({
+      name: "discard",
+      call: (_res, force) => api.DiscardAll(root, force),
+      done: () => toast("Discarded all your uncommitted changes — reopen the set in Live", "ok"),
+    });
+  }
+
+  function restoreOneFile() {
+    const r = restoreFile!;
+    restoreFile = null;
+    run({
+      name: "restore",
+      call: (_res, force) => api.RestoreFileVersion(root, r.path, r.version, force),
+      done: () => toast(`Restored ${r.path.slice(r.path.lastIndexOf("/") + 1)} from “${r.label}” — commit it to keep it`, "ok", 8000),
+    });
   }
 
   function discardOneFile() {
@@ -625,7 +646,9 @@
             {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
         {/snippet}
-        <ChangesPanel {root} st={st} {summary} ondiscard={(p) => (discardFile = p)} />
+        <ChangesPanel {root} st={st} {summary} ondiscard={(p) => (discardFile = p)}
+          ondiscardall={() => (discardAllOpen = true)}
+          onrestore={(path, version, label) => (restoreFile = { path, version, label })} />
       {:else if tab === "history"}
         <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
@@ -682,6 +705,31 @@
   {#if combine}
     <CombineDialog preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
       onclose={() => (combine = null)} oncombine={combineAndShare} onbranch={() => putOnBranch(combine!.message)} />
+  {/if}
+
+  {#if discardAllOpen}
+    <Modal title="Discard all your changes?" onclose={() => (discardAllOpen = false)}>
+      <p>All {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"} will be lost: the project folder
+        goes back to the version you're on. This can't be undone.</p>
+      {#snippet footer()}
+        <button onclick={() => (discardAllOpen = false)}>Cancel</button>
+        <button class="danger" onclick={discardEverything}>Discard all</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if restoreFile}
+    {@const r = restoreFile}
+    {@const pending = st.changes.some((c) => c.path === r.path)}
+    <Modal title="Restore {r.path.slice(r.path.lastIndexOf('/') + 1)} from “{r.label}”?" onclose={() => (restoreFile = null)}>
+      <p>The file goes back to how it was in that version. The rest of the project stays as it is; commit when you're
+        happy with it.</p>
+      {#if pending}<p class="warn-text">This file has uncommitted changes — they'll be replaced.</p>{/if}
+      {#snippet footer()}
+        <button onclick={() => (restoreFile = null)}>Cancel</button>
+        <button class="primary" onclick={restoreOneFile}>Restore</button>
+      {/snippet}
+    </Modal>
   {/if}
 
   {#if discardFile}
@@ -849,6 +897,7 @@
   .count { margin-left: 4px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; }
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
+  .warn-text { color: var(--warn); }
   main.flush { padding: 0 0 0 16px; overflow: hidden; min-height: 0; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
   .save { border-top: 1px solid var(--line); background: var(--panel); padding: 12px 24px 14px; }

@@ -89,6 +89,16 @@ export function DeleteProjectFromTeam(teamID: string, projectID: string): $Cance
 }
 
 /**
+ * DiscardAll drops every uncommitted change: the project folder goes back to
+ * the version it is on.
+ */
+export function DiscardAll(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(2924004144, root, force).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * DiscardAndUpdate drops uncommitted changes and takes the team's latest
  * versions of this branch.
  */
@@ -266,6 +276,16 @@ export function RenameTeam(id: string, name: string): $CancellablePromise<void> 
  */
 export function RenameTeamForEveryone(id: string, name: string): $CancellablePromise<void> {
     return $Call.ByID(280692036, id, name);
+}
+
+/**
+ * RestoreFileVersion puts one file back as it was in a version; the rest of
+ * the project stays. The result is an uncommitted change.
+ */
+export function RestoreFileVersion(root: string, file: string, version: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(341144577, root, file, version, force).then(($result: any) => {
+        return $$createType5($result);
+    });
 }
 
 /**
