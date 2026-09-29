@@ -316,6 +316,13 @@ export class State {
      * .als files in the project folder
      */
     "sets": string[];
+
+    /**
+     * OlderVersion is the version the project was moved back to (Go to
+     * version); nil on the latest version. Latest is the branch's newest.
+     */
+    "olderVersion": Version | null;
+    "latest": string;
     "changes": Change[];
     "myEdits": project$0.TrackEdit[];
     "incoming": Version[];
@@ -362,6 +369,12 @@ export class State {
         if (!("sets" in $$source)) {
             this["sets"] = [];
         }
+        if (!("olderVersion" in $$source)) {
+            this["olderVersion"] = null;
+        }
+        if (!("latest" in $$source)) {
+            this["latest"] = "";
+        }
         if (!("changes" in $$source)) {
             this["changes"] = [];
         }
@@ -392,37 +405,41 @@ export class State {
      */
     static createFrom($$source: any = {}): State {
         const $$createField11_0 = $$createType2;
-        const $$createField12_0 = $$createType9;
-        const $$createField13_0 = $$createType13;
-        const $$createField14_0 = $$createType7;
-        const $$createField15_0 = $$createType15;
-        const $$createField16_0 = $$createType2;
-        const $$createField17_0 = $$createType7;
-        const $$createField18_0 = $$createType17;
+        const $$createField12_0 = $$createType1;
+        const $$createField14_0 = $$createType9;
+        const $$createField15_0 = $$createType13;
+        const $$createField16_0 = $$createType7;
+        const $$createField17_0 = $$createType15;
+        const $$createField18_0 = $$createType2;
+        const $$createField19_0 = $$createType7;
+        const $$createField20_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sets" in $$parsedSource) {
             $$parsedSource["sets"] = $$createField11_0($$parsedSource["sets"]);
         }
+        if ("olderVersion" in $$parsedSource) {
+            $$parsedSource["olderVersion"] = $$createField12_0($$parsedSource["olderVersion"]);
+        }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField12_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField14_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField13_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField15_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField14_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField16_0($$parsedSource["incoming"]);
         }
         if ("teammates" in $$parsedSource) {
-            $$parsedSource["teammates"] = $$createField15_0($$parsedSource["teammates"]);
+            $$parsedSource["teammates"] = $$createField17_0($$parsedSource["teammates"]);
         }
         if ("overlaps" in $$parsedSource) {
-            $$parsedSource["overlaps"] = $$createField16_0($$parsedSource["overlaps"]);
+            $$parsedSource["overlaps"] = $$createField18_0($$parsedSource["overlaps"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField17_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField19_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField18_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField20_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }

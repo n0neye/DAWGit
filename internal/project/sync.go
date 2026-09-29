@@ -339,13 +339,13 @@ func (r *Repo) Incoming() (bool, error) {
 		return false, err
 	}
 	remoteHead := branches[r.BranchName()]
-	if remoteHead == "" || remoteHead == r.Head() {
+	if remoteHead == "" || remoteHead == r.Latest() {
 		return false, nil
 	}
 	if err := r.fetchSnapshots(c, remoteHead); err != nil {
 		return false, err
 	}
-	have, err := r.isAncestor(remoteHead, r.Head())
+	have, err := r.isAncestor(remoteHead, r.Latest())
 	return !have, err
 }
 
@@ -365,6 +365,9 @@ type SyncResult struct {
 // forward when only the server moved, a merge when both did. The working
 // files must match HEAD.
 func (r *Repo) Update(opts MergeOptions) (*SyncResult, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
 	c, err := r.Client()
 	if err != nil {
 		return nil, err

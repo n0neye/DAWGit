@@ -198,6 +198,9 @@ var ErrNothingToSnapshot = errors.New("nothing changed since the last snapshot")
 
 // Snapshot records the working files as a new snapshot on top of HEAD.
 func (r *Repo) Snapshot(message string) (*Manifest, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
 	ix := r.loadIndex()
 	r.report(StageScanning, 0, 0)
 	files, err := r.workingFiles(ix)
@@ -250,23 +253,40 @@ func sameContent(a, b *Manifest) bool {
 	return bytes.Equal(enc(a), enc(b))
 }
 
-// Log returns every version reachable from HEAD (everyone's, including both
-// sides of merges), newest first; a version is always listed before its
+// Log returns every version of the current branch (everyone's, including
+// both sides of merges), newest first; a version is always listed before its
 // parents.
 func (r *Repo) Log() ([]*Manifest, error) {
-	anc, err := r.ancestors(r.Head())
-	if err != nil {
-		return nil, err
-	}
+	return r.LogAll(nil)
+}
+
+// LogAll is Log for the whole tree: also every version leading to heads
+// (e.g. the latest version of each branch). Heads not on this computer are
+// skipped.
+func (r *Repo) LogAll(heads []string) ([]*Manifest, error) {
 	all := map[string]*Manifest{}
-	children := map[string]int{} // unlisted children per version
-	for id := range anc {
-		m, err := r.Load(id)
+	for _, h := range append([]string{r.Latest(), r.Head()}, heads...) {
+		if h == "" || all[h] != nil {
+			continue
+		}
+		if _, err := r.Load(h); err != nil {
+			continue
+		}
+		anc, err := r.ancestors(h)
 		if err != nil {
 			return nil, err
 		}
-		all[id] = m
+		for id := range anc {
+			if all[id] == nil {
+				m, err := r.Load(id)
+				if err != nil {
+					return nil, err
+				}
+				all[id] = m
+			}
+		}
 	}
+	children := map[string]int{} // unlisted children per version
 	for _, m := range all {
 		for _, p := range m.Parents {
 			children[p]++
