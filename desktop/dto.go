@@ -17,6 +17,9 @@ type Version struct {
 	Message  string   `json:"message"`
 	Parents  []string `json:"parents"`
 	Branches []string `json:"branches"` // server branches whose latest version this is
+	// InBranch: the current branch already contains this version (only set
+	// in State.History); other versions can be merged in.
+	InBranch bool `json:"inBranch"`
 }
 
 type Change struct {

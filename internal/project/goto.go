@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"dawgit/internal/als"
@@ -22,6 +23,12 @@ func (r *Repo) Latest() string {
 		return r.Config.Tip
 	}
 	return r.Head()
+}
+
+// InBranch returns the versions the current branch already contains (the
+// latest version and everything before it).
+func (r *Repo) InBranch() (map[string]bool, error) {
+	return r.ancestors(r.Latest())
 }
 
 // OnOlderVersion reports whether GoTo moved the project to an older version.
@@ -80,7 +87,53 @@ func (r *Repo) GoTo(ref string, discard bool) (*Manifest, []string, error) {
 	if id != latest {
 		r.Config.Tip = latest
 	}
-	return m, notes, r.SaveConfig()
+	if err := r.SaveConfig(); err != nil {
+		return nil, nil, err
+	}
+	if r.OnOlderVersion() && r.Config.Remote != nil {
+		r.AdoptBranchAtHead()
+	}
+	return m, notes, nil
+}
+
+// AdoptBranchAtHead: a project on an "older" version that is the latest
+// version of a branch is simply on that branch, so commits go there. It stays
+// put when the current branch has versions not shared yet (they would be
+// hard to find again). It reports whether it switched.
+func (r *Repo) AdoptBranchAtHead() bool {
+	if !r.OnOlderVersion() {
+		return false
+	}
+	c, err := r.Client()
+	if err != nil {
+		return false
+	}
+	heads, err := c.Branches(r.Config.ProjectID)
+	if err != nil {
+		return false
+	}
+	var names []string
+	for name, h := range heads {
+		if h == r.Head() {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return false
+	}
+	sort.Strings(names)
+	if cur := heads[r.BranchName()]; r.Config.Tip != cur {
+		if shared, err := r.isAncestor(r.Config.Tip, cur); err != nil || !shared {
+			return false
+		}
+	}
+	r.Config.Branch, r.Config.Tip = names[0], ""
+	for _, n := range names {
+		if n == "main" {
+			r.Config.Branch = n
+		}
+	}
+	return r.SaveConfig() == nil
 }
 
 // KeepThisVersion continues from the older version the project is on: its

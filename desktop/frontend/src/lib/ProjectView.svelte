@@ -220,6 +220,31 @@
     }
   }
 
+  // Merge any version (e.g. one in the middle of another branch) into the
+  // current branch.
+  async function openVersionMerge(v: Version) {
+    const label = v.branches.length ? v.branches[0] : `“${v.message || v.short}”`;
+    busy = "preview";
+    try {
+      const data = await api.PreviewMergeVersion(root, v.id);
+      if (!data) return;
+      preview = {
+        title: `Merge ${label} into “${st?.branch}”`, label: "Merge and share", data,
+        blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
+        run: {
+          name: "merge",
+          call: (res, force) => api.MergeVersion(root, v.id, res, force),
+          done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
+            ? `“${st?.branch}” already has ${label}` : `Merged ${label} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
+        },
+      };
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      busy = "";
+    }
+  }
+
   function switchTo(name: string) {
     branchMenu = false;
     run({
@@ -515,7 +540,8 @@
         </div>
       {:else if tab === "history"}
         <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
-          ongoto={(v) => goTo(v)} onexport={exportVersion} />
+          ongoto={(v) => goTo(v)} onexport={exportVersion}
+          onmerge={st.remoteUrl && !st.olderVersion ? openVersionMerge : undefined} />
       {:else}
         <section>
           <h3>Being edited right now (not committed yet)</h3>

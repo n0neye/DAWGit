@@ -137,6 +137,12 @@ export function MergeBranch(root: string, name: string, resolutions: { [_ in str
     });
 }
 
+export function MergeVersion(root: string, id: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(3024291569, root, id, resolutions, force).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 /**
  * OpenInLive opens a set with its default application (Ableton Live).
  */
@@ -155,6 +161,16 @@ export function Overview(): $CancellablePromise<$models.Overview | null> {
 
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1135981589, root, name).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * PreviewMergeVersion previews merging any version (e.g. one in the middle
+ * of another branch) into the current branch.
+ */
+export function PreviewMergeVersion(root: string, id: string): $CancellablePromise<$models.Preview | null> {
+    return $Call.ByID(730100359, root, id).then(($result: any) => {
         return $$createType7($result);
     });
 }

@@ -2,6 +2,7 @@ package project
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -97,4 +98,47 @@ func TestPreviewUpdate(t *testing.T) {
 	if err != nil || p.Action != "fast-forward" || len(p.Changes) != 1 || len(p.Conflicts) != 0 {
 		t.Fatalf("%v %+v", err, p)
 	}
+}
+
+// Any version of another branch can be merged, not only its latest.
+func TestMergeVersionFromTheMiddleOfABranch(t *testing.T) {
+	a, b := team(t)
+	a.CreateBranch("yi-ideas")
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	i1, _, err := a.Save("group audio", Strategy("fail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(a.Root, "Samples", "later.wav"), []byte("RIFF-later"), 0o644)
+	if _, _, err := a.Save("later idea", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+	before, _, _ := b.Save("drums", Strategy("fail"))
+	b.Branches() // fetches the other branch's versions, as the app's history does
+
+	p, err := b.PreviewVersion(i1.ID)
+	if err != nil || p.Action != "merge" || len(p.Versions) != 1 || p.Versions[0].ID != i1.ID {
+		t.Fatalf("preview: %v %+v", err, p)
+	}
+	res, err := b.MergeVersion(i1.ID[:10], Strategy("both"))
+	if err != nil || res.Action != "merged" {
+		t.Fatalf("merge version: %v %+v", err, res)
+	}
+	m, _ := b.Load(b.Head())
+	if len(m.Parents) != 2 || m.Parents[0] != before.ID || m.Parents[1] != i1.ID ||
+		!strings.HasPrefix(m.Message, "Merge version ") {
+		t.Fatalf("merge version: %+v", m)
+	}
+	if setTracks(t, b)["Audios"].Elem == nil {
+		t.Error("the merged version's group is missing")
+	}
+	if _, err := os.Stat(filepath.Join(b.Root, "Samples", "later.wav")); err == nil {
+		t.Error("a later version of the branch came in too")
+	}
+	if heads, _ := b.Branches(); len(heads) != 2 {
+		t.Fatalf("branches: %+v", heads)
+	}
+	assertClean(t, b)
 }
