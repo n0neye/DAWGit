@@ -1,6 +1,6 @@
 # Design: pluggable storage backends
 
-Status: steps 1–5 of the implementation plan are done. The direct object storage backend passes the contract tests against an in-memory fake and against Versity S3 Gateway v1.8.0 (including concurrent branch updates); verification against a hosted service is pending. Step 6 is open.
+Status: steps 1–5 of the implementation plan are done. The direct object storage backend passes the contract tests against an in-memory fake, Versity S3 Gateway v1.8.0 and Cloudflare R2 (including concurrent branch updates). Step 6 is open.
 
 ## Summary
 
