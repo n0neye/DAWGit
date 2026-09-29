@@ -67,6 +67,11 @@ func Load() (*Store, error) {
 	if s.Projects == nil {
 		s.Projects = map[string]string{}
 	}
+	for i, t := range s.Teams {
+		if old := oldDefaultName(t.Remote); old != "" && t.Name == old {
+			s.Teams[i].Name = DefaultName(t.Remote)
+		}
+	}
 	return s, nil
 }
 
@@ -145,15 +150,25 @@ func DefaultName(cfg remote.Config) string {
 		return cfg.URL
 	}
 	if cfg.IsStorage() {
-		return "Storage " + strings.Trim(u.Path, "/")
+		bucket, _, _ := strings.Cut(strings.Trim(u.Path, "/"), "/")
+		return bucket
 	}
 	return u.Host
 }
 
-// Remove forgets a team and its project locations (folders stay on disk).
+// oldDefaultName is what DefaultName returned before 0.2 for storage.
+func oldDefaultName(cfg remote.Config) string {
+	u, err := url.Parse(strings.TrimPrefix(cfg.URL, "s3+"))
+	if err != nil || !cfg.IsStorage() {
+		return ""
+	}
+	return "Storage " + strings.Trim(u.Path, "/")
+}
+
 // LocalID as Current selects the projects kept on this computer only.
 const LocalID = "local"
 
+// Remove forgets a team and its project locations (folders stay on disk).
 func (s *Store) Remove(id string) {
 	out := s.Teams[:0]
 	for _, t := range s.Teams {

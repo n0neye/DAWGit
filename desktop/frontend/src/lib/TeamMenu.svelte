@@ -13,6 +13,7 @@
   let confirmRemove = $state<TeamSummary | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
+  const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
   // "Local" (projects kept on this computer only) sits in the menu like a team.
   let isLocal = $derived(!current);
 
@@ -74,7 +75,7 @@
         <button class="item" onclick={() => select(t.id)}>
           <span class="check">{t.id === overview.currentTeam ? "✓" : ""}</span>
           <span class="tname">{t.name}</span>
-          <span class="faint small">{t.isStorage ? "storage" : t.address.replace(/^https?:\/\//, "")}</span>
+          <span class="faint small">{t.isStorage ? "storage" : hostOf(t) === t.name ? "" : hostOf(t)}</span>
         </button>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}

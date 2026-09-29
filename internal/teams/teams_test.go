@@ -24,9 +24,10 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatalf("teams = %+v", s.Teams)
 	}
 	b := s.Upsert(remote.Config{URL: "s3+https://x.r2.cloudflarestorage.com/team/dawgit", AccessKey: "k", SecretKey: "s"}, "")
-	if b.Name != "Storage team/dawgit" {
+	if b.Name != "team" {
 		t.Errorf("default storage name = %q", b.Name)
 	}
+	s.Teams[1].Name = "Storage team/dawgit" // the default before 0.2: renamed on load
 	s.SetProjectRoot(a.ID, "p1", `C:\Music\Song Project`)
 	s.AddLocal(`C:\Music\Solo Project`)
 	s.Author = "yi"
@@ -38,6 +39,9 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	s2, _ := Load()
+	if s2.Teams[1].Name != "team" {
+		t.Errorf("old default name not updated: %q", s2.Teams[1].Name)
+	}
 	if s2.FindByURL("http://STUDIO.local:7331/") == nil || s2.ProjectRoot(a.ID, "p1") != `C:\Music\Song Project` ||
 		s2.Author != "yi" || len(s2.Roots()) != 2 {
 		t.Fatalf("reloaded = %+v", s2)
