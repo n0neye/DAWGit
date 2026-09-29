@@ -53,7 +53,7 @@ Ask whoever set up your team for the **server address and token**, or for your *
 Everyday use:
 
 - Work in Live and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
-- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, their changes are merged in first.
+- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, DAWGit shows what they changed and lets you combine your work with theirs or put it on a new branch.
 - When a teammate commits, DAWGit tells you. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first, then reopen it.
 - A yellow banner means you and a teammate are editing the same track right now: talk before you both commit.
 

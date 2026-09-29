@@ -639,8 +639,8 @@
               You're on an older version. {st.remoteUrl ? "Start a new branch from here" : "Make it the latest version"}
               to commit changes, or go back to the latest version.
             {:else if st.remoteUrl}
-              Commits the project folder and shares it with the team on “{st.branch}”. If others saved in the
-              meantime, their changes are merged in first.
+              Commits the project folder and shares it with the team on “{st.branch}”. If others committed in
+              the meantime, you'll see what they changed and choose how to combine first.
             {:else}
               Commits on this computer. Share the project with a team to work on it together.
             {/if}

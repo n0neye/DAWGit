@@ -68,7 +68,7 @@ The **⋯** menu next to a song removes it from this computer's list (the folder
 ## Everyday use
 
 - Work in Live as usual and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
-- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate saved in the meantime, their changes are merged in first; if you both changed the same track, DAWGit asks which to keep (yours, theirs, or both as two tracks).
+- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, DAWGit shows what they changed and lets you choose: combine your work with theirs (track by track; where you both changed the same track, it asks which to keep: yours, theirs, or both as two tracks), put your work on a new branch, or discard it.
 - When a teammate saves, DAWGit shows it. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first: DAWGit changes the files on disk and Live would overwrite them.
 - A yellow banner means you and a teammate are editing the same track right now: talk before you both save.
 
