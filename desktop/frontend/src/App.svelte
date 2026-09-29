@@ -246,7 +246,10 @@
 {:else}
   <div class="shell">
     <aside>
-      <div class="brand"><img src="/icon.png" alt="" /> DAWGit</div>
+      <div class="brand">
+        <img src="/icon.png" alt="" /> DAWGit
+        {#if appVersion}<span class="version faint" title="DAWGit version">v{appVersion}</span>{/if}
+      </div>
       <TeamMenu {overview} {reload} />
 
       <div class="list">
@@ -277,7 +280,6 @@
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
         </label>
-        {#if appVersion}<span class="version faint" title="DAWGit version">DAWGit {appVersion}</span>{/if}
       </div>
     </aside>
 
@@ -446,7 +448,7 @@
   .pad { padding: 0 8px; }
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
-  .version { font-size: 11px; }
+  .version { margin-left: auto; font-size: 11px; font-weight: 400; }
   .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
   .autostart input { width: auto; }
   .small { font-size: 12.5px; }
