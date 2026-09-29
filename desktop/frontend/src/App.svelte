@@ -40,8 +40,19 @@
 
   type AgentEvent = { root: string; kind: string; author: string; labels: string[]; text: string; versions: { author: string; message: string }[] };
 
+  let autostart = $state(false);
+  async function toggleAutostart(on: boolean) {
+    try {
+      await api.SetAutostart(on);
+      autostart = on;
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
+  }
+
   onMount(() => {
     loadProjects();
+    api.Autostart().then((on) => (autostart = on)).catch(() => {});
     return Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
       const name = projects.find((p) => p.root === e.root)?.name ?? "";
@@ -79,6 +90,10 @@
     <div class="add">
       <button onclick={() => (adding = "folder")}>+ Add project folder</button>
       <button class="ghost" onclick={() => (adding = "join")}>Join from team server</button>
+      <label class="autostart" title="Keeps DAWGit in the tray so teammates see what you edit and you hear about new versions">
+        <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
+        Start with Windows
+      </label>
     </div>
   </aside>
 
@@ -123,6 +138,8 @@
   .rm { visibility: hidden; padding: 2px 6px; }
   li:hover .rm { visibility: visible; }
   .add { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .autostart { display: flex; align-items: center; gap: 8px; margin: 6px 4px 0; font-size: 12.5px; cursor: pointer; }
+  .autostart input { width: auto; }
   .content { min-width: 0; overflow: hidden; }
   .empty { padding: 64px; }
   .empty h1 { margin: 0 0 6px; }

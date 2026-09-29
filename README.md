@@ -13,6 +13,16 @@ Version control and collaboration tool for music production, targeting Ableton L
 
 - `SampleProjects/` — real Ableton projects used as test fixtures (audio stored via Git LFS)
 
+## Install (Windows)
+
+See [docs/team-setup.md](docs/team-setup.md). Build the installer with:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1 -Version 0.1.0   # -> dist\DAWGit-0.1.0-setup.exe
+```
+
+Needs Go, Node.js, Wails v3 CLI (`wails3`) and NSIS.
+
 ## Build & test (Go)
 
 Requires Go 1.27+.
