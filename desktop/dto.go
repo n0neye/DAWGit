@@ -57,8 +57,8 @@ type State struct {
 	TeamID      string   `json:"teamId"` // "" for a project kept on this computer only
 	TeamName    string   `json:"teamName"`
 	Online      bool     `json:"online"`
-	Offline     string   `json:"offline"` // why the server is unreachable
-	LiveRunning bool     `json:"liveRunning"`
+	Offline     string   `json:"offline"`     // why the server is unreachable
+	LiveRunning bool     `json:"liveRunning"` // a set of this project is open in Live
 	Head        string   `json:"head"`
 	Sets        []string `json:"sets"` // .als files in the project folder
 	// OlderVersion is the version the project was moved back to (Go to
@@ -83,9 +83,11 @@ type Result struct {
 	// Conflicts need decisions; nothing was changed. Call again with
 	// resolutions keyed by Conflict.Key.
 	Conflicts []Conflict `json:"conflicts"`
-	// LiveRunning: Ableton Live must close the set first; call again with
-	// force when it is not open.
-	LiveRunning bool `json:"liveRunning"`
+	// LiveRunning: a set of this project is open in Ableton Live and must be
+	// closed first (OpenSet names it; "" when it cannot be told); call again
+	// with force when it is closed.
+	LiveRunning bool   `json:"liveRunning"`
+	OpenSet     string `json:"openSet"`
 }
 
 type Preview struct {

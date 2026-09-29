@@ -244,10 +244,12 @@ export class Result {
     "conflicts": Conflict[];
 
     /**
-     * LiveRunning: Ableton Live must close the set first; call again with
-     * force when it is not open.
+     * LiveRunning: a set of this project is open in Ableton Live and must be
+     * closed first (OpenSet names it; "" when it cannot be told); call again
+     * with force when it is closed.
      */
     "liveRunning": boolean;
+    "openSet": string;
 
     /** Creates a new Result instance. */
     constructor($$source: Partial<Result> = {}) {
@@ -265,6 +267,9 @@ export class Result {
         }
         if (!("liveRunning" in $$source)) {
             this["liveRunning"] = false;
+        }
+        if (!("openSet" in $$source)) {
+            this["openSet"] = "";
         }
 
         Object.assign(this, $$source);
@@ -309,6 +314,10 @@ export class State {
      * why the server is unreachable
      */
     "offline": string;
+
+    /**
+     * a set of this project is open in Live
+     */
     "liveRunning": boolean;
     "head": string;
 

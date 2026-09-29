@@ -65,7 +65,7 @@ func cmdSwitch(args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := guardLiveAlways(*force); err != nil {
+	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
 	res, err := r.SwitchBranch(pos[0], *force)
@@ -134,7 +134,7 @@ func cmdMergeBranch(args []string) error {
 		printPreview(p, "branch "+pos[0])
 		return nil
 	}
-	if err := guardLiveAlways(*force); err != nil {
+	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
 	res, err := r.MergeBranch(pos[0], project.Strategy(*strategy))
@@ -151,10 +151,14 @@ func cmdMergeBranch(args []string) error {
 	return nil
 }
 
-// guardLiveAlways refuses while Live runs: the command rewrites sets.
-func guardLiveAlways(force bool) error {
-	if force || !liveRunning() {
+// guardLiveAlways refuses while a set of the project is open in Live: the
+// command rewrites sets.
+func guardLiveAlways(r *project.Repo, force bool) error {
+	if force {
 		return nil
 	}
-	return errors.New("Ableton Live is running: save and close the set first (or use --force if it is not open)")
+	if set := openSet(r.Root); set != "" {
+		return liveOpenError(set, "")
+	}
+	return nil
 }

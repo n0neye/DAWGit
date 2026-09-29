@@ -57,6 +57,7 @@ func (r *Repo) ensureObjects(m *Manifest) error {
 	if err != nil {
 		return fmt.Errorf("some files of this version are not on this computer: %w", err)
 	}
+	r.knowSizes(m)
 	return r.fetchObjects(c, need)
 }
 

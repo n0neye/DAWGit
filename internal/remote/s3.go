@@ -500,6 +500,8 @@ func (b *S3Backend) PutObject(hash string, r io.Reader) error {
 		}
 	case interface{ Len() int }:
 		size = int64(v.Len())
+	case interface{ Size() int64 }: // e.g. a reader reporting progress; -1 if unknown
+		size = v.Size()
 	}
 	if size < 0 {
 		data, err := io.ReadAll(r)

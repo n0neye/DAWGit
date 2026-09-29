@@ -14,3 +14,6 @@ func processNames() ([]string, error) {
 	}
 	return strings.Split(string(out), "\n"), nil
 }
+
+// liveWindowTitles is not available here: callers fall back to Running.
+func liveWindowTitles() ([]string, error) { return nil, errUnsupported }

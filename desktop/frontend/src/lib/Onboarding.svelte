@@ -1,7 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, errorText, progressText, savedAuthor, rememberAuthor, type Overview, type Progress,
+  import ProgressBar from "./ProgressBar.svelte";
+  import { api, errorText, savedAuthor, rememberAuthor, type Overview, type Progress,
     type TeamSummary } from "./api";
   import ConnectForm from "./ConnectForm.svelte";
 
@@ -150,12 +151,7 @@
               <span class="name">{p.name}</span>
               <button onclick={() => download(p.id)} disabled={!!busy}>{busy === p.id ? "Downloading…" : "↓ Download"}</button>
               {#if busy === p.id}
-                <div class="progress">
-                  <span class="faint small">{progress ? progressText(progress) : "Connecting…"}</span>
-                  <div class="bar" class:indeterminate={!progress?.total}>
-                    <div style="width: {progress?.total ? Math.round((100 * progress.done) / progress.total) : 30}%"></div>
-                  </div>
-                </div>
+                <div class="progress"><ProgressBar p={progress} waiting="Connecting…" /></div>
               {/if}
             </li>
           {/each}
@@ -202,10 +198,5 @@
   .name { flex: 1; font-weight: 600; }
   .ok { color: var(--accent); font-size: 13px; }
   .projects li.active { border-color: #2c4557; }
-  .progress { flex-basis: 100%; display: flex; flex-direction: column; gap: 5px; }
-  .small { font-size: 12px; }
-  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
-  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
-  .bar.indeterminate > div { animation: slide 1.2s ease-in-out infinite; }
-  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .progress { flex-basis: 100%; display: flex; }
 </style>

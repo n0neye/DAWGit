@@ -2,6 +2,7 @@ package project
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -18,17 +19,77 @@ const (
 )
 
 // Progress describes a long-running step: Done of Total items (Total is 0
-// when unknown).
+// when unknown) and, for transfers, Bytes of TotalBytes.
 type Progress struct {
-	Stage string
-	Done  int
-	Total int
+	Stage             string
+	Done, Total       int
+	Bytes, TotalBytes int64
 }
 
 // report calls r.OnProgress when set.
 func (r *Repo) report(stage string, done, total int) {
 	if r.OnProgress != nil {
 		r.OnProgress(Progress{Stage: stage, Done: done, Total: total})
+	}
+}
+
+// transfer tracks the bytes of one upload or download of several files.
+type transfer struct {
+	r                 *Repo
+	stage             string
+	done, total       int
+	bytes, totalBytes int64
+}
+
+func (r *Repo) newTransfer(stage string, files int, totalBytes int64) *transfer {
+	return &transfer{r: r, stage: stage, total: files, totalBytes: totalBytes}
+}
+
+func (t *transfer) report() {
+	if t.r.OnProgress != nil {
+		t.r.OnProgress(Progress{Stage: t.stage, Done: t.done, Total: t.total, Bytes: t.bytes, TotalBytes: t.totalBytes})
+	}
+}
+
+// reader counts what passes through rd. Size lets uploads stream a file of
+// known size instead of reading it into memory first.
+func (t *transfer) reader(rd io.Reader, size int64) *countingReader {
+	return &countingReader{rd: rd, size: size, t: t}
+}
+
+type countingReader struct {
+	rd   io.Reader
+	size int64
+	t    *transfer
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.rd.Read(p)
+	if n > 0 {
+		c.t.bytes += int64(n)
+		c.t.report()
+	}
+	return n, err
+}
+
+func (c *countingReader) Size() int64 { return c.size }
+
+// knowSizes remembers the sizes of m's files, so downloads can tell how much
+// is left.
+func (r *Repo) knowSizes(ms ...*Manifest) {
+	if r.sizes == nil {
+		r.sizes = map[string]int64{}
+	}
+	for _, m := range ms {
+		if m == nil {
+			continue
+		}
+		for _, f := range m.Files {
+			r.sizes[f.Hash] = f.Size
+		}
+		for _, f := range m.External {
+			r.sizes[f.Hash] = f.Size
+		}
 	}
 }
 
