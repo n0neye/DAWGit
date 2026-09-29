@@ -1,13 +1,18 @@
 package remote
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
+	"time"
 )
 
-// Backend is where a team's projects are shared: the DAWGit server today,
-// other storage later (see docs/design/storage-backends.md).
+// Backend is where a team's projects are shared: a DAWGit server, or an
+// S3-compatible bucket used directly (see docs/design/storage-backends.md).
 //
 // File contents and version manifests are immutable and named by their
 // SHA-256; writing one that exists is harmless. Branch heads are the only
@@ -44,10 +49,32 @@ type Backend interface {
 var _ Backend = (*Client)(nil)
 
 // Config selects and configures a backend (stored in .dawgit/config.json).
+//
+//	server:  URL "http(s)://host:port", Token
+//	storage: URL "s3+https://endpoint-host/bucket/prefix" (s3+http for local
+//	         testing), AccessKey, SecretKey, Region (default "auto")
 type Config struct {
-	URL   string `json:"url"`
-	Token string `json:"token,omitempty"`
+	URL       string `json:"url"`
+	Token     string `json:"token,omitempty"`
+	AccessKey string `json:"access_key,omitempty"`
+	SecretKey string `json:"secret_key,omitempty"`
+	Region    string `json:"region,omitempty"`
 }
+
+// IsStorage reports whether the config points at object storage (no server).
+func (c Config) IsStorage() bool { return strings.HasPrefix(strings.ToLower(c.URL), "s3+") }
+
+// PollInterval is how often an agent should check for changes: object
+// storage has no push and is billed per request, so it is polled less often.
+func (c Config) PollInterval() time.Duration {
+	if c.IsStorage() {
+		return 20 * time.Second
+	}
+	return 5 * time.Second
+}
+
+// Display is the address without credentials, for showing to users.
+func (c Config) Display() string { return c.URL }
 
 // Open returns the backend for a configuration.
 func Open(cfg Config) (Backend, error) {
@@ -55,6 +82,44 @@ func Open(cfg Config) (Backend, error) {
 	switch {
 	case strings.HasPrefix(u, "http://"), strings.HasPrefix(u, "https://"):
 		return New(cfg.URL, cfg.Token), nil
+	case strings.HasPrefix(u, "s3+http://"), strings.HasPrefix(u, "s3+https://"):
+		p, err := url.Parse(cfg.URL[len("s3+"):])
+		if err != nil {
+			return nil, fmt.Errorf("invalid storage address: %w", err)
+		}
+		bucket, prefix, _ := strings.Cut(strings.Trim(p.Path, "/"), "/")
+		return NewS3(p.Scheme+"://"+p.Host, bucket, prefix, cfg.Region, cfg.AccessKey, cfg.SecretKey)
 	}
-	return nil, fmt.Errorf("unsupported server address %q (expected http:// or https://)", cfg.URL)
+	return nil, fmt.Errorf("unsupported address %q (expected a server http(s):// address or a connection code)", cfg.URL)
+}
+
+// Connection codes bundle a storage config (including credentials) into one
+// string that can be pasted into the app.
+const codePrefix = "dawgit-s3:"
+
+// EncodeConnectionCode packs cfg into a connection code.
+func EncodeConnectionCode(cfg Config) string {
+	data, _ := json.Marshal(cfg)
+	return codePrefix + base64.RawURLEncoding.EncodeToString(data)
+}
+
+// IsConnectionCode reports whether s looks like a connection code.
+func IsConnectionCode(s string) bool { return strings.HasPrefix(strings.TrimSpace(s), codePrefix) }
+
+// ParseAddress turns what a user typed into a Config: a connection code, or
+// a server address plus token.
+func ParseAddress(addr, token string) (Config, error) {
+	addr = strings.TrimSpace(addr)
+	if !IsConnectionCode(addr) {
+		return Config{URL: strings.TrimRight(addr, "/"), Token: strings.TrimSpace(token)}, nil
+	}
+	data, err := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(addr, codePrefix))
+	var cfg Config
+	if err == nil {
+		err = json.Unmarshal(data, &cfg)
+	}
+	if err != nil || !cfg.IsStorage() {
+		return Config{}, errors.New("invalid connection code")
+	}
+	return cfg, nil
 }

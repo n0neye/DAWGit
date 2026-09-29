@@ -1,6 +1,6 @@
 # Design: pluggable storage backends
 
-Status: proposed. Nothing here changes behaviour of the current release.
+Status: steps 1–5 of the implementation plan are done (the direct object storage backend is tested against an in-memory S3 fake; verification against hosted services is pending). Steps 6 onwards are open.
 
 ## Summary
 

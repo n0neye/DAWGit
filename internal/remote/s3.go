@@ -1,0 +1,561 @@
+package remote
+
+import (
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path"
+	"strings"
+	"sync"
+	"time"
+)
+
+// S3Backend stores a team's data directly in an S3-compatible bucket, with
+// no DAWGit server (docs/design/storage-backends.md). Layout under prefix:
+//
+//	objects/<ab>/<cdef…>                  file contents
+//	projects/<pid>/project.json
+//	projects/<pid>/snapshots/<id>.json
+//	projects/<pid>/branches/<name>        body = version id; updated with If-Match
+//	projects/<pid>/workspaces/<wsid>.json
+type S3Backend struct {
+	endpoint *url.URL // scheme + host
+	bucket   string
+	prefix   string // "" or "team/" (ends with a slash)
+	sig      *signer
+	http     *http.Client
+}
+
+var _ Backend = (*S3Backend)(nil)
+
+// NewS3 connects to bucket at endpoint (e.g. https://<account>.r2.cloudflarestorage.com)
+// using path-style requests.
+func NewS3(endpoint, bucket, prefix, region, accessKey, secretKey string) (*S3Backend, error) {
+	u, err := url.Parse(endpoint)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, fmt.Errorf("invalid storage endpoint %q", endpoint)
+	}
+	if bucket == "" {
+		return nil, errors.New("storage bucket is required")
+	}
+	prefix = strings.Trim(prefix, "/")
+	if prefix != "" {
+		prefix += "/"
+	}
+	if region == "" {
+		region = "auto"
+	}
+	return &S3Backend{
+		endpoint: &url.URL{Scheme: u.Scheme, Host: u.Host},
+		bucket:   bucket, prefix: prefix,
+		sig:  &signer{accessKey: accessKey, secretKey: secretKey, region: region, now: time.Now},
+		http: &http.Client{Timeout: 30 * time.Minute},
+	}, nil
+}
+
+// --- low level ---
+
+type s3Response struct {
+	status int
+	etag   string
+	body   []byte
+}
+
+// errS3 is returned for unexpected responses.
+type errS3 struct {
+	status int
+	msg    string
+}
+
+func (e *errS3) Error() string { return fmt.Sprintf("storage error %d: %s", e.status, e.msg) }
+
+func (b *S3Backend) keyURL(key string, q url.Values) *url.URL {
+	u := *b.endpoint
+	u.Path = "/" + b.bucket + "/" + b.prefix + key
+	if key == "" {
+		u.Path = "/" + b.bucket + "/"
+	}
+	u.RawQuery = q.Encode()
+	return &u
+}
+
+// do sends a signed request. body may be nil; size < 0 means unknown.
+// payloadHash is the hex SHA-256 of body (or unsignedPayload).
+func (b *S3Backend) do(method, key string, q url.Values, body io.Reader, size int64, payloadHash string,
+	header http.Header) (*http.Response, error) {
+	req, err := http.NewRequest(method, b.keyURL(key, q).String(), body)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range header {
+		req.Header[k] = v
+	}
+	if body != nil {
+		req.ContentLength = size
+	}
+	if payloadHash == "" {
+		payloadHash = emptySHA256
+	}
+	b.sig.sign(req, payloadHash)
+	resp, err := b.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("cannot reach storage %s: %w", b.endpoint.Host, err)
+	}
+	return resp, nil
+}
+
+// call runs a request and reads the whole response.
+func (b *S3Backend) call(method, key string, q url.Values, body []byte, header http.Header) (*s3Response, error) {
+	var r io.Reader
+	hash := emptySHA256
+	if body != nil {
+		r = bytes.NewReader(body)
+		hash = sha256Hex(body)
+	}
+	resp, err := b.do(method, key, q, r, int64(len(body)), hash, header)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return &s3Response{status: resp.StatusCode, etag: resp.Header.Get("ETag"), body: data}, nil
+}
+
+func s3Error(r *s3Response) error {
+	var e struct {
+		Code    string
+		Message string
+	}
+	xml.Unmarshal(r.body, &e)
+	msg := strings.TrimSpace(e.Code + " " + e.Message)
+	switch r.status {
+	case http.StatusForbidden, http.StatusUnauthorized:
+		return errors.New("storage rejected the credentials (" + msg + ")")
+	case http.StatusNotFound:
+		if e.Code == "NoSuchBucket" {
+			return errors.New("storage bucket not found")
+		}
+		return ErrNotFound
+	}
+	if msg == "" {
+		msg = strings.TrimSpace(string(r.body))
+	}
+	return &errS3{r.status, msg}
+}
+
+func (b *S3Backend) get(key string) (*s3Response, error) {
+	r, err := b.call("GET", key, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if r.status != http.StatusOK {
+		return r, s3Error(r)
+	}
+	return r, nil
+}
+
+func (b *S3Backend) exists(key string) (bool, error) {
+	r, err := b.call("HEAD", key, nil, nil, nil)
+	if err != nil {
+		return false, err
+	}
+	switch r.status {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	}
+	return false, s3Error(r)
+}
+
+// put writes key; ifMatch "*"-style preconditions go in header.
+func (b *S3Backend) put(key string, body []byte, header http.Header) (*s3Response, error) {
+	if header == nil {
+		header = http.Header{}
+	}
+	return b.call("PUT", key, nil, body, header)
+}
+
+// list returns keys (relative to prefix) under dir; with delim it returns the
+// immediate sub-"folders" instead.
+func (b *S3Backend) list(dir string, delim bool) ([]string, error) {
+	var out []string
+	token := ""
+	for {
+		q := url.Values{"list-type": {"2"}, "prefix": {b.prefix + dir}}
+		if delim {
+			q.Set("delimiter", "/")
+		}
+		if token != "" {
+			q.Set("continuation-token", token)
+		}
+		r, err := b.call("GET", "", q, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		if r.status != http.StatusOK {
+			return nil, s3Error(r)
+		}
+		var res struct {
+			Contents []struct{ Key string }
+			Prefixes []struct {
+				Prefix string
+			} `xml:"CommonPrefixes"`
+			IsTruncated           bool
+			NextContinuationToken string
+		}
+		if err := xml.Unmarshal(r.body, &res); err != nil {
+			return nil, fmt.Errorf("storage list: %w", err)
+		}
+		if delim {
+			for _, p := range res.Prefixes {
+				out = append(out, strings.TrimPrefix(p.Prefix, b.prefix))
+			}
+		} else {
+			for _, c := range res.Contents {
+				out = append(out, strings.TrimPrefix(c.Key, b.prefix))
+			}
+		}
+		if !res.IsTruncated || res.NextContinuationToken == "" {
+			return out, nil
+		}
+		token = res.NextContinuationToken
+	}
+}
+
+// parallel runs fn over items with bounded concurrency, collecting errors.
+func parallel(items []string, fn func(string) error) error {
+	sem := make(chan struct{}, 8)
+	var mu sync.Mutex
+	var first error
+	var wg sync.WaitGroup
+	for _, it := range items {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(it string) {
+			defer func() { <-sem; wg.Done() }()
+			if err := fn(it); err != nil {
+				mu.Lock()
+				if first == nil {
+					first = err
+				}
+				mu.Unlock()
+			}
+		}(it)
+	}
+	wg.Wait()
+	return first
+}
+
+// --- keys ---
+
+func objectKey(hash string) string       { return "objects/" + hash[:2] + "/" + hash[2:] }
+func projectDir(pid string) string       { return "projects/" + pid + "/" }
+func snapshotKey(pid, id string) string  { return projectDir(pid) + "snapshots/" + id + ".json" }
+func branchKey(pid, name string) string  { return projectDir(pid) + "branches/" + name }
+func workspaceKey(pid, ws string) string { return projectDir(pid) + "workspaces/" + ws + ".json" }
+func validHex(s string, n int) bool {
+	if len(s) != n {
+		return false
+	}
+	for _, c := range s {
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return false
+		}
+	}
+	return true
+}
+
+func validBranch(name string) bool {
+	if name == "" || len(name) > 64 || strings.HasPrefix(name, ".") {
+		return false
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+// --- Backend ---
+
+func (b *S3Backend) Projects() ([]Project, error) {
+	dirs, err := b.list("projects/", true)
+	if err != nil {
+		return nil, err
+	}
+	var mu sync.Mutex
+	out := []Project{}
+	err = parallel(dirs, func(dir string) error {
+		r, err := b.get(dir + "project.json")
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var p Project
+		if json.Unmarshal(r.body, &p) == nil && p.ID != "" {
+			mu.Lock()
+			out = append(out, p)
+			mu.Unlock()
+		}
+		return nil
+	})
+	return out, err
+}
+
+func (b *S3Backend) PutProject(p Project) error {
+	if !validHex(p.ID, 32) {
+		return errors.New("invalid project id")
+	}
+	data, _ := json.Marshal(p)
+	r, err := b.put(projectDir(p.ID)+"project.json", data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
+func (b *S3Backend) branch(pid, name string) (id, etag string, err error) {
+	r, err := b.get(branchKey(pid, name))
+	if errors.Is(err, ErrNotFound) {
+		return "", "", nil
+	}
+	if err != nil {
+		return "", "", err
+	}
+	return strings.TrimSpace(string(r.body)), r.etag, nil
+}
+
+func (b *S3Backend) Branches(pid string) (map[string]string, error) {
+	keys, err := b.list(projectDir(pid)+"branches/", false)
+	if err != nil {
+		return nil, err
+	}
+	var mu sync.Mutex
+	out := map[string]string{}
+	err = parallel(keys, func(key string) error {
+		name := path.Base(key)
+		id, _, err := b.branch(pid, name)
+		if err == nil && id != "" {
+			mu.Lock()
+			out[name] = id
+			mu.Unlock()
+		}
+		return err
+	})
+	return out, err
+}
+
+// UpdateBranch uses conditional writes: If-None-Match: * to create,
+// If-Match: <etag> to move or delete.
+func (b *S3Backend) UpdateBranch(pid, name, old, new string) error {
+	if !validBranch(name) {
+		return fmt.Errorf("invalid branch name %q", name)
+	}
+	current, etag, err := b.branch(pid, name)
+	if err != nil {
+		return err
+	}
+	if current != old {
+		return &ErrConflict{Current: current}
+	}
+	conflict := func() error {
+		cur, _, err := b.branch(pid, name)
+		if err != nil {
+			return err
+		}
+		return &ErrConflict{Current: cur}
+	}
+	h := http.Header{}
+	if old == "" {
+		h.Set("If-None-Match", "*")
+	} else {
+		h.Set("If-Match", etag)
+	}
+	var r *s3Response
+	if new == "" {
+		r, err = b.call("DELETE", branchKey(pid, name), nil, nil, h)
+	} else {
+		r, err = b.put(branchKey(pid, name), []byte(new+"\n"), h)
+	}
+	if err != nil {
+		return err
+	}
+	switch r.status {
+	case http.StatusOK, http.StatusNoContent:
+		return nil
+	case http.StatusPreconditionFailed, http.StatusConflict:
+		return conflict()
+	}
+	return s3Error(r)
+}
+
+func (b *S3Backend) MissingSnapshots(pid string, ids []string) ([]string, error) {
+	return b.missing(ids, func(id string) string { return snapshotKey(pid, id) })
+}
+
+func (b *S3Backend) missing(names []string, key func(string) string) ([]string, error) {
+	var mu sync.Mutex
+	missing := []string{}
+	err := parallel(names, func(n string) error {
+		if !validHex(n, 64) {
+			return fmt.Errorf("invalid id %q", n)
+		}
+		ok, err := b.exists(key(n))
+		if err == nil && !ok {
+			mu.Lock()
+			missing = append(missing, n)
+			mu.Unlock()
+		}
+		return err
+	})
+	return missing, err
+}
+
+func (b *S3Backend) PutSnapshot(pid, id string, data []byte) error {
+	if !validHex(id, 64) || sha256Hex(data) != id {
+		return errors.New("version content does not match its id")
+	}
+	r, err := b.put(snapshotKey(pid, id), data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
+func (b *S3Backend) GetSnapshot(pid, id string) ([]byte, error) {
+	if !validHex(id, 64) {
+		return nil, ErrNotFound
+	}
+	r, err := b.get(snapshotKey(pid, id))
+	if err != nil {
+		return nil, err
+	}
+	if sha256Hex(r.body) != id {
+		return nil, fmt.Errorf("version %s is corrupt in storage", id[:10])
+	}
+	return r.body, nil
+}
+
+func (b *S3Backend) MissingObjects(hashes []string) ([]string, error) {
+	return b.missing(hashes, objectKey)
+}
+
+// PutObject uploads a blob. Its name is the SHA-256 of its contents, which
+// is also the signed payload hash, so storage verifies the upload.
+func (b *S3Backend) PutObject(hash string, r io.Reader) error {
+	if !validHex(hash, 64) {
+		return fmt.Errorf("invalid object hash %q", hash)
+	}
+	size := int64(-1)
+	switch v := r.(type) {
+	case *os.File:
+		if fi, err := v.Stat(); err == nil {
+			size = fi.Size()
+		}
+	case interface{ Len() int }:
+		size = int64(v.Len())
+	}
+	if size < 0 {
+		data, err := io.ReadAll(r)
+		if err != nil {
+			return err
+		}
+		r, size = bytes.NewReader(data), int64(len(data))
+	}
+	resp, err := b.do("PUT", objectKey(hash), nil, r, size, hash, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
+		return s3Error(&s3Response{status: resp.StatusCode, body: data})
+	}
+	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
+func (b *S3Backend) GetObject(hash string) (io.ReadCloser, error) {
+	if !validHex(hash, 64) {
+		return nil, ErrNotFound
+	}
+	resp, err := b.do("GET", objectKey(hash), nil, nil, 0, "", nil)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+		data, _ := io.ReadAll(resp.Body)
+		return nil, s3Error(&s3Response{status: resp.StatusCode, body: data})
+	}
+	return resp.Body, nil
+}
+
+func (b *S3Backend) PutWorkspace(pid, wsid string, state any) error {
+	if !validHex(wsid, 32) {
+		return errors.New("invalid workspace id")
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	r, err := b.put(workspaceKey(pid, wsid), data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
+func (b *S3Backend) Workspaces(pid string, out any) error {
+	keys, err := b.list(projectDir(pid)+"workspaces/", false)
+	if err != nil {
+		return err
+	}
+	var mu sync.Mutex
+	var docs []json.RawMessage
+	err = parallel(keys, func(key string) error {
+		r, err := b.get(key)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if json.Valid(r.body) {
+			mu.Lock()
+			docs = append(docs, r.body)
+			mu.Unlock()
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if docs == nil {
+		docs = []json.RawMessage{}
+	}
+	data, _ := json.Marshal(docs)
+	return json.Unmarshal(data, out)
+}

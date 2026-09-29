@@ -12,6 +12,7 @@ import (
 
 	"dawgit/internal/livecheck"
 	"dawgit/internal/project"
+	"dawgit/internal/remote"
 	"dawgit/internal/server"
 )
 
@@ -96,7 +97,7 @@ func cmdRemote(args []string) error {
 		if r.Config.Remote == nil {
 			fmt.Println("no server configured")
 		} else {
-			fmt.Println(r.Config.Remote.URL)
+			fmt.Println(r.Config.Remote.Display())
 		}
 		return nil
 	}
@@ -107,7 +108,7 @@ func cmdRemote(args []string) error {
 	if _, err := c.Projects(); err != nil {
 		return fmt.Errorf("saved, but the server did not answer: %w", err)
 	}
-	fmt.Printf("server set to %s\nnext: dawgit save -m \"message\" to share this project\n", pos[0])
+	fmt.Printf("connected to %s\nnext: dawgit save -m \"message\" to share this project\n", r.Config.Remote.Display())
 	return nil
 }
 
@@ -267,5 +268,38 @@ func cmdUpdate(args []string) error {
 			fmt.Println("your versions and the team's were merged; run `dawgit save` to share the result")
 		}
 	}
+	return nil
+}
+
+func cmdConnectionCode(args []string) error {
+	fs := flag.NewFlagSet("connection-code", flag.ContinueOnError)
+	endpoint := fs.String("endpoint", "", "S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com")
+	bucket := fs.String("bucket", "", "bucket name")
+	prefix := fs.String("prefix", "dawgit", "folder inside the bucket")
+	region := fs.String("region", "auto", "region")
+	access := fs.String("access-key", "", "access key id (one per team member)")
+	secret := fs.String("secret-key", "", "secret access key")
+	if _, err := parseArgs(fs, args); err != nil {
+		return err
+	}
+	if *endpoint == "" || *bucket == "" || *access == "" || *secret == "" {
+		return errors.New("--endpoint, --bucket, --access-key and --secret-key are required")
+	}
+	ep := strings.TrimRight(*endpoint, "/")
+	if !strings.HasPrefix(ep, "http://") && !strings.HasPrefix(ep, "https://") {
+		ep = "https://" + ep
+	}
+	cfg := remote.Config{URL: "s3+" + ep + "/" + *bucket + "/" + strings.Trim(*prefix, "/"),
+		AccessKey: *access, SecretKey: *secret, Region: *region}
+	b, err := remote.Open(cfg)
+	if err != nil {
+		return err
+	}
+	if _, err := b.Projects(); err != nil {
+		return fmt.Errorf("could not use the bucket with these credentials: %w", err)
+	}
+	fmt.Println("storage OK. Connection code (contains the key: share it privately):")
+	fmt.Println()
+	fmt.Println(remote.EncodeConnectionCode(cfg))
 	return nil
 }

@@ -25,15 +25,31 @@ Share the **address** (`http://192.168.0.11:7331`) and the **token** with your t
 
 Teammates outside your home/studio network need a way to reach this computer, e.g. a VPN such as Tailscale, or port forwarding of port 7331.
 
+### Alternative: team storage instead of a server
+
+Instead of running a server, a team can keep its data in an S3-compatible bucket (for example Cloudflare R2 or Backblaze B2). Nobody needs to keep a computer running. Whoever sets it up:
+
+1. Creates a bucket and one access key per team member, limited to that bucket.
+2. Creates a connection code for each member:
+
+   ```
+   dawgit connection-code --endpoint https://<account>.r2.cloudflarestorage.com --bucket <bucket> --access-key <key> --secret-key <secret>
+   ```
+
+   (`dawgit.exe` is in the `bin` folder of the DAWGit install folder.)
+3. Sends each member their code privately — it contains their key.
+
+Everywhere the app asks for a server address, paste the connection code instead (no token needed). Notices about teammates arrive a little later than with a server (every 20 seconds).
+
 ## 3. Share a project (the person who has it)
 
 1. Open DAWGit → **+ Add project folder** → choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`).
-2. Click **Connect to team server…**, enter the address and token.
+2. Click **Connect to team server…**, enter the address and token (or the connection code).
 3. Write what the song is at and click **Commit version & share**.
 
 ## 4. Join a project (everyone else)
 
-DAWGit → **Join from team server** → enter the address and token → **Find projects** → pick the song and a folder to download it into → **Join**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
+DAWGit → **Join from team server** → enter the address and token (or the connection code) → **Find projects** → pick the song and a folder to download it into → **Join**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
 
 ## Everyday use
 

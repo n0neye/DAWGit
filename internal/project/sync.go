@@ -22,9 +22,26 @@ func (r *Repo) Client() (remote.Backend, error) {
 	return remote.Open(*r.Config.Remote)
 }
 
-func (r *Repo) SetRemote(url, token string) error {
-	r.Config.Remote = &RemoteConfig{URL: strings.TrimRight(url, "/"), Token: token}
+// SetRemote connects the project to a server (address + token) or to
+// storage (a connection code as address).
+func (r *Repo) SetRemote(address, token string) error {
+	cfg, err := remote.ParseAddress(address, token)
+	if err != nil {
+		return err
+	}
+	if _, err := remote.Open(cfg); err != nil {
+		return err
+	}
+	r.Config.Remote = &cfg
 	return r.SaveConfig()
+}
+
+// PollInterval is how often the agent should check the backend.
+func (r *Repo) PollInterval() time.Duration {
+	if r.Config.Remote == nil {
+		return 5 * time.Second
+	}
+	return r.Config.Remote.PollInterval()
 }
 
 // --- history ---
@@ -398,8 +415,11 @@ func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, 
 }
 
 // Clone downloads a project from a server into dir.
-func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
-	cfg := RemoteConfig{URL: strings.TrimRight(url, "/"), Token: token}
+func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error) {
+	cfg, err := remote.ParseAddress(address, token)
+	if err != nil {
+		return nil, nil, err
+	}
 	c, err := remote.Open(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -416,7 +436,7 @@ func Clone(url, token, project, dir, author string) (*Repo, *Manifest, error) {
 	}
 	switch {
 	case len(match) == 0:
-		return nil, nil, fmt.Errorf("no project %q on %s", project, url)
+		return nil, nil, fmt.Errorf("no project %q on %s", project, cfg.Display())
 	case len(match) > 1:
 		return nil, nil, fmt.Errorf("%q matches %d projects; use the project id", project, len(match))
 	}
