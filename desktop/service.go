@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -227,6 +228,13 @@ func (a *App) State(root string) (*State, error) {
 	if st.Name == "" {
 		st.Name = filepath.Base(r.Root)
 	}
+	st.Latest = r.Latest()
+	if r.OnOlderVersion() {
+		if m, err := r.Load(r.Head()); err == nil {
+			v := toVersion(m, nil)
+			st.OlderVersion = &v
+		}
+	}
 	sets, _ := filepath.Glob(filepath.Join(r.Root, "*.als"))
 	for _, s := range sets {
 		st.Sets = append(st.Sets, filepath.Base(s))
@@ -395,6 +403,88 @@ func (a *App) Update(root string, resolutions map[string]string, force bool) (*R
 	}
 	r.ReportWorkspace()
 	return syncResult(res), nil
+}
+
+// GoToVersion puts the project folder in the state of a version ("latest"
+// goes back to the newest). discard drops uncommitted changes; force goes
+// ahead while Live is running.
+func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if liveGuard(force) {
+		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	}
+	_, notes, err := r.GoTo(id, discard)
+	if errors.Is(err, project.ErrDirty) {
+		return nil, errors.New("you have uncommitted changes: commit or discard them first")
+	}
+	if err != nil {
+		return nil, err
+	}
+	if r.Config.Remote != nil {
+		r.ReportWorkspace()
+	}
+	return &Result{Action: "moved", Log: []string{}, Relinked: nonNil(notes), Conflicts: []Conflict{}}, nil
+}
+
+// KeepThisVersion continues from the older version the project is on: it
+// becomes a new version on top of the latest (shared with the team).
+func (a *App) KeepThisVersion(root, message string, resolutions map[string]string) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if strings.TrimSpace(message) == "" {
+		return nil, errors.New("describe the version")
+	}
+	if _, err := r.KeepThisVersion(message); err != nil {
+		return nil, err
+	}
+	if r.Config.Remote == nil {
+		out := syncResult(nil)
+		out.Action = "saved-locally"
+		return out, nil
+	}
+	_, res, err := r.Save(message, opts(resolutions))
+	if err != nil {
+		return conflictResult(err)
+	}
+	r.ReportWorkspace()
+	return syncResult(res), nil
+}
+
+// ExportVersion writes a version as a separate project folder inside parent
+// and returns its path.
+func (a *App) ExportVersion(root, id, parent string) (string, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	full, err := r.Resolve(id)
+	if err != nil {
+		return "", err
+	}
+	m, err := r.Load(full)
+	if err != nil {
+		return "", err
+	}
+	name := r.ExportName(m)
+	dir := filepath.Join(parent, name)
+	for n := 2; ; n++ { // exported before: "… Project 2", "… Project 3"
+		if entries, err := os.ReadDir(dir); err != nil || len(entries) == 0 {
+			break
+		}
+		dir = filepath.Join(parent, fmt.Sprintf("%s %d", name, n))
+	}
+	if _, err := r.Export(full, dir); err != nil {
+		return "", err
+	}
+	return dir, nil
 }
 
 func (a *App) CreateBranch(root, name string) error {

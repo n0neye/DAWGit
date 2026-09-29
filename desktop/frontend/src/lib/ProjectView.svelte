@@ -2,7 +2,7 @@
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
   import { api, ago, errorText, progressText, type State, type Result, type Preview, type Conflict, type TeamSummary,
-    type Progress } from "./api";
+    type Progress, type Version } from "./api";
   import { toast } from "./notify.svelte";
   import ChangeList from "./ChangeList.svelte";
   import History from "./History.svelte";
@@ -35,6 +35,9 @@
   let branchMenu = $state(false);
   let setMenu = $state(false);
   let newBranch = $state<string | null>(null);
+  // Go to version: asked first when there are uncommitted changes.
+  let leaving = $state<{ target: Version | null; message: string } | null>(null); // null target: latest
+  let keepOpen = $state<string | null>(null); // message for "Make this the latest version"
 
   type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>; done: (r: Result) => void };
 
@@ -226,6 +229,69 @@
     });
   }
 
+  // --- versions: go to, back to latest, keep, export ---
+
+  const goAction = (id: string, discard: boolean, label: string): Action => ({
+    name: "goto",
+    call: (_res, force) => api.GoToVersion(root, id, discard, force),
+    done: () => toast(id === "latest" ? "Back to the latest version — reopen the set in Live"
+      : `Now on “${label}” — reopen the set in Live`, "ok", 8000),
+  });
+
+  // Go to a version (null: back to the latest), asking first about
+  // uncommitted changes.
+  function goTo(v: Version | null) {
+    if (st?.changes.length) {
+      leaving = { target: v, message: "" };
+      return;
+    }
+    run(goAction(v?.id ?? "latest", false, v?.message ?? ""));
+  }
+
+  async function commitThenGo() {
+    const l = leaving!;
+    leaving = null;
+    let committed = false;
+    await run({
+      name: "save",
+      call: (res, force) => api.Save(root, l.message, res, force),
+      done: () => (committed = true),
+    });
+    if (committed) run(goAction(l.target?.id ?? "latest", false, l.target?.message ?? ""));
+  }
+
+  function discardThenGo() {
+    const l = leaving!;
+    leaving = null;
+    run(goAction(l.target?.id ?? "latest", true, l.target?.message ?? ""));
+  }
+
+  function keepThisVersion() {
+    const msg = (keepOpen ?? "").trim();
+    keepOpen = null;
+    run({
+      name: "keep",
+      call: (res) => api.KeepThisVersion(root, msg, res),
+      done: () => toast("This version is now the latest", "ok"),
+    });
+  }
+
+  async function exportVersion(v: Version) {
+    const parent = await api.ChooseFolder("Where should the copy of this version go?");
+    if (!parent) return;
+    busy = "export";
+    try {
+      const dir = await api.ExportVersion(root, v.id, parent);
+      toast(`Saved a copy of “${v.message || v.short}” as ${dir}`, "ok", 9000);
+      api.ShowFolder(dir);
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
+      progress = null;
+    }
+  }
+
   async function createBranch() {
     const name = (newBranch ?? "").trim();
     if (!name) return;
@@ -379,6 +445,23 @@
       <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
     {/if}
 
+    {#if st.olderVersion}
+      {@const v = st.olderVersion}
+      <div class="banner older">
+        <div>
+          You're on an older version: <strong>“{v.message || v.short}”</strong>
+          <span class="muted">— {v.author}, {ago(v.time)}. Newer versions are kept.</span>
+        </div>
+        {#if st.remoteUrl}
+          <button onclick={() => (newBranch = "")} disabled={!!busy}
+            title="Continue from this version on a branch of your own">New branch from here…</button>
+        {:else}
+          <button onclick={() => (keepOpen = `Back to “${v.message || v.short}”`)} disabled={!!busy}
+            title="Continue from this version: it becomes a new, latest version">Make this the latest…</button>
+        {/if}
+        <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+      </div>
+    {/if}
     {#if st.incoming.length}
       <div class="banner info">
         <div>
@@ -386,9 +469,11 @@
           saved {st.incoming.length} new version{st.incoming.length === 1 ? "" : "s"}:
           <span class="muted">{st.incoming.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{st.incoming.length > 3 ? "…" : ""}</span>
         </div>
+        {#if !st.olderVersion}
         <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
         <button class="primary" onclick={() => run(updateAction)} disabled={!!busy || st.changes.length > 0}
           title={st.changes.length ? "You have uncommitted changes: commit a version to get these too" : ""}>Get updates</button>
+        {/if}
       </div>
     {/if}
     {#each st.overlaps as o}
@@ -429,7 +514,8 @@
           </section>
         </div>
       {:else if tab === "history"}
-        <History versions={st.history} head={st.head} incoming={incomingIds} />
+        <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
+          ongoto={(v) => goTo(v)} onexport={exportVersion} />
       {:else}
         <section>
           <h3>Being edited right now (not committed yet)</h3>
@@ -452,17 +538,20 @@
     {#if tab === "changes"}
       <footer class="save">
         <textarea rows="2" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
-          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey && message.trim() && !busy) run(saveAction); }}></textarea>
+          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey && message.trim() && !busy && !st?.olderVersion) run(saveAction); }}></textarea>
         <div class="save-row">
           <p class="faint small">
-            {#if st.remoteUrl}
+            {#if st.olderVersion}
+              You're on an older version. {st.remoteUrl ? "Start a new branch from here" : "Make it the latest version"}
+              to commit changes, or go back to the latest version.
+            {:else if st.remoteUrl}
               Commits the project folder and shares it with the team on “{st.branch}”. If others saved in the
               meantime, their changes are merged in first.
             {:else}
               Commits on this computer. Share the project with a team to work on it together.
             {/if}
           </p>
-          <button class="primary" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}
+          <button class="primary" disabled={!message.trim() || !!busy || !!st.olderVersion} onclick={() => run(saveAction)}
             title="Ctrl+Enter">
             {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
           </button>
@@ -512,6 +601,43 @@
       {#snippet footer()}
         <button onclick={() => (shareOpen = false)}>Cancel</button>
         <button class="primary" disabled={!shareTeam || !!busy} onclick={shareWithTeam}>Share</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if leaving}
+    {@const l = leaving}
+    <Modal title={l.target ? "Go to an older version" : "Back to the latest version"} onclose={() => (leaving = null)}>
+      <p>You have {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"}.
+        {l.target ? "Going to another version" : "Going back"} replaces the files in the project folder.</p>
+      {#if !st.olderVersion}
+        <label for="lm">Commit them first as</label>
+        <input id="lm" bind:value={l.message} placeholder="What did you change?" />
+      {:else}
+        <p class="muted">Changes made on an older version can be kept by starting a new branch from here
+          {st.remoteUrl ? "" : "or making it the latest version"} first.</p>
+      {/if}
+      {#snippet footer()}
+        <button onclick={() => (leaving = null)}>Cancel</button>
+        <button class="danger" onclick={discardThenGo}>Discard changes</button>
+        {#if !st!.olderVersion}
+          <button class="primary" disabled={!l.message.trim()} onclick={commitThenGo}>
+            {st!.remoteUrl ? "Commit & share, then go" : "Commit, then go"}
+          </button>
+        {/if}
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if keepOpen !== null}
+    <Modal title="Make this the latest version" onclose={() => (keepOpen = null)}>
+      <p class="muted">The older version you are on (with any changes you made) becomes a new version on top of the
+        latest one. Nothing in the history is lost.</p>
+      <label for="km">Describe it</label>
+      <input id="km" bind:value={keepOpen} />
+      {#snippet footer()}
+        <button onclick={() => (keepOpen = null)}>Cancel</button>
+        <button class="primary" disabled={!keepOpen?.trim() || !!busy} onclick={keepThisVersion}>Make it the latest</button>
       {/snippet}
     </Modal>
   {/if}
@@ -569,6 +695,7 @@
   .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
   .banner > div { flex: 1; }
   .banner.info { background: #1d2c38; border: 1px solid #2c4557; }
+  .banner.older { background: #2a2536; border: 1px solid #463c5c; }
   .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
 
   nav { display: flex; gap: 4px; padding: 10px 24px 0; border-bottom: 1px solid var(--line); }

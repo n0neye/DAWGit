@@ -207,13 +207,13 @@ func (r *Repo) IncomingVersions() ([]*Manifest, error) {
 		return nil, err
 	}
 	target := heads[r.BranchName()]
-	if target == "" || target == r.Head() {
+	if target == "" || target == r.Latest() {
 		return nil, nil
 	}
 	if err := r.fetchSnapshots(c, target); err != nil {
 		return nil, err
 	}
-	have, err := r.ancestors(r.Head())
+	have, err := r.ancestors(r.Latest())
 	if err != nil {
 		return nil, err
 	}

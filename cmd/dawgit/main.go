@@ -42,7 +42,8 @@ branches (advanced):
 
 advanced:
   snapshot -m MESSAGE                    save a version locally only
-  checkout <id|HEAD~N> [--force]         restore a version and relink samples
+  checkout <id|HEAD~N|latest> [--force]  go to a version (files and samples); latest goes back
+  export <id> <folder>                   write a version as a separate project folder
 
 set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
@@ -83,6 +84,8 @@ func main() {
 		err = cmdLog(os.Args[2:])
 	case "checkout":
 		err = cmdCheckout(os.Args[2:])
+	case "export":
+		err = cmdExport(os.Args[2:])
 	case "serve":
 		err = cmdServe(os.Args[2:])
 	case "remote":

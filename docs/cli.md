@@ -45,12 +45,16 @@ dawgit merge yi-ideas --preview  # what would come in and what conflicts
 dawgit merge yi-ideas            # merge into your branch and share
 ```
 
-## Local versions and restoring
+## Older versions
 
 ```
+dawgit checkout <id|HEAD~N> [--force]   # put the project in the state of a version (samples relinked)
+dawgit checkout latest                  # back to the latest version
+dawgit export <id|HEAD~N> <folder>      # write a version as a separate project folder
 dawgit snapshot -m "message"            # commit a version on this computer only
-dawgit checkout <id|HEAD~N> [--force]   # restore a version and relink samples for this computer
 ```
+
+On an older version, newer versions are kept. Committing, getting updates and merging wait until you go back to the latest version; to continue from the older one, start a branch there (`dawgit branch new NAME`). An exported copy has no DAWGit history; samples from outside the project are copied into its `Samples/Imported`.
 
 Versions store file contents by SHA-256 in `.dawgit/objects` inside the project (deduplicated). Samples referenced from outside the project are stored too and, on a computer that lacks them, placed under `.dawgit/external/` with the set's sample paths rewritten. Samples from Live packs are only recorded by pack name. `Backup/` and `*.asd` are ignored.
 

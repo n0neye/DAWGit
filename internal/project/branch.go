@@ -85,6 +85,7 @@ func (r *Repo) CreateBranch(name string) error {
 		return err
 	}
 	r.Config.Branch = name
+	r.Config.Tip = "" // a branch started from an older version continues from there
 	return r.SaveConfig()
 }
 
@@ -92,6 +93,9 @@ func (r *Repo) CreateBranch(name string) error {
 // latest version. Unsaved changes and unshared versions block the switch
 // unless force is set.
 func (r *Repo) SwitchBranch(name string, force bool) (*SyncResult, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
 	c, err := r.Client()
 	if err != nil {
 		return nil, err
@@ -136,6 +140,9 @@ func (r *Repo) SwitchBranch(name string, force bool) (*SyncResult, error) {
 // MergeBranch merges another branch's latest version into the workspace and
 // shares the result on the current branch.
 func (r *Repo) MergeBranch(name string, opts MergeOptions) (*SyncResult, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
 	c, err := r.Client()
 	if err != nil {
 		return nil, err

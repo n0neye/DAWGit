@@ -58,6 +58,7 @@ export function progressText(p: Progress, team = "the team"): string {
     case "storing": return `Adding files to the history${n}`;
     case "uploading": return `Uploading to ${team}${n}`;
     case "downloading": return `Downloading${n}`;
+    case "exporting": return `Writing the copy${n}`;
   }
   return "Working…";
 }
@@ -66,7 +67,7 @@ export function progressText(p: Progress, team = "the team"): string {
 export function progressShort(p: Progress): string {
   const n = p.total ? ` ${Math.min(p.done + 1, p.total)}/${p.total}` : "…";
   return ({ scanning: "reading files…", storing: "saving" + n, uploading: "uploading" + n,
-    downloading: "downloading" + n } as Record<string, string>)[p.stage] ?? "working…";
+    downloading: "downloading" + n, exporting: "exporting" + n } as Record<string, string>)[p.stage] ?? "working…";
 }
 
 export function isConnectionCode(s: string): boolean {

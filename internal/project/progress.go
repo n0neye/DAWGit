@@ -14,6 +14,7 @@ const (
 	StageStoring     = "storing"     // copying changed files into the history
 	StageUploading   = "uploading"   // sending files to the team
 	StageDownloading = "downloading" // fetching files from the team
+	StageExporting   = "exporting"   // writing a version to another folder
 )
 
 // Progress describes a long-running step: Done of Total items (Total is 0

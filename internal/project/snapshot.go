@@ -198,6 +198,9 @@ var ErrNothingToSnapshot = errors.New("nothing changed since the last snapshot")
 
 // Snapshot records the working files as a new snapshot on top of HEAD.
 func (r *Repo) Snapshot(message string) (*Manifest, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
 	ix := r.loadIndex()
 	r.report(StageScanning, 0, 0)
 	files, err := r.workingFiles(ix)
@@ -254,7 +257,7 @@ func sameContent(a, b *Manifest) bool {
 // sides of merges), newest first; a version is always listed before its
 // parents.
 func (r *Repo) Log() ([]*Manifest, error) {
-	anc, err := r.ancestors(r.Head())
+	anc, err := r.ancestors(r.Latest()) // all versions, even on an older one
 	if err != nil {
 		return nil, err
 	}

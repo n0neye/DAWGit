@@ -39,8 +39,10 @@ func cmdStatus(args []string) error {
 	if err != nil {
 		return err
 	}
-	if head := r.Head(); head != "" {
-		fmt.Printf("on snapshot %s\n", short(head))
+	if head := r.Head(); r.OnOlderVersion() {
+		fmt.Printf("on an older version %s (latest: %s; `dawgit checkout latest` goes back)\n", short(head), short(r.Latest()))
+	} else if head != "" {
+		fmt.Printf("on version %s\n", short(head))
 	} else {
 		fmt.Println("no snapshots yet")
 	}
@@ -163,14 +165,34 @@ func cmdCheckout(args []string) error {
 	if err != nil {
 		return err
 	}
-	m, notes, err := r.Checkout(ref, *force)
+	m, notes, err := r.GoTo(ref, *force)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("now on snapshot %s  %s\n", short(m.ID), m.Message)
+	fmt.Printf("now on version %s  %s\n", short(m.ID), m.Message)
 	for _, n := range notes {
 		fmt.Println("  relinked " + n)
 	}
+	if r.OnOlderVersion() {
+		fmt.Println("this is an older version: `dawgit checkout latest` goes back, `dawgit branch new NAME` continues from here")
+	}
+	return nil
+}
+
+// cmdExport writes a version as a separate project folder.
+func cmdExport(args []string) error {
+	if len(args) != 2 {
+		return errors.New("usage: dawgit export <id|HEAD~N> <folder>")
+	}
+	r, err := openRepo()
+	if err != nil {
+		return err
+	}
+	m, err := r.Export(args[0], args[1])
+	if err != nil {
+		return err
+	}
+	fmt.Printf("exported version %s  %s\n  to %s\n", short(m.ID), m.Message, args[1])
 	return nil
 }
 

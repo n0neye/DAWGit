@@ -58,6 +58,10 @@ type State struct {
 	LiveRunning bool     `json:"liveRunning"`
 	Head        string   `json:"head"`
 	Sets        []string `json:"sets"` // .als files in the project folder
+	// OlderVersion is the version the project was moved back to (Go to
+	// version); nil on the latest version. Latest is the branch's newest.
+	OlderVersion *Version `json:"olderVersion"`
+	Latest       string   `json:"latest"`
 
 	Changes   []Change            `json:"changes"`
 	MyEdits   []project.TrackEdit `json:"myEdits"`

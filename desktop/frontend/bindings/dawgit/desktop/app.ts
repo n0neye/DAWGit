@@ -87,10 +87,39 @@ export function DownloadProject(teamID: string, projectID: string, parent: strin
 }
 
 /**
+ * ExportVersion writes a version as a separate project folder inside parent
+ * and returns its path.
+ */
+export function ExportVersion(root: string, id: string, parent: string): $CancellablePromise<string> {
+    return $Call.ByID(2651241909, root, id, parent);
+}
+
+/**
  * ForgetProject removes a project from the list (the folder is untouched).
  */
 export function ForgetProject(root: string): $CancellablePromise<void> {
     return $Call.ByID(1105048745, root);
+}
+
+/**
+ * GoToVersion puts the project folder in the state of a version ("latest"
+ * goes back to the newest). discard drops uncommitted changes; force goes
+ * ahead while Live is running.
+ */
+export function GoToVersion(root: string, id: string, discard: boolean, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(3139605490, root, id, discard, force).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
+ * KeepThisVersion continues from the older version the project is on: it
+ * becomes a new version on top of the latest (shared with the team).
+ */
+export function KeepThisVersion(root: string, message: string, resolutions: { [_ in string]?: string }): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(2867236424, root, message, resolutions).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 /**

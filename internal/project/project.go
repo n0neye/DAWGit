@@ -29,6 +29,9 @@ type Config struct {
 	Remote *RemoteConfig `json:"remote,omitempty"`
 	// WorkspaceID identifies this copy of the project to the server.
 	WorkspaceID string `json:"workspace_id,omitempty"`
+	// Tip is the latest version of the branch while the project is on an
+	// older one (see GoTo); empty otherwise.
+	Tip string `json:"tip,omitempty"`
 }
 
 // RemoteConfig selects the team's backend (server address and token).
