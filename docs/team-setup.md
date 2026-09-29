@@ -29,7 +29,7 @@ Teammates outside your home/studio network need a way to reach this computer, e.
 
 1. Open DAWGit → **+ Add project folder** → choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`).
 2. Click **Connect to team server…**, enter the address and token.
-3. Write what the song is at and click **Save version & share**.
+3. Write what the song is at and click **Commit version & share**.
 
 ## 4. Join a project (everyone else)
 
@@ -38,7 +38,7 @@ DAWGit → **Join from team server** → enter the address and token → **Find 
 ## Everyday use
 
 - Work in Live as usual and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
-- When you reach a point worth sharing, describe it and click **Save version & share**. If a teammate saved in the meantime, their changes are merged in first; if you both changed the same track, DAWGit asks which to keep (yours, theirs, or both as two tracks).
+- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate saved in the meantime, their changes are merged in first; if you both changed the same track, DAWGit asks which to keep (yours, theirs, or both as two tracks).
 - When a teammate saves, DAWGit shows it. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first: DAWGit changes the files on disk and Live would overwrite them.
 - A yellow banner means you and a teammate are editing the same track right now: talk before you both save.
 

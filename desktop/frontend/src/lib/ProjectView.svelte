@@ -17,11 +17,12 @@
 
   // dialogs
   let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
-  const UNSAVED = "You have unsaved changes. Save a version instead — the team's changes are merged in as part of saving, and anything you both changed is shown then.";
+  const UNSAVED = "You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.";
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string> } | null>(null);
   let connectOpen = $state(false);
   let branchMenu = $state(false);
+  let setMenu = $state(false);
   let newBranch = $state<string | null>(null);
 
   type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>; done: (r: Result) => void };
@@ -89,12 +90,12 @@
     call: (res, force) => api.Save(root, message, res, force),
     done: (r) => {
       const text: Record<string, string> = {
-        "published": "Version saved and shared with the team",
-        "saved-locally": "Version saved on this computer (not connected to a server)",
+        "published": "Version committed and shared with the team",
+        "saved-locally": "Version committed on this computer (not connected to a server)",
         "fast-forward": "You had nothing new; updated to the team's latest version",
         "nothing": "Nothing changed since your last version",
       };
-      toast(text[r.action] ?? "Version saved", r.action === "nothing" ? "info" : "ok");
+      toast(text[r.action] ?? "Version committed", r.action === "nothing" ? "info" : "ok");
       if (r.log.length && r.action === "published") toast("The team's changes were merged into your files — reopen the set in Live", "warn", 9000);
       if (r.action !== "nothing") message = "";
     },
@@ -106,7 +107,7 @@
     done: (r) => {
       if (r.action === "fast-forward" || r.action === "merged") {
         toast("You're up to date — reopen the set in Live to see the changes", "ok", 8000);
-        if (r.action === "merged") toast("Your versions and the team's were combined. Save a version to share the result.", "info", 9000);
+        if (r.action === "merged") toast("Your versions and the team's were combined. Commit a version to share the result.", "info", 9000);
       } else toast("Already up to date", "info");
     },
   };
@@ -132,7 +133,7 @@
       if (!data) return;
       preview = {
         title: `Merge “${name}” into “${st?.branch}”`, label: "Merge and share", data,
-        blocked: st?.changes.length ? "You have unsaved changes. Save a version first, then merge." : "",
+        blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
         run: {
           name: "merge",
           call: (res, force) => api.MergeBranch(root, name, res, force),
@@ -180,7 +181,7 @@
     try {
       await api.Connect(root, connectUrl.trim(), connectToken.trim());
       connectOpen = false;
-      toast("Connected. Save a version to share this project.", "ok");
+      toast("Connected. Commit a version to share this project.", "ok");
       await load();
       onchanged();
     } catch (e) {
@@ -196,7 +197,11 @@
   }
 </script>
 
-<svelte:window onclick={(e) => { if (branchMenu && !(e.target as HTMLElement).closest(".branch-wrap")) branchMenu = false; }} />
+<svelte:window onclick={(e) => {
+  const t = e.target as HTMLElement;
+  if (branchMenu && !t.closest(".branch-wrap")) branchMenu = false;
+  if (setMenu && !t.closest(".open-wrap")) setMenu = false;
+}} />
 
 {#if loadError && !st}
   <div class="pad"><p class="error">{loadError}</p></div>
@@ -241,9 +246,20 @@
         </div>
       </div>
       <div class="actions">
-        {#each st.sets as s}
-          <button onclick={() => api.OpenInLive(st!.root, s)} title="Open in Ableton Live">▶ {s}</button>
-        {/each}
+        {#if st.sets.length === 1}
+          <button onclick={() => api.OpenInLive(st!.root, st!.sets[0])} title="Open {st.sets[0]} in Ableton Live">▶ Open in Live</button>
+        {:else if st.sets.length > 1}
+          <div class="open-wrap">
+            <button onclick={() => (setMenu = !setMenu)} title="Open a set in Ableton Live">▶ Open in Live ▾</button>
+            {#if setMenu}
+              <div class="menu right" role="menu">
+                {#each st.sets as s}
+                  <button class="item" onclick={() => { setMenu = false; api.OpenInLive(st!.root, s); }}>{s}</button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
         <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title="Show folder">📁</button>
       </div>
     </header>
@@ -257,7 +273,7 @@
         </div>
         <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
         <button class="primary" onclick={() => run(updateAction)} disabled={!!busy || st.changes.length > 0}
-          title={st.changes.length ? "You have unsaved changes: save a version to get these too" : ""}>Get updates</button>
+          title={st.changes.length ? "You have uncommitted changes: commit a version to get these too" : ""}>Get updates</button>
       </div>
     {/if}
     {#each st.overlaps as o}
@@ -294,20 +310,20 @@
             {/if}
             <h3>Files</h3>
             <ChangeList changes={st.changes}
-              empty="No unsaved changes. Work in Live and press Ctrl+S — your changes show up here." />
+              empty="No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." />
           </section>
           <aside class="save">
-            <h3>Save a version</h3>
+            <h3>Commit a version</h3>
             <textarea rows="4" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"></textarea>
             <button class="primary wide" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}>
-              {busy === "save" ? "Saving…" : st.remoteUrl ? "Save version & share" : "Save version"}
+              {busy === "save" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
             </button>
             <p class="faint small">
               {#if st.remoteUrl}
-                Saves the current state of the project folder and shares it with the team on “{st.branch}”.
+                Commits the current state of the project folder and shares it with the team on “{st.branch}”.
                 If others saved in the meantime, their changes are merged in first.
               {:else}
-                Saves on this computer. Connect to a team server to share.
+                Commits on this computer. Connect to a team server to share.
               {/if}
             </p>
           </aside>
@@ -316,7 +332,7 @@
         <History versions={st.history} head={st.head} incoming={incomingIds} />
       {:else}
         <section>
-          <h3>Being edited right now (not saved yet)</h3>
+          <h3>Being edited right now (not committed yet)</h3>
           {#each st.teammates as w (w.author)}
             <div class="mate">
               <div class="row"><strong>{w.author}</strong><span class="faint">updated {ago(w.updated)}</span></div>
@@ -327,7 +343,7 @@
               </ul>
             </div>
           {:else}
-            <p class="muted">Nobody else has unsaved work at the moment.</p>
+            <p class="muted">Nobody else has uncommitted work at the moment.</p>
           {/each}
         </section>
       {/if}
@@ -396,9 +412,12 @@
   .error { color: var(--danger); }
   header { display: flex; align-items: flex-start; padding: 18px 24px 10px; gap: 16px; }
   .title { flex: 1; min-width: 0; }
+  h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h1 { margin: 0 0 6px; font-size: 22px; font-weight: 650; }
   .sub { display: flex; align-items: center; gap: 10px; }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  .actions { display: flex; gap: 8px; flex: none; }
+  .open-wrap { position: relative; }
+  .menu.right { left: auto; right: 0; min-width: 220px; max-height: 50vh; overflow: auto; }
   .branch { padding: 3px 10px; font-size: 13px; }
   .branch-wrap { position: relative; }
   .menu {
