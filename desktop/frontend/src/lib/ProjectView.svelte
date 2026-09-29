@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, ago, errorText, type State, type Result, type Preview, type Conflict } from "./api";
+  import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import ChangeList from "./ChangeList.svelte";
   import History from "./History.svelte";
@@ -7,7 +7,9 @@
   import PreviewDialog from "./PreviewDialog.svelte";
   import ConflictDialog from "./ConflictDialog.svelte";
 
-  let { root, refreshKey, onchanged }: { root: string; refreshKey: number; onchanged: () => void } = $props();
+  let { root, refreshKey, teams, onchanged }: {
+    root: string; refreshKey: number; teams: TeamSummary[]; onchanged: () => void;
+  } = $props();
 
   let st = $state<State | null>(null);
   let loadError = $state("");
@@ -20,7 +22,8 @@
   const UNSAVED = "You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.";
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string> } | null>(null);
-  let connectOpen = $state(false);
+  let shareOpen = $state(false);
+  let shareTeam = $state("");
   let branchMenu = $state(false);
   let setMenu = $state(false);
   let newBranch = $state<string | null>(null);
@@ -91,7 +94,7 @@
     done: (r) => {
       const text: Record<string, string> = {
         "published": "Version committed and shared with the team",
-        "saved-locally": "Version committed on this computer (not connected to a server)",
+        "saved-locally": "Version committed on this computer (not shared with a team)",
         "fast-forward": "You had nothing new; updated to the team's latest version",
         "nothing": "Nothing changed since your last version",
       };
@@ -174,21 +177,21 @@
     }
   }
 
-  let connectUrl = $state("");
-  let connectToken = $state("");
-  async function connect() {
-    busy = "connect";
-    try {
-      await api.Connect(root, connectUrl.trim(), connectToken.trim());
-      connectOpen = false;
-      toast("Connected. Commit a version to share this project.", "ok");
-      await load();
-      onchanged();
-    } catch (e) {
-      toast(errorText(e), "error");
-    } finally {
-      busy = "";
-    }
+  // A project kept on this computer only can be moved into a team.
+  function openShare() {
+    shareTeam = teams[0]?.id ?? "";
+    shareOpen = true;
+  }
+
+  function shareWithTeam() {
+    const teamId = shareTeam;
+    const name = teams.find((t) => t.id === teamId)?.name ?? "the team";
+    shareOpen = false;
+    run({
+      name: "share",
+      call: (_res, force) => api.ShareProject(root, teamId, force),
+      done: () => toast(`Shared with ${name}`, "ok"),
+    });
   }
 
   function editors(set: string, trackId: string | undefined, change: string): string[] {
@@ -213,7 +216,7 @@
         <div class="sub">
           <div class="branch-wrap">
             <button class="branch" onclick={() => (branchMenu = !branchMenu)} disabled={!st.remoteUrl}
-              title={st.remoteUrl ? "Branches" : "Connect to a server to use branches"}>
+              title={st.remoteUrl ? "Branches" : "Share the project with a team to use branches"}>
               ⑂ {st.branch} ▾
             </button>
             {#if branchMenu}
@@ -239,9 +242,13 @@
           </div>
           {#if st.remoteUrl}
             <span class="dot" class:on={st.online}></span>
-            <span class="faint" title={st.offline}>{st.online ? st.remoteUrl : "server offline"}</span>
+            <span class="faint" title={st.online ? st.remoteUrl : st.offline}>
+              {st.teamName || st.remoteUrl}{st.online ? "" : " · not reachable"}
+            </span>
+          {:else if teams.length}
+            <button class="ghost" onclick={openShare}>Share with a team…</button>
           {:else}
-            <button class="ghost" onclick={() => (connectOpen = true)}>Connect to team server…</button>
+            <span class="faint">on this computer only</span>
           {/if}
         </div>
       </div>
@@ -323,7 +330,7 @@
                 Commits the current state of the project folder and shares it with the team on “{st.branch}”.
                 If others saved in the meantime, their changes are merged in first.
               {:else}
-                Commits on this computer. Connect to a team server to share.
+                Commits on this computer. Share the project with a team to work on it together.
               {/if}
             </p>
           </aside>
@@ -378,19 +385,19 @@
     </Modal>
   {/if}
 
-  {#if connectOpen}
-    <Modal title="Connect to your team server" onclose={() => (connectOpen = false)}>
-      <p class="muted">Ask whoever set up your team for the server address and token, or for a
-        connection code (team storage).</p>
-      <label for="url">Server address or connection code</label>
-      <input id="url" bind:value={connectUrl} placeholder="http://192.168.0.11:7331  or  dawgit-s3:…" />
-      {#if !connectUrl.trim().startsWith("dawgit-s3:")}
-        <label for="token">Access token</label>
-        <input id="token" bind:value={connectToken} />
-      {/if}
+  {#if shareOpen}
+    <Modal title="Share “{st.name}” with a team" onclose={() => (shareOpen = false)}>
+      <p class="muted">DAWGit commits a first version and uploads it, including its samples, so your teammates
+        can download it.</p>
+      <div class="teams">
+        {#each teams as t (t.id)}
+          <label class="team"><input type="radio" bind:group={shareTeam} value={t.id} /> {t.name}
+            <span class="faint">{t.address}</span></label>
+        {/each}
+      </div>
       {#snippet footer()}
-        <button onclick={() => (connectOpen = false)}>Cancel</button>
-        <button class="primary" disabled={!connectUrl.trim() || busy === "connect"} onclick={connect}>Connect</button>
+        <button onclick={() => (shareOpen = false)}>Cancel</button>
+        <button class="primary" disabled={!shareTeam || !!busy} onclick={shareWithTeam}>Share</button>
       {/snippet}
     </Modal>
   {/if}
@@ -411,6 +418,9 @@
 
 <style>
   .view { display: flex; flex-direction: column; height: 100%; }
+  .teams { display: flex; flex-direction: column; gap: 6px; }
+  .team { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
+  .team input { width: auto; }
   .pad { padding: 24px; }
   .error { color: var(--danger); }
   header { display: flex; align-items: flex-start; padding: 18px 24px 10px; gap: 16px; }

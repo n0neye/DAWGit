@@ -10,10 +10,12 @@ export {
     Branch,
     Change,
     Conflict,
+    Overview,
     Preview,
-    ProjectSummary,
     Result,
     State,
+    TeamProject,
+    TeamSummary,
     Teammate,
     Version
 } from "./models.js";

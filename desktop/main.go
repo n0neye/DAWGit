@@ -58,6 +58,10 @@ func main() {
 		}
 	}
 	svc.pickDir = func(title string) (string, error) {
+		// Browser (server-mode) testing has no native dialogs.
+		if dir := os.Getenv("DAWGIT_DEV_PICK_DIR"); dir != "" {
+			return dir, nil
+		}
 		return app.Dialog.OpenFile().
 			CanChooseDirectories(true).
 			CanChooseFiles(false).

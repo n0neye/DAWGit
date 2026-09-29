@@ -22,6 +22,9 @@ import (
 // Clients must write file contents, then the manifest, then the branch, so a
 // branch never points at a version whose data is missing.
 type Backend interface {
+	// Info describes the team (its name); empty for backends that have none.
+	Info() (TeamInfo, error)
+
 	Projects() ([]Project, error)
 	PutProject(p Project) error
 
@@ -47,6 +50,11 @@ type Backend interface {
 }
 
 var _ Backend = (*Client)(nil)
+
+// TeamInfo describes a team as its server or storage names it.
+type TeamInfo struct {
+	Name string `json:"name"`
+}
 
 // Config selects and configures a backend (stored in .dawgit/config.json).
 //

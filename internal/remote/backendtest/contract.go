@@ -20,6 +20,11 @@ import (
 
 // Run checks b against the Backend contract. b must start empty.
 func Run(t *testing.T, b remote.Backend) {
+	t.Run("info", func(t *testing.T) {
+		if _, err := b.Info(); err != nil {
+			t.Fatalf("Info: %v", err)
+		}
+	})
 	t.Run("objects", func(t *testing.T) { objects(t, b) })
 	t.Run("projects", func(t *testing.T) { projects(t, b) })
 	t.Run("snapshots", func(t *testing.T) { snapshots(t, b) })

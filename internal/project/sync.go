@@ -10,30 +10,106 @@ import (
 	"time"
 
 	"dawgit/internal/remote"
+	"dawgit/internal/teams"
 )
 
-// ErrNoRemote is returned by sync operations without a configured server.
-var ErrNoRemote = errors.New("no server configured (run `dawgit remote <url>`)")
+// ErrNoRemote is returned by sync operations for a project kept on this
+// computer only.
+var ErrNoRemote = errors.New("not connected to a team (run `dawgit remote <address>`)")
 
-func (r *Repo) Client() (remote.Backend, error) {
+// Team returns the team this project belongs to, with credentials from the
+// per-user team store. Credentials found in an older project config are
+// moved to the store and removed from the project folder.
+func (r *Repo) Team() (*teams.Team, error) {
 	if r.Config.Remote == nil || r.Config.Remote.URL == "" {
 		return nil, ErrNoRemote
 	}
-	return remote.Open(*r.Config.Remote)
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	cfg := *r.Config.Remote
+	if cfg.Token != "" || cfg.AccessKey != "" || cfg.SecretKey != "" {
+		t := store.Upsert(cfg, "")
+		store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
+		if err := store.Save(); err != nil {
+			return nil, err
+		}
+		r.Config.Remote = &RemoteConfig{URL: t.Remote.URL}
+		if err := r.SaveConfig(); err != nil {
+			return nil, err
+		}
+	}
+	t := store.FindByURL(cfg.URL)
+	if t == nil {
+		return nil, fmt.Errorf("this computer is not connected to the team at %s (run `dawgit remote %s --token ...`)",
+			cfg.URL, cfg.URL)
+	}
+	return t, nil
 }
 
-// SetRemote connects the project to a server (address + token) or to
-// storage (a connection code as address).
+func (r *Repo) Client() (remote.Backend, error) {
+	t, err := r.Team()
+	if err != nil {
+		return nil, err
+	}
+	return remote.Open(t.Remote)
+}
+
+// SetRemote connects the project to a team: a server (address + token) or
+// storage (a connection code as address). Credentials go to the per-user
+// team store; the project only records the team's address.
 func (r *Repo) SetRemote(address, token string) error {
-	cfg, err := remote.ParseAddress(address, token)
+	t, err := Connect(address, token)
 	if err != nil {
 		return err
 	}
-	if _, err := remote.Open(cfg); err != nil {
+	return r.JoinTeam(t)
+}
+
+// JoinTeam makes the project belong to t (already in the team store).
+func (r *Repo) JoinTeam(t *teams.Team) error {
+	store, err := teams.Load()
+	if err != nil {
 		return err
 	}
-	r.Config.Remote = &cfg
+	store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
+	if err := store.Save(); err != nil {
+		return err
+	}
+	r.Config.Remote = &RemoteConfig{URL: t.Remote.URL}
 	return r.SaveConfig()
+}
+
+// Connect checks a team address (and token or connection code), records the
+// team in the per-user store with the name the team gives itself, and
+// returns it.
+func Connect(address, token string) (*teams.Team, error) {
+	cfg, err := remote.ParseAddress(address, token)
+	if err != nil {
+		return nil, err
+	}
+	b, err := remote.Open(cfg)
+	if err != nil {
+		return nil, err
+	}
+	info, err := b.Info()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := b.Projects(); err != nil {
+		return nil, err
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Upsert(cfg, info.Name)
+	id := t.ID
+	if err := store.Save(); err != nil {
+		return nil, err
+	}
+	return store.Find(id), nil
 }
 
 // PollInterval is how often the agent should check the backend.
@@ -414,12 +490,20 @@ func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, 
 	return m, nil, errors.New("the server branch keeps changing; try again")
 }
 
-// Clone downloads a project from a server into dir.
+// Clone connects to a team (address + token, or a connection code) and
+// downloads one of its projects into dir.
 func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error) {
-	cfg, err := remote.ParseAddress(address, token)
+	t, err := Connect(address, token)
 	if err != nil {
 		return nil, nil, err
 	}
+	return CloneFromTeam(t, project, dir, author)
+}
+
+// CloneFromTeam downloads a project (name or id) of a connected team into
+// dir (default "<name> Project") and records where it is.
+func CloneFromTeam(t *teams.Team, project, dir, author string) (*Repo, *Manifest, error) {
+	cfg := t.Remote
 	c, err := remote.Open(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -455,8 +539,11 @@ func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error
 		author = defaultAuthor()
 	}
 	r, err := create(root, Config{ProjectID: p.ID, Name: p.Name, Author: author,
-		Remote: &cfg})
+		Remote: &RemoteConfig{URL: cfg.URL}})
 	if err != nil {
+		return nil, nil, err
+	}
+	if err := r.JoinTeam(t); err != nil {
 		return nil, nil, err
 	}
 	res, err := r.Update(Strategy("fail"))

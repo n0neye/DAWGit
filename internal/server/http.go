@@ -15,6 +15,7 @@ import (
 
 // API (all JSON, Bearer token auth):
 //
+//	GET  /api/v1/info                             -> {name} (team name)
 //	GET  /api/v1/projects                         -> [{id,name}]
 //	PUT  /api/v1/projects/{pid}                   {name}
 //	GET  /api/v1/projects/{pid}/branches          -> {name: snapshot}
@@ -30,6 +31,9 @@ import (
 func Handler(s *Storage, token string) http.Handler {
 	mux := http.NewServeMux()
 	h := &handlers{s: s}
+	mux.HandleFunc("GET /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
+		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name()})
+	})
 	mux.HandleFunc("GET /api/v1/projects", h.listProjects)
 	mux.HandleFunc("PUT /api/v1/projects/{pid}", h.putProject)
 	mux.HandleFunc("GET /api/v1/projects/{pid}/branches", h.project(h.getBranches))

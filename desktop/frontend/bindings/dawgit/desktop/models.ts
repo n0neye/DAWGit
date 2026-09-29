@@ -120,6 +120,67 @@ export class Conflict {
     }
 }
 
+export class Overview {
+    "author": string;
+    "teams": TeamSummary[];
+    "currentTeam": string;
+
+    /**
+     * of the current team
+     */
+    "projects": TeamProject[];
+    "teamError": string;
+
+    /**
+     * kept on this computer only
+     */
+    "local": TeamProject[];
+
+    /** Creates a new Overview instance. */
+    constructor($$source: Partial<Overview> = {}) {
+        if (!("author" in $$source)) {
+            this["author"] = "";
+        }
+        if (!("teams" in $$source)) {
+            this["teams"] = [];
+        }
+        if (!("currentTeam" in $$source)) {
+            this["currentTeam"] = "";
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+        if (!("teamError" in $$source)) {
+            this["teamError"] = "";
+        }
+        if (!("local" in $$source)) {
+            this["local"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Overview instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Overview {
+        const $$createField1_0 = $$createType4;
+        const $$createField3_0 = $$createType6;
+        const $$createField5_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("teams" in $$parsedSource) {
+            $$parsedSource["teams"] = $$createField1_0($$parsedSource["teams"]);
+        }
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField3_0($$parsedSource["projects"]);
+        }
+        if ("local" in $$parsedSource) {
+            $$parsedSource["local"] = $$createField5_0($$parsedSource["local"]);
+        }
+        return new Overview($$parsedSource as Partial<Overview>);
+    }
+}
+
 export class Preview {
     /**
      * up-to-date | ahead | fast-forward | merge
@@ -151,9 +212,9 @@ export class Preview {
      * Creates a new Preview instance from a string or object.
      */
     static createFrom($$source: any = {}): Preview {
-        const $$createField1_0 = $$createType3;
-        const $$createField2_0 = $$createType5;
-        const $$createField3_0 = $$createType7;
+        const $$createField1_0 = $$createType7;
+        const $$createField2_0 = $$createType9;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("versions" in $$parsedSource) {
             $$parsedSource["versions"] = $$createField1_0($$parsedSource["versions"]);
@@ -165,43 +226,6 @@ export class Preview {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
         }
         return new Preview($$parsedSource as Partial<Preview>);
-    }
-}
-
-export class ProjectSummary {
-    "root": string;
-    "name": string;
-    "branch": string;
-    "remoteUrl": string;
-    "error": string;
-
-    /** Creates a new ProjectSummary instance. */
-    constructor($$source: Partial<ProjectSummary> = {}) {
-        if (!("root" in $$source)) {
-            this["root"] = "";
-        }
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("branch" in $$source)) {
-            this["branch"] = "";
-        }
-        if (!("remoteUrl" in $$source)) {
-            this["remoteUrl"] = "";
-        }
-        if (!("error" in $$source)) {
-            this["error"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new ProjectSummary instance from a string or object.
-     */
-    static createFrom($$source: any = {}): ProjectSummary {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProjectSummary($$parsedSource as Partial<ProjectSummary>);
     }
 }
 
@@ -252,7 +276,7 @@ export class Result {
     static createFrom($$source: any = {}): Result {
         const $$createField1_0 = $$createType2;
         const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("log" in $$parsedSource) {
             $$parsedSource["log"] = $$createField1_0($$parsedSource["log"]);
@@ -273,6 +297,12 @@ export class State {
     "author": string;
     "branch": string;
     "remoteUrl": string;
+
+    /**
+     * "" for a project kept on this computer only
+     */
+    "teamId": string;
+    "teamName": string;
     "online": boolean;
 
     /**
@@ -310,6 +340,12 @@ export class State {
         }
         if (!("remoteUrl" in $$source)) {
             this["remoteUrl"] = "";
+        }
+        if (!("teamId" in $$source)) {
+            this["teamId"] = "";
+        }
+        if (!("teamName" in $$source)) {
+            this["teamName"] = "";
         }
         if (!("online" in $$source)) {
             this["online"] = false;
@@ -355,40 +391,118 @@ export class State {
      * Creates a new State instance from a string or object.
      */
     static createFrom($$source: any = {}): State {
-        const $$createField9_0 = $$createType2;
-        const $$createField10_0 = $$createType5;
-        const $$createField11_0 = $$createType9;
-        const $$createField12_0 = $$createType3;
-        const $$createField13_0 = $$createType11;
-        const $$createField14_0 = $$createType2;
-        const $$createField15_0 = $$createType3;
-        const $$createField16_0 = $$createType13;
+        const $$createField11_0 = $$createType2;
+        const $$createField12_0 = $$createType9;
+        const $$createField13_0 = $$createType13;
+        const $$createField14_0 = $$createType7;
+        const $$createField15_0 = $$createType15;
+        const $$createField16_0 = $$createType2;
+        const $$createField17_0 = $$createType7;
+        const $$createField18_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sets" in $$parsedSource) {
-            $$parsedSource["sets"] = $$createField9_0($$parsedSource["sets"]);
+            $$parsedSource["sets"] = $$createField11_0($$parsedSource["sets"]);
         }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField10_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField12_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField11_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField13_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField12_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField14_0($$parsedSource["incoming"]);
         }
         if ("teammates" in $$parsedSource) {
-            $$parsedSource["teammates"] = $$createField13_0($$parsedSource["teammates"]);
+            $$parsedSource["teammates"] = $$createField15_0($$parsedSource["teammates"]);
         }
         if ("overlaps" in $$parsedSource) {
-            $$parsedSource["overlaps"] = $$createField14_0($$parsedSource["overlaps"]);
+            $$parsedSource["overlaps"] = $$createField16_0($$parsedSource["overlaps"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField15_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField17_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField16_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField18_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
+    }
+}
+
+/**
+ * TeamProject is a project as the sidebar shows it.
+ */
+export class TeamProject {
+    "id": string;
+    "name": string;
+    "root": string;
+
+    /**
+     * Status: "downloaded" (folder here), "remote" (on the team only),
+     * "missing" (downloaded before, folder not found), "local" (no team).
+     */
+    "status": string;
+    "branch": string;
+
+    /** Creates a new TeamProject instance. */
+    constructor($$source: Partial<TeamProject> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TeamProject instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TeamProject {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TeamProject($$parsedSource as Partial<TeamProject>);
+    }
+}
+
+export class TeamSummary {
+    "id": string;
+    "name": string;
+    "address": string;
+    "isStorage": boolean;
+
+    /** Creates a new TeamSummary instance. */
+    constructor($$source: Partial<TeamSummary> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("isStorage" in $$source)) {
+            this["isStorage"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TeamSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TeamSummary {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TeamSummary($$parsedSource as Partial<TeamSummary>);
     }
 }
 
@@ -416,7 +530,7 @@ export class Teammate {
      * Creates a new Teammate instance from a string or object.
      */
     static createFrom($$source: any = {}): Teammate {
-        const $$createField2_0 = $$createType9;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edits" in $$parsedSource) {
             $$parsedSource["edits"] = $$createField2_0($$parsedSource["edits"]);
@@ -490,14 +604,18 @@ export class Version {
 const $$createType0 = Version.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($$createType0);
-const $$createType4 = Change.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = Conflict.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = project$0.TrackEdit.createFrom;
+const $$createType3 = TeamSummary.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = TeamProject.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Array($$createType0);
+const $$createType8 = Change.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = Teammate.createFrom;
+const $$createType10 = Conflict.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = Branch.createFrom;
+const $$createType12 = project$0.TrackEdit.createFrom;
 const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = Teammate.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = Branch.createFrom;
+const $$createType17 = $Create.Array($$createType16);

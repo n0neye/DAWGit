@@ -21,12 +21,21 @@ import * as remote$0 from "../internal/remote/models.js";
 import * as $models from "./models.js";
 
 /**
- * AddProject starts tracking an Ableton project folder (or opens one that is
- * already tracked).
+ * AddLocalProject tracks a folder on this computer only (no team).
  */
-export function AddProject(root: string, author: string): $CancellablePromise<$models.ProjectSummary> {
-    return $Call.ByID(1121292353, root, author).then(($result: any) => {
+export function AddLocalProject(folder: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(3415343716, folder).then(($result: any) => {
         return $$createType0($result);
+    });
+}
+
+/**
+ * AddProjectToTeam starts tracking an Ableton project folder and shares it
+ * with the team right away (first version).
+ */
+export function AddProjectToTeam(teamID: string, folder: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(1141302713, teamID, folder, force).then(($result: any) => {
+        return $$createType2($result);
     });
 }
 
@@ -45,10 +54,13 @@ export function ChooseFolder(title: string): $CancellablePromise<string> {
 }
 
 /**
- * Connect links a project to a team server and shares it.
+ * ConnectTeam adds a team (server address + token, or a connection code) and
+ * makes it the current one.
  */
-export function Connect(root: string, url: string, token: string): $CancellablePromise<void> {
-    return $Call.ByID(164877153, root, url, token);
+export function ConnectTeam(address: string, token: string): $CancellablePromise<$models.TeamSummary> {
+    return $Call.ByID(225746720, address, token).then(($result: any) => {
+        return $$createType3($result);
+    });
 }
 
 export function CreateBranch(root: string, name: string): $CancellablePromise<void> {
@@ -56,10 +68,26 @@ export function CreateBranch(root: string, name: string): $CancellablePromise<vo
 }
 
 /**
- * JoinProject downloads a project from the server into parent/<name> Project.
+ * DownloadProject downloads a team project into parent/<name> Project.
  */
-export function JoinProject(url: string, token: string, projectID: string, parent: string, author: string): $CancellablePromise<$models.ProjectSummary> {
-    return $Call.ByID(3117186410, url, token, projectID, parent, author).then(($result: any) => {
+export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(3062621418, teamID, projectID, parent).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
+ * ForgetProject removes a project from the list (the folder is untouched).
+ */
+export function ForgetProject(root: string): $CancellablePromise<void> {
+    return $Call.ByID(1105048745, root);
+}
+
+/**
+ * LocateProject points a team project at a folder that was moved.
+ */
+export function LocateProject(teamID: string, projectID: string, folder: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(4181359348, teamID, projectID, folder).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -77,26 +105,37 @@ export function OpenInLive(root: string, $set: string): $CancellablePromise<void
     return $Call.ByID(200971096, root, $set);
 }
 
+/**
+ * Overview is everything the sidebar and onboarding need.
+ */
+export function Overview(): $CancellablePromise<$models.Overview | null> {
+    return $Call.ByID(20653634).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1135981589, root, name).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType7($result);
     });
 }
 
 export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(3558658446, root).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType7($result);
     });
 }
 
-export function Projects(): $CancellablePromise<$models.ProjectSummary[]> {
-    return $Call.ByID(2386848479).then(($result: any) => {
-        return $$createType5($result);
-    });
+/**
+ * RemoveTeam disconnects this computer from a team. Project folders stay on
+ * disk; they are no longer listed or watched.
+ */
+export function RemoveTeam(id: string): $CancellablePromise<void> {
+    return $Call.ByID(3754118508, id);
 }
 
-export function RemoveProject(root: string): $CancellablePromise<void> {
-    return $Call.ByID(66093214, root);
+export function RenameTeam(id: string, name: string): $CancellablePromise<void> {
+    return $Call.ByID(478452658, id, name);
 }
 
 /**
@@ -108,13 +147,21 @@ export function Save(root: string, message: string, resolutions: { [_ in string]
     });
 }
 
+export function SelectTeam(id: string): $CancellablePromise<void> {
+    return $Call.ByID(2252928460, id);
+}
+
 /**
- * ServerProjects lists the projects on a server (for joining one).
+ * ServerProjects lists a team's projects before connecting (onboarding).
  */
-export function ServerProjects(url: string, token: string): $CancellablePromise<remote$0.Project[]> {
-    return $Call.ByID(898254696, url, token).then(($result: any) => {
-        return $$createType7($result);
+export function ServerProjects(address: string, token: string): $CancellablePromise<remote$0.Project[]> {
+    return $Call.ByID(898254696, address, token).then(($result: any) => {
+        return $$createType9($result);
     });
+}
+
+export function SetAuthor(name: string): $CancellablePromise<void> {
+    return $Call.ByID(2727723748, name);
 }
 
 /**
@@ -124,13 +171,22 @@ export function SetAutostart(on: boolean): $CancellablePromise<void> {
     return $Call.ByID(1324798748, on);
 }
 
+/**
+ * ShareProject moves a local-only project into a team (first shared version).
+ */
+export function ShareProject(root: string, teamID: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(1658918021, root, teamID, force).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
 export function ShowFolder(root: string): $CancellablePromise<void> {
     return $Call.ByID(2097789072, root);
 }
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
     return $Call.ByID(1946832782, root).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -150,13 +206,15 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
 }
 
 // Private type creation functions
-const $$createType0 = $models.ProjectSummary.createFrom;
+const $$createType0 = $models.TeamProject.createFrom;
 const $$createType1 = $models.Result.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $models.Preview.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = $Create.Array($$createType0);
-const $$createType6 = remote$0.Project.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $models.State.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
+const $$createType3 = $models.TeamSummary.createFrom;
+const $$createType4 = $models.Overview.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $models.Preview.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = remote$0.Project.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $models.State.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);

@@ -9,14 +9,6 @@ import (
 
 // Data sent to the frontend. Field names become the TypeScript model.
 
-type ProjectSummary struct {
-	Root      string `json:"root"`
-	Name      string `json:"name"`
-	Branch    string `json:"branch"`
-	RemoteURL string `json:"remoteUrl"`
-	Error     string `json:"error"`
-}
-
 type Version struct {
 	ID       string   `json:"id"`
 	Short    string   `json:"short"`
@@ -59,6 +51,8 @@ type State struct {
 	Author      string   `json:"author"`
 	Branch      string   `json:"branch"`
 	RemoteURL   string   `json:"remoteUrl"`
+	TeamID      string   `json:"teamId"` // "" for a project kept on this computer only
+	TeamName    string   `json:"teamName"`
 	Online      bool     `json:"online"`
 	Offline     string   `json:"offline"` // why the server is unreachable
 	LiveRunning bool     `json:"liveRunning"`

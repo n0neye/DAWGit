@@ -15,34 +15,36 @@ import (
 	"dawgit/internal/agent"
 	"dawgit/internal/livecheck"
 	"dawgit/internal/project"
-	"dawgit/internal/remote"
+	"dawgit/internal/teams"
 )
 
 // App is the service the frontend calls. Every method that touches a project
 // takes its folder (root) and holds that project's lock, so the background
 // agent and user actions never run at the same time.
 type App struct {
-	cfg     *appConfig
 	notify  func(title, body string)
 	emit    func(name string, data any)
-	mu      sync.Mutex // guards cfg, locks, agents
+	mu      sync.Mutex // guards locks, agents
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
 	pickDir func(title string) (string, error)
 }
 
 func NewApp() *App {
-	return &App{cfg: loadConfig(), locks: map[string]*sync.Mutex{}, agents: map[string]context.CancelFunc{}}
+	return &App{locks: map[string]*sync.Mutex{}, agents: map[string]context.CancelFunc{}}
 }
 
 func (a *App) ServiceName() string { return "App" }
 
-// ServiceStartup starts an agent for every project connected to a server.
+// ServiceStartup starts an agent for every downloaded team project (in all
+// teams, so notices keep coming whichever team is selected).
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
-	a.mu.Lock()
-	roots := append([]string(nil), a.cfg.Projects...)
-	a.mu.Unlock()
-	for _, root := range roots {
+	a.migrateLegacyConfig()
+	store, err := teams.Load()
+	if err != nil {
+		return nil
+	}
+	for _, root := range store.Roots() {
 		a.startAgent(root)
 	}
 	return nil
@@ -154,129 +156,6 @@ func (a *App) handleEvent(root, name string, e agent.Event) {
 	}
 }
 
-// --- projects ---
-
-func summary(root string) ProjectSummary {
-	s := ProjectSummary{Root: root, Name: filepath.Base(root)}
-	r, err := project.Open(root)
-	if err != nil {
-		s.Error = err.Error()
-		return s
-	}
-	s.Name, s.Branch = r.Config.Name, r.BranchName()
-	if s.Name == "" {
-		s.Name = filepath.Base(root)
-	}
-	if r.Config.Remote != nil {
-		s.RemoteURL = r.Config.Remote.Display()
-	}
-	return s
-}
-
-func (a *App) Projects() []ProjectSummary {
-	a.mu.Lock()
-	roots := append([]string(nil), a.cfg.Projects...)
-	a.mu.Unlock()
-	out := []ProjectSummary{}
-	for _, root := range roots {
-		out = append(out, summary(root))
-	}
-	return out
-}
-
-// ChooseFolder asks the user for a folder ("" when cancelled).
-func (a *App) ChooseFolder(title string) (string, error) {
-	if a.pickDir == nil {
-		return "", errors.New("folder picker not available")
-	}
-	return a.pickDir(title)
-}
-
-// AddProject starts tracking an Ableton project folder (or opens one that is
-// already tracked).
-func (a *App) AddProject(root, author string) (ProjectSummary, error) {
-	if _, err := project.Open(root); errors.Is(err, project.ErrNotRepo) {
-		if _, err := project.Init(root, author); err != nil {
-			return ProjectSummary{}, err
-		}
-	} else if err != nil {
-		return ProjectSummary{}, err
-	}
-	r, _ := project.Open(root)
-	a.mu.Lock()
-	a.cfg.add(r.Root)
-	err := a.cfg.save()
-	a.mu.Unlock()
-	a.startAgent(r.Root)
-	return summary(r.Root), err
-}
-
-func (a *App) RemoveProject(root string) error {
-	a.stopAgent(root)
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	a.cfg.remove(root)
-	return a.cfg.save()
-}
-
-// ServerProjects lists the projects on a server (for joining one).
-func (a *App) ServerProjects(url, token string) ([]remote.Project, error) {
-	ps, err := serverProjects(url, token)
-	return nonNil(ps), err
-}
-
-func serverProjects(url, token string) ([]remote.Project, error) {
-	cfg, err := remote.ParseAddress(url, token)
-	if err != nil {
-		return nil, err
-	}
-	b, err := remote.Open(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return b.Projects()
-}
-
-// JoinProject downloads a project from the server into parent/<name> Project.
-func (a *App) JoinProject(url, token, projectID, parent, author string) (ProjectSummary, error) {
-	ps, err := serverProjects(url, token)
-	if err != nil {
-		return ProjectSummary{}, err
-	}
-	dir := ""
-	for _, p := range ps {
-		if p.ID == projectID {
-			dir = filepath.Join(parent, p.Name+" Project")
-		}
-	}
-	if dir == "" {
-		return ProjectSummary{}, fmt.Errorf("project not found on the server")
-	}
-	r, _, err := project.Clone(url, token, projectID, dir, author)
-	if err != nil {
-		return ProjectSummary{}, err
-	}
-	return a.AddProject(r.Root, "")
-}
-
-// Connect links a project to a team server and shares it.
-func (a *App) Connect(root, url, token string) error {
-	r, unlock, err := a.open(root)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-	if err := r.SetRemote(url, token); err != nil {
-		return err
-	}
-	c, _ := r.Client()
-	if _, err := c.Projects(); err != nil {
-		return fmt.Errorf("the server did not answer: %w", err)
-	}
-	go a.startAgent(root)
-	return nil
-}
-
 // OpenInLive opens a set with its default application (Ableton Live).
 func (a *App) OpenInLive(root, set string) error {
 	return shellOpen(filepath.Join(root, set))
@@ -320,6 +199,9 @@ func (a *App) State(root string) (*State, error) {
 	tips := map[string][]string{}
 	if r.Config.Remote != nil {
 		st.RemoteURL = r.Config.Remote.Display()
+		if t, err := r.Team(); err == nil {
+			st.TeamID, st.TeamName = t.ID, t.Name
+		}
 		branches, err := r.Branches()
 		if err != nil {
 			st.Offline = err.Error()

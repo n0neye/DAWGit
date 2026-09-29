@@ -244,3 +244,14 @@ func readJSON(path string, v any) error {
 	}
 	return json.Unmarshal(data, v)
 }
+
+// Name is the team name shown to members (from <data>/team.json).
+func (s *Storage) Name() string {
+	var info struct{ Name string }
+	readJSON(filepath.Join(s.dir, "team.json"), &info)
+	return info.Name
+}
+
+func (s *Storage) SetName(name string) error {
+	return writeJSON(filepath.Join(s.dir, "team.json"), map[string]string{"name": name})
+}
