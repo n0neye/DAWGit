@@ -1,13 +1,15 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { api, errorText, savedAuthor, rememberAuthor, type Overview, type TeamSummary } from "./api";
+  import { Events } from "@wailsio/runtime";
+  import { api, errorText, progressText, savedAuthor, rememberAuthor, type Overview, type Progress,
+    type TeamSummary } from "./api";
   import ConnectForm from "./ConnectForm.svelte";
 
   // First run: 1) connect to your team, 2) your name, 3) get or add projects.
   let { overview, reload, onfinish }: {
     overview: Overview;
     reload: () => Promise<void>;
-    onfinish: (root?: string) => void;
+    onfinish: (root?: string, share?: boolean) => void;
   } = $props();
 
   let step = $state(1);
@@ -17,6 +19,12 @@
   let busy = $state("");
   let error = $state("");
   let downloaded = $state<string[]>([]);
+  let progress = $state<Progress | null>(null);
+
+  // Progress of the download in flight (only one runs at a time).
+  $effect(() => Events.On("progress", (ev: { data: Progress }) => {
+    if (busy) progress = ev.data.stage === "done" ? null : ev.data;
+  }));
 
   async function connected(t: TeamSummary) {
     team = t;
@@ -47,6 +55,7 @@
     if (!parent || !team) return;
     busy = id;
     error = "";
+    progress = null;
     try {
       const p = await api.DownloadProject(team.id, id, parent);
       downloaded = [...downloaded, p.root];
@@ -55,6 +64,7 @@
       error = errorText(e);
     } finally {
       busy = "";
+      progress = null;
     }
   }
 
@@ -64,9 +74,10 @@
     busy = "add";
     error = "";
     try {
-      await api.AddProjectToTeam(team.id, folder, false);
-      downloaded = [...downloaded, folder];
-      await reload();
+      // Open it right away: its view uploads the first version and shows how
+      // that is going.
+      const p = await api.AddProjectToTeam(team.id, folder);
+      onfinish(p.root, true);
     } catch (e) {
       error = errorText(e);
     } finally {
@@ -135,9 +146,17 @@
             <li><span class="name">{p.name}</span><span class="ok">✓ on this computer</span></li>
           {/each}
           {#each remote as p (p.id)}
-            <li>
+            <li class:active={busy === p.id}>
               <span class="name">{p.name}</span>
               <button onclick={() => download(p.id)} disabled={!!busy}>{busy === p.id ? "Downloading…" : "↓ Download"}</button>
+              {#if busy === p.id}
+                <div class="progress">
+                  <span class="faint small">{progress ? progressText(progress) : "Connecting…"}</span>
+                  <div class="bar" class:indeterminate={!progress?.total}>
+                    <div style="width: {progress?.total ? Math.round((100 * progress.done) / progress.total) : 30}%"></div>
+                  </div>
+                </div>
+              {/if}
             </li>
           {/each}
         </ul>
@@ -179,7 +198,14 @@
   .parent { margin: 12px 0 8px; }
   .path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .projects { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow: auto; }
-  .projects li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .projects li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .name { flex: 1; font-weight: 600; }
   .ok { color: var(--accent); font-size: 13px; }
+  .projects li.active { border-color: #2c4557; }
+  .progress { flex-basis: 100%; display: flex; flex-direction: column; gap: 5px; }
+  .small { font-size: 12px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
+  .bar.indeterminate > div { animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 </style>

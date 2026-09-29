@@ -78,7 +78,50 @@ func (a *App) open(root string) (*project.Repo, func(), error) {
 		unlock()
 		return nil, nil, err
 	}
-	return r, unlock, nil
+	var done func()
+	r.OnProgress, done = a.progressFor(r.Root)
+	return r, func() { done(); unlock() }, nil
+}
+
+// ProgressEvent tells the frontend how a long step (save, upload, download)
+// is going.
+type ProgressEvent struct {
+	Root  string `json:"root"`
+	Stage string `json:"stage"`
+	Done  int    `json:"done"`
+	Total int    `json:"total"`
+}
+
+// progressFor emits "progress" events for root, at most every 150 ms unless
+// the stage changes. Call done when the operation ends: if anything was
+// reported, it sends a final "done" event.
+func (a *App) progressFor(root string) (report func(project.Progress), done func()) {
+	var last time.Time
+	stage := ""
+	report = func(p project.Progress) {
+		if a.emit == nil || (p.Stage == stage && time.Since(last) < 150*time.Millisecond) {
+			return
+		}
+		last, stage = time.Now(), p.Stage
+		a.emit("progress", ProgressEvent{Root: root, Stage: p.Stage, Done: p.Done, Total: p.Total})
+	}
+	done = func() {
+		if a.emit != nil && stage != "" {
+			a.emit("progress", ProgressEvent{Root: root, Stage: "done"})
+		}
+	}
+	return report, done
+}
+
+// Signature changes when a set in the project is saved (or the project moves
+// to another version). It only looks at file sizes and times, and takes no
+// lock, so the frontend polls it to notice Ctrl+S in Live right away.
+func (a *App) Signature(root string) string {
+	r, err := project.Open(root)
+	if err != nil {
+		return ""
+	}
+	return r.SetsSignature()
 }
 
 // --- agent ---

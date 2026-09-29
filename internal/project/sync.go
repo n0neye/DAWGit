@@ -200,10 +200,14 @@ func (r *Repo) fetchSnapshots(c remote.Backend, id string) error {
 
 // fetchObjects downloads blobs that are not stored locally.
 func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
+	var need []string
 	for _, h := range hashes {
-		if r.Store.Has(h) {
-			continue
+		if !r.Store.Has(h) {
+			need = append(need, h)
 		}
+	}
+	for i, h := range need {
+		r.report(StageDownloading, i, len(need))
 		body, err := c.GetObject(h)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
@@ -291,7 +295,8 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	if err != nil {
 		return err
 	}
-	for _, h := range missing {
+	for i, h := range missing {
+		r.report(StageUploading, i, len(missing))
 		f, err := r.Store.Open(h)
 		if err != nil {
 			return err
@@ -497,12 +502,13 @@ func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error
 	if err != nil {
 		return nil, nil, err
 	}
-	return CloneFromTeam(t, project, dir, author)
+	return CloneFromTeam(t, project, dir, author, nil)
 }
 
 // CloneFromTeam downloads a project (name or id) of a connected team into
-// dir (default "<name> Project") and records where it is.
-func CloneFromTeam(t *teams.Team, project, dir, author string) (*Repo, *Manifest, error) {
+// dir (default "<name> Project") and records where it is. onProgress may be
+// nil.
+func CloneFromTeam(t *teams.Team, project, dir, author string, onProgress func(Progress)) (*Repo, *Manifest, error) {
 	cfg := t.Remote
 	c, err := remote.Open(cfg)
 	if err != nil {
@@ -543,6 +549,7 @@ func CloneFromTeam(t *teams.Team, project, dir, author string) (*Repo, *Manifest
 	if err != nil {
 		return nil, nil, err
 	}
+	r.OnProgress = onProgress
 	if err := r.JoinTeam(t); err != nil {
 		return nil, nil, err
 	}
