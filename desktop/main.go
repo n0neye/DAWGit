@@ -40,7 +40,8 @@ func main() {
 			application.NewService(ns),
 		},
 		Assets: application.AssetOptions{
-			Handler: application.AssetFileServerFS(assets),
+			Handler:    application.AssetFileServerFS(assets),
+			Middleware: svc.fileServer, // audio previews of project files
 		},
 		SingleInstance: &application.SingleInstanceOptions{
 			UniqueID: "com.dawgit.desktop",

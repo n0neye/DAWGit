@@ -15,3 +15,20 @@ func shellOpen(path string) error {
 	}
 	return windows.ShellExecute(0, verb, file, nil, nil, windows.SW_SHOWNORMAL)
 }
+
+// shellSelect opens Explorer with the file selected.
+func shellSelect(path string) error {
+	verb, err := windows.UTF16PtrFromString("open")
+	if err != nil {
+		return err
+	}
+	exe, err := windows.UTF16PtrFromString("explorer.exe")
+	if err != nil {
+		return err
+	}
+	args, err := windows.UTF16PtrFromString(`/select,"` + path + `"`)
+	if err != nil {
+		return err
+	}
+	return windows.ShellExecute(0, verb, exe, args, nil, windows.SW_SHOWNORMAL)
+}

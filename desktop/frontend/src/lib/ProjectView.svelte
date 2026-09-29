@@ -4,7 +4,7 @@
   import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary,
     type Progress, type Version } from "./api";
   import { toast } from "./notify.svelte";
-  import ChangeList from "./ChangeList.svelte";
+  import ChangesPanel from "./ChangesPanel.svelte";
   import CombineDialog from "./CombineDialog.svelte";
   import ProgressBar from "./ProgressBar.svelte";
   import History from "./History.svelte";
@@ -51,6 +51,7 @@
   let combine = $state<{ data: Preview; message: string } | null>(null);
   let branchThenCommit = $state(""); // commit this after creating the branch
   let discardOpen = $state(false);
+  let discardFile = $state(""); // one file's changes, after confirming
 
   async function load() {
     try {
@@ -220,6 +221,16 @@
     message = msg.trim();
     branchThenCommit = msg.trim();
     newBranch = "";
+  }
+
+  function discardOneFile() {
+    const path = discardFile;
+    discardFile = "";
+    run({
+      name: "discard",
+      call: (_res, force) => api.DiscardFile(root, path, force),
+      done: () => toast(`Discarded your changes to ${path.slice(path.lastIndexOf("/") + 1)}`, "ok"),
+    });
   }
 
   function discardAndUpdate() {
@@ -591,14 +602,14 @@
       </button>
     </nav>
 
-    <main>
+    <main class:flush={tab === "changes"}>
       {#if tab === "changes"}
-        <div class="changes">
+        {#snippet summary()}
           <section>
-            {#if st.myEdits.length}
+            {#if st!.myEdits.length}
               <h3>Tracks you changed</h3>
               <ul class="tracks">
-                {#each st.myEdits as e}
+                {#each st!.myEdits as e}
                   {@const who = editors(e.set, e.track_id, e.change)}
                   <li>
                     <span class="chg {e.change}"></span>
@@ -608,12 +619,13 @@
                   </li>
                 {/each}
               </ul>
+            {:else}
+              <p class="muted">{st!.changes.length ? "Pick a file on the left to see what changed." : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here."}</p>
             {/if}
-            <h3>Files</h3>
-            <ChangeList changes={st.changes}
-              empty="No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." />
+            {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
-        </div>
+        {/snippet}
+        <ChangesPanel {root} st={st} {summary} ondiscard={(p) => (discardFile = p)} />
       {:else if tab === "history"}
         <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
@@ -670,6 +682,16 @@
   {#if combine}
     <CombineDialog preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
       onclose={() => (combine = null)} oncombine={combineAndShare} onbranch={() => putOnBranch(combine!.message)} />
+  {/if}
+
+  {#if discardFile}
+    <Modal title="Discard your changes to {discardFile.slice(discardFile.lastIndexOf('/') + 1)}?" onclose={() => (discardFile = "")}>
+      <p>The file goes back to how it is in the version you're on. This can't be undone.</p>
+      {#snippet footer()}
+        <button onclick={() => (discardFile = "")}>Cancel</button>
+        <button class="danger" onclick={discardOneFile}>Discard changes</button>
+      {/snippet}
+    </Modal>
   {/if}
 
   {#if discardOpen}
@@ -827,6 +849,7 @@
   .count { margin-left: 4px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; }
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
+  main.flush { padding: 0 0 0 16px; overflow: hidden; min-height: 0; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
   .save { border-top: 1px solid var(--line); background: var(--panel); padding: 12px 24px 14px; }
   .save textarea { width: 100%; resize: vertical; min-height: 44px; }

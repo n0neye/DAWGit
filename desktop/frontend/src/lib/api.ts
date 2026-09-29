@@ -2,8 +2,15 @@
 import * as App from "../../bindings/dawgit/desktop/app";
 export type {
   State, Version, Change, Conflict, Preview, Result, Teammate, Branch,
-  Overview, TeamSummary, TeamProject,
+  Overview, TeamSummary, TeamProject, ProjectFile, FileVersion,
 } from "../../bindings/dawgit/desktop/models";
+
+// A project file for the web view (audio previews): now ("" version) or as in
+// a version. AIFF is served as WAV.
+export function fileURL(root: string, path: string, version = ""): string {
+  const q = new URLSearchParams({ root, path, version });
+  return `/dawgit-file?${q}`;
+}
 export type { TrackEdit } from "../../bindings/dawgit/internal/project/models";
 export type { Project as ServerProject, Member } from "../../bindings/dawgit/internal/remote/models";
 

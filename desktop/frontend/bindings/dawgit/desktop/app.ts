@@ -99,6 +99,15 @@ export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: st
 }
 
 /**
+ * DiscardFile puts one file back as it is in the version the project is on.
+ */
+export function DiscardFile(root: string, file: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(2822748111, root, file, force).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {
@@ -113,6 +122,25 @@ export function DownloadProject(teamID: string, projectID: string, parent: strin
  */
 export function ExportVersion(root: string, id: string, parent: string): $CancellablePromise<string> {
     return $Call.ByID(2651241909, root, id, parent);
+}
+
+/**
+ * FileDiff describes how a set changed between two versions ("" for from:
+ * the set was added), as diff lines.
+ */
+export function FileDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<string[]> {
+    return $Call.ByID(2746812856, root, file, $from, to).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * FileHistory lists the versions of the current branch that changed path.
+ */
+export function FileHistory(root: string, file: string): $CancellablePromise<$models.FileVersion[]> {
+    return $Call.ByID(2582398293, root, file).then(($result: any) => {
+        return $$createType8($result);
+    });
 }
 
 /**
@@ -184,13 +212,13 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function Overview(): $CancellablePromise<$models.Overview | null> {
     return $Call.ByID(20653634).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType10($result);
     });
 }
 
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1135981589, root, name).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType12($result);
     });
 }
 
@@ -200,13 +228,23 @@ export function PreviewMerge(root: string, name: string): $CancellablePromise<$m
  */
 export function PreviewMergeVersion(root: string, id: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(730100359, root, id).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType12($result);
     });
 }
 
 export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(3558658446, root).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType12($result);
+    });
+}
+
+/**
+ * ProjectFiles lists the changed files; with all, every file in the project
+ * folder (files DAWGit leaves out are "ignored").
+ */
+export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$models.ProjectFile[]> {
+    return $Call.ByID(445585849, root, all).then(($result: any) => {
+        return $$createType14($result);
     });
 }
 
@@ -253,7 +291,7 @@ export function SelectTeam(id: string): $CancellablePromise<void> {
  */
 export function ServerProjects(address: string, token: string): $CancellablePromise<remote$0.Project[]> {
     return $Call.ByID(898254696, address, token).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType16($result);
     });
 }
 
@@ -289,6 +327,13 @@ export function ShareProject(root: string, teamID: string): $CancellablePromise<
     });
 }
 
+/**
+ * ShowFile opens Explorer with the file selected.
+ */
+export function ShowFile(root: string, file: string): $CancellablePromise<void> {
+    return $Call.ByID(3695986834, root, file);
+}
+
 export function ShowFolder(root: string): $CancellablePromise<void> {
     return $Call.ByID(2097789072, root);
 }
@@ -304,7 +349,7 @@ export function Signature(root: string): $CancellablePromise<string> {
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
     return $Call.ByID(1946832782, root).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType18($result);
     });
 }
 
@@ -319,7 +364,7 @@ export function SwitchBranch(root: string, name: string, force: boolean): $Cance
  */
 export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
     return $Call.ByID(2113787423, teamID).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType20($result);
     });
 }
 
@@ -346,13 +391,18 @@ const $$createType2 = $Create.Nullable($$createType1);
 const $$createType3 = $models.TeamSummary.createFrom;
 const $$createType4 = $models.Result.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.Overview.createFrom;
-const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = $models.Preview.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = remote$0.Project.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $models.State.createFrom;
-const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = remote$0.Member.createFrom;
-const $$createType15 = $Create.Array($$createType14);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = $models.FileVersion.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.Overview.createFrom;
+const $$createType10 = $Create.Nullable($$createType9);
+const $$createType11 = $models.Preview.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = $models.ProjectFile.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = remote$0.Project.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.State.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = remote$0.Member.createFrom;
+const $$createType20 = $Create.Array($$createType19);
