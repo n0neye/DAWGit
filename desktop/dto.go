@@ -57,7 +57,7 @@ type State struct {
 	TeamID      string   `json:"teamId"` // "" for a project kept on this computer only
 	TeamName    string   `json:"teamName"`
 	Online      bool     `json:"online"`
-	Offline     string   `json:"offline"` // why the server is unreachable
+	Offline     string   `json:"offline"`     // why the server is unreachable
 	LiveRunning bool     `json:"liveRunning"` // a set of this project is open in Live
 	Head        string   `json:"head"`
 	Sets        []string `json:"sets"` // .als files in the project folder
