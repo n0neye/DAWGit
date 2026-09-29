@@ -1,99 +1,81 @@
 # DAWGit
 
-Version control and collaboration tool for music production, targeting Ableton Live users first.
+**English** | [繁體中文](README-cht.md)
 
-## Scope
+Version history and teamwork for Ableton Live projects. Commit versions of your songs, see what changed track by track, and work on the same song with your bandmates — DAWGit merges your changes at the track level.
 
-- Small teams working on the same songs, with a self-hosted server
-- Project sync & remote multi-user editing
-- Sample management via content-addressed storage (dedupe, lazy fetch, path relinking)
-- Track-level semantic 3-way merge of `.als` Live Sets (L2)
+> **Work in progress.** DAWGit is an early preview. Expect rough edges and changes (including to how data is stored) before 1.0. Keep your own backups of projects that matter. Windows only for now; tested with Ableton Live 12.
 
-## Layout
+## Features
 
-- `SampleProjects/` — real Ableton projects used as test fixtures (audio stored via Git LFS)
+- **Versions of the whole project** — Live Sets and samples, committed with a message. Unchanged files are stored once.
+- **Changes by track** — after you press Ctrl+S in Live, DAWGit lists which tracks you added, removed or changed.
+- **Track-level merging** — when two people edit the same song, their changes are combined track by track (tracks, their placement and order, sends) together with song-wide parts such as the main track, locators and scenes. Only when you both changed the same track does DAWGit ask which to keep: yours, theirs, or both side by side.
+- **Samples go with the project** — samples inside the project folder, and samples from elsewhere on your disk, are stored with each version. On a teammate's computer the set is pointed at them automatically. Samples from Live packs are only recorded by name.
+- **See who is editing what** — DAWGit shows which tracks your teammates are working on right now and warns you when you both edit the same one. Your unsaved work is backed up to the team.
+- **Two ways to host a team**
+  - a **team server** on any computer or NAS in your team (one program, no setup), or
+  - **S3-compatible storage** such as Cloudflare R2 — nothing needs to stay switched on.
+- **Or keep it local** — use DAWGit on your own, with versions kept on your computer only.
+- **Nothing changes behind your back** — DAWGit never changes your project files on its own, only when you take in your team's changes, and it asks you to close Live before it rewrites a set.
+- **Branches** for teams that want to try ideas separately and merge them later.
 
-## Install (Windows)
+## Getting started
 
-See [docs/team-setup.md](docs/team-setup.md). Build the installer with:
+### Install
 
-```
-powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1   # -> dist\DAWGit-<version>-setup.exe
-```
+1. Download `DAWGit-<version>-setup.exe` from the [Releases](../../releases) page.
+2. Run it. No administrator rights needed. The installer is not code-signed yet, so Windows may show "Windows protected your PC": click **More info → Run anyway**.
+3. Leave **Start with Windows** checked: DAWGit then waits in the system tray, backs up your work in progress and tells you about new versions.
 
-Needs Go, Node.js, Wails v3 CLI (`wails3`) and NSIS. The version number lives in `internal/version/version.go`.
+Requires Windows 10 (21H2 or later) or Windows 11.
 
-## Build & test (Go)
+### Use it on your own
 
-Requires Go 1.27+.
+1. Open DAWGit and choose **Just keep versions on this computer**.
+2. Pick an Ableton project folder (the one with the `.als` file and `Ableton Project Info`).
+3. Work in Live as usual and press **Ctrl+S**. Your changes appear in DAWGit.
+4. Describe what you did and click **Commit version**.
 
-```
-go build -o dawgit.exe ./cmd/dawgit
-dawgit info <set.als>                            # tracks, devices, clips, automation, plugins, samples
-dawgit diff <a.als> <b.als>                      # semantic diff
-dawgit merge <base> <ours> <theirs> -o out.als [--strategy fail|ours|theirs|both]
-go test ./...
-```
+You can share the project with a team later with **Share with a team…**.
 
-Team workflow:
+### Join a team
 
-```
-dawgit serve --data D:\dawgit-data            # on any team machine or NAS; prints the token
-dawgit init && dawgit remote http://host:7331 --token T && dawgit save -m "first version"
-dawgit clone http://host:7331 "Song" --token T  # other members
-dawgit save -m "added drums"                   # save a version and share it (merges others' versions first)
-dawgit update                                  # get the team's latest versions
-```
+Ask whoever set up your team for the **server address and token**, or for your **connection code**.
 
-Keep `dawgit agent` running while you work: it backs up your unsaved sets to the server, shows which tracks teammates are editing (track-level soft locks, with a warning when you edit the same track), and tells you when someone saves a new version. It never changes your files; `dawgit status` shows the same information.
+1. Open DAWGit, paste the address and token (or the code) and click **Connect**.
+2. Enter your name — it appears next to the versions you commit.
+3. Download the songs you work on, or add your own project with **+ Add a project**.
 
-Branches (advanced teams):
+Everyday use:
 
-```
-dawgit branch                    # list branches and their latest versions
-dawgit branch new yi-ideas       # start a branch from your current version
-dawgit switch main
-dawgit merge yi-ideas --preview  # what would come in (semantic diff) and what conflicts
-dawgit merge yi-ideas            # merge into your branch and share
-dawgit update --preview          # what the team changed, without applying it
-```
+- Work in Live and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
+- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, their changes are merged in first.
+- When a teammate commits, DAWGit tells you. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first, then reopen it.
+- A yellow banner means you and a teammate are editing the same track right now: talk before you both commit.
 
-`save`/`update` merge Live Sets track by track; when you and others changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if others' changes must be merged in.
+### Set up a team
 
-Local project workflow (inside an Ableton project folder):
+One person does this once. Pick one:
 
-```
-dawgit init [--author NAME]        # creates .dawgit/
-dawgit snapshot -m "message"       # record .als files, Samples/ and external samples
-dawgit status                      # changed files; semantic diff for modified sets
-dawgit log
-dawgit checkout <id|HEAD~N> [--force]   # restore and relink samples for this machine
-```
+- **Team server** — on a computer that is on while you work (or a NAS): Start menu → **DAWGit → DAWGit Team Server**. It shows the address and token to share. Teammates outside your network need a VPN (e.g. Tailscale) or port forwarding.
+- **Team storage** — create an S3-compatible bucket (e.g. Cloudflare R2) and an access key per member, then make a connection code for each with `dawgit connection-code`. No computer has to stay on.
 
-Snapshots store file contents by SHA-256 in `.dawgit/objects` (deduplicated). Samples referenced from outside the project are stored too and, on a machine that lacks them, materialized under `.dawgit/external/` with the set's sample paths rewritten. Samples from Live packs are only recorded by pack name. `Backup/` and `*.asd` are ignored.
+Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
 
-- `internal/xmltree` — ordered XML tree with byte-exact round-trip of Live's output
-- `internal/als` — Live Set model, content fingerprints (noise-aware), structural validator
-- `internal/diff` — track-level semantic diff
-- `internal/merge` — track-level 3-way merge (tracks, placement, order, sends, globals) with id repair
-- `internal/store` — content-addressed blob store
-- `internal/project` — snapshots, status, log, checkout with sample relinking
-- `internal/livecheck` — detects a running Live before rewriting sets
-- `internal/manifest` — snapshot manifest shared by client and server
-- `internal/server` — self-hosted server (files on disk, token auth, branch compare-and-swap)
-- `internal/remote` — HTTP client; `internal/project/sync.go` does save/update/clone and snapshot merges
+## Known limitations
 
-## Python reference implementation
+- Windows only. macOS is planned.
+- Tested with Ableton Live 12 (12.3). Other versions may work but are not verified.
+- Some plugins store changing state even when you did not touch them, which can show up as a change or a conflict on that track.
+- Restoring an older version is only available in the [command line tool](docs/cli.md) (`dawgit checkout`) so far.
+- Deleted projects and old data are not cleaned up from team storage yet, so it only grows.
+- No automatic updates: download new versions from the Releases page.
 
-`python/` holds the original prototype. The Go port must stay output-identical to it:
+## More
 
-```
-cd python
-python -m unittest discover -s tests -t .        # reference tests
-python -m tests.make_golden                      # writes ../testdata/golden for Go differential tests
-python -m tests.make_live_samples                # MergeTest-*.als to open in Live
-```
+- [Team setup guide](docs/team-setup.md)
+- [Command line tool](docs/cli.md)
+- [Building and development](docs/development.md)
 
-`go test ./internal/merge` compares Go merge/diff/validate output byte-for-byte against the golden data (skipped when absent).
-
-See [docs/als-format-notes.md](docs/als-format-notes.md) for findings about the .als format, and [docs/design/](docs/design/) for design proposals (e.g. [pluggable storage backends](docs/design/storage-backends.md)).
+Feedback and bug reports are welcome in [Issues](../../issues).
