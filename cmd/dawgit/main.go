@@ -11,6 +11,7 @@ import (
 	"dawgit/internal/als"
 	"dawgit/internal/diff"
 	"dawgit/internal/merge"
+	"dawgit/internal/version"
 )
 
 const usage = `usage: dawgit <command> [args]
@@ -48,6 +49,8 @@ set commands:
   diff <a.als> <b.als>                   semantic diff
   merge-sets <base> <ours> <theirs> -o <out>  track-level 3-way merge of files
         [--strategy fail|ours|theirs|both]
+
+  version                                show the DAWGit version
 `
 
 func main() {
@@ -98,6 +101,8 @@ func main() {
 		err = cmdUpdate(os.Args[2:])
 	case "-h", "--help", "help":
 		fmt.Print(usage)
+	case "version", "--version", "-v":
+		fmt.Println("dawgit " + version.Version)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", os.Args[1], usage)
 		os.Exit(2)

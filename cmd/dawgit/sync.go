@@ -15,6 +15,7 @@ import (
 	"dawgit/internal/remote"
 	"dawgit/internal/server"
 	"dawgit/internal/teams"
+	"dawgit/internal/version"
 )
 
 // parseArgs parses flags that may appear before or after positional args.
@@ -74,7 +75,8 @@ func cmdServe(args []string) error {
 		hosts = lanIPs()
 	}
 	abs, _ := filepath.Abs(*data)
-	fmt.Printf("DAWGit server for team %q\n  data:  %s\n  token: %s\n\nteam members connect with:\n", st.Name(), abs, *token)
+	fmt.Printf("DAWGit server %s for team %q\n  data:  %s\n  token: %s\n\nteam members connect with:\n",
+		version.Version, st.Name(), abs, *token)
 	for _, h := range hosts {
 		fmt.Printf("  dawgit remote http://%s:%s --token %s\n", h, port, *token)
 	}

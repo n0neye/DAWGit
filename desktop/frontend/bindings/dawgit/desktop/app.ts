@@ -232,6 +232,13 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
     });
 }
 
+/**
+ * Version is the DAWGit release number.
+ */
+export function Version(): $CancellablePromise<string> {
+    return $Call.ByID(2431199839);
+}
+
 // Private type creation functions
 const $$createType0 = $models.TeamProject.createFrom;
 const $$createType1 = $models.TeamSummary.createFrom;

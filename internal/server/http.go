@@ -11,11 +11,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"dawgit/internal/version"
 )
 
 // API (all JSON, Bearer token auth):
 //
-//	GET  /api/v1/info                             -> {name} (team name)
+//	GET  /api/v1/info                             -> {name, version} (team name, server version)
 //	PUT  /api/v1/info                             {name} (rename the team)
 //	GET  /api/v1/projects                         -> [{id,name}]
 //	PUT  /api/v1/projects/{pid}                   {name}
@@ -34,7 +36,7 @@ func Handler(s *Storage, token string) http.Handler {
 	mux := http.NewServeMux()
 	h := &handlers{s: s}
 	mux.HandleFunc("GET /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
-		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name()})
+		writeJSONResponse(w, http.StatusOK, map[string]string{"name": s.Name(), "version": version.Version})
 	})
 	mux.HandleFunc("PUT /api/v1/info", func(w http.ResponseWriter, r *http.Request) {
 		var body struct{ Name string }

@@ -18,10 +18,10 @@ Version control and collaboration tool for music production, targeting Ableton L
 See [docs/team-setup.md](docs/team-setup.md). Build the installer with:
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1 -Version 0.1.0   # -> dist\DAWGit-0.1.0-setup.exe
+powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1   # -> dist\DAWGit-<version>-setup.exe
 ```
 
-Needs Go, Node.js, Wails v3 CLI (`wails3`) and NSIS.
+Needs Go, Node.js, Wails v3 CLI (`wails3`) and NSIS. The version number lives in `internal/version/version.go`.
 
 ## Build & test (Go)
 

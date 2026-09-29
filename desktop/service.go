@@ -16,6 +16,7 @@ import (
 	"dawgit/internal/livecheck"
 	"dawgit/internal/project"
 	"dawgit/internal/teams"
+	"dawgit/internal/version"
 )
 
 // App is the service the frontend calls. Every method that touches a project
@@ -35,6 +36,9 @@ func NewApp() *App {
 }
 
 func (a *App) ServiceName() string { return "App" }
+
+// Version is the DAWGit release number.
+func (a *App) Version() string { return version.Version }
 
 // ServiceStartup starts an agent for every downloaded team project (in all
 // teams, so notices keep coming whichever team is selected).

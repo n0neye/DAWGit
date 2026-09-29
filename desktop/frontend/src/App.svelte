@@ -70,6 +70,7 @@
   // A project just added to a team: its view commits and uploads the first
   // version.
   let firstShare = $state("");
+  let appVersion = $state("");
 
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
   // Local (this computer only) is picked in the team menu like a team.
@@ -201,6 +202,7 @@
       if (overview && overview.teams.length === 0 && overview.local.length === 0) onboarding = true;
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
+    api.Version().then((v) => (appVersion = v)).catch(() => {});
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
@@ -275,6 +277,7 @@
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
         </label>
+        {#if appVersion}<span class="version faint" title="DAWGit version">DAWGit {appVersion}</span>{/if}
       </div>
     </aside>
 
@@ -443,6 +446,7 @@
   .pad { padding: 0 8px; }
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
+  .version { font-size: 11px; }
   .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
   .autostart input { width: auto; }
   .small { font-size: 12.5px; }
