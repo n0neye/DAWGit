@@ -43,6 +43,7 @@
     try {
       await api.RenameTeam(t.id, names[t.id]);
       await reload();
+      names[t.id] = overview.teams.find((x) => x.id === t.id)?.name ?? names[t.id];
       toast("Renamed", "ok");
     } catch (e) {
       toast(errorText(e), "error");
@@ -107,14 +108,16 @@
       {#each overview.teams as t (t.id)}
         <li>
           <div class="fields">
-            <input bind:value={names[t.id]} aria-label="Team name" />
+            <input bind:value={names[t.id]} aria-label="Team name" placeholder="The team's own name" />
             <div class="faint small mono">{t.address}</div>
           </div>
-          <button disabled={!names[t.id]?.trim() || names[t.id] === t.name} onclick={() => rename(t)}>Rename</button>
+          <button disabled={names[t.id] === t.name} onclick={() => rename(t)}>Rename</button>
           <button class="danger" onclick={() => (confirmRemove = t)}>Disconnect</button>
         </li>
       {/each}
     </ul>
+    <p class="faint small note">A name you give here is used on this computer only. Leave it empty to use the name
+      the team's server or storage gives, which follows when it is renamed.</p>
     {#snippet footer()}
       <button onclick={() => (managing = false)}>Close</button>
     {/snippet}
@@ -155,5 +158,6 @@
   .teams { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
   .teams li { display: flex; align-items: center; gap: 8px; }
   .fields { flex: 1; min-width: 0; }
+  .note { margin: 14px 0 0; }
   .fields .mono { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

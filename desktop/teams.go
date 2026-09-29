@@ -96,7 +96,18 @@ func (a *App) Overview() (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
-	if b, err := remote.Open(t.Remote); err != nil {
+	b, err := remote.Open(t.Remote)
+	if err == nil {
+		// Follow the team's name when whoever runs it renames it.
+		if info, err := b.Info(); err == nil && store.SyncName(t.ID, info.Name) && store.Save() == nil {
+			for i := range ov.Teams {
+				if ov.Teams[i].ID == t.ID {
+					ov.Teams[i].Name = info.Name
+				}
+			}
+		}
+	}
+	if err != nil {
 		ov.TeamError = err.Error()
 	} else if ps, err := b.Projects(); err != nil {
 		ov.TeamError = err.Error()
@@ -158,10 +169,16 @@ func (a *App) RenameTeam(id, name string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	if name = strings.TrimSpace(name); name == "" {
-		return errors.New("a team needs a name")
+	if err := store.Rename(t.ID, name); err != nil {
+		return err
 	}
-	t.Name = name
+	if !t.CustomName { // back to the team's own name
+		if b, err := remote.Open(t.Remote); err == nil {
+			if info, err := b.Info(); err == nil {
+				store.SyncName(t.ID, info.Name)
+			}
+		}
+	}
 	return store.Save()
 }
 

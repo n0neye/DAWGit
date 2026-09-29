@@ -18,10 +18,19 @@ func TestStoreRoundTrip(t *testing.T) {
 	if a.Remote.URL != "http://studio.local:7331" || s.Current != a.ID {
 		t.Fatalf("team = %+v, current %q", a, s.Current)
 	}
-	// Same address: credentials updated, no duplicate, name kept.
-	s.Upsert(remote.Config{URL: "http://studio.local:7331", Token: "t2"}, "Other")
-	if len(s.Teams) != 1 || s.Teams[0].Remote.Token != "t2" || s.Teams[0].Name != "Studio Night" {
+	// Same address: credentials updated, no duplicate, the team's new name
+	// taken, but not over a name the user gave.
+	s.Upsert(remote.Config{URL: "http://studio.local:7331", Token: "t2"}, "Studio Nights")
+	if len(s.Teams) != 1 || s.Teams[0].Remote.Token != "t2" || s.Teams[0].Name != "Studio Nights" {
 		t.Fatalf("teams = %+v", s.Teams)
+	}
+	s.Rename(a.ID, "Our band")
+	if s.SyncName(a.ID, "Studio Night") || a.Name != "Our band" {
+		t.Fatalf("custom name overwritten: %+v", a)
+	}
+	s.Rename(a.ID, "")
+	if !s.SyncName(a.ID, "Studio Night") || a.Name != "Studio Night" || a.CustomName {
+		t.Fatalf("reset rename: %+v", a)
 	}
 	b := s.Upsert(remote.Config{URL: "s3+https://x.r2.cloudflarestorage.com/team/dawgit", AccessKey: "k", SecretKey: "s"}, "")
 	if b.Name != "team" {

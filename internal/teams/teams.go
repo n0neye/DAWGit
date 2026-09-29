@@ -24,6 +24,9 @@ type Team struct {
 	ID     string        `json:"id"`
 	Name   string        `json:"name"`
 	Remote remote.Config `json:"remote"` // includes credentials
+	// CustomName is set when the user renamed the team on this computer;
+	// otherwise Name follows the name the team's server or storage gives.
+	CustomName bool `json:"customName,omitempty"`
 }
 
 type Store struct {
@@ -127,8 +130,9 @@ func (s *Store) Upsert(cfg remote.Config, name string) *Team {
 	if t := s.FindByURL(cfg.URL); t != nil {
 		t.Remote = cfg
 		if t.Name == "" {
-			t.Name = name
+			t.Name = DefaultName(cfg)
 		}
+		s.SyncName(t.ID, name)
 		return t
 	}
 	b := make([]byte, 8)
@@ -141,6 +145,33 @@ func (s *Store) Upsert(cfg remote.Config, name string) *Team {
 		s.Current = s.Teams[len(s.Teams)-1].ID
 	}
 	return &s.Teams[len(s.Teams)-1]
+}
+
+// SyncName takes the name the team's server or storage gives (empty: none),
+// unless the user renamed the team here. It reports whether it changed.
+func (s *Store) SyncName(id, teamName string) bool {
+	t := s.Find(id)
+	if t == nil || t.CustomName || teamName == "" || t.Name == teamName {
+		return false
+	}
+	t.Name = teamName
+	return true
+}
+
+// Rename names a team on this computer only. An empty name goes back to the
+// team's own name (the default until the next sync).
+func (s *Store) Rename(id, name string) error {
+	t := s.Find(id)
+	if t == nil {
+		return errors.New("unknown team")
+	}
+	if name = strings.TrimSpace(name); name == "" {
+		t.CustomName = false
+		t.Name = DefaultName(t.Remote)
+		return nil
+	}
+	t.Name, t.CustomName = name, true
+	return nil
 }
 
 // DefaultName is shown when neither the user nor the server named the team.
