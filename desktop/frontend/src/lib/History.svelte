@@ -11,7 +11,7 @@
 </script>
 
 {#if versions.length === 0}
-  <p class="muted">No versions yet. Save your first version from the Changes tab.</p>
+  <p class="muted">No versions yet. Commit your first version from the Changes tab.</p>
 {:else}
   <div class="history">
     <svg width={graphWidth} height={versions.length * ROW} class="graph">
