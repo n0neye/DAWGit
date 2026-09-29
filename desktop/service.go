@@ -221,6 +221,11 @@ func (a *App) State(root string) (*State, error) {
 		return nil, err
 	}
 	defer unlock()
+	// On the latest version of another branch (e.g. gone there before this
+	// was handled): that branch is where commits go.
+	if r.OnOlderVersion() && r.Config.Remote != nil {
+		r.AdoptBranchAtHead()
+	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
 		Head: r.Head(), LiveRunning: livecheck.Running(), Sets: []string{},
 		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, Teammates: []Teammate{},

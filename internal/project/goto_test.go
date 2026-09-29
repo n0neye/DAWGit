@@ -190,3 +190,48 @@ func TestExportVersion(t *testing.T) {
 	}
 	assertClean(t, r) // the project itself is untouched
 }
+
+// Going to the latest version of another branch puts the project on that
+// branch: commits go there directly.
+func TestGoToAnotherBranchLatest(t *testing.T) {
+	a, _ := team(t)
+	mainHead := a.Head()
+	a.CreateBranch("idea")
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	if _, _, err := a.Save("idea 1", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := a.GoTo(mainHead, false); err != nil {
+		t.Fatal(err)
+	}
+	if a.OnOlderVersion() || a.BranchName() != "main" {
+		t.Fatalf("older=%v branch=%s", a.OnOlderVersion(), a.BranchName())
+	}
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(a.Root, "Song.als"))
+	m, res, err := a.Save("on main", Strategy("fail"))
+	if err != nil || res.Action != "published" || m.Parents[0] != mainHead {
+		t.Fatalf("commit on main: %v %+v", err, res)
+	}
+
+	// Back on idea's older version (not a branch's latest): still "older".
+	a.GoTo(mainHead, false)
+	if !a.OnOlderVersion() {
+		t.Fatal("a version that is no branch's latest should count as older")
+	}
+}
+
+// Versions not shared yet keep the project where it is.
+func TestAdoptKeepsUnsharedVersions(t *testing.T) {
+	a, _ := team(t)
+	mainHead := a.Head()
+	a.CreateBranch("idea")
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	mustSnapshot(t, a, "not shared")
+	if _, _, err := a.GoTo(mainHead, false); err != nil {
+		t.Fatal(err)
+	}
+	if !a.OnOlderVersion() || a.BranchName() != "idea" {
+		t.Fatalf("older=%v branch=%s", a.OnOlderVersion(), a.BranchName())
+	}
+}
