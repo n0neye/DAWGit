@@ -57,6 +57,7 @@ func main() {
 			log.Printf("notification: %v", err)
 		}
 	}
+	svc.openURL = func(url string) error { return app.Browser.OpenURL(url) }
 	svc.pickDir = func(title string) (string, error) {
 		// Browser (server-mode) testing has no native dialogs.
 		if dir := os.Getenv("DAWGIT_DEV_PICK_DIR"); dir != "" {

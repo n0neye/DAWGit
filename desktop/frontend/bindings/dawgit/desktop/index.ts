@@ -17,5 +17,6 @@ export {
     TeamProject,
     TeamSummary,
     Teammate,
+    UpdateInfo,
     Version
 } from "./models.js";

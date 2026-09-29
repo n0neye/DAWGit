@@ -30,6 +30,7 @@ type App struct {
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
 	pickDir func(title string) (string, error)
+	openURL func(url string) error
 }
 
 func NewApp() *App {

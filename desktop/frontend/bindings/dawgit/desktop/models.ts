@@ -565,6 +565,46 @@ export class Teammate {
     }
 }
 
+/**
+ * UpdateInfo describes a newer release than the one running.
+ */
+export class UpdateInfo {
+    "version": string;
+
+    /**
+     * what's new
+     */
+    "pageUrl": string;
+
+    /**
+     * the installer ("" if none)
+     */
+    "downloadUrl": string;
+
+    /** Creates a new UpdateInfo instance. */
+    constructor($$source: Partial<UpdateInfo> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("pageUrl" in $$source)) {
+            this["pageUrl"] = "";
+        }
+        if (!("downloadUrl" in $$source)) {
+            this["downloadUrl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateInfo($$parsedSource as Partial<UpdateInfo>);
+    }
+}
+
 export class Version {
     "id": string;
     "short": string;
