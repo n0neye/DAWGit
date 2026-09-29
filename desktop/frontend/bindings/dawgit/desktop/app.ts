@@ -78,6 +78,16 @@ export function DeleteProjectFromTeam(teamID: string, projectID: string): $Cance
 }
 
 /**
+ * DiscardAndUpdate drops uncommitted changes and takes the team's latest
+ * versions of this branch.
+ */
+export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(2611281035, root, resolutions, force).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {
@@ -203,9 +213,14 @@ export function RenameTeamForEveryone(id: string, name: string): $CancellablePro
 
 /**
  * Save records a version and shares it (merging the team's versions first).
+ * 
+ * combine: when teammates committed on this branch in the meantime, their
+ * versions are combined with this one. Without it such a save changes
+ * nothing and returns action "behind", so the user decides (combine, new
+ * branch, or discard) with a preview.
  */
-export function Save(root: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(1993570256, root, message, resolutions, force).then(($result: any) => {
+export function Save(root: string, message: string, combine: boolean, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(1993570256, root, message, combine, resolutions, force).then(($result: any) => {
         return $$createType3($result);
     });
 }

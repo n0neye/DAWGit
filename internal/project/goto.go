@@ -154,6 +154,24 @@ func (r *Repo) KeepThisVersion(message string) (*Manifest, error) {
 	return r.Snapshot(message)
 }
 
+// CommitOnOlderVersion commits the changes made on an older version as a
+// version after it (not after the latest), and leaves the older-version
+// state: the branch now has two lines to combine, which Save (or Update) then
+// merges track by track, as when teammates committed in the meantime.
+func (r *Repo) CommitOnOlderVersion(message string) (*Manifest, error) {
+	if !r.OnOlderVersion() {
+		return nil, errors.New("the project is already on its latest version")
+	}
+	tip := r.Config.Tip
+	r.Config.Tip = ""
+	m, err := r.Snapshot(message)
+	if err != nil && !errors.Is(err, ErrNothingToSnapshot) {
+		r.Config.Tip = tip
+		return nil, err
+	}
+	return m, r.SaveConfig()
+}
+
 // ExportName is the default folder name for an exported version, e.g.
 // "Night Drive (2026-09-28, 3f9c2a1b) Project".
 func (r *Repo) ExportName(m *Manifest) string {

@@ -235,3 +235,38 @@ func TestAdoptKeepsUnsharedVersions(t *testing.T) {
 		t.Fatalf("older=%v branch=%s", a.OnOlderVersion(), a.BranchName())
 	}
 }
+
+// Changes made on an older version can be committed after it and combined
+// with the latest version, like teammates' work.
+func TestCommitOnOlderVersionThenCombine(t *testing.T) {
+	a, b := team(t)
+	v1 := a.Head()
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	v2, _, err := a.Save("v2", Strategy("fail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Update(Strategy("fail"))
+	if _, _, err := b.GoTo(v1, false); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(b.Root, "Samples", "older-idea.wav"), []byte("RIFF-idea"), 0o644)
+	m, err := b.CommitOnOlderVersion("idea on v1")
+	if err != nil || m.Parents[0] != v1 || b.OnOlderVersion() {
+		t.Fatalf("commit on older: %v %+v older=%v", err, m, b.OnOlderVersion())
+	}
+	_, res, err := b.Save("idea on v1", Strategy("fail"))
+	if err != nil || res.Action != "published" {
+		t.Fatalf("combine: %v %+v", err, res)
+	}
+	head, _ := b.Load(b.Head())
+	if len(head.Parents) != 2 || !((head.Parents[0] == m.ID && head.Parents[1] == v2.ID) || (head.Parents[0] == v2.ID && head.Parents[1] == m.ID)) {
+		t.Fatalf("merge parents %v, want %s and %s", head.Parents, m.ID, v2.ID)
+	}
+	if _, err := os.Stat(filepath.Join(b.Root, "Samples", "older-idea.wav")); err != nil {
+		t.Error("the change made on the older version is gone")
+	}
+	if setTracks(t, b)["Audios"].Elem == nil {
+		t.Error("the latest version's changes are missing")
+	}
+}

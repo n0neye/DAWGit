@@ -352,7 +352,12 @@ func opts(resolutions map[string]string) project.MergeOptions {
 }
 
 // Save records a version and shares it (merging the team's versions first).
-func (a *App) Save(root, message string, resolutions map[string]string, force bool) (*Result, error) {
+//
+// combine: when teammates committed on this branch in the meantime, their
+// versions are combined with this one. Without it such a save changes
+// nothing and returns action "behind", so the user decides (combine, new
+// branch, or discard) with a preview.
+func (a *App) Save(root, message string, combine bool, resolutions map[string]string, force bool) (*Result, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -361,12 +366,29 @@ func (a *App) Save(root, message string, resolutions map[string]string, force bo
 	if strings.TrimSpace(message) == "" {
 		return nil, errors.New("describe what changed")
 	}
-	if set := liveGuard(r, force); r.Config.Remote != nil && set != "" {
-		if incoming, err := r.Incoming(); err == nil && incoming {
-			return blocked(set), nil
+	incoming := false
+	if r.Config.Remote != nil {
+		incoming, _ = r.Incoming()
+		// Changes made on an older version: newer versions are "incoming"
+		// for them, just as when teammates committed in the meantime.
+		incoming = incoming || r.OnOlderVersion()
+	}
+	if incoming && !combine {
+		return &Result{Action: "behind", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	}
+	if set := liveGuard(r, force); incoming && set != "" {
+		return blocked(set), nil
+	}
+	var older *project.Manifest
+	if r.OnOlderVersion() && r.Config.Remote != nil {
+		if older, err = r.CommitOnOlderVersion(message); err != nil {
+			return nil, err
 		}
 	}
 	m, res, err := r.Save(message, opts(resolutions))
+	if m == nil {
+		m = older
+	}
 	if errors.Is(err, project.ErrNoRemote) {
 		out := syncResult(nil)
 		out.Action = "saved-locally"
@@ -506,6 +528,33 @@ func (a *App) ExportVersion(root, id, parent string) (string, error) {
 		return "", err
 	}
 	return dir, nil
+}
+
+// DiscardAndUpdate drops uncommitted changes and takes the team's latest
+// versions of this branch.
+func (a *App) DiscardAndUpdate(root string, resolutions map[string]string, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
+	}
+	if r.OnOlderVersion() {
+		return nil, project.ErrOlderVersion
+	}
+	if head := r.Head(); head != "" {
+		if _, _, err := r.Checkout(head, true); err != nil {
+			return nil, err
+		}
+	}
+	res, err := r.Update(opts(resolutions))
+	if err != nil {
+		return conflictResult(err)
+	}
+	r.ReportWorkspace()
+	return syncResult(res), nil
 }
 
 func (a *App) CreateBranch(root, name string) error {
