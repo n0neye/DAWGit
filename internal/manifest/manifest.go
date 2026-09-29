@@ -18,9 +18,12 @@ type FileEntry struct {
 type Manifest struct {
 	Version int      `json:"version"`
 	Parents []string `json:"parents"`
-	Author  string   `json:"author"`
-	Time    string   `json:"time"`
-	Message string   `json:"message"`
+	Author  string   `json:"author"` // the name at the time (older versions: the only record)
+	// AuthorID is the team member's id; their current name comes from the
+	// team's member list. Empty for versions from before member ids.
+	AuthorID string `json:"author_id,omitempty"`
+	Time     string `json:"time"`
+	Message  string `json:"message"`
 	// Files inside the project folder.
 	Files []FileEntry `json:"files"`
 	// External are samples referenced by a set from outside the project,

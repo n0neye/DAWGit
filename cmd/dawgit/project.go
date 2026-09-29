@@ -131,12 +131,13 @@ func cmdLog(args []string) error {
 			}
 		}
 	}
+	names := r.MemberNames()
 	for _, m := range log {
 		mark := ""
 		if names := tips[m.ID]; len(names) > 0 {
 			mark = "  [" + strings.Join(names, ", ") + "]"
 		}
-		fmt.Printf("%s  %s  %-12s %s%s\n", short(m.ID), when(m), m.Author, m.Message, mark)
+		fmt.Printf("%s  %s  %-12s %s%s\n", short(m.ID), when(m), project.AuthorName(m, names), m.Message, mark)
 	}
 	return nil
 }

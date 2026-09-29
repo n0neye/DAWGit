@@ -206,6 +206,23 @@ func (c *Client) Info() (TeamInfo, error) {
 	return info, err
 }
 
+func (c *Client) Members() ([]Member, error) {
+	out := []Member{}
+	err := c.call("GET", "/members", nil, &out)
+	if errors.Is(err, ErrNotFound) { // a server from before member lists
+		return []Member{}, nil
+	}
+	return out, err
+}
+
+func (c *Client) PutMember(m Member) error {
+	err := c.call("PUT", "/members/"+m.ID, m, nil)
+	if errors.Is(err, ErrNotFound) {
+		return ErrOldServer
+	}
+	return err
+}
+
 func (c *Client) SetInfo(info TeamInfo) error {
 	err := c.call("PUT", "/info", info, nil)
 	if errors.Is(err, ErrNotFound) {

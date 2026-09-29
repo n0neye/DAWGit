@@ -27,6 +27,10 @@ type Team struct {
 	// CustomName is set when the user renamed the team on this computer;
 	// otherwise Name follows the name the team's server or storage gives.
 	CustomName bool `json:"customName,omitempty"`
+	// MemberID and MemberName: who this computer is in the team (versions
+	// record the id; the name is kept in the team's member list).
+	MemberID   string `json:"memberId,omitempty"`
+	MemberName string `json:"memberName,omitempty"`
 }
 
 type Store struct {
@@ -194,6 +198,13 @@ func oldDefaultName(cfg remote.Config) string {
 		return ""
 	}
 	return "Storage " + strings.Trim(u.Path, "/")
+}
+
+// NewID returns n random bytes as hex (team and member ids).
+func NewID(n int) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // LocalID as Current selects the projects kept on this computer only.

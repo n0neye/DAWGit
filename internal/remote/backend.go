@@ -27,6 +27,11 @@ type Backend interface {
 	// SetInfo renames the team for everyone.
 	SetInfo(info TeamInfo) error
 
+	// Members lists the team's members (their ids and display names);
+	// PutMember adds a member or renames one.
+	Members() ([]Member, error)
+	PutMember(m Member) error
+
 	Projects() ([]Project, error)
 	PutProject(p Project) error
 	// DeleteProject removes a project from the team: its versions, branches
@@ -55,6 +60,16 @@ type Backend interface {
 }
 
 var _ Backend = (*Client)(nil)
+
+// Member is a person in the team. Versions record the member's id, so a new
+// display name applies to everything they did.
+type Member struct {
+	ID   string `json:"id"` // 32 hex characters
+	Name string `json:"name"`
+}
+
+// ValidMemberID reports whether id looks like a member id.
+func ValidMemberID(id string) bool { return validHex(id, 32) }
 
 // TeamInfo describes a team as its server or storage names it.
 type TeamInfo struct {

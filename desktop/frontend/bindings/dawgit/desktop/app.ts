@@ -269,6 +269,18 @@ export function SetAutostart(on: boolean): $CancellablePromise<void> {
 }
 
 /**
+ * SetIdentity sets who this computer is in a team: an existing member
+ * (memberID, e.g. the same person on another computer) or a new one
+ * (memberID ""). The name goes to the team's member list, so everyone sees
+ * it on all of that member's versions, old ones included.
+ */
+export function SetIdentity(teamID: string, memberID: string, name: string): $CancellablePromise<$models.TeamSummary> {
+    return $Call.ByID(1822841893, teamID, memberID, name).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * ShareProject moves a local-only project into a team (see AddProjectToTeam).
  */
 export function ShareProject(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
@@ -303,6 +315,15 @@ export function SwitchBranch(root: string, name: string, force: boolean): $Cance
 }
 
 /**
+ * TeamMembers lists a team's members (to pick yourself on a new computer).
+ */
+export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
+    return $Call.ByID(2113787423, teamID).then(($result: any) => {
+        return $$createType15($result);
+    });
+}
+
+/**
  * Update brings in the team's latest versions.
  */
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
@@ -333,3 +354,5 @@ const $$createType10 = remote$0.Project.createFrom;
 const $$createType11 = $Create.Array($$createType10);
 const $$createType12 = $models.State.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = remote$0.Member.createFrom;
+const $$createType15 = $Create.Array($$createType14);

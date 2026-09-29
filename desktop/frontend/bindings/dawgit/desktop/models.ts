@@ -505,6 +505,12 @@ export class TeamSummary {
     "address": string;
     "isStorage": boolean;
 
+    /**
+     * Who this computer is in the team ("" until chosen).
+     */
+    "memberId": string;
+    "memberName": string;
+
     /** Creates a new TeamSummary instance. */
     constructor($$source: Partial<TeamSummary> = {}) {
         if (!("id" in $$source)) {
@@ -518,6 +524,12 @@ export class TeamSummary {
         }
         if (!("isStorage" in $$source)) {
             this["isStorage"] = false;
+        }
+        if (!("memberId" in $$source)) {
+            this["memberId"] = "";
+        }
+        if (!("memberName" in $$source)) {
+            this["memberName"] = "";
         }
 
         Object.assign(this, $$source);
@@ -623,6 +635,11 @@ export class Version {
     "branches": string[];
 
     /**
+     * team member id ("" for older versions)
+     */
+    "authorId": string;
+
+    /**
      * InBranch: the current branch already contains this version (only set
      * in State.History); other versions can be merged in.
      */
@@ -650,6 +667,9 @@ export class Version {
         }
         if (!("branches" in $$source)) {
             this["branches"] = [];
+        }
+        if (!("authorId" in $$source)) {
+            this["authorId"] = "";
         }
         if (!("inBranch" in $$source)) {
             this["inBranch"] = false;

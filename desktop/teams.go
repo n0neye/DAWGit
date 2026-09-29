@@ -28,6 +28,9 @@ type TeamSummary struct {
 	Name      string `json:"name"`
 	Address   string `json:"address"`
 	IsStorage bool   `json:"isStorage"`
+	// Who this computer is in the team ("" until chosen).
+	MemberID   string `json:"memberId"`
+	MemberName string `json:"memberName"`
 }
 
 // TeamProject is a project as the sidebar shows it.
@@ -51,7 +54,8 @@ type Overview struct {
 }
 
 func teamSummary(t teams.Team) TeamSummary {
-	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage()}
+	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
+		MemberID: t.MemberID, MemberName: t.MemberName}
 }
 
 func folderProject(root, status string) TeamProject {
@@ -133,6 +137,65 @@ func (a *App) SetAuthor(name string) error {
 	}
 	store.Author = strings.TrimSpace(name)
 	return store.Save()
+}
+
+// TeamMembers lists a team's members (to pick yourself on a new computer).
+func (a *App) TeamMembers(teamID string) ([]remote.Member, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return nil, errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return nil, err
+	}
+	return b.Members()
+}
+
+// SetIdentity sets who this computer is in a team: an existing member
+// (memberID, e.g. the same person on another computer) or a new one
+// (memberID ""). The name goes to the team's member list, so everyone sees
+// it on all of that member's versions, old ones included.
+func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 100 {
+		return TeamSummary{}, errors.New("a name needs 1 to 100 characters")
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return TeamSummary{}, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return TeamSummary{}, errors.New("unknown team")
+	}
+	if memberID == "" {
+		memberID = teams.NewID(16)
+	}
+	if !remote.ValidMemberID(memberID) {
+		return TeamSummary{}, errors.New("invalid member id")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return TeamSummary{}, err
+	}
+	if err := b.PutMember(remote.Member{ID: memberID, Name: name}); err != nil &&
+		!errors.Is(err, remote.ErrOldServer) { // old server: the name still goes with new versions
+		return TeamSummary{}, err
+	}
+	t.MemberID, t.MemberName = memberID, name
+	if store.Author == "" {
+		store.Author = name
+	}
+	if err := store.Save(); err != nil {
+		return TeamSummary{}, err
+	}
+	forgetNames(t.Remote.URL)
+	return teamSummary(*t), nil
 }
 
 // ConnectTeam adds a team (server address + token, or a connection code) and

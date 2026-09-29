@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -263,6 +264,9 @@ func projectDir(pid string) string       { return "projects/" + pid + "/" }
 func snapshotKey(pid, id string) string  { return projectDir(pid) + "snapshots/" + id + ".json" }
 func branchKey(pid, name string) string  { return projectDir(pid) + "branches/" + name }
 func workspaceKey(pid, ws string) string { return projectDir(pid) + "workspaces/" + ws + ".json" }
+
+// memberKey: one object per member, so members never overwrite each other.
+func memberKey(id string) string { return "members/" + id + ".json" }
 func validHex(s string, n int) bool {
 	if len(s) != n {
 		return false
@@ -548,6 +552,48 @@ func (b *S3Backend) PutWorkspace(pid, wsid string, state any) error {
 		return err
 	}
 	r, err := b.put(workspaceKey(pid, wsid), data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
+func (b *S3Backend) Members() ([]Member, error) {
+	keys, err := b.list("members/", false)
+	if err != nil {
+		return nil, err
+	}
+	var mu sync.Mutex
+	out := []Member{}
+	err = parallel(keys, func(key string) error {
+		r, err := b.get(key)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var m Member
+		if json.Unmarshal(r.body, &m) == nil && ValidMemberID(m.ID) {
+			mu.Lock()
+			out = append(out, m)
+			mu.Unlock()
+		}
+		return nil
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, err
+}
+
+func (b *S3Backend) PutMember(m Member) error {
+	if !ValidMemberID(m.ID) {
+		return errors.New("invalid member id")
+	}
+	data, _ := json.Marshal(m)
+	r, err := b.put(memberKey(m.ID), data, nil)
 	if err != nil {
 		return err
 	}

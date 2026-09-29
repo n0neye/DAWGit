@@ -5,6 +5,38 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+/**
+ * Member is a person in the team. Versions record the member's id, so a new
+ * display name applies to everything they did.
+ */
+export class Member {
+    /**
+     * 32 hex characters
+     */
+    "id": string;
+    "name": string;
+
+    /** Creates a new Member instance. */
+    constructor($$source: Partial<Member> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Member instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Member {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Member($$parsedSource as Partial<Member>);
+    }
+}
+
 export class Project {
     "id": string;
     "name": string;

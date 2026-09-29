@@ -346,3 +346,33 @@ func TestSaveAndCloneReportProgress(t *testing.T) {
 		t.Error("no download progress while cloning")
 	}
 }
+
+// A team member's versions record their id; renaming them in the team's
+// member list renames all their versions.
+func TestMemberIdentity(t *testing.T) {
+	a, _ := team(t)
+	store, _ := teams.Load()
+	tm := store.FindByURL(a.Config.Remote.URL)
+	tm.MemberID, tm.MemberName = teams.NewID(16), "Yi"
+	store.Save()
+	c, _ := a.Client()
+	c.PutMember(remote.Member{ID: tm.MemberID, Name: "Yi"})
+
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	m, _, err := a.Save("with id", Strategy("fail"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.AuthorID != tm.MemberID || m.Author != "Yi" {
+		t.Fatalf("author %q id %q", m.Author, m.AuthorID)
+	}
+	c.PutMember(remote.Member{ID: tm.MemberID, Name: "Yi Chen"})
+	names := a.MemberNames()
+	if got := AuthorName(m, names); got != "Yi Chen" {
+		t.Errorf("renamed author = %q", got)
+	}
+	first, _ := a.Load(m.Parents[0]) // from before ids: keeps its recorded name
+	if got := AuthorName(first, names); got != "yi" {
+		t.Errorf("old version author = %q", got)
+	}
+}

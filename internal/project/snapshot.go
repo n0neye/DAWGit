@@ -223,7 +223,8 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &Manifest{Version: 1, Parents: []string{}, Author: r.Config.Author,
+	authorID, author := r.Identity()
+	m := &Manifest{Version: 1, Parents: []string{}, Author: author, AuthorID: authorID,
 		Time: time.Now().UTC().Format(time.RFC3339), Message: message,
 		Files: files, External: external, Packs: packs, Missing: missing}
 	if head := r.Head(); head != "" {

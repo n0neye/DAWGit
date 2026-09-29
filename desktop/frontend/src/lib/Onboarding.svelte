@@ -5,6 +5,7 @@
   import { api, errorText, savedAuthor, rememberAuthor, type Overview, type Progress,
     type TeamSummary } from "./api";
   import ConnectForm from "./ConnectForm.svelte";
+  import IdentityForm from "./IdentityForm.svelte";
 
   // First run: 1) connect to your team, 2) your name, 3) get or add projects.
   let { overview, reload, onfinish }: {
@@ -120,6 +121,14 @@
       <p class="local">
         <button class="link" onclick={localOnly}>Just keep versions on this computer</button>
       </p>
+    {:else if step === 2 && team}
+      <h1>Who are you in {team.name}?</h1>
+      <IdentityForm {team} suggested={name} onsaved={async (t) => {
+        team = t;
+        rememberAuthor(t.memberName);
+        await reload();
+        step = 3;
+      }} />
     {:else if step === 2}
       <h1>What should your teammates call you?</h1>
       <p class="muted">Your name appears next to the versions you save.</p>

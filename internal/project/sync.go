@@ -727,7 +727,8 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 
-	m := &Manifest{Version: 1, Parents: []string{ours.ID, theirs.ID}, Author: r.Config.Author,
+	authorID, author := r.Identity()
+	m := &Manifest{Version: 1, Parents: []string{ours.ID, theirs.ID}, Author: author, AuthorID: authorID,
 		Time: time.Now().UTC().Format(time.RFC3339), Message: "Merge versions from the team",
 		Files: files}
 	ext := map[string]FileEntry{}
