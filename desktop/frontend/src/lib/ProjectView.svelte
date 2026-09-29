@@ -407,7 +407,7 @@
 
     <main>
       {#if tab === "changes"}
-        <div class="changes-grid">
+        <div class="changes">
           <section>
             {#if st.myEdits.length}
               <h3>Tracks you changed</h3>
@@ -427,21 +427,6 @@
             <ChangeList changes={st.changes}
               empty="No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." />
           </section>
-          <aside class="save">
-            <h3>Commit a version</h3>
-            <textarea rows="4" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"></textarea>
-            <button class="primary wide" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}>
-              {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
-            </button>
-            <p class="faint small">
-              {#if st.remoteUrl}
-                Commits the current state of the project folder and shares it with the team on “{st.branch}”.
-                If others saved in the meantime, their changes are merged in first.
-              {:else}
-                Commits on this computer. Share the project with a team to work on it together.
-              {/if}
-            </p>
-          </aside>
         </div>
       {:else if tab === "history"}
         <History versions={st.history} head={st.head} incoming={incomingIds} />
@@ -463,6 +448,27 @@
         </section>
       {/if}
     </main>
+
+    {#if tab === "changes"}
+      <footer class="save">
+        <textarea rows="2" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
+          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey && message.trim() && !busy) run(saveAction); }}></textarea>
+        <div class="save-row">
+          <p class="faint small">
+            {#if st.remoteUrl}
+              Commits the project folder and shares it with the team on “{st.branch}”. If others saved in the
+              meantime, their changes are merged in first.
+            {:else}
+              Commits on this computer. Share the project with a team to work on it together.
+            {/if}
+          </p>
+          <button class="primary" disabled={!message.trim() || !!busy} onclick={() => run(saveAction)}
+            title="Ctrl+Enter">
+            {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
+          </button>
+        </div>
+      </footer>
+    {/if}
   </div>
 
   {#if preview}
@@ -572,9 +578,11 @@
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
-  .changes-grid { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
-  .save { position: sticky; top: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
-  .wide { width: 100%; margin-top: 10px; padding: 9px; }
+  .save { border-top: 1px solid var(--line); background: var(--panel); padding: 12px 24px 14px; }
+  .save textarea { width: 100%; resize: vertical; min-height: 44px; }
+  .save-row { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
+  .save-row p { flex: 1; margin: 0; }
+  .save-row button { padding: 9px 18px; white-space: nowrap; }
   .small { font-size: 12px; margin: 10px 0 0; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }

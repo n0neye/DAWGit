@@ -31,6 +31,33 @@ func Run(t *testing.T, b remote.Backend) {
 	t.Run("branches", func(t *testing.T) { branches(t, b) })
 	t.Run("branch race", func(t *testing.T) { branchRace(t, b) })
 	t.Run("workspaces", func(t *testing.T) { workspaces(t, b) })
+	t.Run("delete project", func(t *testing.T) { deleteProject(t, b) })
+}
+
+func deleteProject(t *testing.T, b remote.Backend) {
+	pid := newProject(t, b)
+	v := putVersion(t, b, pid)
+	if err := b.UpdateBranch(pid, "main", "", v); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.PutWorkspace(pid, newID(16), map[string]string{"author": "yi"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.DeleteProject(pid); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	ps, err := b.Projects()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range ps {
+		if p.ID == pid {
+			t.Fatal("deleted project is still listed")
+		}
+	}
+	if br, err := b.Branches(pid); err == nil && len(br) > 0 {
+		t.Fatalf("branches left after delete: %v", br)
+	}
 }
 
 func newID(n int) string {

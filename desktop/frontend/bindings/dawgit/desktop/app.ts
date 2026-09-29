@@ -69,6 +69,15 @@ export function CreateBranch(root: string, name: string): $CancellablePromise<vo
 }
 
 /**
+ * DeleteProjectFromTeam removes a project from the team's server or storage
+ * for everyone. The copy on this computer (if any) is kept, with its history,
+ * as a project on this computer only.
+ */
+export function DeleteProjectFromTeam(teamID: string, projectID: string): $CancellablePromise<void> {
+    return $Call.ByID(1271903518, teamID, projectID);
+}
+
+/**
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {

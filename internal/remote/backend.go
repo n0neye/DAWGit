@@ -27,6 +27,9 @@ type Backend interface {
 
 	Projects() ([]Project, error)
 	PutProject(p Project) error
+	// DeleteProject removes a project from the team: its versions, branches
+	// and workspaces. Stored files may stay until they are cleaned up.
+	DeleteProject(pid string) error
 
 	// Branches maps branch name to version id.
 	Branches(pid string) (map[string]string, error)

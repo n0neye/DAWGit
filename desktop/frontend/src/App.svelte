@@ -17,6 +17,10 @@
   let busy = $state("");
   let autostart = $state(false);
   let confirmShare = $state<string | null>(null);
+  let rowMenu = $state(""); // key of the project whose ⋯ menu is open
+  let confirmDelete = $state<TeamProject | null>(null);
+  let deleteWord = $state("");
+  const rowKey = (p: TeamProject) => p.root || p.id;
 
   const SELECTED_KEY = "dawgit.selected";
   const DOWNLOAD_DIR_KEY = "dawgit.downloadDir";
@@ -133,6 +137,22 @@
     await reload();
   }
 
+  async function deleteFromTeam(p: TeamProject) {
+    confirmDelete = null;
+    busy = "delete";
+    try {
+      await api.DeleteProjectFromTeam(overview!.currentTeam, p.id);
+      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy is kept on this computer.`
+        : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
+      if (!p.root) selected = {};
+      await reload();
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
+    }
+  }
+
   async function addToTeam() {
     const folder = await api.ChooseFolder(`Choose an Ableton project folder to share with ${current?.name ?? "the team"}`);
     if (folder) confirmShare = folder;
@@ -209,7 +229,8 @@
   const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪", local: "♪" };
 </script>
 
-<svelte:window onfocus={reloadIfStale} />
+<svelte:window onfocus={reloadIfStale}
+  onclick={(e) => { if (rowMenu && !(e.target as HTMLElement).closest(".row-menu, .more")) rowMenu = ""; }} />
 
 {#if !overview}
   <div class="loading faint">Loading…</div>
@@ -242,7 +263,7 @@
               <li class="empty faint">No projects in this team yet.</li>
             {/each}
           </ul>
-          <button class="add" onclick={addToTeam} disabled={busy === "add"}>+ Add project folder</button>
+          <button class="add" onclick={addToTeam} disabled={busy === "add"}>+ Add local project</button>
         {:else}
           <p class="faint small pad">Connect to a team to share projects.</p>
         {/if}
@@ -307,7 +328,7 @@
       {:else}
         <div class="placeholder">
           <h1>{current ? current.name : "DAWGit"}</h1>
-          <p class="muted">{current ? "Pick a song on the left, or add a project folder to share it with the team." : "Connect to a team from the menu at the top left."}</p>
+          <p class="muted">{current ? "Pick a song on the left, or add a local project to share it with the team." : "Connect to a team from the menu at the top left."}</p>
         </div>
       {/if}
     </section>
@@ -326,8 +347,21 @@
         </span>
       </span>
     </button>
-    {#if p.root && p.status !== "missing"}
-      <button class="ghost rm" title="Remove from this computer's list (files stay)" onclick={() => forget(p)}>✕</button>
+    <button class="ghost more" class:open={rowMenu === rowKey(p)} title="More"
+      onclick={() => (rowMenu = rowMenu === rowKey(p) ? "" : rowKey(p))}>⋯</button>
+    {#if rowMenu === rowKey(p)}
+      <div class="row-menu" role="menu">
+        {#if p.root}
+          <button class="item" onclick={() => { rowMenu = ""; forget(p); }}>
+            Remove from list<span class="faint">the folder stays on this computer</span>
+          </button>
+        {/if}
+        {#if p.status !== "local"}
+          <button class="item danger-text" onclick={() => { rowMenu = ""; deleteWord = ""; confirmDelete = p; }}>
+            Delete from server…<span class="faint">for everyone in {current?.name}</span>
+          </button>
+        {/if}
+      </div>
     {/if}
   </li>
 {/snippet}
@@ -341,6 +375,21 @@
     {#snippet footer()}
       <button onclick={() => (confirmShare = null)}>Cancel</button>
       <button class="primary" onclick={() => share(folder)}>Share</button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if confirmDelete}
+  {@const p = confirmDelete}
+  <Modal title="Delete “{p.name}” from the server?" onclose={() => (confirmDelete = null)}>
+    <p>This removes the song and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
+      Copies already on someone's computer are not touched{p.root ? " — yours stays here as a project on this computer only" : ""}.</p>
+    <label for="delete-word">Type <strong>{p.name}</strong> to confirm</label>
+    <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
+      onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) deleteFromTeam(p); }} />
+    {#snippet footer()}
+      <button onclick={() => (confirmDelete = null)}>Cancel</button>
+      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => deleteFromTeam(p)}>Delete</button>
     {/snippet}
   </Modal>
 {/if}
@@ -365,8 +414,8 @@
   .bar { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
   .bar > div { height: 100%; background: var(--accent); transition: width .2s; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { display: flex; align-items: center; }
-  .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 10px; border-radius: 8px; text-align: left; }
+  li { display: flex; align-items: center; position: relative; }
+  .proj { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: none; background: transparent; padding: 7px 28px 7px 10px; border-radius: 8px; text-align: left; }
   .proj:hover { background: var(--panel); }
   .proj.on { background: var(--panel-2); }
   .icon { width: 16px; text-align: center; color: var(--accent); }
@@ -378,8 +427,24 @@
   .proj.remote .icon { color: var(--faint); }
   .proj.missing .icon, .proj.missing .meta { color: var(--warn); }
   .proj.local .icon { color: var(--mod); }
-  .rm { visibility: hidden; padding: 2px 6px; }
-  li:hover .rm { visibility: visible; }
+  .more {
+    position: absolute; top: 4px; right: 4px; visibility: hidden; padding: 0 6px; line-height: 18px;
+    font-size: 15px; color: var(--muted); border-radius: 6px;
+  }
+  li:hover .more, .more.open { visibility: visible; }
+  .more:hover, .more.open { background: #33363d; color: var(--text); }
+  .row-menu {
+    position: absolute; top: 26px; right: 4px; z-index: 30; min-width: 220px; padding: 6px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+  }
+  .row-menu .item {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 1px; width: 100%; border: none;
+    background: transparent; padding: 6px 8px; text-align: left;
+  }
+  .row-menu .item:hover { background: #33363d; }
+  .row-menu .item .faint { font-size: 11px; }
+  .danger-text { color: var(--danger); }
+  .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
   .offline { font-size: 12px; color: var(--danger); padding: 0 8px 4px; }
   .add { width: 100%; margin: 8px 0 4px; }

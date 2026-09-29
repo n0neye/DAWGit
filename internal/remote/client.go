@@ -106,6 +106,10 @@ func (c *Client) PutProject(p Project) error {
 	return c.call("PUT", "/projects/"+p.ID, map[string]string{"name": p.Name}, nil)
 }
 
+func (c *Client) DeleteProject(pid string) error {
+	return c.call("DELETE", "/projects/"+pid, nil, nil)
+}
+
 func (c *Client) Branches(pid string) (map[string]string, error) {
 	out := map[string]string{}
 	return out, c.call("GET", "/projects/"+pid+"/branches", nil, &out)

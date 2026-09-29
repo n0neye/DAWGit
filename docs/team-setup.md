@@ -53,7 +53,7 @@ The **Team** menu at the top of the sidebar connects to another team, switches b
 
 ## 4. Share a project (the person who has it)
 
-In the sidebar, click **+ Add project folder** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
+In the sidebar, click **+ Add local project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
 
 A project kept with **Keep a project on this computer only…** can be shared later with **Share with a team…** at the top of the project.
 
@@ -62,6 +62,8 @@ A project kept with **Keep a project on this computer only…** can be shared la
 The sidebar lists every song in the current team. Songs not on this computer yet are dimmed (☁): pick one and click **Download**. Samples that lived outside the project on the other computer are downloaded too, and the set is pointed at them.
 
 If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
+
+The **⋯** menu next to a song removes it from this computer's list (the folder stays), or deletes it from the team server for everyone (you type the song's name to confirm). Copies already on someone's computer are kept; on a self-hosted server the deleted song is moved to the `trash` folder in the server's data folder.
 
 ## Everyday use
 

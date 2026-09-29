@@ -330,6 +330,33 @@ func (b *S3Backend) PutProject(p Project) error {
 	return nil
 }
 
+// DeleteProject removes project.json first, so the project leaves the list
+// even if deleting the rest is interrupted.
+func (b *S3Backend) DeleteProject(pid string) error {
+	if !validHex(pid, 32) {
+		return errors.New("invalid project id")
+	}
+	if err := b.delete(projectDir(pid) + "project.json"); err != nil {
+		return err
+	}
+	keys, err := b.list(projectDir(pid), false)
+	if err != nil {
+		return err
+	}
+	return parallel(keys, b.delete)
+}
+
+func (b *S3Backend) delete(key string) error {
+	r, err := b.call("DELETE", key, nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusNoContent && r.status != http.StatusOK && r.status != http.StatusNotFound {
+		return s3Error(r)
+	}
+	return nil
+}
+
 func (b *S3Backend) branch(pid, name string) (id, etag string, err error) {
 	r, err := b.get(branchKey(pid, name))
 	if errors.Is(err, ErrNotFound) {

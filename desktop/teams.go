@@ -321,6 +321,42 @@ func (a *App) ForgetProject(root string) error {
 	return store.Save()
 }
 
+// DeleteProjectFromTeam removes a project from the team's server or storage
+// for everyone. The copy on this computer (if any) is kept, with its history,
+// as a project on this computer only.
+func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
+	store, err := teams.Load()
+	if err != nil {
+		return err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return err
+	}
+	if err := b.DeleteProject(projectID); err != nil {
+		return err
+	}
+	root := store.ProjectRoot(teamID, projectID)
+	store.ForgetProject(teamID, projectID)
+	if root != "" {
+		a.stopAgent(root)
+		unlock := a.lock(root)
+		defer unlock()
+		if r, err := project.Open(root); err == nil {
+			r.Config.Remote = nil
+			if err := r.SaveConfig(); err != nil {
+				return err
+			}
+			store.AddLocal(r.Root)
+		}
+	}
+	return store.Save()
+}
+
 // ServerProjects lists a team's projects before connecting (onboarding).
 func (a *App) ServerProjects(address, token string) ([]remote.Project, error) {
 	cfg, err := remote.ParseAddress(address, token)

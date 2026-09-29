@@ -36,6 +36,7 @@ func Handler(s *Storage, token string) http.Handler {
 	})
 	mux.HandleFunc("GET /api/v1/projects", h.listProjects)
 	mux.HandleFunc("PUT /api/v1/projects/{pid}", h.putProject)
+	mux.HandleFunc("DELETE /api/v1/projects/{pid}", h.project(h.deleteProject))
 	mux.HandleFunc("GET /api/v1/projects/{pid}/branches", h.project(h.getBranches))
 	mux.HandleFunc("POST /api/v1/projects/{pid}/branches/{name}", h.project(h.updateBranch))
 	mux.HandleFunc("POST /api/v1/projects/{pid}/snapshots/missing", h.project(h.missingSnapshots))
@@ -113,6 +114,14 @@ func (h *handlers) putProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.s.PutProject(Project{ID: r.PathValue("pid"), Name: body.Name}); err != nil {
 		httpError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *handlers) deleteProject(w http.ResponseWriter, r *http.Request) {
+	if err := h.s.DeleteProject(r.PathValue("pid")); err != nil {
+		httpError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
