@@ -702,13 +702,11 @@
     <Modal title={b.set ? `“${b.set}” is open in Live` : "Ableton Live is running"} onclose={() => (liveBlocked = null)}>
       <p>DAWGit is about to change files in this project. Live keeps the open set in memory and would
         overwrite the changes the next time you save it.</p>
-      <p class="muted">Save and close the set in Live first — you can leave Live open with another set.</p>
+      <p class="muted">Save and close the set in Live first — you can leave Live open with another set.
+        {#if b.set}Live only shows the set's name, so a set with the same name from another project counts too.
+        {:else}DAWGit cannot tell which set Live has open: close Live to go on.{/if}</p>
       {#snippet footer()}
         <button onclick={() => (liveBlocked = null)}>Cancel</button>
-        <button class="ghost" title="Go ahead although the set looks open"
-          onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions, true); }}>
-          Continue anyway
-        </button>
         <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }}>
           I closed it — continue
         </button>
