@@ -24,6 +24,12 @@ func (r *Repo) Latest() string {
 	return r.Head()
 }
 
+// InBranch returns the versions the current branch already contains (the
+// latest version and everything before it).
+func (r *Repo) InBranch() (map[string]bool, error) {
+	return r.ancestors(r.Latest())
+}
+
 // OnOlderVersion reports whether GoTo moved the project to an older version.
 func (r *Repo) OnOlderVersion() bool { return r.Config.Tip != "" }
 

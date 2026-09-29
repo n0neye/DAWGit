@@ -3,9 +3,11 @@
   import { layout } from "./graph";
 
   // latest: the branch's newest version (differs from head on an older one).
-  let { versions, head, incoming, latest = head, ongoto, onexport }: {
+  // onmerge is offered on versions the current branch does not contain yet
+  // (other branches); the team's new versions of this branch come with Get updates.
+  let { versions, head, incoming, latest = head, ongoto, onexport, onmerge }: {
     versions: Version[]; head: string; incoming: Set<string>; latest?: string;
-    ongoto?: (v: Version) => void; onexport?: (v: Version) => void;
+    ongoto?: (v: Version) => void; onexport?: (v: Version) => void; onmerge?: (v: Version) => void;
   } = $props();
 
   const ROW = 40, LANE = 16, PAD = 12;
@@ -44,8 +46,11 @@
           <span class="who">{v.author}</span>
           <span class="when faint">{ago(v.time)}</span>
           <span class="id mono faint">{v.short}</span>
-          {#if ongoto || onexport}
+          {#if ongoto || onexport || onmerge}
             <span class="acts">
+              {#if onmerge && !v.inBranch && !incoming.has(v.id)}
+                <button onclick={() => onmerge(v)} title="Merge this version into the branch you are on">Merge</button>
+              {/if}
               {#if ongoto && v.id !== head && !incoming.has(v.id)}
                 <button onclick={() => ongoto(v)} title="Put the project in the state of this version">Go to</button>
               {/if}

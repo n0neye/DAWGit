@@ -294,6 +294,11 @@ func (a *App) State(root string) (*State, error) {
 		return nil, err
 	}
 	st.History = toVersions(all, tips)
+	if in, err := r.InBranch(); err == nil {
+		for i := range st.History {
+			st.History[i].InBranch = in[st.History[i].ID]
+		}
+	}
 	return st, nil
 }
 
@@ -516,6 +521,38 @@ func (a *App) PreviewMerge(root, name string) (*Preview, error) {
 		return nil, err
 	}
 	return toPreview(p), nil
+}
+
+// PreviewMergeVersion previews merging any version (e.g. one in the middle
+// of another branch) into the current branch.
+func (a *App) PreviewMergeVersion(root, id string) (*Preview, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	p, err := r.PreviewVersion(id)
+	if err != nil {
+		return nil, err
+	}
+	return toPreview(p), nil
+}
+
+func (a *App) MergeVersion(root, id string, resolutions map[string]string, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if liveGuard(force) {
+		return &Result{Action: "blocked", LiveRunning: true, Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+	}
+	res, err := r.MergeVersion(id, opts(resolutions))
+	if err != nil {
+		return conflictResult(err)
+	}
+	r.ReportWorkspace()
+	return syncResult(res), nil
 }
 
 func (a *App) MergeBranch(root, name string, resolutions map[string]string, force bool) (*Result, error) {

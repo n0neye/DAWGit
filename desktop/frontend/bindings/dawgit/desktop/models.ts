@@ -573,6 +573,12 @@ export class Version {
      */
     "branches": string[];
 
+    /**
+     * InBranch: the current branch already contains this version (only set
+     * in State.History); other versions can be merged in.
+     */
+    "inBranch": boolean;
+
     /** Creates a new Version instance. */
     constructor($$source: Partial<Version> = {}) {
         if (!("id" in $$source)) {
@@ -595,6 +601,9 @@ export class Version {
         }
         if (!("branches" in $$source)) {
             this["branches"] = [];
+        }
+        if (!("inBranch" in $$source)) {
+            this["inBranch"] = false;
         }
 
         Object.assign(this, $$source);

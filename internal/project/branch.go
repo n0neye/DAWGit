@@ -158,7 +158,43 @@ func (r *Repo) MergeBranch(name string, opts MergeOptions) (*SyncResult, error) 
 	if name == r.BranchName() {
 		return nil, errors.New("that is the branch you are on; use `dawgit update`")
 	}
-	res, err := r.integrate(c, target, opts, "Merge branch "+name)
+	return r.mergeVersion(c, target, "Merge branch "+name, opts)
+}
+
+// MergeVersion merges any version (e.g. one on another branch, not only its
+// latest) into the workspace and shares the result on the current branch.
+func (r *Repo) MergeVersion(ref string, opts MergeOptions) (*SyncResult, error) {
+	if err := r.guardLatest(); err != nil {
+		return nil, err
+	}
+	id, err := r.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	m, err := r.Load(id)
+	if err != nil {
+		return nil, err
+	}
+	c, err := r.Client()
+	if err != nil {
+		return nil, err
+	}
+	msg := fmt.Sprintf("Merge version %s", short(id))
+	if m.Message != "" {
+		msg += fmt.Sprintf(" (%q)", m.Message)
+	}
+	if heads, err := c.Branches(r.Config.ProjectID); err == nil {
+		for name, head := range heads { // a branch's latest: name the branch
+			if head == id && name != r.BranchName() {
+				msg = "Merge branch " + name
+			}
+		}
+	}
+	return r.mergeVersion(c, id, msg, opts)
+}
+
+func (r *Repo) mergeVersion(c remote.Backend, target, message string, opts MergeOptions) (*SyncResult, error) {
+	res, err := r.integrate(c, target, opts, message)
 	if err != nil || res.Action == "up-to-date" || res.Action == "ahead" {
 		return res, err
 	}
@@ -201,6 +237,19 @@ func (r *Repo) PreviewMerge(name string) (*Preview, error) {
 	return r.previewBranch(name)
 }
 
+// PreviewVersion previews MergeVersion.
+func (r *Repo) PreviewVersion(ref string) (*Preview, error) {
+	id, err := r.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	c, err := r.Client()
+	if err != nil {
+		return nil, err
+	}
+	return r.previewTarget(c, id)
+}
+
 func (r *Repo) previewBranch(name string) (*Preview, error) {
 	c, err := r.Client()
 	if err != nil {
@@ -214,6 +263,10 @@ func (r *Repo) previewBranch(name string) (*Preview, error) {
 	if !ok && name != r.BranchName() {
 		return nil, fmt.Errorf("no branch %q on the server", name)
 	}
+	return r.previewTarget(c, target)
+}
+
+func (r *Repo) previewTarget(c remote.Backend, target string) (*Preview, error) {
 	head := r.Head()
 	p := &Preview{Action: "up-to-date"}
 	if target == "" || target == head {
