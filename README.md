@@ -20,7 +20,7 @@ Version history and teamwork for Ableton Live projects. Commit versions of your 
   - **S3-compatible storage** such as Cloudflare R2 — nothing needs to stay switched on.
 - **Or keep it local** — use DAWGit on your own, with versions kept on your computer only.
 - **Nothing changes behind your back** — DAWGit never changes your project files on its own, only when you take in your team's changes, and it asks you to close Live before it rewrites a set.
-- **Go back to any version** — put the project in the state of an older version from the History tab, then go back to the latest or start a branch from there. Or export a version as a separate project folder to open next to the current one.
+- **Go back to any version** — put the project in the state of an older version from the History tab, then go back to the latest or start a branch from there. Merge any version of another branch into yours, not only its latest. Or export a version as a separate project folder to open next to the current one.
 - **Branches** for teams that want to try ideas separately and merge them later.
 
 ## Getting started
