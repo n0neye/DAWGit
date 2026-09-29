@@ -95,7 +95,7 @@ func cmdRemote(args []string) error {
 	}
 	if len(pos) == 0 {
 		if r.Config.Remote == nil {
-			fmt.Println("no server configured")
+			fmt.Println("not connected to a team server or storage")
 		} else {
 			fmt.Println(r.Config.Remote.Display())
 		}
@@ -198,7 +198,7 @@ func cmdSave(args []string) error {
 	m, res, err := r.Save(*msg, project.Strategy(*strategy))
 	if errors.Is(err, project.ErrNoRemote) {
 		if m != nil {
-			fmt.Printf("saved version %s locally (no server configured; see `dawgit remote`)\n", short(m.ID))
+			fmt.Printf("saved version %s locally (not connected to a team; see `dawgit remote`)\n", short(m.ID))
 			return nil
 		}
 		fmt.Println("nothing changed")

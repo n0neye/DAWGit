@@ -47,11 +47,11 @@ func cmdStatus(args []string) error {
 	if r.Config.Remote != nil {
 		switch incoming, err := r.Incoming(); {
 		case err != nil:
-			fmt.Printf("server: not reachable (%v)\n", err)
+			fmt.Printf("team: not reachable (%v)\n", err)
 		case incoming:
-			fmt.Println("server: the team saved new versions (run `dawgit update`)")
+			fmt.Println("team: new versions saved by others (run `dawgit update`)")
 		default:
-			fmt.Println("server: up to date")
+			fmt.Println("team: up to date")
 		}
 	}
 	changes, err := r.Status()
