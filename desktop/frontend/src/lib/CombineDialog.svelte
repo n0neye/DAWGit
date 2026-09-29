@@ -5,9 +5,12 @@
 
   // Teammates committed on this branch while you were working: combine your
   // work with theirs (after seeing what comes in), or put yours on a branch.
-  let { preview, branch, message = $bindable(), busy = false, oncombine, onbranch, onclose }: {
+  // older: the changes were made on an older version (Go to), not while
+  // teammates committed.
+  let { preview, branch, older = false, message = $bindable(), busy = false, oncombine, onbranch, onclose }: {
     preview: Preview;
     branch: string;
+    older?: boolean;
     message: string;
     busy?: boolean;
     oncombine: () => void;
@@ -19,10 +22,17 @@
   let n = $derived(preview.versions.length);
 </script>
 
-<Modal title="{authors} committed {n} version{n === 1 ? '' : 's'} while you were working" {onclose} width={720}>
-  <p class="muted">Your changes are not committed yet. Combine them with the team's versions on “{branch}” —
-    DAWGit merges track by track and asks only where you both changed the same thing — or keep your work on a
-    branch of its own for now.</p>
+<Modal title={older ? `“${branch}” has ${n} newer version${n === 1 ? "" : "s"} than the one you're on`
+  : `${authors} committed ${n} version${n === 1 ? "" : "s"} while you were working`} {onclose} width={720}>
+  {#if older}
+    <p class="muted">You changed an older version. Commit your changes after it and combine them with the latest
+      version of “{branch}” — DAWGit merges track by track and asks only where both changed the same thing — or
+      keep your work on a branch of its own.</p>
+  {:else}
+    <p class="muted">Your changes are not committed yet. Combine them with the team's versions on “{branch}” —
+      DAWGit merges track by track and asks only where you both changed the same thing — or keep your work on a
+      branch of its own for now.</p>
+  {/if}
 
   <h3>New on “{branch}”</h3>
   <ul class="versions">

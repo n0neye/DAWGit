@@ -369,6 +369,9 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 	incoming := false
 	if r.Config.Remote != nil {
 		incoming, _ = r.Incoming()
+		// Changes made on an older version: newer versions are "incoming"
+		// for them, just as when teammates committed in the meantime.
+		incoming = incoming || r.OnOlderVersion()
 	}
 	if incoming && !combine {
 		return &Result{Action: "behind", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
@@ -376,7 +379,16 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 	if set := liveGuard(r, force); incoming && set != "" {
 		return blocked(set), nil
 	}
+	var older *project.Manifest
+	if r.OnOlderVersion() && r.Config.Remote != nil {
+		if older, err = r.CommitOnOlderVersion(message); err != nil {
+			return nil, err
+		}
+	}
 	m, res, err := r.Save(message, opts(resolutions))
+	if m == nil {
+		m = older
+	}
 	if errors.Is(err, project.ErrNoRemote) {
 		out := syncResult(nil)
 		out.Action = "saved-locally"

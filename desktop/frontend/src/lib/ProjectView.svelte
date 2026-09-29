@@ -191,8 +191,8 @@
 
   // Commit from the commit box: when the team is ahead, ask first.
   function commit() {
-    if (!message.trim() || busy || st?.olderVersion) return;
-    if (st?.incoming.length) openCombine(message);
+    if (!message.trim() || busy || (st?.olderVersion && !st.remoteUrl)) return;
+    if (st?.incoming.length || st?.olderVersion) openCombine(message);
     else run(saveAction(message));
   }
 
@@ -537,14 +537,22 @@
           You're on an older version: <strong>“{v.message || v.short}”</strong>
           <span class="muted">— {v.author}, {ago(v.time)}. Newer versions are kept.</span>
         </div>
-        {#if st.remoteUrl}
+        {#if st.remoteUrl && st.changes.length}
+          <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
+            title="Commit your changes on a branch of your own, starting from this version">New branch from here…</button>
+          <button onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+          <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
+            title="Commit your changes after this version and combine them with the latest">Preview & combine</button>
+        {:else if st.remoteUrl}
           <button onclick={() => (newBranch = "")} disabled={!!busy}
             title="Continue from this version on a branch of your own">New branch from here…</button>
         {:else}
           <button onclick={() => (keepOpen = `Back to “${v.message || v.short}”`)} disabled={!!busy}
             title="Continue from this version: it becomes a new, latest version">Make this the latest…</button>
         {/if}
-        <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+        {#if !(st.remoteUrl && st.changes.length)}
+          <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+        {/if}
       </div>
     {/if}
     {#if st.incoming.length}
@@ -636,8 +644,13 @@
         <div class="save-row">
           <p class="faint small">
             {#if st.olderVersion}
-              You're on an older version. {st.remoteUrl ? "Start a new branch from here" : "Make it the latest version"}
-              to commit changes, or go back to the latest version.
+              {#if st.remoteUrl}
+                You're on an older version. Committing combines your changes with the latest version of
+                “{st.branch}” (you'll see a preview first) — or start a new branch from here.
+              {:else}
+                You're on an older version. Make it the latest version to commit changes, or go back to the
+                latest version.
+              {/if}
             {:else if st.remoteUrl}
               Commits the project folder and shares it with the team on “{st.branch}”. If others committed in
               the meantime, you'll see what they changed and choose how to combine first.
@@ -645,7 +658,7 @@
               Commits on this computer. Share the project with a team to work on it together.
             {/if}
           </p>
-          <button class="primary" disabled={!message.trim() || !!busy || !!st.olderVersion} onclick={commit}
+          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)} onclick={commit}
             title="Ctrl+Enter">
             {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
           </button>
@@ -655,7 +668,7 @@
   </div>
 
   {#if combine}
-    <CombineDialog preview={combine.data} branch={st.branch} bind:message={combine.message} busy={!!busy}
+    <CombineDialog preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
       onclose={() => (combine = null)} oncombine={combineAndShare} onbranch={() => putOnBranch(combine!.message)} />
   {/if}
 
