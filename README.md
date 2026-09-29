@@ -2,9 +2,9 @@
 
 Version control and collaboration tool for music production, targeting Ableton Live users first.
 
-## Scope (initial)
+## Scope
 
-- Target: small teams (2-3 people), self-hosted first, SaaS later
+- Small teams working on the same songs, with a self-hosted server
 - Project sync & remote multi-user editing
 - Sample management via content-addressed storage (dedupe, lazy fetch, path relinking)
 - Track-level semantic 3-way merge of `.als` Live Sets (L2)
@@ -96,4 +96,4 @@ python -m tests.make_live_samples                # MergeTest-*.als to open in Li
 
 `go test ./internal/merge` compares Go merge/diff/validate output byte-for-byte against the golden data (skipped when absent).
 
-See [docs/als-format-notes.md](docs/als-format-notes.md) for findings about the .als format.
+See [docs/als-format-notes.md](docs/als-format-notes.md) for findings about the .als format, and [docs/design/](docs/design/) for design proposals (e.g. [pluggable storage backends](docs/design/storage-backends.md)).
