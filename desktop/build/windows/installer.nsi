@@ -47,6 +47,7 @@ VIAddVersionKey "LegalCopyright" "(c) 2026 ${APP}"
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
+!insertmacro MUI_UNPAGE_COMPONENTS
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 
@@ -102,7 +103,8 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Put a ${APP} shortcut on the desktop."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
-Section "Uninstall"
+Section "un.${APP}" UnSecApp
+  SectionIn RO
   !insertmacro CloseApp
   Delete "$INSTDIR\${APP}.exe"
   Delete "$INSTDIR\bin\dawgit.exe"
@@ -116,5 +118,16 @@ Section "Uninstall"
   Delete "$DESKTOP\${APP}.lnk"
   DeleteRegValue HKCU "${RUN_KEY}" "${APP}"
   DeleteRegKey HKCU "${UNINST_KEY}"
-  ; Projects (.dawgit folders), settings and server data are left in place.
+  ; Projects (.dawgit folders) and server data are always left in place.
 SectionEnd
+
+; Off by default: reinstalling keeps your teams and name.
+Section /o "un.Remove my settings" UnSecSettings
+  RMDir /r "$APPDATA\${APP}"      ; teams, access tokens and keys, your name
+  RMDir /r "$APPDATA\${APP}.exe"  ; the app window's saved state (WebView2)
+SectionEnd
+
+!insertmacro MUI_UNFUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${UnSecApp} "The ${APP} app, the command line tool and their shortcuts."
+  !insertmacro MUI_DESCRIPTION_TEXT ${UnSecSettings} "Also forget your teams, access tokens and name on this computer. Your projects, their version history and any team server data are kept."
+!insertmacro MUI_UNFUNCTION_DESCRIPTION_END

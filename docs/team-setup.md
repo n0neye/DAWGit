@@ -72,4 +72,4 @@ If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locat
 
 ## Uninstall
 
-Settings → Apps → DAWGit → Uninstall. Your projects, their `.dawgit` history folders and the server data are kept.
+Settings → Apps → DAWGit → Uninstall. Your projects, their `.dawgit` history folders and the server data are kept. Tick **Remove my settings** to also forget your teams, access tokens and name on this computer (useful before handing the computer on, or to try a fresh install).
