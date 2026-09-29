@@ -282,25 +282,17 @@ func (a *App) State(root string) (*State, error) {
 			}
 		}
 	}
-	log, err := r.Log()
+	// The whole tree: every branch (including the team's versions of this
+	// branch not taken yet), wherever this workspace is.
+	var heads []string
+	for h := range tips {
+		heads = append(heads, h)
+	}
+	sort.Strings(heads)
+	all, err := r.LogAll(heads)
 	if err != nil {
 		return nil, err
 	}
-	// Include versions of the team that this workspace does not have yet so
-	// the history shows where the branch is.
-	seen := map[string]bool{}
-	for _, m := range log {
-		seen[m.ID] = true
-	}
-	all := append([]*project.Manifest{}, log...)
-	for _, v := range st.Incoming {
-		if !seen[v.ID] {
-			if m, err := r.Load(v.ID); err == nil {
-				all = append(all, m)
-			}
-		}
-	}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].Time > all[j].Time })
 	st.History = toVersions(all, tips)
 	return st, nil
 }
