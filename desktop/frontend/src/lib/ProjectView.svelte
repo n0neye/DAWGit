@@ -109,6 +109,20 @@
     return () => clearInterval(t);
   });
 
+  // Other files (samples added, converted, edited elsewhere) show up as soon
+  // as the folder watcher sees them.
+  $effect(() => {
+    const r = root;
+    api.WatchFiles(r);
+    const off = Events.On("files", (ev: { data: { root: string } }) => {
+      if (ev.data.root === r && !busy) load();
+    });
+    return () => {
+      off();
+      api.UnwatchFiles(r);
+    };
+  });
+
   $effect(() => {
     const r = root;
     let timer: ReturnType<typeof setTimeout>;

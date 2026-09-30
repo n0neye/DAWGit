@@ -72,7 +72,9 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 	return out, err
 }
 
-// ignoredPath: the file or one of its folders is left out of versions.
+// IgnoredPath: the file or one of its folders is left out of versions.
+func IgnoredPath(rel string) bool { return ignoredPath(rel) }
+
 func ignoredPath(rel string) bool {
 	if Ignored(rel, false) {
 		return true

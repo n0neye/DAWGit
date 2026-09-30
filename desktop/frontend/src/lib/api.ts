@@ -113,6 +113,7 @@ export function progressText(p: Progress, team = "the team"): string {
     case "uploading": return `Uploading to ${team}${n}`;
     case "downloading": return `Downloading${n}`;
     case "exporting": return `Writing the copy${n}`;
+    case "converting": return `Converting · ${p.total ? Math.round((100 * p.done) / p.total) : 0}%`;
   }
   return "Working…";
 }
