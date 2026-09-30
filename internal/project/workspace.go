@@ -8,8 +8,6 @@ import (
 	"sort"
 	"time"
 
-	"dawgit/internal/als"
-	"dawgit/internal/diff"
 	"dawgit/internal/remote"
 )
 
@@ -90,7 +88,7 @@ func (r *Repo) LocalEdits() ([]TrackEdit, []FileEntry, error) {
 			edits = append(edits, TrackEdit{Set: f.Path, Name: "(new set)", Change: "added"})
 			continue
 		}
-		d := r.workingSetDiff(old.Hash, f.Path)
+		d := r.workingSetDiff(old.Hash, f.Hash, f.Path)
 		if d == nil {
 			continue
 		}
@@ -102,22 +100,6 @@ func (r *Repo) LocalEdits() ([]TrackEdit, []FileEntry, error) {
 		}
 	}
 	return edits, changed, nil
-}
-
-func (r *Repo) workingSetDiff(oldHash, rel string) *diff.SetDiff {
-	data, err := r.Store.Read(oldHash)
-	if err != nil {
-		return nil
-	}
-	old, err := als.FromGzip(data)
-	if err != nil {
-		return nil
-	}
-	cur, err := als.Load(r.Abs(rel))
-	if err != nil {
-		return nil // e.g. Live is writing the file right now
-	}
-	return diff.Diff(old, cur)
 }
 
 // ReportWorkspace uploads this workspace's unsaved work to the server.

@@ -2,6 +2,7 @@ package project
 
 import (
 	"sort"
+	"sync"
 
 	"dawgit/internal/als"
 	"dawgit/internal/diff"
@@ -42,7 +43,7 @@ func (r *Repo) Status() ([]Change, error) {
 		case old.Hash != f.Hash:
 			c := Change{Path: f.Path, Status: "modified"}
 			if isSet(f.Path) {
-				c.SetDiff = r.setDiff(old.Hash, f.Path)
+				c.SetDiff = r.workingSetDiff(old.Hash, f.Hash, f.Path)
 			}
 			out = append(out, c)
 		}
@@ -56,7 +57,16 @@ func (r *Repo) Status() ([]Change, error) {
 	return out, nil
 }
 
-func (r *Repo) setDiff(oldHash, rel string) *diff.SetDiff {
+// workingSetDiff compares a set in the project folder (whose content hash is
+// newHash) with a stored version of it. Parsing sets is the slow part of
+// reading a project, and the same pair comes up again and again (every
+// status and every backup until the next commit), so diffs are kept by the
+// pair of contents. Diffs are shared: callers must not change them.
+func (r *Repo) workingSetDiff(oldHash, newHash, rel string) *diff.SetDiff {
+	key := oldHash + ":" + newHash
+	if d := diffCache.get(key); d != nil {
+		return d
+	}
 	data, err := r.Store.Read(oldHash)
 	if err != nil {
 		return nil
@@ -67,9 +77,44 @@ func (r *Repo) setDiff(oldHash, rel string) *diff.SetDiff {
 	}
 	cur, err := als.Load(r.Abs(rel))
 	if err != nil {
-		return nil
+		return nil // e.g. Live is writing the file right now
 	}
-	return diff.Diff(old, cur)
+	d := diff.Diff(old, cur)
+	diffCache.put(key, d)
+	return d
+}
+
+// diffCache holds the last few set diffs (a handful of changed sets at a time).
+var diffCache = &setDiffCache{max: 32}
+
+type setDiffCache struct {
+	mu    sync.Mutex
+	max   int
+	keys  []string // oldest first
+	diffs map[string]*diff.SetDiff
+}
+
+func (c *setDiffCache) get(key string) *diff.SetDiff {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.diffs[key]
+}
+
+func (c *setDiffCache) put(key string, d *diff.SetDiff) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.diffs == nil {
+		c.diffs = map[string]*diff.SetDiff{}
+	}
+	if _, ok := c.diffs[key]; ok {
+		return
+	}
+	if len(c.keys) >= c.max {
+		delete(c.diffs, c.keys[0])
+		c.keys = c.keys[1:]
+	}
+	c.keys = append(c.keys, key)
+	c.diffs[key] = d
 }
 
 func sortChanges(cs []Change) {

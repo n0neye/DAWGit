@@ -379,7 +379,13 @@ func (r *Repo) fileChanges(a, b *Manifest) ([]FileChange, error) {
 	return out, nil
 }
 
+// storedSetDiff compares two stored versions of a set (cached like
+// workingSetDiff: the key is the same pair of contents).
 func (r *Repo) storedSetDiff(oldHash, newHash string) *diff.SetDiff {
+	key := oldHash + ":" + newHash
+	if d := diffCache.get(key); d != nil {
+		return d
+	}
 	load := func(h string) *als.LiveSet {
 		data, err := r.Store.Read(h)
 		if err != nil {
@@ -392,5 +398,7 @@ func (r *Repo) storedSetDiff(oldHash, newHash string) *diff.SetDiff {
 	if a == nil || b == nil {
 		return nil
 	}
-	return diff.Diff(a, b)
+	d := diff.Diff(a, b)
+	diffCache.put(key, d)
+	return d
 }
