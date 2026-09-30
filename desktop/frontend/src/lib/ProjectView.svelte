@@ -22,7 +22,24 @@
 
   let st = $state<State | null>(cachedState(untrack(() => root)));
   let loadError = $state("");
-  let tab = $state<"changes" | "history" | "team">("changes");
+  // The tab is remembered per project.
+  type Tab = "changes" | "history" | "team";
+  const tabKey = `dawgit.tab:${untrack(() => root)}`;
+  let tab = $state<Tab>((() => {
+    try {
+      const t = localStorage.getItem(tabKey);
+      return t === "history" || t === "team" ? t : "changes";
+    } catch {
+      return "changes";
+    }
+  })());
+  $effect(() => {
+    const t = tab;
+    try { localStorage.setItem(tabKey, t); } catch { /* not remembered */ }
+  });
+  $effect(() => {
+    if (st && !st.remoteUrl && tab === "team") tab = "changes"; // no team tab here
+  });
   let message = $state("");
   let busy = $state("");
   let progress = $state<Progress | null>(null);
