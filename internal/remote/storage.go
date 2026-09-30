@@ -65,6 +65,11 @@ func (s Storage) Config() (Config, error) {
 	if access == "" || secret == "" {
 		return Config{}, errors.New("enter the Access Key ID and the Secret Access Key")
 	}
+	// Cloudflare shows a "Token value" above the S3 credentials; it is not one.
+	if strings.HasPrefix(access, "cfut_") || strings.HasPrefix(secret, "cfut_") {
+		return Config{}, errors.New(`that is the token value: use the Access Key ID and Secret Access Key ` +
+			`listed under "Use the following credentials for S3 clients"`)
+	}
 	return Config{URL: "s3+" + u.Scheme + "://" + u.Host + "/" + bucket + "/" + folder,
 		AccessKey: access, SecretKey: secret, Region: region}, nil
 }

@@ -43,6 +43,10 @@ func TestStorageConfig(t *testing.T) {
 	if _, err := (Storage{Endpoint: acct, Bucket: "b"}).Config(); err == nil {
 		t.Error("missing keys accepted")
 	}
+	if _, err := (Storage{Endpoint: acct, Bucket: "b", AccessKey: "cfut_abc", SecretKey: "s"}).Config(); err == nil ||
+		!strings.Contains(err.Error(), "token value") {
+		t.Errorf("token value as key: %v", err)
+	}
 }
 
 func TestCheck(t *testing.T) {

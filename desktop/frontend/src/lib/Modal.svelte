@@ -1,22 +1,24 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
 
-  let { title, onclose, width = 560, children, footer }: {
+  let { title, onclose, width = 560, backdropCloses = true, children, footer }: {
     title: string;
     onclose: () => void;
     width?: number;
+    // false for forms that take a while to fill in: only ✕ closes them.
+    backdropCloses?: boolean;
     children: Snippet;
     footer?: Snippet;
   } = $props();
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") onclose();
+    if (e.key === "Escape" && backdropCloses) onclose();
   }
 </script>
 
 <svelte:window {onkeydown} />
 
-<div class="backdrop" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onclose(); }}>
+<div class="backdrop" role="presentation" onclick={(e) => { if (backdropCloses && e.target === e.currentTarget) onclose(); }}>
   <div class="modal" style:width="{width}px" role="dialog" aria-modal="true" aria-label={title}>
     <header>
       <h2>{title}</h2>

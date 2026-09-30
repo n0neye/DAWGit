@@ -4,12 +4,14 @@
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
   import CodeBox from "./CodeBox.svelte";
+  import IdentityForm from "./IdentityForm.svelte";
 
-  // One team's settings: its name, the connection code for teammates, how
-  // this computer reaches it (storage keys, or a server's address), and
-  // disconnecting.
-  let { team, reload, onclose }: {
+  // One team's settings: its name, your name in it, the connection code for
+  // teammates, how this computer reaches it (storage keys, or a server's
+  // address), and disconnecting.
+  let { team, author = "", reload, onclose }: {
     team: TeamSummary;
+    author?: string; // this computer's name, suggested when you have none here
     reload: () => Promise<void>;
     onclose: () => void;
   } = $props();
@@ -26,6 +28,14 @@
   let saving = $state(false);
   let connError = $state("");
   let confirmDisconnect = $state(false);
+  let editingMe = $state(false);
+
+  async function identitySaved(t: TeamSummary) {
+    const renamed = !!team.memberId && t.memberName !== team.memberName;
+    editingMe = false;
+    await reload();
+    toast(renamed ? `You're “${t.memberName}” in ${t.name} — on all your versions` : `You're “${t.memberName}” in ${t.name}`, "ok");
+  }
 
   $effect(() => {
     const id = team.id;
@@ -90,7 +100,7 @@
   }
 </script>
 
-<Modal title="{team.name} settings" {onclose} width={620}>
+<Modal title="{team.name} settings" {onclose} width={620} backdropCloses={false}>
   <section>
     <h3>Name</h3>
     <input bind:value={name} aria-label="Team name" />
@@ -104,6 +114,22 @@
         {/if}
         <button class="ghost" onclick={() => (name = team.name)}>Cancel</button>
       </div>
+    {/if}
+  </section>
+
+  <section>
+    <h3>Your name in this team</h3>
+    {#if team.memberId && !editingMe}
+      <div class="row me">
+        <span class="myname">{team.memberName}</span>
+        <button onclick={() => (editingMe = true)}>Change…</button>
+      </div>
+      <p class="faint small">Shown next to the versions you commit, for everyone in the team.</p>
+    {:else}
+      {#key team.memberName}
+        <IdentityForm {team} suggested={author} submitLabel="Save" onsaved={identitySaved} />
+      {/key}
+      {#if team.memberId}<button class="ghost small" onclick={() => (editingMe = false)}>Cancel</button>{/if}
     {/if}
   </section>
 
@@ -185,5 +211,8 @@
   .secret input { flex: 1; min-width: 0; }
   .error { color: var(--danger); user-select: text; }
   .danger-text { color: var(--danger); }
+  .me { gap: 10px; align-items: center; margin-bottom: 4px; }
+  .me button { padding: 4px 10px; font-size: 13px; }
+  .myname { font-weight: 600; }
   .confirm { flex: 1; color: var(--muted); align-self: center; }
 </style>

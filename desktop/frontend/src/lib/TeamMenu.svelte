@@ -79,7 +79,7 @@
             <span class="tname">{t.name}</span>
             {#if !t.isStorage && hostOf(t) !== t.name}<span class="faint small">{hostOf(t)}</span>{/if}
           </button>
-          <button class="gear" title="Team settings: name, connection code, keys"
+          <button class="gear" title="Team settings: names, connection code, keys"
             onclick={() => { open = false; settingsFor = t; }}>⚙</button>
         </div>
       {/each}
@@ -90,11 +90,7 @@
         <span class="faint small">this computer only</span>
       </button>
       <div class="sep"></div>
-      {#if current}
-        <button class="item" onclick={() => { open = false; identityFor = current!; }}>
-          <span class="check">☺</span>Your name in {current.name}{current.memberName ? `: ${current.memberName}` : "…"}
-        </button>
-      {:else}
+      {#if !current}
         <button class="item" onclick={() => { open = false; localName = overview.author; }}>
           <span class="check">☺</span>Your name on this computer{overview.author ? `: ${overview.author}` : "…"}
         </button>
@@ -126,14 +122,14 @@
 {/if}
 
 {#if connecting}
-  <Modal title="Join or create a team" onclose={() => (connecting = false)} width={640}>
+  <Modal title="Join or create a team" onclose={() => (connecting = false)} width={640} backdropCloses={false}>
     <JoinOrCreate onconnected={connected} />
   </Modal>
 {/if}
 
 {#if settingsFor}
   {@const t = overview.teams.find((x) => x.id === settingsFor!.id) ?? settingsFor}
-  <TeamSettings team={t} {reload} onclose={() => (settingsFor = null)} />
+  <TeamSettings team={t} author={overview.author} {reload} onclose={() => (settingsFor = null)} />
 {/if}
 
 <style>
