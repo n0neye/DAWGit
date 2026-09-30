@@ -2,77 +2,38 @@
 
 **English** | [繁體中文](README-cht.md)
 
-Version history and teamwork for Ableton Live projects. Commit versions of your songs, see what changed track by track, and work on the same song with your bandmates — DAWGit merges your changes at the track level.
+Version control and collaboration for Ableton Live, made for musicians.
 
-> **Work in progress.** DAWGit is an early preview. Expect rough edges and changes (including to how data is stored) before 1.0. Keep your own backups of projects that matter. Windows only for now; tested with Ableton Live 12.
+> **Work in progress.** DAWGit is an early preview for Windows, tested with Ableton Live 12. Expect rough edges and changes before 1.0, and keep your own backups of projects that matter.
 
 ![DAWGit showing the tracks changed in a project, ready to commit a version](docs/images/screenshot.png)
 
-## Features
+## Why DAWGit
 
-- **Versions of the whole project** — Live Sets and samples, committed with a message. Unchanged files are stored once.
-- **Changes by track** — after you press Ctrl+S in Live, DAWGit lists which tracks you added, removed or changed.
-- **Track-level merging** — when two people edit the same song, their changes are combined track by track (tracks, their placement and order, sends) together with song-wide parts such as the main track, locators and scenes. Only when you both changed the same track does DAWGit ask which to keep: yours, theirs, or both side by side.
-- **Samples go with the project** — samples inside the project folder, and samples from elsewhere on your disk, are stored with each version. On a teammate's computer the set is pointed at them automatically. Samples from Live packs are only recorded by name.
-- **Work side by side** — each person works on their own branch or their own set and merges when ready; DAWGit tells you when a teammate commits a new version.
-- **Your team's own storage** — the team's songs live in a bucket of your own on any S3-compatible storage (Cloudflare R2, Amazon S3, MinIO, …). DAWGit guides you through setting up Cloudflare R2 in a few minutes. Nothing needs to stay switched on.
-- **Or keep it local** — use DAWGit on your own, with versions kept on your computer only.
-- **Nothing changes behind your back** — DAWGit never changes your project files on its own, only when you take in your team's changes, and it asks you to close Live before it rewrites a set.
-- **Go back to any version** — put the project in the state of an older version from the History tab, then go back to the latest or start a branch from there. Merge any version of another branch into yours, not only its latest. Or export a version as a separate project folder to open next to the current one.
-- **Branches** for teams that want to try ideas separately and merge them later.
+**Made for musicians.** Press Ctrl+S in Live as usual; DAWGit shows what changed, track by track. Commit a version with a sentence, go back to any version, and try ideas on a branch. When bandmates work on the same song, their changes are merged track by track, and DAWGit only asks when two people changed the same track. No Git knowledge needed.
+
+**Samples come along automatically.** Samples from anywhere on your disk are stored with each version and relinked on your teammates' computers. No more *Collect All and Save* or "media files missing".
+
+**Open source, with storage you own.** DAWGit is free and MIT-licensed. Your team's songs live in your own S3-compatible bucket (Cloudflare R2, Amazon S3, MinIO, …), not on our servers. A small team usually stays within Cloudflare R2's free allowance, and nobody has to keep a computer running.
+
+## Limitations
+
+- **Ableton Live only**, and Windows only for now (macOS is planned).
+- **Plugins are not synced.** DAWGit does not copy plugins or check their versions, and it cannot collect samples that a plugin loads from outside the project (e.g. inside Kontakt or Serum). If your teammates don't have the same plugins, freeze those tracks before you share, or use Live's own Simpler, Sampler and Drum Rack, which sync completely. Some plugins also save changing state even when untouched, which can show up as a change on that track.
+- **Everyone with the connection code has full access.** The code contains the storage key: anyone who has it can read, change and delete all of the team's songs. Share it privately, only with people you trust. If it leaks, make a new key and send the new code.
+- **Early preview.** Old versions and deleted songs are not cleaned out of storage yet, and there are no automatic updates (DAWGit tells you when a new version is out).
 
 ## Getting started
 
-### Install
+Download `DAWGit-<version>-setup.exe` from the [Releases](../../releases) page and run it (Windows 10 21H2 or later, or Windows 11; no administrator rights needed). The installer is not code-signed yet: if Windows shows "Windows protected your PC", click **More info → Run anyway**.
 
-1. Download `DAWGit-<version>-setup.exe` from the [Releases](../../releases) page.
-2. Run it. No administrator rights needed. The installer is not code-signed yet, so Windows may show "Windows protected your PC": click **More info → Run anyway**.
-3. Leave **Start with Windows** checked: DAWGit then waits in the system tray and tells you about new versions.
+**On your own:** choose **Just keep versions on this computer**, pick your Ableton project folder, and commit versions as you work. You can share the project with a team later.
 
-Requires Windows 10 (21H2 or later) or Windows 11.
+**Start a team (one person):** choose **Create a team** and follow the steps to create a Cloudflare R2 bucket and key (about 5 minutes), or enter any other S3-compatible storage. DAWGit checks it and gives you a **connection code** to send to your teammates.
 
-### Use it on your own
+**Join a team:** choose **Join a team** and paste the connection code you were sent. Then download the team's songs or add your own.
 
-1. Open DAWGit and choose **Just keep versions on this computer**.
-2. Pick an Ableton project folder (the one with the `.als` file and `Ableton Project Info`).
-3. Work in Live as usual and press **Ctrl+S**. Your changes appear in DAWGit.
-4. Describe what you did and click **Commit version**.
-
-You can share the project with a team later with **Share with a team…**.
-
-### Join a team
-
-Ask whoever set up your team for the **connection code**.
-
-1. Open DAWGit, choose **Join a team**, paste the code and click **Connect**.
-2. Enter your name — it appears next to the versions you commit.
-3. Download the songs you work on, or add your own project with **+ Add a project**.
-
-Everyday use:
-
-- Work in Live and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
-- When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, DAWGit shows what they changed and lets you combine your work with theirs or put it on a new branch.
-- When a teammate commits, DAWGit tells you. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first, then reopen it.
-- To stay out of each other's way, work on your own branch (**⑂ → New branch from here…**) and merge it when it's ready, or use your own `.als` in the same project and combine the sets in Live later. Editing the same set on the same branch works too: DAWGit combines your changes track by track and only asks when you both changed the same track.
-
-### Set up a team
-
-One person does this once. The team's songs are kept in a bucket you own, on any S3-compatible storage that supports conditional writes. [Cloudflare R2](https://developers.cloudflare.com/r2/) is the easiest start: DAWGit walks you through it in about 5 minutes, and a small team usually stays within R2's free allowance.
-
-1. Open DAWGit and choose **Create a team** (later: Team menu → **Join/Create a Team…**).
-2. Pick **Cloudflare R2** and follow the steps on screen: create a bucket and a key for it in the Cloudflare dashboard, and paste them into DAWGit. (Or pick **Other S3-compatible** and enter your bucket, keys and endpoint.)
-3. Click **Check & create team**. DAWGit tests the bucket and gives you a **connection code**.
-4. Send the code to each teammate privately — it contains the key.
-
-The ⚙ next to the team in the Team menu copies the code again and changes the key, the team's name or your name in it. Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
-
-## Known limitations
-
-- Windows only. macOS is planned.
-- Tested with Ableton Live 12 (12.3). Other versions may work but are not verified.
-- Some plugins store changing state even when you did not touch them, which can show up as a change or a conflict on that track.
-- Deleted projects and old data are not cleaned up from team storage yet, so it only grows.
-- No automatic updates yet: DAWGit tells you when a new version is out (it checks this repository's Releases page) and links to the installer.
+The [team setup guide](docs/team-setup.md) has the details and everyday use.
 
 ## More
 
