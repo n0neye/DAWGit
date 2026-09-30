@@ -1,6 +1,6 @@
 # Setting up DAWGit for your team (Windows)
 
-DAWGit keeps the version history of your Ableton Live projects and lets 2–3 people work on the same song. One computer in the team (or a NAS) runs the **team server**; everyone installs the **DAWGit app**.
+DAWGit keeps the version history of your Ableton Live projects and lets 2–3 people work on the same song. The team's songs live in a storage bucket the team owns (Cloudflare R2 or any other S3-compatible storage); everyone installs the **DAWGit app**. Nobody has to keep a computer running.
 
 ## 1. Install
 
@@ -8,48 +8,45 @@ Run `DAWGit-<version>-setup.exe` on every computer. No administrator rights are 
 
 Requires Windows 10 (21H2 or later) or Windows 11.
 
-## 2. Start the team server (one person)
+## 2. Create the team (one person)
 
-Start menu → **DAWGit → DAWGit Team Server**. A window opens and shows:
+The team's songs live in a bucket on **any S3-compatible storage** that supports conditional writes: Cloudflare R2, Amazon S3, MinIO and others. DAWGit checks the storage before it creates the team. We suggest Cloudflare R2 to start: the app guides you through it, downloads are free, and a small team usually stays within its free allowance.
 
-```
-DAWGit server 0.4.2 for team "Team on STUDIO-PC"
-  data:  C:\Users\you\DAWGit Server
-  token: 3f9c…
+In DAWGit choose **Create a team** (the first time DAWGit opens, or later from the Team menu → **Join/Create a Team…**), then pick **Cloudflare R2** or **Other S3-compatible**.
 
-team members connect with:
-  dawgit remote http://192.168.0.11:7331 --token 3f9c…
-```
+### Cloudflare R2 (about 5 minutes)
 
-Share the **address** (`http://192.168.0.11:7331`) and the **token** with your team. Keep the window open while you work together (minimise it). All server data lives in `DAWGit Server` in your user folder: back that folder up.
+1. **Open R2.** Log in to the [Cloudflare dashboard](https://dash.cloudflare.com/) (or sign up) and open **Storage & databases → R2 Object Storage** in the sidebar. The first time, Cloudflare asks you to activate R2; it may ask for a payment method even for the free allowance.
+2. **Create a bucket.** **Create bucket** → a name such as `night-shift-dawgit` → keep Location *Automatic* and Storage Class *Standard* → **Create bucket**. Use a bucket just for DAWGit.
+3. **Create a key for the bucket.** Back on the R2 page, under *Account Details*: **Manage API Tokens** → **Create Account API token**. Permissions: *Object Read & Write*. Specify bucket(s): *Apply to specific buckets only* → your bucket. Then create the token.
+4. **Copy the S3 credentials.** The next page is shown only once. Under *Use the following credentials for S3 clients*, copy the **Access Key ID**, the **Secret Access Key** and the **Default** endpoint (`https://<account id>.r2.cloudflarestorage.com`, also shown as *S3 API* on the R2 page). The *Token value* at the top of that page is not needed.
+5. **Name your team** and click **Check & create team.** DAWGit reads, writes and removes a test file to make sure everything works, then shows the team's **connection code**.
 
-Teammates outside your home/studio network need a way to reach this computer, e.g. a VPN such as Tailscale, or port forwarding of port 7331.
+### Other S3-compatible storage
 
-### Alternative: team storage instead of a server
+Create a bucket for DAWGit and a key that may read, write and delete objects in it. In DAWGit choose **Other S3-compatible** and enter the bucket, the keys, the endpoint (e.g. `https://s3.eu-central-1.amazonaws.com` for Amazon S3) and the region; the folder inside the bucket defaults to `dawgit`. The storage must support conditional writes (`If-None-Match`), which keeps two people from overwriting each other's versions; if it doesn't, DAWGit says so and does not create the team.
 
-Instead of running a server, a team can keep its data in an S3-compatible bucket (for example Cloudflare R2 or Backblaze B2). Nobody needs to keep a computer running. Whoever sets it up:
+### Send the connection code
 
-1. Creates a bucket and one access key per team member, limited to that bucket.
-2. Creates a connection code for each member:
+Send the connection code to each teammate **privately** (a direct message, not a public channel): it contains the key, and anyone who has it can read and change the team's songs. If a code leaks, create a new key (in Cloudflare: a new API token, then delete the old one), enter it in the team's settings (below), and send teammates the new code.
 
-   ```
-   dawgit connection-code --endpoint https://<account>.r2.cloudflarestorage.com --bucket <bucket> --access-key <key> --secret-key <secret>
-   ```
-
-   (`dawgit.exe` is in the `bin` folder of the DAWGit install folder.)
-3. Sends each member their code privately — it contains their key.
-
-Everywhere the app asks for a server address, paste the connection code instead (no token needed). Notices about teammates arrive a little later than with a server (every 20 seconds).
-
-## 3. Connect (everyone)
+## 3. Join the team (everyone else)
 
 The first time DAWGit opens, it walks you through three steps:
 
-1. **Connect** — enter the team server address and token, or paste your connection code.
+1. **Team** — choose **Join a team** and paste the connection code.
 2. **Your name** — shown next to the versions you commit.
 3. **Projects** — download the songs you work on, or add a project folder of your own.
 
-The **Team** menu at the top of the sidebar connects to another team, switches between teams, and renames or disconnects them (**Manage teams…**). To rename a team, type the new name in **Manage teams…**: **Rename for everyone** changes it on the team server or storage and every member's DAWGit follows; **Only on this computer** keeps your own name for it. Access tokens and keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
+The **Team** menu at the top of the sidebar switches between teams and joins or creates another one (**Join/Create a Team…**). The **⚙** next to a team opens its settings:
+
+- **Name** — **Rename for everyone** changes it in the team's storage and every member's DAWGit follows; **Only on this computer** keeps your own name for it.
+- **Your name in this team** — shown next to the versions you commit; changing it changes it on all your versions, for everyone.
+- **Invite teammates** — copy the connection code again.
+- **Connection** — change the bucket or key (e.g. after making a new key). DAWGit checks the new settings before saving them.
+- **Disconnect** — forget the team on this computer. Project folders stay.
+
+Keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
 ## 4. Share a project (the person who has it)
 
@@ -63,7 +60,7 @@ The sidebar lists every song in the current team. Songs not on this computer yet
 
 If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
 
-The **⋯** menu next to a song removes it from this computer's list (the folder stays), or deletes it from the team server for everyone (you type the song's name to confirm). Copies already on someone's computer are kept; on a self-hosted server the deleted song is moved to the `trash` folder in the server's data folder.
+The **⋯** menu next to a song removes it from this computer's list (the folder stays), or deletes it from the team for everyone (you type the song's name to confirm). Copies already on someone's computer are kept.
 
 ## Everyday use
 
@@ -74,4 +71,4 @@ The **⋯** menu next to a song removes it from this computer's list (the folder
 
 ## Uninstall
 
-Settings → Apps → DAWGit → Uninstall. Your projects, their `.dawgit` history folders and the server data are kept. Tick **Remove my settings** to also forget your teams, access tokens and name on this computer (useful before handing the computer on, or to try a fresh install).
+Settings → Apps → DAWGit → Uninstall. Your projects and their `.dawgit` history folders are kept, and so is the team's storage. Tick **Remove my settings** to also forget your teams, access tokens and name on this computer (useful before handing the computer on, or to try a fresh install).

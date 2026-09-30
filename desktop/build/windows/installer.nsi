@@ -73,10 +73,9 @@ Section "${APP}" SecApp
 
   CreateDirectory "$SMPROGRAMS\${APP}"
   CreateShortcut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${APP}.exe"
-  ; For whoever hosts the team's server: one click, no command line needed.
-  CreateShortcut "$SMPROGRAMS\${APP}\${APP} Team Server.lnk" "$INSTDIR\bin\dawgit.exe" \
-    'serve --data "$PROFILE\${APP} Server"' "$INSTDIR\icon.ico" 0 SW_SHOWNORMAL "" \
-    "Run the DAWGit server for your team (data in your user folder)"
+  ; Earlier versions added a Team Server shortcut; the server is now set up
+  ; from the command line only (docs/cli.md).
+  Delete "$SMPROGRAMS\${APP}\${APP} Team Server.lnk"
 
   WriteUninstaller "$INSTDIR\Uninstall ${APP}.exe"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APP}"
@@ -98,7 +97,7 @@ Section "Desktop shortcut" SecDesktop
 SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "The ${APP} app and the command line tool (also used to run a team server)."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "The ${APP} app and the command line tool."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecAutostart} "Recommended: keeps ${APP} in the tray so your team sees what you are editing and you hear about new versions."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Put a ${APP} shortcut on the desktop."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END

@@ -2,16 +2,15 @@
   import { api, errorText, LOCAL, type Overview, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
-  import ConnectForm from "./ConnectForm.svelte";
+  import JoinOrCreate from "./JoinOrCreate.svelte";
+  import TeamSettings from "./TeamSettings.svelte";
   import IdentityForm from "./IdentityForm.svelte";
 
   let { overview, reload }: { overview: Overview; reload: () => Promise<void> } = $props();
 
   let open = $state(false);
   let connecting = $state(false);
-  let managing = $state(false);
-  let names = $state<Record<string, string>>({});
-  let confirmRemove = $state<TeamSummary | null>(null);
+  let settingsFor = $state<TeamSummary | null>(null); // the ⚙ of a team
   // Who you are in a team (after connecting, or to rename yourself).
   let identityFor = $state<TeamSummary | null>(null);
   // Your name for projects kept on this computer only.
@@ -55,48 +54,6 @@
       toast(errorText(e), "error");
     }
   }
-
-  function manage() {
-    open = false;
-    names = Object.fromEntries(overview.teams.map((t) => [t.id, t.name]));
-    managing = true;
-  }
-
-  async function rename(t: TeamSummary) {
-    try {
-      await api.RenameTeam(t.id, names[t.id]);
-      await reload();
-      names[t.id] = overview.teams.find((x) => x.id === t.id)?.name ?? names[t.id];
-      toast("Renamed", "ok");
-    } catch (e) {
-      toast(errorText(e), "error");
-    }
-  }
-
-  let renaming = $state("");
-  async function renameForEveryone(t: TeamSummary) {
-    renaming = t.id;
-    try {
-      await api.RenameTeamForEveryone(t.id, names[t.id]);
-      await reload();
-      toast(`Renamed to ${names[t.id].trim()} for everyone`, "ok");
-    } catch (e) {
-      toast(errorText(e), "error", 9000);
-    } finally {
-      renaming = "";
-    }
-  }
-
-  async function remove(t: TeamSummary) {
-    confirmRemove = null;
-    try {
-      await api.RemoveTeam(t.id);
-      await reload();
-      toast(`Disconnected from ${t.name}. Project folders were left on disk.`, "info", 7000);
-    } catch (e) {
-      toast(errorText(e), "error");
-    }
-  }
 </script>
 
 <svelte:window onclick={(e) => { if (open && !(e.target as HTMLElement).closest(".team-menu")) open = false; }} />
@@ -116,11 +73,15 @@
   {#if open}
     <div class="menu" role="menu">
       {#each overview.teams as t (t.id)}
-        <button class="item" onclick={() => select(t.id)}>
-          <span class="check">{t.id === overview.currentTeam ? "✓" : ""}</span>
-          <span class="tname">{t.name}</span>
-          <span class="faint small">{t.isStorage ? "storage" : hostOf(t) === t.name ? "" : hostOf(t)}</span>
-        </button>
+        <div class="team-row">
+          <button class="item" onclick={() => select(t.id)}>
+            <span class="check">{t.id === overview.currentTeam ? "✓" : ""}</span>
+            <span class="tname">{t.name}</span>
+            {#if !t.isStorage && hostOf(t) !== t.name}<span class="faint small">{hostOf(t)}</span>{/if}
+          </button>
+          <button class="gear" title="Team settings: names, connection code, keys"
+            onclick={() => { open = false; settingsFor = t; }}>⚙</button>
+        </div>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}
       <button class="item" onclick={() => select(LOCAL)}>
@@ -129,21 +90,14 @@
         <span class="faint small">this computer only</span>
       </button>
       <div class="sep"></div>
-      {#if current}
-        <button class="item" onclick={() => { open = false; identityFor = current!; }}>
-          <span class="check">☺</span>Your name in {current.name}{current.memberName ? `: ${current.memberName}` : "…"}
-        </button>
-      {:else}
+      {#if !current}
         <button class="item" onclick={() => { open = false; localName = overview.author; }}>
           <span class="check">☺</span>Your name on this computer{overview.author ? `: ${overview.author}` : "…"}
         </button>
       {/if}
       <button class="item" onclick={() => { open = false; connecting = true; }}>
-        <span class="check">+</span>Connect to {overview.teams.length ? "another" : "a"} team…
+        <span class="check">+</span>Join/Create a Team…
       </button>
-      {#if overview.teams.length}
-        <button class="item" onclick={manage}><span class="check">⚙</span>Manage teams…</button>
-      {/if}
     </div>
   {/if}
 </div>
@@ -168,55 +122,14 @@
 {/if}
 
 {#if connecting}
-  <Modal title="Connect to a team" onclose={() => (connecting = false)}>
-    <ConnectForm onconnected={connected} />
+  <Modal title="Join or create a team" onclose={() => (connecting = false)} width={640} backdropCloses={false}>
+    <JoinOrCreate onconnected={connected} />
   </Modal>
 {/if}
 
-{#if managing}
-  <Modal title="Teams on this computer" onclose={() => (managing = false)} width={620}>
-    <ul class="teams">
-      {#each overview.teams as t (t.id)}
-        <li>
-          <div class="fields">
-            <input bind:value={names[t.id]} aria-label="Team name" placeholder="The team's own name" />
-            <div class="faint small mono">{t.address}</div>
-            {#if names[t.id] !== t.name}
-              <div class="rename">
-                {#if names[t.id]?.trim()}
-                  <button class="primary" disabled={!!renaming} onclick={() => renameForEveryone(t)}>
-                    {renaming === t.id ? "Renaming…" : "Rename for everyone"}
-                  </button>
-                  <button disabled={!!renaming} onclick={() => rename(t)}>Only on this computer</button>
-                {:else}
-                  <button onclick={() => rename(t)}>Use the team's name</button>
-                {/if}
-                <button class="ghost" onclick={() => (names[t.id] = t.name)}>Cancel</button>
-              </div>
-            {/if}
-          </div>
-          <button class="danger" onclick={() => (confirmRemove = t)}>Disconnect</button>
-        </li>
-      {/each}
-    </ul>
-    <p class="faint small note"><strong>Rename for everyone</strong> changes the team's name on its server or storage,
-      and every member sees the new name. <strong>Only on this computer</strong> keeps your own name for it here.</p>
-    {#snippet footer()}
-      <button onclick={() => (managing = false)}>Close</button>
-    {/snippet}
-  </Modal>
-{/if}
-
-{#if confirmRemove}
-  {@const t = confirmRemove}
-  <Modal title="Disconnect from {t.name}?" onclose={() => (confirmRemove = null)}>
-    <p>This computer forgets the team and its access token or key. Your project folders stay where they are,
-      but DAWGit stops listing and watching them. You can connect again later.</p>
-    {#snippet footer()}
-      <button onclick={() => (confirmRemove = null)}>Cancel</button>
-      <button class="primary" onclick={() => remove(t)}>Disconnect</button>
-    {/snippet}
-  </Modal>
+{#if settingsFor}
+  {@const t = overview.teams.find((x) => x.id === settingsFor!.id) ?? settingsFor}
+  <TeamSettings team={t} author={overview.author} {reload} onclose={() => (settingsFor = null)} />
 {/if}
 
 <style>
@@ -234,6 +147,10 @@
   }
   .item { display: flex; align-items: center; gap: 8px; width: 100%; border: none; background: transparent; padding: 7px 8px; text-align: left; }
   .item:hover { background: #33363d; }
+  .team-row { display: flex; align-items: center; }
+  .team-row .item { flex: 1; min-width: 0; }
+  .gear { flex: none; border: none; background: transparent; color: var(--faint); padding: 4px 8px; border-radius: 6px; }
+  .gear:hover { color: var(--text); background: #33363d; }
   .check { width: 14px; color: var(--accent); }
   .tname { flex: 1; }
   .small { font-size: 12px; }
@@ -242,11 +159,4 @@
     background: var(--warn-bg); color: var(--warn); border: 1px solid #5a4623; border-radius: 8px;
   }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
-  .teams { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
-  .teams li { display: flex; align-items: flex-start; gap: 8px; }
-  .rename { display: flex; gap: 6px; margin-top: 8px; }
-  .rename button { padding: 5px 10px; font-size: 13px; }
-  .fields { flex: 1; min-width: 0; }
-  .note { margin: 14px 0 0; }
-  .fields .mono { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

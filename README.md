@@ -15,9 +15,7 @@ Version history and teamwork for Ableton Live projects. Commit versions of your 
 - **Track-level merging** — when two people edit the same song, their changes are combined track by track (tracks, their placement and order, sends) together with song-wide parts such as the main track, locators and scenes. Only when you both changed the same track does DAWGit ask which to keep: yours, theirs, or both side by side.
 - **Samples go with the project** — samples inside the project folder, and samples from elsewhere on your disk, are stored with each version. On a teammate's computer the set is pointed at them automatically. Samples from Live packs are only recorded by name.
 - **See who is editing what** — DAWGit shows which tracks your teammates are working on right now and warns you when you both edit the same one. Your unsaved work is backed up to the team.
-- **Two ways to host a team**
-  - a **team server** on any computer or NAS in your team (one program, no setup), or
-  - **S3-compatible storage** such as Cloudflare R2 — nothing needs to stay switched on.
+- **Your team's own storage** — the team's songs live in a bucket of your own on any S3-compatible storage (Cloudflare R2, Amazon S3, MinIO, …). DAWGit guides you through setting up Cloudflare R2 in a few minutes. Nothing needs to stay switched on.
 - **Or keep it local** — use DAWGit on your own, with versions kept on your computer only.
 - **Nothing changes behind your back** — DAWGit never changes your project files on its own, only when you take in your team's changes, and it asks you to close Live before it rewrites a set.
 - **Go back to any version** — put the project in the state of an older version from the History tab, then go back to the latest or start a branch from there. Merge any version of another branch into yours, not only its latest. Or export a version as a separate project folder to open next to the current one.
@@ -44,9 +42,9 @@ You can share the project with a team later with **Share with a team…**.
 
 ### Join a team
 
-Ask whoever set up your team for the **server address and token**, or for your **connection code**.
+Ask whoever set up your team for the **connection code**.
 
-1. Open DAWGit, paste the address and token (or the code) and click **Connect**.
+1. Open DAWGit, choose **Join a team**, paste the code and click **Connect**.
 2. Enter your name — it appears next to the versions you commit.
 3. Download the songs you work on, or add your own project with **+ Add a project**.
 
@@ -59,12 +57,14 @@ Everyday use:
 
 ### Set up a team
 
-One person does this once. Pick one:
+One person does this once. The team's songs are kept in a bucket you own, on any S3-compatible storage that supports conditional writes. [Cloudflare R2](https://developers.cloudflare.com/r2/) is the easiest start: DAWGit walks you through it in about 5 minutes, and a small team usually stays within R2's free allowance.
 
-- **Team server** — on a computer that is on while you work (or a NAS): Start menu → **DAWGit → DAWGit Team Server**. It shows the address and token to share. Teammates outside your network need a VPN (e.g. Tailscale) or port forwarding.
-- **Team storage** — create an S3-compatible bucket (e.g. Cloudflare R2) and an access key per member, then make a connection code for each with `dawgit connection-code`. No computer has to stay on.
+1. Open DAWGit and choose **Create a team** (later: Team menu → **Join/Create a Team…**).
+2. Pick **Cloudflare R2** and follow the steps on screen: create a bucket and a key for it in the Cloudflare dashboard, and paste them into DAWGit. (Or pick **Other S3-compatible** and enter your bucket, keys and endpoint.)
+3. Click **Check & create team**. DAWGit tests the bucket and gives you a **connection code**.
+4. Send the code to each teammate privately — it contains the key.
 
-Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
+The ⚙ next to the team in the Team menu copies the code again and changes the key, the team's name or your name in it. Step-by-step instructions: [docs/team-setup.md](docs/team-setup.md).
 
 ## Known limitations
 

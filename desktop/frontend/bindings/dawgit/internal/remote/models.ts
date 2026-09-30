@@ -61,3 +61,60 @@ export class Project {
         return new Project($$parsedSource as Partial<Project>);
     }
 }
+
+/**
+ * Storage is team storage (an S3-compatible bucket) as a person fills it in.
+ */
+export class Storage {
+    /**
+     * Endpoint: the S3 API address, e.g. https://<account>.r2.cloudflarestorage.com
+     * (a Cloudflare account id alone works too; a trailing /<bucket> is taken
+     * as the bucket).
+     */
+    "endpoint": string;
+    "bucket": string;
+
+    /**
+     * inside the bucket; "" means "dawgit"
+     */
+    "folder": string;
+
+    /**
+     * "" means "auto" (R2)
+     */
+    "region": string;
+    "accessKey": string;
+    "secretKey": string;
+
+    /** Creates a new Storage instance. */
+    constructor($$source: Partial<Storage> = {}) {
+        if (!("endpoint" in $$source)) {
+            this["endpoint"] = "";
+        }
+        if (!("bucket" in $$source)) {
+            this["bucket"] = "";
+        }
+        if (!("folder" in $$source)) {
+            this["folder"] = "";
+        }
+        if (!("region" in $$source)) {
+            this["region"] = "";
+        }
+        if (!("accessKey" in $$source)) {
+            this["accessKey"] = "";
+        }
+        if (!("secretKey" in $$source)) {
+            this["secretKey"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Storage instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Storage {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Storage($$parsedSource as Partial<Storage>);
+    }
+}
