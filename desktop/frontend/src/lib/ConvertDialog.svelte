@@ -5,6 +5,8 @@
   import { api, errorText, type Progress } from "./api";
 
   // Convert a sample to another format; the new file goes next to it.
+  // Sample rate, channels and bit depth keep the original's unless changed
+  // under "More options"; notes say what a format forces.
   let { root, file, onclose, ondone }: {
     root: string;
     file: string; // relative path of the sample
@@ -12,10 +14,16 @@
     ondone: (newFile: string) => void;
   } = $props();
 
-  type Fmt = { id: string; name: string; ext: string; bitrates: number[] };
+  type Fmt = { id: string; name: string; ext: string; bitrates: number[]; rates: number[]; bits: number[] };
   let formats = $state<Fmt[]>([]);
   let format = $state("mp3");
   let kbps = $state(320);
+  let rate = $state(0); // 0: same as original
+  let channels = $state(0);
+  let bits = $state(0);
+  let more = $state(false);
+  let info = $state<{ rate: number; channels: number; bits: number; seconds: number } | null>(null);
+  let plan = $state<{ rate: number; channels: number; bits: number; bitrate: number; notes: string[] } | null>(null);
   let target = $state("");
   let busy = $state(false);
   let error = $state("");
@@ -23,17 +31,29 @@
 
   let current = $derived(formats.find((f) => f.id === format));
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
+  const khz = (hz: number) => `${hz % 1000 ? (hz / 1000).toFixed(1) : hz / 1000} kHz`;
+  const chName = (n: number) => (n === 1 ? "mono" : n === 2 ? "stereo" : `${n} channels`);
+  // Lossy output shows its bitrate in place of the bit depth.
+  const describe = (x: { rate: number; channels: number; bits: number; bitrate?: number }) =>
+    [x.bitrate && `${x.bitrate} kbps`, x.rate && khz(x.rate), !x.bitrate && x.bits && `${x.bits}-bit`, x.channels && chName(x.channels)]
+      .filter(Boolean).join(" · ");
 
   $effect(() => {
     api.ConvertFormats().then((f) => (formats = (f ?? []) as Fmt[]));
+    api.ConvertInfo(root, file).then((i) => (info = i)).catch(() => (info = null));
   });
 
-  // The default bitrate for the chosen format, and where the file will go.
+  // Keep choices valid for the format; work out the output and the file name.
   $effect(() => {
     const f = current;
     if (!f) return;
     if (f.bitrates.length && !f.bitrates.includes(kbps)) kbps = f.bitrates[0];
+    if (rate && !f.rates.includes(rate)) rate = 0;
+    if (bits && !f.bits.includes(bits)) bits = 0;
+    const [k, r, c, b] = [f.bitrates.length ? kbps : 0, rate, channels, bits];
     api.ConvertTarget(root, file, f.id).then((t) => (target = t)).catch(() => (target = ""));
+    api.ConvertPlan(root, file, f.id, k, r, c, b).then((p) => { plan = p; error = ""; })
+      .catch((e) => { plan = null; error = errorText(e); });
   });
 
   $effect(() => Events.On("progress", (ev: { data: Progress }) => {
@@ -45,7 +65,7 @@
     error = "";
     progress = null;
     try {
-      ondone(await api.ConvertFile(root, file, format, current?.bitrates.length ? kbps : 0));
+      ondone(await api.ConvertFile(root, file, format, current?.bitrates.length ? kbps : 0, rate, channels, bits));
     } catch (e) {
       error = errorText(e);
     } finally {
@@ -55,6 +75,8 @@
 </script>
 
 <Modal title="Convert {name(file)}" onclose={() => { if (!busy) onclose(); }}>
+  {#if info}<p class="faint small orig">Original: {describe(info)}{info.seconds ? ` · ${info.seconds.toFixed(1)} s` : ""}</p>{/if}
+
   <div class="grid">
     <label for="cf">Format</label>
     <select id="cf" bind:value={format} disabled={busy}>
@@ -67,22 +89,56 @@
         {#each current.bitrates as b}<option value={b}>{b} kbps{b === current.bitrates[0] ? " (best)" : ""}</option>{/each}
       </select>
     {/if}
+
+    {#if more && current}
+      <label for="cr">Sample rate</label>
+      <select id="cr" bind:value={rate} disabled={busy}>
+        <option value={0}>Same as original{info?.rate ? ` (${khz(info.rate)})` : ""}</option>
+        {#each current.rates as r}<option value={r}>{khz(r)}</option>{/each}
+      </select>
+
+      <label for="cc">Channels</label>
+      <select id="cc" bind:value={channels} disabled={busy}>
+        <option value={0}>Same as original{info?.channels ? ` (${chName(info.channels)})` : ""}</option>
+        <option value={2}>Stereo</option>
+        <option value={1}>Mono (channels mixed)</option>
+      </select>
+
+      {#if current.bits.length}
+        <label for="cd">Bit depth</label>
+        <select id="cd" bind:value={bits} disabled={busy}>
+          <option value={0}>Same as original{info?.bits ? ` (${info.bits}-bit)` : ""}</option>
+          {#each current.bits as b}<option value={b}>{b}-bit</option>{/each}
+        </select>
+      {/if}
+    {/if}
   </div>
 
-  {#if target}<p class="muted small">Saved next to the original as <span class="mono">{name(target)}</span>. The original stays.</p>{/if}
+  {#if !more}
+    <button class="link" onclick={() => (more = true)} disabled={busy}>More options (sample rate, channels…)</button>
+  {/if}
+
+  {#if plan}
+    <p class="small result">Writes {describe(plan)}{target ? ` as ${name(target)}` : ""} next to the original. The original stays.</p>
+    {#each plan.notes as n}<p class="small note">{n}</p>{/each}
+  {/if}
   {#if busy}<ProgressBar p={progress} waiting="Starting…" />{/if}
-  {#if error}<p class="error">{error}</p>{/if}
+  {#if error}<p class="error small">{error}</p>{/if}
 
   {#snippet footer()}
     <button onclick={onclose} disabled={busy}>Cancel</button>
-    <button class="primary" onclick={run} disabled={busy || !current}>{busy ? "Converting…" : "Convert"}</button>
+    <button class="primary" onclick={run} disabled={busy || !current || !plan}>{busy ? "Converting…" : "Convert"}</button>
   {/snippet}
 </Modal>
 
 <style>
-  .grid { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+  .orig { margin: 0 0 12px; }
+  .grid { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; margin-bottom: 10px; }
   .grid label { margin: 0; }
   select { width: 100%; }
   .small { font-size: 12.5px; }
+  .result { color: var(--muted); margin: 10px 0 4px; }
+  .note { color: var(--warn); margin: 2px 0; }
+  .link { border: none; background: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 12.5px; }
   .error { color: var(--danger); }
 </style>

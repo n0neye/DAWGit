@@ -151,8 +151,6 @@ func newMediaType() (unsafe.Pointer, error) {
 	return t, hr(r)
 }
 
-type pcm struct{ rate, channels, bits uint32 }
-
 func pcmType(p pcm) (unsafe.Pointer, error) {
 	t, err := newMediaType()
 	if err != nil {
@@ -172,18 +170,32 @@ func pcmType(p pcm) (unsafe.Pointer, error) {
 	return t, nil
 }
 
-func convert(src, dst string, f Format, o Options) error {
+// mfStart sets up COM and Media Foundation on this (locked) thread; stop
+// undoes it. Both count, so nested calls are fine.
+func mfStart() (stop func(), err error) {
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
 	// S_FALSE (already initialized) still needs the matching uninitialize; a
 	// thread set up differently (RPC_E_CHANGED_MODE) works as it is.
-	if err := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED); err == nil || err == syscall.Errno(1) {
-		defer windows.CoUninitialize()
+	co := windows.CoInitializeEx(0, windows.COINIT_MULTITHREADED)
+	uninit := func() {
+		if co == nil || co == syscall.Errno(1) {
+			windows.CoUninitialize()
+		}
+		runtime.UnlockOSThread()
 	}
 	if r, _, _ := procMFStartup.Call(0x20070, 0); hr(r) != nil {
-		return fmt.Errorf("media foundation is not available: %w", hr(r))
+		uninit()
+		return nil, fmt.Errorf("media foundation is not available: %w", hr(r))
 	}
-	defer procMFShutdown.Call()
+	return func() { procMFShutdown.Call(); uninit() }, nil
+}
+
+func convert(src, dst string, f Format, o Options) error {
+	stop, err := mfStart()
+	if err != nil {
+		return err
+	}
+	defer stop()
 
 	// Media Foundation does not read AIFF: go through WAV.
 	in := src
@@ -226,9 +238,14 @@ func convert(src, dst string, f Format, o Options) error {
 	if err := vcall(reader, rGetNativeMediaType, firstAudioStream, 0, uintptr(unsafe.Pointer(&native))); err != nil {
 		return err
 	}
-	srcFmt := pcm{rate: getU32(native, keyRate), channels: getU32(native, keyChannels), bits: getU32(native, keyBits)}
+	srcFmt := Info{Rate: int(getU32(native, keyRate)), Channels: int(getU32(native, keyChannels)), Bits: int(getU32(native, keyBits))}
 	release(native)
-	want := pcmFor(f, srcFmt)
+	plan, err := Plan(f.ID, srcFmt, o)
+	if err != nil {
+		return err
+	}
+	o.Bitrate = plan.Bitrate
+	want := pcm{rate: uint32(plan.Rate), channels: uint32(plan.Channels), bits: uint32(plan.Bits)}
 
 	t, err := pcmType(want)
 	if err != nil {
@@ -253,40 +270,26 @@ func convert(src, dst string, f Format, o Options) error {
 	return encode(reader, cur, dst, f, got, o, duration)
 }
 
-// pcmFor is the PCM to decode to for a target: what its encoder takes.
-func pcmFor(f Format, s pcm) pcm {
-	p := s
-	if p.channels == 0 || p.channels > 2 {
-		p.channels = 2
+// probe reads a compressed sample's format with Media Foundation.
+func probe(src string) (Info, error) {
+	stop, err := mfStart()
+	if err != nil {
+		return Info{}, err
 	}
-	if p.rate == 0 {
-		p.rate = 44100
+	defer stop()
+	var reader unsafe.Pointer
+	path, _ := windows.UTF16PtrFromString(src)
+	if r, _, _ := procCreateReader.Call(uintptr(unsafe.Pointer(path)), 0, uintptr(unsafe.Pointer(&reader))); hr(r) != nil {
+		return Info{}, hr(r)
 	}
-	switch f.ID {
-	case "wav16":
-		p.bits = 16
-	case "wav24":
-		p.bits = 24
-	case "flac":
-		if p.bits > 16 {
-			p.bits = 24
-		} else {
-			p.bits = 16
-		}
-		if p.rate > 192000 {
-			p.rate = 192000
-		}
-	default: // mp3, aac: 16-bit at 44.1 or 48 kHz (MP3 also 32 kHz)
-		p.bits = 16
-		switch {
-		case p.rate == 44100 || p.rate == 48000 || (p.rate == 32000 && f.ID == "mp3"):
-		case p.rate%44100 == 0 || p.rate == 22050 || p.rate == 11025:
-			p.rate = 44100
-		default:
-			p.rate = 48000
-		}
+	defer release(reader)
+	var native unsafe.Pointer
+	if err := vcall(reader, rGetNativeMediaType, firstAudioStream, 0, uintptr(unsafe.Pointer(&native))); err != nil {
+		return Info{}, err
 	}
-	return p
+	defer release(native)
+	return Info{Rate: int(getU32(native, keyRate)), Channels: int(getU32(native, keyChannels)),
+		Bits: int(getU32(native, keyBits)), Seconds: float64(sourceDuration(reader)) / 1e7}, nil
 }
 
 // sourceDuration in 100 ns units (0 if unknown).
@@ -422,16 +425,18 @@ func encode(reader, input unsafe.Pointer, dst string, f Format, p pcm, o Options
 
 // encoderType finds the encoder's output type for the format, rate,
 // channels (and bitrate for lossy formats) among the types it offers.
-func encoderType(f Format, p pcm, kbps int) (unsafe.Pointer, error) {
+// encoderTypes calls fn with each output type the format's encoder offers
+// until it returns true (and keeps that type: the caller releases it).
+func encoderTypes(f Format, fn func(t unsafe.Pointer) bool) error {
 	sub := map[string]windows.GUID{"mp3": subMP3, "aac": subAAC, "flac": subFLAC}[f.ID]
 	var coll unsafe.Pointer
 	if r, _, _ := procAvailableTypes.Call(uintptr(unsafe.Pointer(&sub)), mftEnumAll, 0, uintptr(unsafe.Pointer(&coll))); hr(r) != nil {
-		return nil, fmt.Errorf("no %s encoder on this computer: %w", f.Name, hr(r))
+		return fmt.Errorf("no %s encoder on this computer: %w", f.Name, hr(r))
 	}
 	defer release(coll)
 	var n uint32
 	if err := vcall(coll, cGetElementCount, uintptr(unsafe.Pointer(&n))); err != nil {
-		return nil, err
+		return err
 	}
 	for i := uint32(0); i < n; i++ {
 		var unk, t unsafe.Pointer
@@ -443,6 +448,17 @@ func encoderType(f Format, p pcm, kbps int) (unsafe.Pointer, error) {
 		if err != nil {
 			continue
 		}
+		if fn(t) {
+			return nil
+		}
+		release(t)
+	}
+	return nil
+}
+
+func encoderType(f Format, p pcm, kbps int) (unsafe.Pointer, error) {
+	var found unsafe.Pointer
+	err := encoderTypes(f, func(t unsafe.Pointer) bool {
 		ok := getU32(t, keyRate) == p.rate && getU32(t, keyChannels) == p.channels
 		switch {
 		case kbps > 0:
@@ -451,12 +467,35 @@ func encoderType(f Format, p pcm, kbps int) (unsafe.Pointer, error) {
 			ok = ok && (getU32(t, keyBits) == 0 || getU32(t, keyBits) == p.bits)
 		}
 		if ok {
-			return t, nil
+			found = t
 		}
-		release(t)
+		return ok
+	})
+	if err != nil || found != nil {
+		return found, err
 	}
 	if kbps > 0 {
 		return nil, fmt.Errorf("the %s encoder has no %d kbps setting for %d Hz, %d channel(s)", f.Name, kbps, p.rate, p.channels)
 	}
 	return nil, fmt.Errorf("the %s encoder does not take %d Hz, %d-bit, %d channel(s)", f.Name, p.rate, p.bits, p.channels)
+}
+
+// encoderBitrates lists the kbps the format's encoder offers at a rate and
+// channel count (nil when it can't tell).
+func encoderBitrates(f Format, rate, channels int) []int {
+	stop, err := mfStart()
+	if err != nil {
+		return nil
+	}
+	defer stop()
+	var out []int
+	encoderTypes(f, func(t unsafe.Pointer) bool {
+		if int(getU32(t, keyRate)) == rate && int(getU32(t, keyChannels)) == channels {
+			if k := int(getU32(t, keyAvgBytes)) * 8 / 1000; k > 0 && !contains(out, k) {
+				out = append(out, k)
+			}
+		}
+		return false
+	})
+	return out
 }

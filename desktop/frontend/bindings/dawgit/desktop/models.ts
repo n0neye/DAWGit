@@ -133,6 +133,16 @@ export class ConvertFormat {
      */
     "bitrates": number[];
 
+    /**
+     * sample rates it takes (Hz)
+     */
+    "rates": number[];
+
+    /**
+     * bit depths to choose from (FLAC)
+     */
+    "bits": number[];
+
     /** Creates a new ConvertFormat instance. */
     constructor($$source: Partial<ConvertFormat> = {}) {
         if (!("id" in $$source)) {
@@ -147,6 +157,12 @@ export class ConvertFormat {
         if (!("bitrates" in $$source)) {
             this["bitrates"] = [];
         }
+        if (!("rates" in $$source)) {
+            this["rates"] = [];
+        }
+        if (!("bits" in $$source)) {
+            this["bits"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -156,9 +172,17 @@ export class ConvertFormat {
      */
     static createFrom($$source: any = {}): ConvertFormat {
         const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType3;
+        const $$createField5_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("bitrates" in $$parsedSource) {
             $$parsedSource["bitrates"] = $$createField3_0($$parsedSource["bitrates"]);
+        }
+        if ("rates" in $$parsedSource) {
+            $$parsedSource["rates"] = $$createField4_0($$parsedSource["rates"]);
+        }
+        if ("bits" in $$parsedSource) {
+            $$parsedSource["bits"] = $$createField5_0($$parsedSource["bits"]);
         }
         return new ConvertFormat($$parsedSource as Partial<ConvertFormat>);
     }
