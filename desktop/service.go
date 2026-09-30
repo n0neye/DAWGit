@@ -30,7 +30,7 @@ type App struct {
 	mu      sync.Mutex // guards locks, agents
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
-	hidden  atomic.Bool // the window is in the tray or minimised
+	hidden  atomic.Bool             // the window is in the tray or minimised
 	watches map[string]*folderWatch // guarded by mu
 	pickDir func(title string) (string, error)
 	openURL func(url string) error
@@ -315,12 +315,12 @@ func (a *App) State(root string) (*State, error) {
 
 // TeamPart is the team's side of a project's state (see TeamState).
 type TeamPart struct {
-	Online       bool       `json:"online"`
-	Offline      string     `json:"offline"`
-	Branches     []Branch   `json:"branches"`
-	Incoming     []Version  `json:"incoming"`
-	History      []Version  `json:"history"` // all branches, with the team's
-	OlderVersion *Version   `json:"olderVersion"`
+	Online       bool      `json:"online"`
+	Offline      string    `json:"offline"`
+	Branches     []Branch  `json:"branches"`
+	Incoming     []Version `json:"incoming"`
+	History      []Version `json:"history"` // all branches, with the team's
+	OlderVersion *Version  `json:"olderVersion"`
 }
 
 // TeamState asks the team for its branches and new versions. It runs
@@ -728,7 +728,9 @@ func (a *App) PreviewMerge(root, name string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toPreview(p, a.memberNames(r)), nil
+	out := toPreview(p, a.memberNames(r))
+	out.Message = "Merge branch " + name
+	return out, nil
 }
 
 // PreviewMergeVersion previews merging any version (e.g. one in the middle
@@ -743,10 +745,32 @@ func (a *App) PreviewMergeVersion(root, id string) (*Preview, error) {
 	if err != nil {
 		return nil, err
 	}
-	return toPreview(p, a.memberNames(r)), nil
+	out := toPreview(p, a.memberNames(r))
+	out.Message, _ = r.MergeMessage(id)
+	return out, nil
 }
 
-func (a *App) MergeVersion(root, id string, resolutions map[string]string, force bool) (*Result, error) {
+// VersionChanges lists what a version changed compared with the one before
+// it (for a merge: what it brought into its branch), for the History tab.
+func (a *App) VersionChanges(root, id string) ([]Change, error) {
+	r, err := project.Open(root) // reads stored versions only: no lock
+	if err != nil {
+		return nil, err
+	}
+	changes, err := r.VersionChanges(id)
+	if err != nil {
+		return nil, err
+	}
+	out := []Change{}
+	for _, c := range changes {
+		out = append(out, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
+	}
+	return out, nil
+}
+
+// MergeVersion merges a version into the current branch; message describes
+// the merge version ("" for the default, see Preview.Message).
+func (a *App) MergeVersion(root, id, message string, resolutions map[string]string, force bool) (*Result, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -755,14 +779,14 @@ func (a *App) MergeVersion(root, id string, resolutions map[string]string, force
 	if set := liveGuard(r, force); set != "" {
 		return blocked(set), nil
 	}
-	res, err := r.MergeVersion(id, opts(resolutions))
+	res, err := r.MergeVersion(id, message, opts(resolutions))
 	if err != nil {
 		return conflictResult(err)
 	}
 	return syncResult(res), nil
 }
 
-func (a *App) MergeBranch(root, name string, resolutions map[string]string, force bool) (*Result, error) {
+func (a *App) MergeBranch(root, name, message string, resolutions map[string]string, force bool) (*Result, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -771,7 +795,7 @@ func (a *App) MergeBranch(root, name string, resolutions map[string]string, forc
 	if set := liveGuard(r, force); set != "" {
 		return blocked(set), nil
 	}
-	res, err := r.MergeBranch(name, opts(resolutions))
+	res, err := r.MergeBranch(name, message, opts(resolutions))
 	if err != nil {
 		return conflictResult(err)
 	}

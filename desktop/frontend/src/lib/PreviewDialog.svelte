@@ -3,14 +3,19 @@
   import ChangeList from "./ChangeList.svelte";
   import { ago, type Preview } from "./api";
 
-  let { title, preview, actionLabel, onconfirm, onclose, blocked = "" }: {
+  let { title, preview, actionLabel, onconfirm, onclose, blocked = "", message = $bindable(null) }: {
     title: string;
     preview: Preview;
     actionLabel: string;
     onconfirm: () => void;
     onclose: () => void;
     blocked?: string; // why the action cannot run now
+    // The new version's description (merges), editable; null: none.
+    message?: string | null;
   } = $props();
+
+  // Only a real merge makes a new version (a fast-forward takes theirs).
+  let asksMessage = $derived(message !== null && preview.action === "merge");
 
   let nothing = $derived(preview.action === "up-to-date" || preview.action === "ahead");
 </script>
@@ -41,12 +46,16 @@
     {:else if preview.action === "merge" && !blocked}
       <p class="ok">No conflicts — your work and theirs combine automatically.</p>
     {/if}
+    {#if asksMessage}
+      <label for="merge-msg">Description of the merge version</label>
+      <textarea id="merge-msg" rows="2" bind:value={message}></textarea>
+    {/if}
     {#if blocked}<p class="blocked">{blocked}</p>{/if}
   {/if}
   {#snippet footer()}
     <button onclick={onclose}>{nothing ? "Close" : "Cancel"}</button>
     {#if !nothing}
-      <button class="primary" disabled={!!blocked} onclick={onconfirm}>{actionLabel}</button>
+      <button class="primary" disabled={!!blocked || (asksMessage && !message?.trim())} onclick={onconfirm}>{actionLabel}</button>
     {/if}
   {/snippet}
 </Modal>
@@ -62,5 +71,7 @@
   }
   .conflicts ul { margin: 6px 0 0; padding-left: 20px; }
   .ok { color: var(--accent); margin-top: 14px; }
+  label[for="merge-msg"] { margin-top: 16px; }
+  textarea { width: 100%; resize: vertical; }
   .blocked { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: #1d2c38; border: 1px solid #2c4557; }
 </style>

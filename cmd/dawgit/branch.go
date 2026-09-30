@@ -115,12 +115,13 @@ func cmdMergeBranch(args []string) error {
 	preview := fs.Bool("preview", false, "show what would come in, change nothing")
 	strategy := strategyFlag(fs)
 	force := fs.Bool("force", false, "merge even while Ableton Live is running")
+	message := fs.String("m", "", `describe the merge version (default "Merge branch <branch>")`)
 	pos, err := parseArgs(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) != 1 {
-		return errors.New("usage: dawgit merge <branch> [--preview] [--strategy ...]")
+		return errors.New("usage: dawgit merge <branch> [-m message] [--preview] [--strategy ...]")
 	}
 	r, err := openRepo()
 	if err != nil {
@@ -137,7 +138,7 @@ func cmdMergeBranch(args []string) error {
 	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
-	res, err := r.MergeBranch(pos[0], project.Strategy(*strategy))
+	res, err := r.MergeBranch(pos[0], *message, project.Strategy(*strategy))
 	if err != nil {
 		return explainConflict(err)
 	}

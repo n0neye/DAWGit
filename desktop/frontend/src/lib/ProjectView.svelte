@@ -316,6 +316,7 @@
     busy = "preview";
     try {
       const data = await api.PreviewUpdate(root);
+      mergeMessage = null;
       if (data) preview = { title: "Updates from the team", label: "Get updates", data, run: updateAction,
         blocked: st?.changes.length ? UNSAVED : "" };
     } catch (e) {
@@ -325,18 +326,22 @@
     }
   }
 
+  // The merge version's description, edited in the preview (null: no merge).
+  let mergeMessage = $state<string | null>(null);
+
   async function openMergePreview(name: string) {
     branchMenu = false;
     busy = "preview";
     try {
       const data = await api.PreviewMerge(root, name);
       if (!data) return;
+      mergeMessage = data.message;
       preview = {
         title: `Merge “${name}” into “${st?.branch}”`, label: "Merge and share", data,
         blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
         run: {
           name: "merge",
-          call: (res, force) => api.MergeBranch(root, name, res, force),
+          call: (res, force) => api.MergeBranch(root, name, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
             ? `Nothing to merge from ${name}` : `Merged ${name} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
         },
@@ -356,12 +361,13 @@
     try {
       const data = await api.PreviewMergeVersion(root, v.id);
       if (!data) return;
+      mergeMessage = data.message;
       preview = {
         title: `Merge ${label} into “${st?.branch}”`, label: "Merge and share", data,
         blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
         run: {
           name: "merge",
-          call: (res, force) => api.MergeVersion(root, v.id, res, force),
+          call: (res, force) => api.MergeVersion(root, v.id, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
             ? `“${st?.branch}” already has ${label}` : `Merged ${label} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
         },
@@ -675,7 +681,7 @@
           ondiscardall={() => (discardAllOpen = true)}
           onrestore={(path, version, label) => (restoreFile = { path, version, label })} />
       {:else if tab === "history"}
-        <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
+        <History {root} versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
           onmerge={st.remoteUrl && !st.olderVersion ? openVersionMerge : undefined} />
       {/if}
@@ -765,7 +771,7 @@
 
   {#if preview}
     {@const p = preview}
-    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked}
+    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
       onclose={() => (preview = null)}
       onconfirm={() => { const action = p.run; preview = null; run(action); }} />
   {/if}

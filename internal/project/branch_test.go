@@ -55,7 +55,7 @@ func TestBranchWorkflow(t *testing.T) {
 	}
 	assertClean(t, b) // preview changes nothing
 
-	res, err := b.MergeBranch("yi-ideas", Strategy("both"))
+	res, err := b.MergeBranch("yi-ideas", "", Strategy("both"))
 	if err != nil || res.Action != "merged" {
 		t.Fatalf("merge branch: %v %+v", err, res)
 	}
@@ -122,14 +122,22 @@ func TestMergeVersionFromTheMiddleOfABranch(t *testing.T) {
 	if err != nil || p.Action != "merge" || len(p.Versions) != 1 || p.Versions[0].ID != i1.ID {
 		t.Fatalf("preview: %v %+v", err, p)
 	}
-	res, err := b.MergeVersion(i1.ID[:10], Strategy("both"))
+	if msg, err := b.MergeMessage(i1.ID); err != nil || !strings.HasPrefix(msg, "Merge version ") {
+		t.Fatalf("default merge message: %q %v", msg, err)
+	}
+	res, err := b.MergeVersion(i1.ID[:10], "Bring in the first idea", Strategy("both"))
 	if err != nil || res.Action != "merged" {
 		t.Fatalf("merge version: %v %+v", err, res)
 	}
 	m, _ := b.Load(b.Head())
 	if len(m.Parents) != 2 || m.Parents[0] != before.ID || m.Parents[1] != i1.ID ||
-		!strings.HasPrefix(m.Message, "Merge version ") {
+		m.Message != "Bring in the first idea" {
 		t.Fatalf("merge version: %+v", m)
+	}
+	// What the merge brought into this branch: the set, compared with "drums".
+	changes, err := b.VersionChanges(m.ID)
+	if err != nil || len(changes) == 0 || changes[0].Path != "Song.als" || changes[0].SetDiff == nil {
+		t.Fatalf("merge changes: %v %+v", err, changes)
 	}
 	if setTracks(t, b)["Audios"].Elem == nil {
 		t.Error("the merged version's group is missing")

@@ -91,6 +91,8 @@ type Preview struct {
 	Versions  []Version  `json:"versions"`
 	Changes   []Change   `json:"changes"`
 	Conflicts []Conflict `json:"conflicts"`
+	// Message: for merges, the default description of the merge version.
+	Message string `json:"message"`
 }
 
 func toVersion(m *project.Manifest, tips map[string][]string) Version {
