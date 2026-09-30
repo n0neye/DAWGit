@@ -3,6 +3,7 @@
   import { api, ago, errorText, fileURL, formatBytes, lineKind, type FileVersion, type ProjectFile, type State } from "./api";
   import { toast } from "./notify.svelte";
   import AudioAB from "./AudioAB.svelte";
+  import FileIcon from "./FileIcon.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, or the sample to listen to, now and before). "All files" lists
@@ -38,6 +39,14 @@
 
   let current = $derived(files.find((f) => f.path === selected));
   let change = $derived(st.changes.find((c) => c.path === selected));
+  // Live versions: "Ableton Live 12.3.1" -> "12.3". A set saved with another
+  // Live than most sets in the project stands out.
+  const liveShort = (c: string) => c.match(/(\d+\.\d+)/)?.[1] ?? "";
+  let usualLive = $derived.by(() => {
+    const count = new Map<string, number>();
+    for (const f of files) if (f.live) count.set(liveShort(f.live), (count.get(liveShort(f.live)) ?? 0) + 1);
+    return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "";
+  });
   let changedCount = $derived(files.filter((f) => f.status !== "unchanged" && f.status !== "ignored").length);
 
   // Folders as groups, files under them (flat list of rows).
@@ -159,6 +168,7 @@
                 <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
                   <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
+                <FileIcon kind="folder" open={open[d.path]} faint={!d.tracked} />
                 <span class="fname">{d.name}</span>
                 {#if d.changed && !open[d.path]}<span class="count" title="Changed files inside">{d.changed}</span>{/if}
                 {#if !d.tracked}<span class="tag">not tracked</span>{/if}
@@ -170,7 +180,13 @@
               <button class="file {f.status}" class:on={f.path === selected} style:padding-left="{8 + row.depth * 14}px"
                 onclick={() => select(f.path)} oncontextmenu={(e) => openMenu(e, f.path)} title={f.path}>
                 <span class="sym">{sym[f.status]}</span>
+                <FileIcon kind={f.kind} faint={f.status === "ignored" || f.status === "deleted"} />
                 <span class="fname">{name(f.path)}</span>
+                {#if f.live}
+                  {@const v = liveShort(f.live)}
+                  <span class="live" class:odd={usualLive && v !== usualLive}
+                    title={`Saved with ${f.live}${usualLive && v !== usualLive ? ` — most sets here use Live ${usualLive}` : ""}`}>{v}</span>
+                {/if}
                 {#if f.status === "ignored"}<span class="tag">not tracked</span>{/if}
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
@@ -187,8 +203,9 @@
     {:else}
       <div class="detail-h">
         <div class="title">
-          <div class="dname">{name(selected)}</div>
+          <div class="dname"><FileIcon kind={current.kind} /> {name(selected)}</div>
           <div class="faint small mono">{selected}</div>
+          {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
         </div>
         <div class="modes">
           <button class:on={mode === "changes"} onclick={() => (mode = "changes")}>Changes</button>
@@ -324,6 +341,9 @@
   .file.ignored .fname, .file.unchanged .fname { color: var(--muted); }
   .file.ignored .fname { color: var(--faint); }
   .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live { font-size: 10.5px; padding: 0 5px; border-radius: 7px; background: #33363d; color: var(--muted);
+    font-variant-numeric: tabular-nums; flex: none; }
+  .live.odd { background: var(--warn-bg); color: var(--warn); }
   .tag { font-size: 10.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 8px; padding: 0 5px; }
   .more { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); visibility: hidden; padding: 0 6px; }
   li:hover .more { visibility: visible; }
@@ -331,7 +351,7 @@
   .detail { overflow: auto; min-height: 0; padding: 12px 4px 16px 20px; }
   .detail-h { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
   .title { flex: 1; min-width: 0; }
-  .dname { font-weight: 650; font-size: 15px; }
+  .dname { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 15px; }
   .small { font-size: 12px; }
   .modes { display: flex; }
   .modes button { padding: 4px 10px; font-size: 12.5px; border-radius: 0; }

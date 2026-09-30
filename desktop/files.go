@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"dawgit/internal/als"
 	"dawgit/internal/audio"
 	"dawgit/internal/project"
 	"dawgit/internal/teams"
@@ -25,8 +26,13 @@ type ProjectFile struct {
 	Path   string `json:"path"`
 	Status string `json:"status"` // added | modified | deleted | unchanged | ignored
 	Size   int64  `json:"size"`
-	Kind   string `json:"kind"` // set | audio | other
+	Kind   string `json:"kind"` // set | live (clip, preset, rack) | audio | midi | other
+	// Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
+	Live string `json:"live"`
 }
+
+// Live's own documents besides sets: clips, device presets, racks, grooves.
+var liveExts = map[string]bool{".alc": true, ".adv": true, ".adg": true, ".agr": true, ".ams": true, ".alp": true}
 
 var audioExts = map[string]bool{".wav": true, ".aif": true, ".aiff": true, ".mp3": true, ".flac": true,
 	".ogg": true, ".m4a": true}
@@ -38,6 +44,10 @@ func fileKind(p string) string {
 		return "set"
 	case audioExts[ext]:
 		return "audio"
+	case liveExts[ext]:
+		return "live"
+	case ext == ".mid" || ext == ".midi":
+		return "midi"
 	}
 	return "other"
 }
@@ -56,7 +66,11 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	}
 	out := []ProjectFile{}
 	for _, f := range files {
-		out = append(out, ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(f.Path)})
+		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(f.Path)}
+		if pf.Kind == "set" && f.Status != "deleted" {
+			pf.Live = als.CreatorOf(r.Abs(f.Path))
+		}
+		out = append(out, pf)
 	}
 	return out, nil
 }
