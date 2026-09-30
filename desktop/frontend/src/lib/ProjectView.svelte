@@ -872,8 +872,8 @@
   .team { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
   .team input { width: auto; }
   .pad { padding: 24px; }
-  .preparing { padding: 60px 40px; max-width: 560px; }
-  .preparing h1 { font-size: 22px; margin: 0 0 8px; }
+  /* Same place as the loaded header's title, so nothing jumps. */
+  .preparing { padding: 18px 24px; max-width: 600px; }
   .refresh.spin { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .error { color: var(--danger); }
