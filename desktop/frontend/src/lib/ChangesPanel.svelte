@@ -18,7 +18,15 @@
     onrestore: (path: string, version: string, label: string) => void; // one file from a version
   } = $props();
 
+  // "All files" is remembered per project.
   let all = $state(false);
+  $effect.pre(() => {
+    const key = `dawgit.allFiles:${root}`;
+    try { all = localStorage.getItem(key) === "1"; } catch { all = false; }
+  });
+  function rememberAll() {
+    try { localStorage.setItem(`dawgit.allFiles:${root}`, all ? "1" : "0"); } catch { /* not remembered */ }
+  }
   let files = $state<ProjectFile[]>([]);
   let selected = $state("");
   let mode = $state<"changes" | "history">("changes");
@@ -164,7 +172,7 @@
         <button class="ghost discard-all" onclick={ondiscardall} title="Drop all uncommitted changes">Discard all…</button>
       {/if}
       <label class="all" title="List every file in the project folder">
-        <input type="checkbox" bind:checked={all} /> All files
+        <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} /> All files
       </label>
     </div>
     {#if files.length === 0}
@@ -183,7 +191,7 @@
                 <FileIcon kind="folder" open={open[d.path]} faint={!d.tracked} />
                 <span class="fname">{d.name}</span>
                 {#if d.changed && !open[d.path]}<span class="count" title="Changed files inside">{d.changed}</span>{/if}
-                {#if !d.tracked}<span class="tag">not tracked</span>{/if}
+                {#if !d.tracked}<span class="tag dir-tag">not tracked</span>{/if}
               </button>
             </li>
           {:else}
@@ -335,7 +343,14 @@
     text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .files-h span { flex: 1; }
   .all { display: flex; align-items: center; gap: 5px; margin: 0; text-transform: none; letter-spacing: 0; cursor: pointer; }
-  .all input { width: auto; }
+  /* iOS-style switch */
+  .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
+    border: none; padding: 0; border-radius: 8px; background: #3a3d45; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+    background: #d8dae0; transition: transform .15s; }
+  .switch:checked { background: var(--accent); }
+  .switch:checked::after { transform: translateX(11px); background: #fff; }
+  .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .empty { padding: 0 8px; font-size: 13px; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { position: relative; display: flex; }
@@ -362,7 +377,14 @@
   .live { font-size: 10.5px; padding: 0 5px; border-radius: 7px; background: #33363d; color: var(--muted);
     font-variant-numeric: tabular-nums; flex: none; }
   .live.odd { background: var(--warn-bg); color: var(--warn); }
-  .tag { font-size: 10.5px; color: var(--faint); border: 1px solid var(--line); border-radius: 8px; padding: 0 5px; }
+  /* Untracked shows as a faint name; the label only on hover, laid over the
+     end of the name so rows don't shift. */
+  .tag { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); display: none; pointer-events: none;
+    font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 5px;
+    background: var(--panel); box-shadow: -10px 0 8px var(--panel); white-space: nowrap; }
+  .tag.dir-tag { right: 8px; }
+  .file:hover .tag, li:hover .tag { display: block; }
+  .file.on .tag { background: var(--panel-2); box-shadow: -10px 0 8px var(--panel-2); }
   .more { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); visibility: hidden; padding: 0 6px; }
   li:hover .more { visibility: visible; }
 
