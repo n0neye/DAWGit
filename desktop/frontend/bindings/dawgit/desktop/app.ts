@@ -259,6 +259,26 @@ export function MergeVersion(root: string, id: string, resolutions: { [_ in stri
 }
 
 /**
+ * MoveProjectToLocal takes a project out of its team, on this computer only:
+ * it stays in the team for everyone else, and here keeps its versions under
+ * Local.
+ */
+export function MoveProjectToLocal(root: string): $CancellablePromise<void> {
+    return $Call.ByID(2125136491, root);
+}
+
+/**
+ * MoveProjectToTeam puts a project (from Local or another team) in a team;
+ * the page then shares its versions there (as for a first share). The old
+ * team keeps its copy.
+ */
+export function MoveProjectToTeam(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
+    return $Call.ByID(3128473321, root, teamID).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * OpenInLive opens a set with its default application (Ableton Live).
  */
 export function OpenInLive(root: string, $set: string): $CancellablePromise<void> {
@@ -315,11 +335,21 @@ export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$m
 }
 
 /**
- * RemoveTeam disconnects this computer from a team. Project folders stay on
- * disk; they are no longer listed or watched.
+ * ReconnectProjects puts Local projects back in their team (see
+ * TeamProjectsHere).
  */
-export function RemoveTeam(id: string): $CancellablePromise<void> {
-    return $Call.ByID(3754118508, id);
+export function ReconnectProjects(teamID: string, roots: string[]): $CancellablePromise<void> {
+    return $Call.ByID(2596944436, teamID, roots);
+}
+
+/**
+ * RemoveTeam disconnects this computer from a team. With keepProjects its
+ * downloaded projects move to Local (their versions stay, and they can be
+ * committed to here or reconnected later); otherwise they are no longer
+ * listed. Project folders always stay on disk.
+ */
+export function RemoveTeam(id: string, keepProjects: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3754118508, id, keepProjects);
 }
 
 export function RenameTeam(id: string, name: string): $CancellablePromise<void> {
@@ -462,12 +492,22 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
 }
 
 /**
+ * TeamProjectsHere lists Local projects that are the team's (e.g. kept when
+ * this computer disconnected from it), to offer reconnecting them.
+ */
+export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.FoundProject[]> {
+    return $Call.ByID(3983712896, teamID).then(($result: any) => {
+        return $$createType27($result);
+    });
+}
+
+/**
  * TeamState asks the team for its branches and new versions. It runs
  * without the project lock, so the page shows State at once and fills this in.
  */
 export function TeamState(root: string): $CancellablePromise<$models.TeamPart | null> {
     return $Call.ByID(3957505369, root).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -542,5 +582,7 @@ const $$createType22 = $Create.Nullable($$createType21);
 const $$createType23 = $models.TeamConnection.createFrom;
 const $$createType24 = remote$0.Member.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = $models.TeamPart.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
+const $$createType26 = $models.FoundProject.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = $models.TeamPart.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);

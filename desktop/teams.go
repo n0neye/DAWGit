@@ -271,20 +271,139 @@ func (a *App) RenameTeamForEveryone(id, name string) error {
 	return store.Save()
 }
 
-// RemoveTeam disconnects this computer from a team. Project folders stay on
-// disk; they are no longer listed or watched.
-func (a *App) RemoveTeam(id string) error {
+// RemoveTeam disconnects this computer from a team. With keepProjects its
+// downloaded projects move to Local (their versions stay, and they can be
+// committed to here or reconnected later); otherwise they are no longer
+// listed. Project folders always stay on disk.
+func (a *App) RemoveTeam(id string, keepProjects bool) error {
 	store, err := teams.Load()
 	if err != nil {
 		return err
 	}
 	for key, root := range store.Projects {
-		if strings.HasPrefix(key, id+"/") {
-			a.stopAgent(root)
+		if !strings.HasPrefix(key, id+"/") {
+			continue
+		}
+		a.stopAgent(root)
+		if keepProjects {
+			if err := a.detach(store, root); err != nil {
+				return err
+			}
 		}
 	}
 	store.Remove(id)
 	return store.Save()
+}
+
+// detach makes a downloaded team project one kept on this computer only:
+// the project forgets the team's address (keeping its id, so it can be
+// reconnected) and is listed under Local. The caller saves the store.
+func (a *App) detach(store *teams.Store, root string) error {
+	a.stopAgent(root)
+	for key, r := range store.Projects {
+		if r == root {
+			delete(store.Projects, key)
+		}
+	}
+	unlock := a.lock(root)
+	defer unlock()
+	r, err := project.Open(root)
+	if err != nil {
+		return nil // the folder is gone: nothing to keep
+	}
+	r.Config.Remote = nil
+	if err := r.SaveConfig(); err != nil {
+		return err
+	}
+	store.AddLocal(r.Root)
+	return nil
+}
+
+// MoveProjectToLocal takes a project out of its team, on this computer only:
+// it stays in the team for everyone else, and here keeps its versions under
+// Local.
+func (a *App) MoveProjectToLocal(root string) error {
+	store, err := teams.Load()
+	if err != nil {
+		return err
+	}
+	if err := a.detach(store, root); err != nil {
+		return err
+	}
+	return store.Save()
+}
+
+// MoveProjectToTeam puts a project (from Local or another team) in a team;
+// the page then shares its versions there (as for a first share). The old
+// team keeps its copy.
+func (a *App) MoveProjectToTeam(root, teamID string) (TeamProject, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return TeamProject{}, err
+	}
+	if store.Find(teamID) == nil {
+		return TeamProject{}, errors.New("unknown team")
+	}
+	if err := a.detach(store, root); err != nil {
+		return TeamProject{}, err
+	}
+	if err := store.Save(); err != nil {
+		return TeamProject{}, err
+	}
+	return a.AddProjectToTeam(teamID, root)
+}
+
+// FoundProject is a project on this computer that belongs to a team.
+type FoundProject struct {
+	Root string `json:"root"`
+	Name string `json:"name"`
+}
+
+// TeamProjectsHere lists Local projects that are the team's (e.g. kept when
+// this computer disconnected from it), to offer reconnecting them.
+func (a *App) TeamProjectsHere(teamID string) ([]FoundProject, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return nil, errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return nil, err
+	}
+	projects, err := b.Projects()
+	if err != nil {
+		return nil, err
+	}
+	ids := map[string]bool{}
+	for _, p := range projects {
+		ids[p.ID] = true
+	}
+	out := []FoundProject{}
+	for _, root := range store.Local {
+		if r, err := project.Open(root); err == nil && ids[r.Config.ProjectID] {
+			name := r.Config.Name
+			if name == "" {
+				name = filepath.Base(root)
+			}
+			out = append(out, FoundProject{Root: root, Name: name})
+		}
+	}
+	return out, nil
+}
+
+// ReconnectProjects puts Local projects back in their team (see
+// TeamProjectsHere).
+func (a *App) ReconnectProjects(teamID string, roots []string) error {
+	for _, root := range roots {
+		if _, err := a.AddProjectToTeam(teamID, root); err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(root), err)
+		}
+	}
+	return nil
 }
 
 // DownloadProject downloads a team project into parent/<name> Project.
@@ -447,20 +566,12 @@ func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
 	if err := b.DeleteProject(projectID); err != nil {
 		return err
 	}
-	root := store.ProjectRoot(teamID, projectID)
-	store.ForgetProject(teamID, projectID)
-	if root != "" {
-		a.stopAgent(root)
-		unlock := a.lock(root)
-		defer unlock()
-		if r, err := project.Open(root); err == nil {
-			r.Config.Remote = nil
-			if err := r.SaveConfig(); err != nil {
-				return err
-			}
-			store.AddLocal(r.Root)
+	if root := store.ProjectRoot(teamID, projectID); root != "" {
+		if err := a.detach(store, root); err != nil {
+			return err
 		}
 	}
+	store.ForgetProject(teamID, projectID)
 	return store.Save()
 }
 

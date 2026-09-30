@@ -35,13 +35,55 @@
     connecting = false;
     toast(`Connected to ${t.name}`, "ok");
     await reload();
-    if (!t.memberId) identityFor = t;
+    if (!t.memberId) {
+      identityFor = t;
+      offerAfterName = t;
+    } else {
+      offerReconnect(t);
+    }
   }
 
   async function identitySaved(t: TeamSummary, renamed: boolean) {
     identityFor = null;
     await reload();
     toast(renamed ? `You're “${t.memberName}” in ${t.name} — on all your versions` : `You're “${t.memberName}” in ${t.name}`, "ok");
+    if (offerAfterName) {
+      const joined = offerAfterName;
+      offerAfterName = null;
+      offerReconnect(joined);
+    }
+  }
+
+  // Projects of the team already on this computer (e.g. moved to Local when
+  // it disconnected): offered for reconnecting, ticked by default.
+  let offerAfterName: TeamSummary | null = null;
+  let found = $state<{ team: TeamSummary; projects: { root: string; name: string; on: boolean }[] } | null>(null);
+  let reconnecting = $state(false);
+
+  async function offerReconnect(t: TeamSummary) {
+    try {
+      const ps = (await api.TeamProjectsHere(t.id)) ?? [];
+      if (ps.length) found = { team: t, projects: ps.map((p) => ({ ...p, on: true })) };
+    } catch {
+      // not reachable now: they can still be added by hand
+    }
+  }
+
+  async function reconnect() {
+    if (!found) return;
+    const f = found;
+    const roots = f.projects.filter((p) => p.on).map((p) => p.root);
+    reconnecting = true;
+    try {
+      await api.ReconnectProjects(f.team.id, roots);
+      found = null;
+      await reload();
+      toast(`Reconnected ${roots.length === 1 ? "1 project" : `${roots.length} projects`} to ${f.team.name}`, "ok");
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      reconnecting = false;
+    }
   }
 
   async function saveLocalName() {
@@ -127,6 +169,25 @@
   </Modal>
 {/if}
 
+{#if found}
+  {@const f = found}
+  <Modal title="Projects of {f.team.name} on this computer" onclose={() => (found = null)} backdropCloses={false}>
+    <p class="muted">These projects under Local belong to {f.team.name}. Reconnect them to share versions with the
+      team again; their history is kept.</p>
+    <ul class="found">
+      {#each f.projects as p (p.root)}
+        <li><label><input type="checkbox" bind:checked={p.on} />
+          <span><strong>{p.name}</strong><span class="faint small mono">{p.root}</span></span></label></li>
+      {/each}
+    </ul>
+    {#snippet footer()}
+      <button onclick={() => (found = null)}>Not now</button>
+      <button class="primary" disabled={reconnecting || !f.projects.some((p) => p.on)} onclick={reconnect}>
+        {reconnecting ? "Reconnecting…" : "Reconnect selected"}</button>
+    {/snippet}
+  </Modal>
+{/if}
+
 {#if settingsFor}
   {@const t = overview.teams.find((x) => x.id === settingsFor!.id) ?? settingsFor}
   <TeamSettings team={t} author={overview.author} {reload} onclose={() => (settingsFor = null)} />
@@ -159,4 +220,9 @@
     background: var(--warn-bg); color: var(--warn); border: 1px solid #5a4623; border-radius: 8px;
   }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
+  .found { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 8px; }
+  .found label { display: flex; gap: 10px; align-items: flex-start; margin: 0; color: var(--text); font-size: 14px; }
+  .found input { width: auto; margin-top: 3px; }
+  .found label > span { flex: 1; min-width: 0; }
+  .found .mono { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

@@ -20,6 +20,9 @@
   let confirmShare = $state<string | null>(null);
   let rowMenu = $state(""); // key of the project whose ⋯ menu is open
   let confirmDelete = $state<TeamProject | null>(null);
+  // Moving a project out of its team (to Local) or into another team.
+  let confirmLocal = $state<TeamProject | null>(null);
+  let moving = $state<{ p: TeamProject; team: string } | null>(null);
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
 
@@ -167,6 +170,39 @@
         : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
       if (!p.root) selected = {};
       await reload();
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
+    }
+  }
+
+  async function moveToLocal(p: TeamProject) {
+    confirmLocal = null;
+    try {
+      await api.MoveProjectToLocal(p.root);
+      toast(`“${p.name}” is under Local now; ${current?.name ?? "the team"} keeps its copy`, "info", 7000);
+      selected = {};
+      await reload();
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
+  }
+
+  // Candidate teams for a move: all but the project's own.
+  let moveTargets = $derived(moving
+    ? (overview?.teams ?? []).filter((t) => moving!.p.status === "local" || t.id !== overview?.currentTeam) : []);
+
+  async function moveToTeam() {
+    if (!moving) return;
+    const { p, team } = moving;
+    moving = null;
+    busy = "add";
+    try {
+      const got = await api.MoveProjectToTeam(p.root, team);
+      firstShare = got.root; // share its versions with the new team
+      await reload();
+      select(got);
     } catch (e) {
       toast(errorText(e), "error", 9000);
     } finally {
@@ -380,6 +416,16 @@
             Remove from list<span class="faint">the folder stays on this computer</span>
           </button>
         {/if}
+        {#if p.root && p.status === "downloaded"}
+          <button class="item" onclick={() => { rowMenu = ""; confirmLocal = p; }}>
+            Move to Local…<span class="faint">keep it on this computer only</span>
+          </button>
+        {/if}
+        {#if p.root && (p.status === "local" ? (overview?.teams.length ?? 0) > 0 : (overview?.teams.length ?? 0) > 1)}
+          <button class="item" onclick={() => { rowMenu = ""; moving = { p, team: "" }; }}>
+            {p.status === "local" ? "Move to a team…" : "Move to another team…"}<span class="faint">share its versions there</span>
+          </button>
+        {/if}
         {#if p.status !== "local"}
           <button class="item danger-text" onclick={() => { rowMenu = ""; deleteWord = ""; confirmDelete = p; }}>
             Delete from server…<span class="faint">for everyone in {current?.name}</span>
@@ -399,6 +445,36 @@
     {#snippet footer()}
       <button onclick={() => (confirmShare = null)}>Cancel</button>
       <button class="primary" onclick={() => share(folder)}>Share</button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if confirmLocal}
+  {@const p = confirmLocal}
+  <Modal title="Move “{p.name}” to Local?" onclose={() => (confirmLocal = null)}>
+    <p>The project leaves <strong>{current?.name}</strong> on this computer only: you keep its versions and can go
+      on committing here. The team keeps its copy, and your teammates are not affected.</p>
+    <p class="muted">To share it again, join the team (or move it to a team) later.</p>
+    {#snippet footer()}
+      <button onclick={() => (confirmLocal = null)}>Cancel</button>
+      <button class="primary" onclick={() => moveToLocal(p)}>Move to Local</button>
+    {/snippet}
+  </Modal>
+{/if}
+
+{#if moving}
+  {@const m = moving}
+  <Modal title="Move “{m.p.name}” to a team" onclose={() => (moving = null)}>
+    <p class="muted">DAWGit shares the project's versions with the team you pick{m.p.status === "local" ? "" :
+      `; ${current?.name} keeps its copy, but you'll no longer get its changes here`}.</p>
+    <div class="teams-pick">
+      {#each moveTargets as t (t.id)}
+        <label><input type="radio" bind:group={m.team} value={t.id} /> {t.name}</label>
+      {/each}
+    </div>
+    {#snippet footer()}
+      <button onclick={() => (moving = null)}>Cancel</button>
+      <button class="primary" disabled={!m.team} onclick={moveToTeam}>Move</button>
     {/snippet}
   </Modal>
 {/if}
@@ -464,6 +540,9 @@
   }
   .row-menu .item:hover { background: #33363d; }
   .row-menu .item .faint { font-size: 11px; }
+  .teams-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .teams-pick label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
+  .teams-pick input { width: auto; }
   .danger-text { color: var(--danger); }
   .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
