@@ -10,6 +10,7 @@ export {
     Branch,
     Change,
     Conflict,
+    ConvertFormat,
     FileVersion,
     Overview,
     Preview,

@@ -17,6 +17,7 @@ import (
 
 	"dawgit/internal/als"
 	"dawgit/internal/audio"
+	"dawgit/internal/convert"
 	"dawgit/internal/project"
 	"dawgit/internal/teams"
 )
@@ -343,4 +344,56 @@ func knownProject(root string) bool {
 		}
 	}
 	return false
+}
+
+// ConvertFormat is a format the Convert dialog offers.
+type ConvertFormat struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Ext      string `json:"ext"`
+	Bitrates []int  `json:"bitrates"` // kbps, first is the default; none for lossless
+}
+
+func (a *App) ConvertFormats() []ConvertFormat {
+	out := []ConvertFormat{}
+	for _, f := range convert.Formats {
+		out = append(out, ConvertFormat{ID: f.ID, Name: f.Name, Ext: f.Ext, Bitrates: append([]int{}, f.Bitrate...)})
+	}
+	return out
+}
+
+// ConvertTarget is the file a conversion would write (relative path).
+func (a *App) ConvertTarget(root, file, format string) (string, error) {
+	if !safeRel(file) {
+		return "", errors.New("invalid path")
+	}
+	dst, err := convert.Target(filepath.Join(root, filepath.FromSlash(file)), format)
+	if err != nil {
+		return "", err
+	}
+	rel, _ := filepath.Rel(root, dst)
+	return filepath.ToSlash(rel), nil
+}
+
+// ConvertFile writes a sample in another format next to it and returns the
+// new file's path. Progress comes as "progress" events (stage "converting").
+func (a *App) ConvertFile(root, file, format string, kbps int) (string, error) {
+	if !safeRel(file) || !knownProject(root) {
+		return "", errors.New("invalid path")
+	}
+	src := filepath.Join(root, filepath.FromSlash(file))
+	dst, err := convert.Target(src, format)
+	if err != nil {
+		return "", err
+	}
+	report, done := a.progressFor(root)
+	defer done()
+	err = convert.Convert(src, dst, convert.Options{Format: format, Bitrate: kbps, Progress: func(p float64) {
+		report(project.Progress{Stage: "converting", Done: int(p * 1000), Total: 1000})
+	}})
+	if err != nil {
+		return "", err
+	}
+	rel, _ := filepath.Rel(root, dst)
+	return filepath.ToSlash(rel), nil
 }

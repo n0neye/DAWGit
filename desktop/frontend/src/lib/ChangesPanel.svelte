@@ -4,6 +4,7 @@
   import { toast } from "./notify.svelte";
   import AudioAB from "./AudioAB.svelte";
   import FileIcon from "./FileIcon.svelte";
+  import ConvertDialog from "./ConvertDialog.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, or the sample to listen to, now and before). "All files" lists
@@ -29,12 +30,23 @@
   let pickedDiff = $state<string[] | null>(null);
 
   let loadedAt = $state(0); // makes "now" previews fetch the file again
+  let converting = $state(""); // sample in the Convert dialog
+  function loadFiles(showAll: boolean) {
+    return api.ProjectFiles(root, showAll).then((f) => { files = f ?? []; loadedAt = Date.now(); })
+      .catch((e) => toast(errorText(e), "error"));
+  }
   $effect(() => {
     st; // reload with the project's state
-    const showAll = all;
-    api.ProjectFiles(root, showAll).then((f) => { files = f ?? []; loadedAt = Date.now(); })
-      .catch((e) => toast(errorText(e), "error"));
+    loadFiles(all);
   });
+
+  // Show a new file (e.g. a converted sample): open its folders, select it.
+  async function reveal(p: string) {
+    await loadFiles(all);
+    const parts = p.split("/");
+    for (let k = 1; k < parts.length; k++) open[parts.slice(0, k).join("/")] = true;
+    select(p);
+  }
   const nowURL = (p: string) => `${fileURL(root, p)}&t=${loadedAt}`;
 
   let current = $derived(files.find((f) => f.path === selected));
@@ -305,9 +317,15 @@
         <button class="item" onclick={() => { const p = menu!.path; menu = null; api.OpenInLive(root, p); }}>Open in Live</button>
       {:else if f.kind === "audio"}
         <button class="item" onclick={() => { const p = menu!.path; menu = null; api.OpenInLive(root, p); }}>Open in default player</button>
+        <button class="item" onclick={() => { converting = menu!.path; menu = null; }}>Convert…</button>
       {/if}
     {/if}
   </div>
+{/if}
+
+{#if converting}
+  <ConvertDialog {root} file={converting} onclose={() => (converting = "")}
+    ondone={(p) => { converting = ""; toast(`Converted to ${p.slice(p.lastIndexOf("/") + 1)}`, "ok"); reveal(p); }} />
 {/if}
 
 <style>

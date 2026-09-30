@@ -121,6 +121,50 @@ export class Conflict {
 }
 
 /**
+ * ConvertFormat is a format the Convert dialog offers.
+ */
+export class ConvertFormat {
+    "id": string;
+    "name": string;
+    "ext": string;
+
+    /**
+     * kbps, first is the default; none for lossless
+     */
+    "bitrates": number[];
+
+    /** Creates a new ConvertFormat instance. */
+    constructor($$source: Partial<ConvertFormat> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("ext" in $$source)) {
+            this["ext"] = "";
+        }
+        if (!("bitrates" in $$source)) {
+            this["bitrates"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConvertFormat instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ConvertFormat {
+        const $$createField3_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("bitrates" in $$parsedSource) {
+            $$parsedSource["bitrates"] = $$createField3_0($$parsedSource["bitrates"]);
+        }
+        return new ConvertFormat($$parsedSource as Partial<ConvertFormat>);
+    }
+}
+
+/**
  * FileVersion is a version that changed a file.
  */
 export class FileVersion {
@@ -200,9 +244,9 @@ export class Overview {
      * Creates a new Overview instance from a string or object.
      */
     static createFrom($$source: any = {}): Overview {
-        const $$createField1_0 = $$createType4;
-        const $$createField3_0 = $$createType6;
-        const $$createField5_0 = $$createType6;
+        const $$createField1_0 = $$createType5;
+        const $$createField3_0 = $$createType7;
+        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("teams" in $$parsedSource) {
             $$parsedSource["teams"] = $$createField1_0($$parsedSource["teams"]);
@@ -248,9 +292,9 @@ export class Preview {
      * Creates a new Preview instance from a string or object.
      */
     static createFrom($$source: any = {}): Preview {
-        const $$createField1_0 = $$createType7;
-        const $$createField2_0 = $$createType9;
-        const $$createField3_0 = $$createType11;
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("versions" in $$parsedSource) {
             $$parsedSource["versions"] = $$createField1_0($$parsedSource["versions"]);
@@ -369,7 +413,7 @@ export class Result {
     static createFrom($$source: any = {}): Result {
         const $$createField1_0 = $$createType2;
         const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType11;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("log" in $$parsedSource) {
             $$parsedSource["log"] = $$createField1_0($$parsedSource["log"]);
@@ -503,13 +547,13 @@ export class State {
     static createFrom($$source: any = {}): State {
         const $$createField11_0 = $$createType2;
         const $$createField12_0 = $$createType1;
-        const $$createField14_0 = $$createType9;
-        const $$createField15_0 = $$createType13;
-        const $$createField16_0 = $$createType7;
-        const $$createField17_0 = $$createType15;
+        const $$createField14_0 = $$createType10;
+        const $$createField15_0 = $$createType14;
+        const $$createField16_0 = $$createType8;
+        const $$createField17_0 = $$createType16;
         const $$createField18_0 = $$createType2;
-        const $$createField19_0 = $$createType7;
-        const $$createField20_0 = $$createType17;
+        const $$createField19_0 = $$createType8;
+        const $$createField20_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sets" in $$parsedSource) {
             $$parsedSource["sets"] = $$createField11_0($$parsedSource["sets"]);
@@ -656,7 +700,7 @@ export class Teammate {
      * Creates a new Teammate instance from a string or object.
      */
     static createFrom($$source: any = {}): Teammate {
-        const $$createField2_0 = $$createType13;
+        const $$createField2_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("edits" in $$parsedSource) {
             $$parsedSource["edits"] = $$createField2_0($$parsedSource["edits"]);
@@ -787,18 +831,19 @@ export class Version {
 const $$createType0 = Version.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = TeamSummary.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = TeamProject.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $Create.Array($$createType0);
-const $$createType8 = Change.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = Conflict.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = project$0.TrackEdit.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = Teammate.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = Branch.createFrom;
-const $$createType17 = $Create.Array($$createType16);
+const $$createType3 = $Create.Array($Create.Any);
+const $$createType4 = TeamSummary.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = TeamProject.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Array($$createType0);
+const $$createType9 = Change.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = Conflict.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = project$0.TrackEdit.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = Teammate.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = Branch.createFrom;
+const $$createType18 = $Create.Array($$createType17);
