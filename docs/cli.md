@@ -29,7 +29,7 @@ team members connect with:
   dawgit remote http://192.168.0.11:7331 --token 3f9c…
 ```
 
-Data is kept as plain files in `--data`: back that folder up. Deleted songs are moved to its `trash` folder. The Start menu shortcut **DAWGit Team Server** runs this with `--data "%USERPROFILE%\DAWGit Server"`. Teammates outside your network need a way to reach the computer, e.g. a VPN such as Tailscale, or port forwarding of port 7331.
+Data is kept as plain files in `--data`: back that folder up. Deleted songs are moved to its `trash` folder. Teammates outside your network need a way to reach the computer, e.g. a VPN such as Tailscale, or port forwarding of port 7331.
 
 ## Everyday commands (inside an Ableton project folder)
 
