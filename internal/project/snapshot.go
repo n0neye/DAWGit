@@ -127,11 +127,14 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 			if hash, ok := r.cacheHash(ref.Path); ok {
 				// Relinked into an external cache (Live may since have saved it
 				// as project-relative): keep it external under its original key.
-				orig := r.originalExternalPath(hash, ref.Path)
-				if !seenExt[orig] {
-					seenExt[orig] = true
-					fi, _ := os.Stat(r.Store.Path(hash))
-					external = append(external, FileEntry{Path: orig, Hash: hash, Size: fi.Size()})
+				// Samples with the same content share one cached copy: keep
+				// every original that maps to it.
+				for _, orig := range r.originalExternalPaths(hash, ref.Path) {
+					if !seenExt[orig] {
+						seenExt[orig] = true
+						fi, _ := os.Stat(r.Store.Path(hash))
+						external = append(external, FileEntry{Path: orig, Hash: hash, Size: fi.Size()})
+					}
 				}
 				continue
 			}
@@ -175,17 +178,21 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 
 // originalExternalPath finds the original location of an external sample
 // by hash in HEAD's manifest, falling back to fallback.
-func (r *Repo) originalExternalPath(hash, fallback string) string {
+func (r *Repo) originalExternalPaths(hash, fallback string) []string {
+	var out []string
 	if head := r.Head(); head != "" {
 		if m, err := r.Load(head); err == nil {
 			for _, e := range m.External {
 				if e.Hash == hash {
-					return e.Path
+					out = append(out, e.Path)
 				}
 			}
 		}
 	}
-	return fallback
+	if len(out) == 0 {
+		out = []string{fallback}
+	}
+	return out
 }
 
 func (r *Repo) inProject(abs string) bool {

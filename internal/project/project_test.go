@@ -282,3 +282,52 @@ func TestExternalSampleRoundTrip(t *testing.T) {
 	}
 	assertClean(t, r3)
 }
+
+// Two external samples with the same name and content in different folders
+// share one cached copy on another computer; committing there must still
+// list both originals (or an unchanged project looks changed).
+func TestExternalDuplicatesStayListed(t *testing.T) {
+	root := newProject(t)
+	var exts []string
+	for _, dir := range []string{"Library", "Splice"} {
+		p := filepath.Join(t.TempDir(), dir, "kick.wav")
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte("RIFF-kick"), 0o644)
+		exts = append(exts, p)
+	}
+	s, _ := als.Load(filepath.Join(root, "Song.als"))
+	n := 0 // sample refs repointed, alternately to each external file
+	for _, sr := range s.Root.Iter("SampleRef") {
+		fr := sr.Child("FileRef")
+		if fr == nil || fr.Val("LivePackName", "") != "" {
+			continue
+		}
+		i := n % len(exts)
+		n++
+		rel, _ := filepath.Rel(root, exts[i])
+		fr.Find("RelativePathType").Set("Value", "1")
+		fr.Find("RelativePath").Set("Value", filepath.ToSlash(rel))
+		fr.Find("Path").Set("Value", filepath.ToSlash(exts[i]))
+	}
+	if n < 2 {
+		t.Fatalf("fixture has %d sample refs to repoint", n)
+	}
+	s.Save(filepath.Join(root, "Song.als"))
+	r, _ := Init(root, "yi")
+	if m := mustSnapshot(t, r, "two kicks"); len(m.External) != 2 {
+		t.Fatalf("external = %+v", m.External)
+	}
+
+	other := filepath.Join(t.TempDir(), "Song Project")
+	copyTree(t, root, other)
+	for _, p := range exts {
+		os.Remove(p)
+	}
+	r2, _ := Open(other)
+	if _, _, err := r2.Checkout("HEAD", true); err != nil {
+		t.Fatal(err)
+	}
+	if m, err := r2.Snapshot("nothing new"); !errors.Is(err, ErrNothingToSnapshot) {
+		t.Fatalf("unchanged project committed again: %v %+v", err, m)
+	}
+}
