@@ -122,10 +122,17 @@ func (r *Repo) workingSetDiff(oldHash, rel string) *diff.SetDiff {
 
 // ReportWorkspace uploads this workspace's unsaved work to the server.
 func (r *Repo) ReportWorkspace() (*WorkspaceState, error) {
-	c, err := r.Client()
+	st, err := r.PrepareWorkspace()
 	if err != nil {
 		return nil, err
 	}
+	return st, r.PublishWorkspace(st)
+}
+
+// PrepareWorkspace is the local half of ReportWorkspace: what this workspace
+// is editing, with backups of the changed sets in the local store. It needs
+// the project lock.
+func (r *Repo) PrepareWorkspace() (*WorkspaceState, error) {
 	id, err := r.WorkspaceID()
 	if err != nil {
 		return nil, err
@@ -134,20 +141,29 @@ func (r *Repo) ReportWorkspace() (*WorkspaceState, error) {
 	if err != nil {
 		return nil, err
 	}
+	authorID, author := r.Identity()
+	return &WorkspaceState{ID: id, Author: author, AuthorID: authorID, Branch: r.BranchName(), Base: r.Head(),
+		Updated: time.Now().UTC().Format(time.RFC3339), Edits: edits, Files: files}, nil
+}
+
+// PublishWorkspace is the network half: uploads the backups and the state.
+// It only reads stored objects, so it runs without the project lock.
+func (r *Repo) PublishWorkspace(st *WorkspaceState) error {
+	c, err := r.Client()
+	if err != nil {
+		return err
+	}
 	var hashes []string
-	for _, f := range files {
+	for _, f := range st.Files {
 		hashes = append(hashes, f.Hash)
 	}
 	if err := r.uploadObjects(c, hashes); err != nil {
-		return nil, err
+		return err
 	}
-	authorID, author := r.Identity()
-	st := &WorkspaceState{ID: id, Author: author, AuthorID: authorID, Branch: r.BranchName(), Base: r.Head(),
-		Updated: time.Now().UTC().Format(time.RFC3339), Edits: edits, Files: files}
 	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
-		return nil, err
+		return err
 	}
-	return st, c.PutWorkspace(r.Config.ProjectID, id, st)
+	return c.PutWorkspace(r.Config.ProjectID, st.ID, st)
 }
 
 // Teammates returns other members' workspaces that have unsaved edits.
@@ -208,12 +224,20 @@ func (r *Repo) IncomingVersions() ([]*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	target := heads[r.BranchName()]
-	if target == "" || target == r.Latest() {
-		return nil, nil
+	if target := heads[r.BranchName()]; target != "" && target != r.Latest() {
+		if err := r.fetchSnapshots(c, target); err != nil {
+			return nil, err
+		}
 	}
-	if err := r.fetchSnapshots(c, target); err != nil {
-		return nil, err
+	return r.IncomingFrom(heads)
+}
+
+// IncomingFrom is IncomingVersions for branch heads already fetched (see
+// FetchTeam): no network.
+func (r *Repo) IncomingFrom(heads map[string]string) ([]*Manifest, error) {
+	target := heads[r.BranchName()]
+	if target == "" || target == r.Latest() || !r.HasSnapshot(target) {
+		return nil, nil
 	}
 	have, err := r.ancestors(r.Latest())
 	if err != nil {

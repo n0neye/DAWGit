@@ -50,13 +50,16 @@ type Conflict struct {
 }
 
 type State struct {
-	Root        string   `json:"root"`
-	Name        string   `json:"name"`
-	Author      string   `json:"author"`
-	Branch      string   `json:"branch"`
-	RemoteURL   string   `json:"remoteUrl"`
-	TeamID      string   `json:"teamId"` // "" for a project kept on this computer only
-	TeamName    string   `json:"teamName"`
+	Root      string `json:"root"`
+	Name      string `json:"name"`
+	Author    string `json:"author"`
+	Branch    string `json:"branch"`
+	RemoteURL string `json:"remoteUrl"`
+	TeamID    string `json:"teamId"` // "" for a project kept on this computer only
+	TeamName  string `json:"teamName"`
+	// TeamChecked: the team fields below come from a TeamState call (false
+	// until one ran for this project since DAWGit started).
+	TeamChecked bool     `json:"teamChecked"`
 	Online      bool     `json:"online"`
 	Offline     string   `json:"offline"`     // why the server is unreachable
 	LiveRunning bool     `json:"liveRunning"` // a set of this project is open in Live

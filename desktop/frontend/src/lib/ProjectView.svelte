@@ -4,6 +4,7 @@
   import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary,
     type Progress, type Version } from "./api";
   import { toast } from "./notify.svelte";
+  import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
   import CombineDialog from "./CombineDialog.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -19,7 +20,7 @@
     onchanged: () => void; onfirstshared?: () => void;
   } = $props();
 
-  let st = $state<State | null>(null);
+  let st = $state<State | null>(cachedState(untrack(() => root)));
   let loadError = $state("");
   let tab = $state<"changes" | "history" | "team">("changes");
   let message = $state("");
@@ -55,12 +56,33 @@
   let discardAllOpen = $state(false);
   let restoreFile = $state<{ path: string; version: string; label: string } | null>(null);
 
+  // Two steps: the project folder (fast), then the team's side (network),
+  // so the page never waits for the team.
+  let teamLoading = false;
   async function load() {
+    const r = root;
+    let local: State;
     try {
-      st = await api.State(root);
+      local = (await api.State(r))!;
+      st = local;
+      rememberState(local);
       loadError = "";
     } catch (e) {
       loadError = errorText(e);
+      return;
+    }
+    if (!local.remoteUrl || teamLoading) return;
+    teamLoading = true;
+    try {
+      const t = await api.TeamState(r, local.myEdits);
+      if (t && st?.root === r) {
+        st = { ...st, ...t, teamChecked: true } as State;
+        rememberState(st);
+      }
+    } catch {
+      // shown as "not reachable" by the next round
+    } finally {
+      teamLoading = false;
     }
   }
 
@@ -539,9 +561,9 @@
             {/if}
           </div>
           {#if st.remoteUrl}
-            <span class="dot" class:on={st.online}></span>
+            <span class="dot" class:on={st.online} class:checking={!st.teamChecked}></span>
             <span class="faint" title={st.online ? st.remoteUrl : st.offline}>
-              {st.teamName || st.remoteUrl}{st.online ? "" : " · not reachable"}
+              {st.teamName || st.remoteUrl}{!st.teamChecked ? " · checking…" : st.online ? "" : " · not reachable"}
             </span>
           {:else if teams.length}
             <button class="ghost" onclick={openShare}>Share with a team…</button>
@@ -898,6 +920,7 @@
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
   .dot.on { background: var(--accent); }
+  .dot.checking { background: var(--faint); }
 
   .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
   .banner > div { flex: 1; }
