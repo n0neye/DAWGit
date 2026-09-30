@@ -433,6 +433,13 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
 }
 
 /**
+ * UnwatchFiles ends a WatchFiles.
+ */
+export function UnwatchFiles(root: string): $CancellablePromise<void> {
+    return $Call.ByID(2951355492, root);
+}
+
+/**
  * Update brings in the team's latest versions.
  */
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
@@ -446,6 +453,16 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
  */
 export function Version(): $CancellablePromise<string> {
     return $Call.ByID(2431199839);
+}
+
+/**
+ * WatchFiles sends "files" events when files in the project change, so new
+ * or edited samples show up without waiting for the next poll. Sets are left
+ * to Signature (it waits for Live to finish writing). It returns false when
+ * this system has no watcher; each call wants an UnwatchFiles.
+ */
+export function WatchFiles(root: string): $CancellablePromise<boolean> {
+    return $Call.ByID(1427111503, root);
 }
 
 // Private type creation functions

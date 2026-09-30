@@ -29,12 +29,13 @@ type App struct {
 	mu      sync.Mutex // guards locks, agents
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
+	watches map[string]*folderWatch // guarded by mu
 	pickDir func(title string) (string, error)
 	openURL func(url string) error
 }
 
 func NewApp() *App {
-	return &App{locks: map[string]*sync.Mutex{}, agents: map[string]context.CancelFunc{}}
+	return &App{locks: map[string]*sync.Mutex{}, agents: map[string]context.CancelFunc{}, watches: map[string]*folderWatch{}}
 }
 
 func (a *App) ServiceName() string { return "App" }

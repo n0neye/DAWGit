@@ -5,8 +5,8 @@
   import { api, errorText, type Progress } from "./api";
 
   // Convert a sample to another format; the new file goes next to it.
-  // Sample rate, channels and bit depth keep the original's unless changed
-  // under "More options"; notes say what a format forces.
+  // Sample rate, channels and bit depth keep the original's unless changed;
+  // notes say what a format forces.
   let { root, file, onclose, ondone }: {
     root: string;
     file: string; // relative path of the sample
@@ -21,7 +21,6 @@
   let rate = $state(0); // 0: same as original
   let channels = $state(0);
   let bits = $state(0);
-  let more = $state(false);
   let info = $state<{ rate: number; channels: number; bits: number; seconds: number } | null>(null);
   let plan = $state<{ rate: number; channels: number; bits: number; bitrate: number; notes: string[] } | null>(null);
   let target = $state("");
@@ -90,7 +89,7 @@
       </select>
     {/if}
 
-    {#if more && current}
+    {#if current}
       <label for="cr">Sample rate</label>
       <select id="cr" bind:value={rate} disabled={busy}>
         <option value={0}>Same as original{info?.rate ? ` (${khz(info.rate)})` : ""}</option>
@@ -114,10 +113,6 @@
     {/if}
   </div>
 
-  {#if !more}
-    <button class="link" onclick={() => (more = true)} disabled={busy}>More options (sample rate, channels…)</button>
-  {/if}
-
   {#if plan}
     <p class="small result">Writes {describe(plan)}{target ? ` as ${name(target)}` : ""} next to the original. The original stays.</p>
     {#each plan.notes as n}<p class="small note">{n}</p>{/each}
@@ -139,6 +134,5 @@
   .small { font-size: 12.5px; }
   .result { color: var(--muted); margin: 10px 0 4px; }
   .note { color: var(--warn); margin: 2px 0; }
-  .link { border: none; background: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: 12.5px; }
   .error { color: var(--danger); }
 </style>
