@@ -492,13 +492,13 @@
 
   // Commits and uploads the first version of a project that just joined a
   // team.
-  function shareFirstVersion(team = "the team") {
+  function shareFirstVersion(team?: string) {
     onfirstshared?.(); // started: don't start again if this view is reopened
     run({
       name: "first-share",
       call: (res, force) => api.Save(root, "First version", true, res, force),
       done: () => {
-        toast(`“${st?.name ?? folderName}” is shared with ${team}`, "ok");
+        toast(`“${st?.name ?? folderName}” is shared with ${team || st?.teamName || "the team"}`, "ok");
       },
     });
   }

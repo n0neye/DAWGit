@@ -28,6 +28,7 @@
   let saving = $state(false);
   let connError = $state("");
   let confirmDisconnect = $state(false);
+  let keepProjects = $state(true); // move the team's projects to Local
   let editingMe = $state(false);
 
   async function identitySaved(t: TeamSummary) {
@@ -90,9 +91,10 @@
 
   async function disconnect() {
     try {
-      await api.RemoveTeam(team.id);
+      await api.RemoveTeam(team.id, keepProjects);
       await reload();
-      toast(`Disconnected from ${team.name}. Project folders were left on disk.`, "info", 7000);
+      toast(keepProjects ? `Disconnected from ${team.name}. Its projects are under Local now.`
+        : `Disconnected from ${team.name}. Project folders were left on disk.`, "info", 7000);
       onclose();
     } catch (e) {
       toast(errorText(e), "error");
@@ -186,17 +188,28 @@
   </section>
 
   {#snippet footer()}
-    {#if confirmDisconnect}
-      <span class="small confirm">Forget this team and its key on this computer? Project folders stay.</span>
-      <button onclick={() => (confirmDisconnect = false)}>Keep</button>
-      <button class="danger" onclick={disconnect}>Disconnect</button>
-    {:else}
-      <button class="ghost danger-text" onclick={() => (confirmDisconnect = true)}>Disconnect…</button>
-      <span class="spacer"></span>
-      <button onclick={onclose}>Close</button>
-    {/if}
+    <button class="ghost danger-text" onclick={() => { keepProjects = true; confirmDisconnect = true; }}>Disconnect…</button>
+    <span class="spacer"></span>
+    <button onclick={onclose}>Close</button>
   {/snippet}
 </Modal>
+
+{#if confirmDisconnect}
+  <Modal title="Disconnect from {team.name}?" onclose={() => (confirmDisconnect = false)}>
+    <p>This computer forgets the team and its key. Nothing changes for your teammates, and project folders stay
+      on disk.</p>
+    <label class="keep">
+      <input type="checkbox" bind:checked={keepProjects} />
+      <span>Move this team's projects to <strong>Local</strong>
+        <span class="faint small">Their versions stay and you can keep committing on this computer. Join the team again
+          later to reconnect them.</span></span>
+    </label>
+    {#snippet footer()}
+      <button onclick={() => (confirmDisconnect = false)}>Cancel</button>
+      <button class="danger" onclick={disconnect}>Disconnect</button>
+    {/snippet}
+  </Modal>
+{/if}
 
 <style>
   section { margin-bottom: 18px; }
@@ -214,5 +227,7 @@
   .me { gap: 10px; align-items: center; margin-bottom: 4px; }
   .me button { padding: 4px 10px; font-size: 13px; }
   .myname { font-weight: 600; }
-  .confirm { flex: 1; color: var(--muted); align-self: center; }
+  .keep { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
+  .keep input { width: auto; margin-top: 3px; }
+  .keep .faint { display: block; margin-top: 2px; }
 </style>

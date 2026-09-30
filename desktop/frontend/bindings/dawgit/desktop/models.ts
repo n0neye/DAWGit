@@ -227,6 +227,34 @@ export class FileVersion {
     }
 }
 
+/**
+ * FoundProject is a project on this computer that belongs to a team.
+ */
+export class FoundProject {
+    "root": string;
+    "name": string;
+
+    /** Creates a new FoundProject instance. */
+    constructor($$source: Partial<FoundProject> = {}) {
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FoundProject instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FoundProject {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FoundProject($$parsedSource as Partial<FoundProject>);
+    }
+}
+
 export class Overview {
     "author": string;
     "teams": TeamSummary[];

@@ -44,7 +44,7 @@ The **Team** menu at the top of the sidebar switches between teams and joins or 
 - **Your name in this team** — shown next to the versions you commit; changing it changes it on all your versions, for everyone.
 - **Invite teammates** — copy the connection code again.
 - **Connection** — change the bucket or key (e.g. after making a new key). DAWGit checks the new settings before saving them.
-- **Disconnect** — forget the team on this computer. Project folders stay.
+- **Disconnect** — forget the team on this computer. By default its projects move to **Local**: their versions stay and you can keep committing. When you join the team again, DAWGit lists the projects of that team it finds under Local, to reconnect the ones you tick.
 
 Keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
@@ -60,7 +60,12 @@ The sidebar lists every song in the current team. Songs not on this computer yet
 
 If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
 
-The **⋯** menu next to a song removes it from this computer's list (the folder stays), or deletes it from the team for everyone (you type the song's name to confirm). Copies already on someone's computer are kept.
+The **⋯** menu next to a song:
+
+- **Remove from list** — the folder stays on this computer.
+- **Move to Local…** — take it out of the team on this computer only; its versions stay. The team keeps its copy.
+- **Move to another team…** (or **Move to a team…** for a Local project) — share its versions with another team you are in.
+- **Delete from server…** — delete it from the team for everyone (you type the song's name to confirm). Copies already on someone's computer are kept.
 
 ## Everyday use
 

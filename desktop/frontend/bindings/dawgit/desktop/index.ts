@@ -12,6 +12,7 @@ export {
     Conflict,
     ConvertFormat,
     FileVersion,
+    FoundProject,
     Overview,
     Preview,
     ProjectFile,
