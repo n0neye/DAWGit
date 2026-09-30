@@ -23,12 +23,12 @@
   let st = $state<State | null>(cachedState(untrack(() => root)));
   let loadError = $state("");
   // The tab is remembered per project.
-  type Tab = "changes" | "history" | "team";
+  type Tab = "changes" | "history";
   const tabKey = `dawgit.tab:${untrack(() => root)}`;
   let tab = $state<Tab>((() => {
     try {
       const t = localStorage.getItem(tabKey);
-      return t === "history" || t === "team" ? t : "changes";
+      return t === "history" ? t : "changes";
     } catch {
       return "changes";
     }
@@ -36,9 +36,6 @@
   $effect(() => {
     const t = tab;
     try { localStorage.setItem(tabKey, t); } catch { /* not remembered */ }
-  });
-  $effect(() => {
-    if (st && !st.remoteUrl && tab === "team") tab = "changes"; // no team tab here
   });
   let message = $state("");
   let busy = $state("");
@@ -91,7 +88,7 @@
     if (!local.remoteUrl || teamLoading) return;
     teamLoading = true;
     try {
-      const t = await api.TeamState(r, local.myEdits);
+      const t = await api.TeamState(r);
       if (t && st?.root === r) {
         st = { ...st, ...t, teamChecked: true } as State;
         rememberState(st);
@@ -114,9 +111,10 @@
     load();
   });
 
-  // Team state (new versions, teammates) is polled slowly...
+  // The team's side (new versions, branches) is refreshed every minute (and
+  // when the agent reports new versions)...
   $effect(() => {
-    const t = setInterval(() => { if (!busy) load(); }, 15000);
+    const t = setInterval(() => { if (!busy) load(); }, 60000);
     return () => clearInterval(t);
   });
 
@@ -185,19 +183,6 @@
   }
 
   let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
-  let editedTracks = $derived.by(() => {
-    const m = new Map<string, string[]>();
-    for (const w of st?.teammates ?? []) {
-      for (const e of w.edits) {
-        // A track someone just created is not the same track as yours even
-        // if Live gave both the same id.
-        if (!e.track_id || e.change === "added") continue;
-        const k = e.set + "|" + e.track_id;
-        m.set(k, [...(m.get(k) ?? []), w.author]);
-      }
-    }
-    return m;
-  });
 
   // Runs an action; handles conflicts (ask, retry with decisions) and a
   // running Live (ask, retry with force).
@@ -519,11 +504,6 @@
   }
 
   let folderName = $derived(root.split(/[\\/]/).pop()?.replace(/ Project$/, "") ?? root);
-
-  function editors(set: string, trackId: string | undefined, change: string): string[] {
-    if (!trackId || change === "added") return [];
-    return editedTracks.get(set + "|" + trackId) ?? [];
-  }
 </script>
 
 <svelte:window onfocus={() => { if (!busy) load(); }} onclick={(e) => {
@@ -662,18 +642,12 @@
         {/if}
       </div>
     {/if}
-    {#each st.overlaps as o}
-      <div class="banner warn">⚠ {o[0].toUpperCase() + o.slice(1)} — talk before you both save.</div>
-    {/each}
 
     <nav>
       <button class:on={tab === "changes"} onclick={() => (tab = "changes")}>
         Changes {#if st.changes.length}<span class="count">{st.changes.length}</span>{/if}
       </button>
       <button class:on={tab === "history"} onclick={() => (tab = "history")}>History</button>
-      <button class:on={tab === "team"} onclick={() => (tab = "team")} disabled={!st.remoteUrl}>
-        Team {#if st.teammates.length}<span class="count">{st.teammates.length}</span>{/if}
-      </button>
     </nav>
 
     <main class:flush={tab === "changes"}>
@@ -684,12 +658,10 @@
               <h3>Tracks you changed</h3>
               <ul class="tracks">
                 {#each st!.myEdits as e}
-                  {@const who = editors(e.set, e.track_id, e.change)}
                   <li>
                     <span class="chg {e.change}"></span>
                     <span>{e.name}</span>
                     <span class="faint">{e.set}</span>
-                    {#if who.length}<span class="lock" title="Also being edited">✎ {who.join(", ")}</span>{/if}
                   </li>
                 {/each}
               </ul>
@@ -706,22 +678,6 @@
         <History versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
           onmerge={st.remoteUrl && !st.olderVersion ? openVersionMerge : undefined} />
-      {:else}
-        <section>
-          <h3>Being edited right now (not committed yet)</h3>
-          {#each st.teammates as w (w.author)}
-            <div class="mate">
-              <div class="row"><strong>{w.author}</strong><span class="faint">updated {ago(w.updated)}</span></div>
-              <ul class="tracks">
-                {#each w.edits as e}
-                  <li><span class="chg {e.change}"></span><span>{e.name}</span><span class="faint">{e.set}</span></li>
-                {/each}
-              </ul>
-            </div>
-          {:else}
-            <p class="muted">Nobody else has uncommitted work at the moment.</p>
-          {/each}
-        </section>
       {/if}
     </main>
 
@@ -966,7 +922,4 @@
   .chg { width: 8px; height: 8px; border-radius: 2px; background: var(--mod); }
   .chg.added { background: var(--add); }
   .chg.removed { background: var(--del); }
-  .lock { font-size: 12px; color: var(--warn); background: var(--warn-bg); padding: 0 8px; border-radius: 8px; }
-  .mate { padding: 12px 14px; margin-bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-  .mate .tracks { margin: 8px 0 0; }
 </style>

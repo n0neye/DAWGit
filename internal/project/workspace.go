@@ -1,12 +1,8 @@
 package project
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"sort"
-	"time"
 
 	"dawgit/internal/remote"
 )
@@ -20,56 +16,23 @@ type TrackEdit struct {
 	Change  string `json:"change"` // "added" | "removed" | "modified"
 }
 
-// WorkspaceState is what a member's agent reports to the server.
-type WorkspaceState struct {
-	ID       string      `json:"id"`
-	Author   string      `json:"author"`
-	AuthorID string      `json:"author_id,omitempty"`
-	Branch   string      `json:"branch"`
-	Base     string      `json:"base"` // version the edits are relative to
-	Updated  string      `json:"updated"`
-	Edits    []TrackEdit `json:"edits"`
-	// Files are backups of the modified sets (objects on the server).
-	Files []FileEntry `json:"files,omitempty"`
-}
-
-func (w WorkspaceState) UpdatedTime() time.Time {
-	t, _ := time.Parse(time.RFC3339, w.Updated)
-	return t
-}
-
-// WorkspaceID identifies this copy of the project; created on first use.
-func (r *Repo) WorkspaceID() (string, error) {
-	if r.Config.WorkspaceID == "" {
-		b := make([]byte, 16)
-		rand.Read(b)
-		r.Config.WorkspaceID = hex.EncodeToString(b)
-		if err := r.SaveConfig(); err != nil {
-			return "", err
-		}
-	}
-	return r.Config.WorkspaceID, nil
-}
-
-// LocalEdits lists unsaved track-level changes in the working sets, and the
-// modified sets themselves (stored in the local object store).
-func (r *Repo) LocalEdits() ([]TrackEdit, []FileEntry, error) {
+// LocalEdits lists unsaved track-level changes in the working sets.
+func (r *Repo) LocalEdits() ([]TrackEdit, error) {
 	ix := r.loadIndex()
 	files, err := r.workingFiles(ix)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer ix.save()
 	head := map[string]FileEntry{}
 	if id := r.Head(); id != "" {
 		m, err := r.Load(id)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		head = m.FileMap()
 	}
 	var edits []TrackEdit
-	var changed []FileEntry
 	for _, f := range files {
 		if !isSet(f.Path) {
 			continue
@@ -78,12 +41,6 @@ func (r *Repo) LocalEdits() ([]TrackEdit, []FileEntry, error) {
 		if ok && old.Hash == f.Hash {
 			continue
 		}
-		if !r.Store.Has(f.Hash) {
-			if _, _, err := r.Store.PutFile(r.Abs(f.Path)); err != nil {
-				return nil, nil, err
-			}
-		}
-		changed = append(changed, f)
 		if !ok {
 			edits = append(edits, TrackEdit{Set: f.Path, Name: "(new set)", Change: "added"})
 			continue
@@ -99,119 +56,42 @@ func (r *Repo) LocalEdits() ([]TrackEdit, []FileEntry, error) {
 			edits = append(edits, TrackEdit{Set: f.Path, TrackID: tc.TrackID, Name: tc.Name, Change: tc.Status})
 		}
 	}
-	return edits, changed, nil
-}
-
-// ReportWorkspace uploads this workspace's unsaved work to the server.
-func (r *Repo) ReportWorkspace() (*WorkspaceState, error) {
-	st, err := r.PrepareWorkspace()
-	if err != nil {
-		return nil, err
-	}
-	return st, r.PublishWorkspace(st)
-}
-
-// PrepareWorkspace is the local half of ReportWorkspace: what this workspace
-// is editing, with backups of the changed sets in the local store. It needs
-// the project lock.
-func (r *Repo) PrepareWorkspace() (*WorkspaceState, error) {
-	id, err := r.WorkspaceID()
-	if err != nil {
-		return nil, err
-	}
-	edits, files, err := r.LocalEdits()
-	if err != nil {
-		return nil, err
-	}
-	authorID, author := r.Identity()
-	return &WorkspaceState{ID: id, Author: author, AuthorID: authorID, Branch: r.BranchName(), Base: r.Head(),
-		Updated: time.Now().UTC().Format(time.RFC3339), Edits: edits, Files: files}, nil
-}
-
-// PublishWorkspace is the network half: uploads the backups and the state.
-// It only reads stored objects, so it runs without the project lock.
-func (r *Repo) PublishWorkspace(st *WorkspaceState) error {
-	c, err := r.Client()
-	if err != nil {
-		return err
-	}
-	var hashes []string
-	for _, f := range st.Files {
-		hashes = append(hashes, f.Hash)
-	}
-	if err := r.uploadObjects(c, hashes); err != nil {
-		return err
-	}
-	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
-		return err
-	}
-	return c.PutWorkspace(r.Config.ProjectID, st.ID, st)
-}
-
-// Teammates returns other members' workspaces that have unsaved edits.
-func (r *Repo) Teammates() ([]WorkspaceState, error) {
-	c, err := r.Client()
-	if err != nil {
-		return nil, err
-	}
-	var all []WorkspaceState
-	if err := c.Workspaces(r.Config.ProjectID, &all); err != nil {
-		if errors.Is(err, remote.ErrNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var out []WorkspaceState
-	for _, w := range all {
-		if w.ID != r.Config.WorkspaceID && len(w.Edits) > 0 {
-			out = append(out, w)
-		}
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Author < out[j].Author })
-	return out, nil
-}
-
-// Overlaps describes tracks both you and a teammate are editing: the soft
-// lock warning.
-func Overlaps(mine []TrackEdit, others []WorkspaceState) []string {
-	type key struct{ set, track string }
-	editing := map[key]TrackEdit{}
-	for _, e := range mine {
-		if e.TrackID != "" && e.Change != "added" {
-			editing[key{e.Set, e.TrackID}] = e
-		}
-	}
-	var out []string
-	for _, w := range others {
-		for _, e := range w.Edits {
-			if mine, ok := editing[key{e.Set, e.TrackID}]; ok && e.TrackID != "" && e.Change != "added" {
-				out = append(out, fmt.Sprintf("you and %s are both editing %q in %s", w.Author, mine.Name, e.Set))
-			}
-		}
-	}
-	return out
+	return edits, nil
 }
 
 // IncomingVersions lists versions on the server branch that this workspace
 // does not have, newest first.
+// It asks only for this branch's head: one small read, cheap enough to poll.
 func (r *Repo) IncomingVersions() ([]*Manifest, error) {
 	c, err := r.Client()
 	if err != nil {
 		return nil, err
 	}
-	heads, err := c.Branches(r.Config.ProjectID)
-	if errors.Is(err, remote.ErrNotFound) {
-		return nil, nil
-	}
+	target, err := branchHead(c, r.Config.ProjectID, r.BranchName())
 	if err != nil {
 		return nil, err
 	}
-	if target := heads[r.BranchName()]; target != "" && target != r.Latest() {
+	if target != "" && target != r.Latest() {
 		if err := r.fetchSnapshots(c, target); err != nil {
 			return nil, err
 		}
 	}
-	return r.IncomingFrom(heads)
+	return r.IncomingFrom(map[string]string{r.BranchName(): target})
+}
+
+// branchHead is one branch's head ("" if none): a single read where the
+// backend can (storage bills listing more than reading).
+func branchHead(c remote.Backend, pid, name string) (string, error) {
+	if b, ok := c.(interface {
+		BranchHead(pid, name string) (string, error)
+	}); ok {
+		return b.BranchHead(pid, name)
+	}
+	heads, err := c.Branches(pid)
+	if errors.Is(err, remote.ErrNotFound) {
+		return "", nil
+	}
+	return heads[name], err
 }
 
 // IncomingFrom is IncomingVersions for branch heads already fetched (see

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-	"time"
 
 	"dawgit/internal/project"
 )
@@ -58,9 +57,6 @@ func cmdStatus(args []string) error {
 	changes, err := r.Status()
 	if err != nil {
 		return err
-	}
-	if r.Config.Remote != nil {
-		printTeammates(r)
 	}
 	if len(changes) == 0 {
 		fmt.Println("nothing changed")
@@ -196,24 +192,3 @@ func cmdExport(args []string) error {
 	return nil
 }
 
-// printTeammates shows what others are editing (soft locks) and overlaps.
-func printTeammates(r *project.Repo) {
-	mates, err := r.Teammates()
-	if err != nil || len(mates) == 0 {
-		return
-	}
-	fmt.Println("team members editing (not saved yet):")
-	for _, w := range mates {
-		var names []string
-		for _, e := range w.Edits {
-			names = append(names, editLabel(e))
-		}
-		age := time.Since(w.UpdatedTime()).Round(time.Minute)
-		fmt.Printf("  %s (%s ago): %s\n", w.Author, age, strings.Join(names, ", "))
-	}
-	if mine, _, err := r.LocalEdits(); err == nil {
-		for _, o := range project.Overlaps(mine, mates) {
-			fmt.Println("  heads up: " + o)
-		}
-	}
-}

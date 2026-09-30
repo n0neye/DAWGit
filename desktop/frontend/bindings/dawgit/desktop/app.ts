@@ -17,9 +17,6 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as convert$0 from "../internal/convert/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as project$0 from "../internal/project/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as remote$0 from "../internal/remote/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -465,12 +462,11 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
 }
 
 /**
- * TeamState asks the team for its branches, new versions and teammates
- * (myEdits: this workspace's, from State, to find overlaps). It runs without
- * the project lock, so the page shows State at once and fills this in.
+ * TeamState asks the team for its branches and new versions. It runs
+ * without the project lock, so the page shows State at once and fills this in.
  */
-export function TeamState(root: string, myEdits: project$0.TrackEdit[]): $CancellablePromise<$models.TeamPart | null> {
-    return $Call.ByID(3957505369, root, myEdits).then(($result: any) => {
+export function TeamState(root: string): $CancellablePromise<$models.TeamPart | null> {
+    return $Call.ByID(3957505369, root).then(($result: any) => {
         return $$createType27($result);
     });
 }

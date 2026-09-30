@@ -233,14 +233,8 @@
         case "new-versions":
           toast(`${name}: ${e.versions.map((v) => `${v.author} saved “${v.message}”`).join("\n")}`, "info", 8000);
           break;
-        case "teammate-editing":
-          toast(`${name}: ${e.author} is editing ${e.labels.map((l) => l.split(": ").slice(1).join(": ")).join(", ")}`, "info");
-          break;
-        case "overlap":
-          toast(`${name}: ${e.text}`, "warn", 9000);
-          break;
       }
-      if (e.root === selected.root && e.kind !== "backed-up") refreshKey++;
+      if (e.root === selected.root) refreshKey++;
     });
     return () => {
       offProgress();
@@ -314,7 +308,7 @@
       </div>
 
       <div class="bottom">
-        <label class="autostart" title="Keeps DAWGit in the tray so teammates see what you edit and you hear about new versions">
+        <label class="autostart" title="Keeps DAWGit in the tray so you hear about new versions from your team">
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
         </label>

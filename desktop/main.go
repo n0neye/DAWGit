@@ -91,6 +91,15 @@ func main() {
 		e.Cancel()
 	})
 
+	// From the tray (or minimised) the agents look for new versions less often.
+	svc.setHidden(slices.Contains(os.Args[1:], backgroundFlag))
+	for ev, hidden := range map[events.WindowEventType]bool{
+		events.Common.WindowHide: true, events.Common.WindowMinimise: true,
+		events.Common.WindowShow: false, events.Common.WindowRestore: false,
+	} {
+		window.OnWindowEvent(ev, func(*application.WindowEvent) { svc.setHidden(hidden) })
+	}
+
 	menu := app.NewMenu()
 	menu.Add("Open DAWGit").OnClick(func(*application.Context) { showWindow() })
 	menu.AddSeparator()
