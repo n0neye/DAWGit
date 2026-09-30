@@ -36,7 +36,7 @@ VIAddVersionKey "LegalCopyright" "(c) 2026 ${APP}"
 !define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${APP}"
-!define MUI_WELCOMEPAGE_TEXT "Version history and teamwork for your Ableton Live projects.$\r$\n$\r$\n${APP} runs in the system tray: it backs up your work in progress, shows what your teammates are editing and tells you about new versions. It never changes your project files on its own.$\r$\n$\r$\nClick Next to continue."
+!define MUI_WELCOMEPAGE_TEXT "Version history and teamwork for your Ableton Live projects.$\r$\n$\r$\n${APP} runs in the system tray: it tells you when your team commits new versions. It never changes your project files on its own.$\r$\n$\r$\nClick Next to continue."
 !define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP}.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Open ${APP} now"
@@ -98,7 +98,7 @@ SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "The ${APP} app and the command line tool."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecAutostart} "Recommended: keeps ${APP} in the tray so your team sees what you are editing and you hear about new versions."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecAutostart} "Recommended: keeps ${APP} in the tray so you hear about new versions from your team."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Put a ${APP} shortcut on the desktop."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 

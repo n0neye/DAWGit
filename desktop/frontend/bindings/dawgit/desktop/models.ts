@@ -500,8 +500,6 @@ export class State {
     "changes": Change[];
     "myEdits": project$0.TrackEdit[];
     "incoming": Version[];
-    "teammates": Teammate[];
-    "overlaps": string[];
     "history": Version[];
     "branches": Branch[];
 
@@ -561,12 +559,6 @@ export class State {
         if (!("incoming" in $$source)) {
             this["incoming"] = [];
         }
-        if (!("teammates" in $$source)) {
-            this["teammates"] = [];
-        }
-        if (!("overlaps" in $$source)) {
-            this["overlaps"] = [];
-        }
         if (!("history" in $$source)) {
             this["history"] = [];
         }
@@ -586,10 +578,8 @@ export class State {
         const $$createField15_0 = $$createType10;
         const $$createField16_0 = $$createType14;
         const $$createField17_0 = $$createType8;
-        const $$createField18_0 = $$createType16;
-        const $$createField19_0 = $$createType2;
-        const $$createField20_0 = $$createType8;
-        const $$createField21_0 = $$createType18;
+        const $$createField18_0 = $$createType8;
+        const $$createField19_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sets" in $$parsedSource) {
             $$parsedSource["sets"] = $$createField12_0($$parsedSource["sets"]);
@@ -606,17 +596,11 @@ export class State {
         if ("incoming" in $$parsedSource) {
             $$parsedSource["incoming"] = $$createField17_0($$parsedSource["incoming"]);
         }
-        if ("teammates" in $$parsedSource) {
-            $$parsedSource["teammates"] = $$createField18_0($$parsedSource["teammates"]);
-        }
-        if ("overlaps" in $$parsedSource) {
-            $$parsedSource["overlaps"] = $$createField19_0($$parsedSource["overlaps"]);
-        }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField20_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField18_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField21_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField19_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }
@@ -654,7 +638,7 @@ export class TeamConnection {
      * Creates a new TeamConnection instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamConnection {
-        const $$createField1_0 = $$createType19;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("settings" in $$parsedSource) {
             $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
@@ -671,8 +655,6 @@ export class TeamPart {
     "offline": string;
     "branches": Branch[];
     "incoming": Version[];
-    "teammates": Teammate[];
-    "overlaps": string[];
 
     /**
      * all branches, with the team's
@@ -694,12 +676,6 @@ export class TeamPart {
         if (!("incoming" in $$source)) {
             this["incoming"] = [];
         }
-        if (!("teammates" in $$source)) {
-            this["teammates"] = [];
-        }
-        if (!("overlaps" in $$source)) {
-            this["overlaps"] = [];
-        }
         if (!("history" in $$source)) {
             this["history"] = [];
         }
@@ -714,12 +690,10 @@ export class TeamPart {
      * Creates a new TeamPart instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamPart {
-        const $$createField2_0 = $$createType18;
+        const $$createField2_0 = $$createType16;
         const $$createField3_0 = $$createType8;
-        const $$createField4_0 = $$createType16;
-        const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType8;
-        const $$createField7_0 = $$createType1;
+        const $$createField4_0 = $$createType8;
+        const $$createField5_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -727,17 +701,11 @@ export class TeamPart {
         if ("incoming" in $$parsedSource) {
             $$parsedSource["incoming"] = $$createField3_0($$parsedSource["incoming"]);
         }
-        if ("teammates" in $$parsedSource) {
-            $$parsedSource["teammates"] = $$createField4_0($$parsedSource["teammates"]);
-        }
-        if ("overlaps" in $$parsedSource) {
-            $$parsedSource["overlaps"] = $$createField5_0($$parsedSource["overlaps"]);
-        }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField6_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField4_0($$parsedSource["history"]);
         }
         if ("olderVersion" in $$parsedSource) {
-            $$parsedSource["olderVersion"] = $$createField7_0($$parsedSource["olderVersion"]);
+            $$parsedSource["olderVersion"] = $$createField5_0($$parsedSource["olderVersion"]);
         }
         return new TeamPart($$parsedSource as Partial<TeamPart>);
     }
@@ -830,39 +798,6 @@ export class TeamSummary {
     static createFrom($$source: any = {}): TeamSummary {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new TeamSummary($$parsedSource as Partial<TeamSummary>);
-    }
-}
-
-export class Teammate {
-    "author": string;
-    "updated": string;
-    "edits": project$0.TrackEdit[];
-
-    /** Creates a new Teammate instance. */
-    constructor($$source: Partial<Teammate> = {}) {
-        if (!("author" in $$source)) {
-            this["author"] = "";
-        }
-        if (!("updated" in $$source)) {
-            this["updated"] = "";
-        }
-        if (!("edits" in $$source)) {
-            this["edits"] = [];
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new Teammate instance from a string or object.
-     */
-    static createFrom($$source: any = {}): Teammate {
-        const $$createField2_0 = $$createType14;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("edits" in $$parsedSource) {
-            $$parsedSource["edits"] = $$createField2_0($$parsedSource["edits"]);
-        }
-        return new Teammate($$parsedSource as Partial<Teammate>);
     }
 }
 
@@ -1000,8 +935,6 @@ const $$createType11 = Conflict.createFrom;
 const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = project$0.TrackEdit.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = Teammate.createFrom;
+const $$createType15 = Branch.createFrom;
 const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = Branch.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = remote$0.Storage.createFrom;
+const $$createType17 = remote$0.Storage.createFrom;

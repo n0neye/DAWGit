@@ -30,7 +30,8 @@ type Server struct {
 	buckets map[string]map[string]*object
 	// PageSize limits list results per page (small values test pagination).
 	PageSize int
-	// Requests counts requests by method, e.g. to check polling cost.
+	// Requests counts requests by method, e.g. to check polling cost;
+	// "LIST" counts listings (also counted as GET).
 	Requests map[string]int
 	// IgnoreConditions acts like storage without conditional writes.
 	IgnoreConditions bool
@@ -60,6 +61,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Requests[r.Method]++
+	if r.Method == "GET" && r.URL.Query().Get("list-type") != "" {
+		s.Requests["LIST"]++ // billed apart from reads
+	}
 	bucket, ok := s.buckets[parts[0]]
 	if !ok {
 		xmlError(w, http.StatusNotFound, "NoSuchBucket")

@@ -284,7 +284,6 @@ func cmdSave(args []string) error {
 	if m != nil {
 		fmt.Printf("saved version %s  %s\n", short(m.ID), m.Message)
 	}
-	r.ReportWorkspace() // best effort: clears your soft locks for the team
 	printMerge(res)
 	switch res.Action {
 	case "published":
@@ -329,7 +328,6 @@ func cmdUpdate(args []string) error {
 	if err != nil {
 		return explainConflict(err)
 	}
-	r.ReportWorkspace() // best effort: your edits are now relative to the new version
 	switch res.Action {
 	case "up-to-date":
 		fmt.Println("already up to date")

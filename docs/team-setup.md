@@ -4,7 +4,7 @@ DAWGit keeps the version history of your Ableton Live projects and lets 2–3 pe
 
 ## 1. Install
 
-Run `DAWGit-<version>-setup.exe` on every computer. No administrator rights are needed. Leave **Start with Windows** checked: DAWGit then waits in the system tray, backs up your work in progress, shows what teammates are editing and tells you about new versions. It never changes your project files on its own.
+Run `DAWGit-<version>-setup.exe` on every computer. No administrator rights are needed. Leave **Start with Windows** checked: DAWGit then waits in the system tray and tells you about new versions. It never changes your project files on its own.
 
 Requires Windows 10 (21H2 or later) or Windows 11.
 
@@ -67,7 +67,7 @@ The **⋯** menu next to a song removes it from this computer's list (the folder
 - Work in Live as usual and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
 - When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, DAWGit shows what they changed and lets you choose: combine your work with theirs (track by track; where you both changed the same track, it asks which to keep: yours, theirs, or both as two tracks), put your work on a new branch, or discard it.
 - When a teammate saves, DAWGit shows it. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first: DAWGit changes the files on disk and Live would overwrite them.
-- A yellow banner means you and a teammate are editing the same track right now: talk before you both save.
+- To stay out of each other's way, work on your own branch (**⑂ → New branch from here…**) and merge it into the main branch when it's ready (History tab → **Merge** on its latest version), or use your own `.als` in the same project and combine the sets in Live later. Editing the same set on the same branch works too: DAWGit combines your changes track by track and only asks when you both changed the same track.
 
 ## Uninstall
 

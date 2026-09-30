@@ -372,6 +372,16 @@ func (b *S3Backend) branch(pid, name string) (id, etag string, err error) {
 	return strings.TrimSpace(string(r.body)), r.etag, nil
 }
 
+// BranchHead reads one branch's head ("" if it doesn't exist): a single GET,
+// which storage bills far less than the listing Branches needs.
+func (b *S3Backend) BranchHead(pid, name string) (string, error) {
+	if !validBranch(name) {
+		return "", fmt.Errorf("invalid branch name %q", name)
+	}
+	id, _, err := b.branch(pid, name)
+	return id, err
+}
+
 func (b *S3Backend) Branches(pid string) (map[string]string, error) {
 	keys, err := b.list(projectDir(pid)+"branches/", false)
 	if err != nil {

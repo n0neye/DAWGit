@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -29,6 +30,7 @@ type App struct {
 	mu      sync.Mutex // guards locks, agents
 	locks   map[string]*sync.Mutex
 	agents  map[string]context.CancelFunc
+	hidden  atomic.Bool // the window is in the tray or minimised
 	watches map[string]*folderWatch // guarded by mu
 	pickDir func(title string) (string, error)
 	openURL func(url string) error
@@ -162,21 +164,38 @@ func (a *App) startAgent(root string) {
 
 	go func() {
 		w := agent.New(root)
-		t := time.NewTicker(r.PollInterval())
-		defer t.Stop()
 		for {
-			events := w.CheckLocked(func() func() { return a.lock(root) })
-			for _, e := range events {
+			for _, e := range w.Check() {
 				a.handleEvent(root, r.Config.Name, e)
 			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-t.C:
+			case <-time.After(a.pollInterval(r)):
 			}
 		}
 	}()
 }
+
+// pollInterval is how often an agent looks for new versions. Storage bills
+// each request, so it looks every minute while the window is open and every
+// five minutes from the tray; a team server is asked more often.
+func (a *App) pollInterval(r *project.Repo) time.Duration {
+	hidden := a.hidden.Load()
+	if r.Config.Remote != nil && !r.Config.Remote.IsStorage() {
+		if hidden {
+			return time.Minute
+		}
+		return r.PollInterval()
+	}
+	if hidden {
+		return 5 * time.Minute
+	}
+	return time.Minute
+}
+
+// setHidden records whether the window is hidden (in the tray) or minimised.
+func (a *App) setHidden(h bool) { a.hidden.Store(h) }
 
 func (a *App) stopAgent(root string) {
 	a.mu.Lock()
@@ -207,8 +226,6 @@ func (a *App) handleEvent(root, name string, e agent.Event) {
 			lines = append(lines, fmt.Sprintf("%s: %s", project.AuthorName(m, names), m.Message))
 		}
 		a.notify(name+": new version from the team", strings.Join(lines, "\n"))
-	case agent.Overlap:
-		a.notify(name+": editing the same track", strings.ToUpper(e.Text[:1])+e.Text[1:])
 	}
 }
 
@@ -239,8 +256,8 @@ func (a *App) State(root string) (*State, error) {
 	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
 		Head: r.Head(), LiveRunning: livecheck.OpenSet(r.Root) != "", Sets: []string{},
-		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, Teammates: []Teammate{},
-		Overlaps: []string{}, History: []Version{}, Branches: []Branch{}}
+		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, History: []Version{},
+		Branches: []Branch{}}
 	if st.Name == "" {
 		st.Name = filepath.Base(r.Root)
 	}
@@ -265,7 +282,7 @@ func (a *App) State(root string) (*State, error) {
 	for _, c := range changes {
 		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
 	}
-	if edits, _, err := r.LocalEdits(); err == nil {
+	if edits, err := r.LocalEdits(); err == nil {
 		st.MyEdits = nonNil(edits)
 	}
 	sw.lap("edits")
@@ -284,13 +301,12 @@ func (a *App) State(root string) (*State, error) {
 			st.TeamChecked, st.Online, st.Offline = true, tc.err == "", tc.err
 		}
 	}
-	part, err := a.teamPart(r, view, st.MyEdits, false)
+	part, err := a.teamPart(r, view, false)
 	if err != nil {
 		return nil, err
 	}
 	sw.lap("log")
-	st.Branches, st.Incoming, st.Teammates, st.Overlaps, st.History = part.Branches, part.Incoming, part.Teammates,
-		part.Overlaps, part.History
+	st.Branches, st.Incoming, st.History = part.Branches, part.Incoming, part.History
 	if part.OlderVersion != nil {
 		st.OlderVersion = part.OlderVersion
 	}
@@ -303,16 +319,13 @@ type TeamPart struct {
 	Offline      string     `json:"offline"`
 	Branches     []Branch   `json:"branches"`
 	Incoming     []Version  `json:"incoming"`
-	Teammates    []Teammate `json:"teammates"`
-	Overlaps     []string   `json:"overlaps"`
 	History      []Version  `json:"history"` // all branches, with the team's
 	OlderVersion *Version   `json:"olderVersion"`
 }
 
-// TeamState asks the team for its branches, new versions and teammates
-// (myEdits: this workspace's, from State, to find overlaps). It runs without
-// the project lock, so the page shows State at once and fills this in.
-func (a *App) TeamState(root string, myEdits []project.TrackEdit) (*TeamPart, error) {
+// TeamState asks the team for its branches and new versions. It runs
+// without the project lock, so the page shows State at once and fills this in.
+func (a *App) TeamState(root string) (*TeamPart, error) {
 	sw := startWatch("TeamState " + filepath.Base(root))
 	defer sw.done()
 	r, err := project.Open(root)
@@ -320,29 +333,28 @@ func (a *App) TeamState(root string, myEdits []project.TrackEdit) (*TeamPart, er
 		return nil, err
 	}
 	if r.Config.Remote == nil {
-		return a.teamPart(r, nil, myEdits, false)
+		return a.teamPart(r, nil, false)
 	}
 	view, err := r.FetchTeam()
 	sw.lap("fetch")
 	a.storeTeam(root, view, err)
 	if err != nil {
-		part, perr := a.teamPart(r, nil, myEdits, false)
+		part, perr := a.teamPart(r, nil, false)
 		if perr != nil {
 			return nil, perr
 		}
 		part.Offline = err.Error()
 		return part, nil
 	}
-	part, err := a.teamPart(r, view, myEdits, true)
+	part, err := a.teamPart(r, view, true)
 	sw.lap("log")
 	return part, err
 }
 
 // teamPart works out the team's side from a fetched view (nil: none), with
 // no network except, when fetchNames, the member list (cached a minute).
-func (a *App) teamPart(r *project.Repo, view *project.TeamView, myEdits []project.TrackEdit, fetchNames bool) (*TeamPart, error) {
-	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}, Teammates: []Teammate{},
-		Overlaps: []string{}}
+func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool) (*TeamPart, error) {
+	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}}
 	tips := map[string][]string{}
 	if view != nil {
 		for _, b := range r.BranchesFrom(view.Heads) {
@@ -357,10 +369,6 @@ func (a *App) teamPart(r *project.Repo, view *project.TeamView, myEdits []projec
 		if in, err := r.IncomingFrom(view.Heads); err == nil {
 			part.Incoming = toVersions(in, nil)
 		}
-		for _, m := range view.Mates {
-			part.Teammates = append(part.Teammates, Teammate{Author: m.Author, Updated: m.Updated, Edits: nonNil(m.Edits)})
-		}
-		part.Overlaps = nonNil(project.Overlaps(myEdits, view.Mates))
 	}
 	// The whole tree: every branch (including the team's versions of this
 	// branch not taken yet), wherever this workspace is.
@@ -534,7 +542,6 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	out := syncResult(res)
 	if m == nil && res.Action == "up-to-date" {
 		out.Action = "nothing"
@@ -579,7 +586,6 @@ func (a *App) Update(root string, resolutions map[string]string, force bool) (*R
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }
 
@@ -601,9 +607,6 @@ func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error)
 	}
 	if err != nil {
 		return nil, err
-	}
-	if r.Config.Remote != nil {
-		r.ReportWorkspace()
 	}
 	return &Result{Action: "moved", Log: []string{}, Relinked: nonNil(notes), Conflicts: []Conflict{}}, nil
 }
@@ -631,7 +634,6 @@ func (a *App) KeepThisVersion(root, message string, resolutions map[string]strin
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }
 
@@ -688,7 +690,6 @@ func (a *App) DiscardAndUpdate(root string, resolutions map[string]string, force
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }
 
@@ -714,7 +715,6 @@ func (a *App) SwitchBranch(root, name string, force bool) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }
 
@@ -759,7 +759,6 @@ func (a *App) MergeVersion(root, id string, resolutions map[string]string, force
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }
 
@@ -776,6 +775,5 @@ func (a *App) MergeBranch(root, name string, resolutions map[string]string, forc
 	if err != nil {
 		return conflictResult(err)
 	}
-	r.ReportWorkspace()
 	return syncResult(res), nil
 }

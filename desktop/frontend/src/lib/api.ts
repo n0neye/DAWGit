@@ -1,7 +1,7 @@
 // Thin wrapper over the generated Go bindings plus small UI helpers.
 import * as App from "../../bindings/dawgit/desktop/app";
 export type {
-  State, Version, Change, Conflict, Preview, Result, Teammate, Branch,
+  State, Version, Change, Conflict, Preview, Result, Branch,
   Overview, TeamSummary, TeamProject, ProjectFile, FileVersion,
 } from "../../bindings/dawgit/desktop/models";
 

@@ -21,7 +21,7 @@ func TestSetDiffCached(t *testing.T) {
 	if len(first) != 1 || first[0].SetDiff == nil || again[0].SetDiff != first[0].SetDiff {
 		t.Fatalf("second status parsed the set again: %+v %+v", first, again)
 	}
-	if _, _, err := r.LocalEdits(); err != nil {
+	if _, err := r.LocalEdits(); err != nil {
 		t.Fatal(err)
 	}
 

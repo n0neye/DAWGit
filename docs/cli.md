@@ -38,13 +38,13 @@ dawgit init [--author NAME]          # start tracking this project
 dawgit remote <address> --token T    # connect it to a team server (or: dawgit remote <connection code>)
 dawgit save -m "added drums"         # commit a version and share it (merges the team's versions first)
 dawgit update [--preview]            # get the team's latest versions (or just look)
-dawgit status                        # what changed, who is editing what
+dawgit status                        # what changed since your last version
 dawgit log                           # versions
 dawgit clone <address> "Song" [folder] --token T   # download a team project
 dawgit teams                         # teams this computer is connected to
 ```
 
-`dawgit agent` keeps running while you work: it backs up unsaved work to the team, shows which tracks teammates are editing, and tells you when someone saves a new version. It never changes your files. The desktop app does the same in the background.
+`dawgit agent` keeps running while you work and tells you when someone commits a new version on your branch. It never changes your files. The desktop app does the same in the background.
 
 `save` and `update` merge Live Sets track by track. When you and a teammate changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if the team's changes must be merged in.
 

@@ -29,12 +29,6 @@ type Change struct {
 	Details []string `json:"details"` // semantic diff lines for sets
 }
 
-type Teammate struct {
-	Author  string              `json:"author"`
-	Updated string              `json:"updated"`
-	Edits   []project.TrackEdit `json:"edits"`
-}
-
 type Branch struct {
 	Name    string   `json:"name"`
 	Current bool     `json:"current"`
@@ -70,13 +64,11 @@ type State struct {
 	OlderVersion *Version `json:"olderVersion"`
 	Latest       string   `json:"latest"`
 
-	Changes   []Change            `json:"changes"`
-	MyEdits   []project.TrackEdit `json:"myEdits"`
-	Incoming  []Version           `json:"incoming"`
-	Teammates []Teammate          `json:"teammates"`
-	Overlaps  []string            `json:"overlaps"`
-	History   []Version           `json:"history"`
-	Branches  []Branch            `json:"branches"`
+	Changes  []Change            `json:"changes"`
+	MyEdits  []project.TrackEdit `json:"myEdits"`
+	Incoming []Version           `json:"incoming"`
+	History  []Version           `json:"history"`
+	Branches []Branch            `json:"branches"`
 }
 
 // Result of save / update / merge / switch.

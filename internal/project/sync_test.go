@@ -292,13 +292,13 @@ func TestTeamOverObjectStorage(t *testing.T) {
 	if setTracks(t, a)["Drum"].Elem == nil || setTracks(t, a)["Audios"].Elem == nil {
 		t.Error("merged result incomplete")
 	}
-	// Soft locks work over storage too.
+	// New versions are noticed over storage too.
 	copyFile(t, filepath.Join(fixtureProject, "SampleAbletonProject_v2.als"), filepath.Join(a.Root, "Song.als"))
-	if _, err := a.ReportWorkspace(); err != nil {
+	if _, _, err := a.Save("back to v2", Strategy("fail")); err != nil {
 		t.Fatal(err)
 	}
-	if mates, err := b.Teammates(); err != nil || len(mates) != 1 || mates[0].Author != "yi" {
-		t.Fatalf("teammates over storage: %v %+v", err, mates)
+	if in, err := b.IncomingVersions(); err != nil || len(in) != 1 || in[0].Message != "back to v2" {
+		t.Fatalf("incoming over storage: %v %+v", err, in)
 	}
 }
 

@@ -19,9 +19,9 @@ const usage = `usage: dawgit <command> [args]
 everyday (run inside an Ableton project folder):
   save -m MESSAGE                        save a version and share it with the team
   update [--preview]                     get the team's latest versions (or just look)
-  status                                 what changed since your last version, who is editing what
-  agent                                  keep running: back up unsaved work, show who edits which
-                                         track, tell you about new versions (never changes your files)
+  status                                 what changed since your last version
+  agent                                  keep running: tell you about new versions (never changes
+                                         your files)
   log                                    list versions
 
 setup:

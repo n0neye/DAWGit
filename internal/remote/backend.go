@@ -96,7 +96,7 @@ func (c Config) IsStorage() bool { return strings.HasPrefix(strings.ToLower(c.UR
 // storage has no push and is billed per request, so it is polled less often.
 func (c Config) PollInterval() time.Duration {
 	if c.IsStorage() {
-		return 20 * time.Second
+		return time.Minute
 	}
 	return 5 * time.Second
 }

@@ -166,6 +166,8 @@
           {/each}
         </ul>
       {/if}
+      <p class="faint tip">Tip: to stay out of each other's way, each of you can work on your own branch
+        (⑂ → New branch) or your own set, and merge when it's ready.</p>
       {#if error}<p class="error">{error}</p>{/if}
       <div class="row actions">
         <button onclick={addFolder} disabled={!!busy}>{busy === "add" ? "Sharing…" : "+ Add a project"}</button>
@@ -209,4 +211,5 @@
   .ok { color: var(--accent); font-size: 13px; }
   .projects li.active { border-color: #2c4557; }
   .progress { flex-basis: 100%; display: flex; }
+  .tip { font-size: 12.5px; margin: 14px 0 0; }
 </style>

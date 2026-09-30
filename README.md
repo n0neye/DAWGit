@@ -14,7 +14,7 @@ Version history and teamwork for Ableton Live projects. Commit versions of your 
 - **Changes by track** — after you press Ctrl+S in Live, DAWGit lists which tracks you added, removed or changed.
 - **Track-level merging** — when two people edit the same song, their changes are combined track by track (tracks, their placement and order, sends) together with song-wide parts such as the main track, locators and scenes. Only when you both changed the same track does DAWGit ask which to keep: yours, theirs, or both side by side.
 - **Samples go with the project** — samples inside the project folder, and samples from elsewhere on your disk, are stored with each version. On a teammate's computer the set is pointed at them automatically. Samples from Live packs are only recorded by name.
-- **See who is editing what** — DAWGit shows which tracks your teammates are working on right now and warns you when you both edit the same one. Your unsaved work is backed up to the team.
+- **Work side by side** — each person works on their own branch or their own set and merges when ready; DAWGit tells you when a teammate commits a new version.
 - **Your team's own storage** — the team's songs live in a bucket of your own on any S3-compatible storage (Cloudflare R2, Amazon S3, MinIO, …). DAWGit guides you through setting up Cloudflare R2 in a few minutes. Nothing needs to stay switched on.
 - **Or keep it local** — use DAWGit on your own, with versions kept on your computer only.
 - **Nothing changes behind your back** — DAWGit never changes your project files on its own, only when you take in your team's changes, and it asks you to close Live before it rewrites a set.
@@ -27,7 +27,7 @@ Version history and teamwork for Ableton Live projects. Commit versions of your 
 
 1. Download `DAWGit-<version>-setup.exe` from the [Releases](../../releases) page.
 2. Run it. No administrator rights needed. The installer is not code-signed yet, so Windows may show "Windows protected your PC": click **More info → Run anyway**.
-3. Leave **Start with Windows** checked: DAWGit then waits in the system tray, backs up your work in progress and tells you about new versions.
+3. Leave **Start with Windows** checked: DAWGit then waits in the system tray and tells you about new versions.
 
 Requires Windows 10 (21H2 or later) or Windows 11.
 
@@ -53,7 +53,7 @@ Everyday use:
 - Work in Live and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
 - When you reach a point worth sharing, describe it and click **Commit version & share**. If a teammate committed in the meantime, DAWGit shows what they changed and lets you combine your work with theirs or put it on a new branch.
 - When a teammate commits, DAWGit tells you. Click **Preview** to see what changed, **Get updates** to take it. Close the set in Live first, then reopen it.
-- A yellow banner means you and a teammate are editing the same track right now: talk before you both commit.
+- To stay out of each other's way, work on your own branch (**⑂ → New branch from here…**) and merge it when it's ready, or use your own `.als` in the same project and combine the sets in Live later. Editing the same set on the same branch works too: DAWGit combines your changes track by track and only asks when you both changed the same track.
 
 ### Set up a team
 
