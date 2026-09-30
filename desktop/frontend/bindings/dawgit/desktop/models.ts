@@ -325,6 +325,11 @@ export class Preview {
     "changes": Change[];
     "conflicts": Conflict[];
 
+    /**
+     * Message: for merges, the default description of the merge version.
+     */
+    "message": string;
+
     /** Creates a new Preview instance. */
     constructor($$source: Partial<Preview> = {}) {
         if (!("action" in $$source)) {
@@ -338,6 +343,9 @@ export class Preview {
         }
         if (!("conflicts" in $$source)) {
             this["conflicts"] = [];
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
         }
 
         Object.assign(this, $$source);

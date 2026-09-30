@@ -246,14 +246,18 @@ export function LocateProject(teamID: string, projectID: string, folder: string)
     });
 }
 
-export function MergeBranch(root: string, name: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3631821023, root, name, resolutions, force).then(($result: any) => {
+export function MergeBranch(root: string, name: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(3631821023, root, name, message, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
 
-export function MergeVersion(root: string, id: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3024291569, root, id, resolutions, force).then(($result: any) => {
+/**
+ * MergeVersion merges a version into the current branch; message describes
+ * the merge version ("" for the default, see Preview.Message).
+ */
+export function MergeVersion(root: string, id: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(3024291569, root, id, message, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -546,6 +550,16 @@ export function Version(): $CancellablePromise<string> {
 }
 
 /**
+ * VersionChanges lists what a version changed compared with the one before
+ * it (for a merge: what it brought into its branch), for the History tab.
+ */
+export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
+    return $Call.ByID(2214711800, root, id).then(($result: any) => {
+        return $$createType31($result);
+    });
+}
+
+/**
  * WatchFiles sends "files" events when files in the project change, so new
  * or edited samples show up without waiting for the next poll. Sets are left
  * to Signature (it waits for Live to finish writing). It returns false when
@@ -586,3 +600,5 @@ const $$createType26 = $models.FoundProject.createFrom;
 const $$createType27 = $Create.Array($$createType26);
 const $$createType28 = $models.TeamPart.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $models.Change.createFrom;
+const $$createType31 = $Create.Array($$createType30);

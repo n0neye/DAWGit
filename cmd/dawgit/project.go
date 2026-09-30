@@ -191,4 +191,3 @@ func cmdExport(args []string) error {
 	fmt.Printf("exported version %s  %s\n  to %s\n", short(m.ID), m.Message, args[1])
 	return nil
 }
-

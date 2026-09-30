@@ -148,8 +148,9 @@ func (r *Repo) SwitchBranch(name string, force bool) (*SyncResult, error) {
 }
 
 // MergeBranch merges another branch's latest version into the workspace and
-// shares the result on the current branch.
-func (r *Repo) MergeBranch(name string, opts MergeOptions) (*SyncResult, error) {
+// shares the result on the current branch. message describes the merge
+// version ("" for "Merge branch <name>").
+func (r *Repo) MergeBranch(name, message string, opts MergeOptions) (*SyncResult, error) {
 	if err := r.guardLatest(); err != nil {
 		return nil, err
 	}
@@ -168,15 +169,66 @@ func (r *Repo) MergeBranch(name string, opts MergeOptions) (*SyncResult, error) 
 	if name == r.BranchName() {
 		return nil, errors.New("that is the branch you are on; use `dawgit update`")
 	}
-	return r.mergeVersion(c, target, "Merge branch "+name, opts)
+	if message == "" {
+		message = "Merge branch " + name
+	}
+	return r.mergeVersion(c, target, message, opts)
 }
 
 // MergeVersion merges any version (e.g. one on another branch, not only its
 // latest) into the workspace and shares the result on the current branch.
-func (r *Repo) MergeVersion(ref string, opts MergeOptions) (*SyncResult, error) {
+// message describes the merge version ("" for MergeMessage's).
+func (r *Repo) MergeVersion(ref, message string, opts MergeOptions) (*SyncResult, error) {
 	if err := r.guardLatest(); err != nil {
 		return nil, err
 	}
+	id, err := r.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	c, err := r.Client()
+	if err != nil {
+		return nil, err
+	}
+	if message == "" {
+		if message, err = r.MergeMessage(id); err != nil {
+			return nil, err
+		}
+	}
+	return r.mergeVersion(c, id, message, opts)
+}
+
+// MergeMessage is the default description of merging a version: "Merge
+// branch <name>" for a branch's latest, else "Merge version <id> (<its
+// description>)".
+func (r *Repo) MergeMessage(ref string) (string, error) {
+	id, err := r.Resolve(ref)
+	if err != nil {
+		return "", err
+	}
+	m, err := r.Load(id)
+	if err != nil {
+		return "", err
+	}
+	msg := fmt.Sprintf("Merge version %s", short(id))
+	if m.Message != "" {
+		msg += fmt.Sprintf(" (%q)", m.Message)
+	}
+	if c, err := r.Client(); err == nil {
+		if heads, err := c.Branches(r.Config.ProjectID); err == nil {
+			for name, head := range heads { // a branch's latest: name the branch
+				if head == id && name != r.BranchName() {
+					msg = "Merge branch " + name
+				}
+			}
+		}
+	}
+	return msg, nil
+}
+
+// VersionChanges lists what a version changed compared with its (first)
+// parent: for a merge, what it brought into its branch.
+func (r *Repo) VersionChanges(ref string) ([]FileChange, error) {
 	id, err := r.Resolve(ref)
 	if err != nil {
 		return nil, err
@@ -185,22 +237,13 @@ func (r *Repo) MergeVersion(ref string, opts MergeOptions) (*SyncResult, error) 
 	if err != nil {
 		return nil, err
 	}
-	c, err := r.Client()
-	if err != nil {
-		return nil, err
-	}
-	msg := fmt.Sprintf("Merge version %s", short(id))
-	if m.Message != "" {
-		msg += fmt.Sprintf(" (%q)", m.Message)
-	}
-	if heads, err := c.Branches(r.Config.ProjectID); err == nil {
-		for name, head := range heads { // a branch's latest: name the branch
-			if head == id && name != r.BranchName() {
-				msg = "Merge branch " + name
-			}
+	parent := &Manifest{}
+	if len(m.Parents) > 0 {
+		if parent, err = r.Load(m.Parents[0]); err != nil {
+			return nil, err
 		}
 	}
-	return r.mergeVersion(c, id, msg, opts)
+	return r.fileChanges(parent, m)
 }
 
 func (r *Repo) mergeVersion(c remote.Backend, target, message string, opts MergeOptions) (*SyncResult, error) {
