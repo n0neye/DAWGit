@@ -40,6 +40,16 @@ func (a *App) memberNames(r *project.Repo) map[string]string {
 	return names
 }
 
+// cachedMemberNames is memberNames without asking the team (any age).
+func cachedMemberNames(r *project.Repo) map[string]string {
+	if r.Config.Remote == nil {
+		return nil
+	}
+	namesCache.Lock()
+	defer namesCache.Unlock()
+	return namesCache.byTeam[r.Config.Remote.URL].names
+}
+
 // forgetNames makes the next memberNames ask the team again (after a rename).
 func forgetNames(teamURL string) {
 	namesCache.Lock()

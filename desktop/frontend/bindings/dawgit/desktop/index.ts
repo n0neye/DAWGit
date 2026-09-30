@@ -18,6 +18,7 @@ export {
     Result,
     State,
     TeamConnection,
+    TeamPart,
     TeamProject,
     TeamSummary,
     Teammate,

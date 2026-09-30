@@ -13,6 +13,7 @@ import (
 
 	"dawgit/internal/als"
 	"dawgit/internal/manifest"
+	"dawgit/internal/store"
 )
 
 type (
@@ -107,7 +108,8 @@ func (r *Repo) storeSnapshot(id string, data []byte) error {
 	if _, err := manifest.Parse(id, data); err != nil {
 		return err
 	}
-	return os.WriteFile(r.snapshotPath(id), data, 0o644)
+	// Atomic: team state is read without the project lock.
+	return store.WriteAtomic(r.snapshotPath(id), bytes.NewReader(data))
 }
 
 // sampleRefs classifies the samples referenced by the sets among files.

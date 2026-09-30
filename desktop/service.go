@@ -165,9 +165,7 @@ func (a *App) startAgent(root string) {
 		t := time.NewTicker(r.PollInterval())
 		defer t.Stop()
 		for {
-			unlock := a.lock(root)
-			events := w.Check()
-			unlock()
+			events := w.CheckLocked(func() func() { return a.lock(root) })
 			for _, e := range events {
 				a.handleEvent(root, r.Config.Name, e)
 			}
@@ -226,11 +224,14 @@ func (a *App) ShowFolder(root string) error {
 // --- state ---
 
 func (a *App) State(root string) (*State, error) {
+	sw := startWatch("State " + filepath.Base(root))
+	defer sw.done()
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
+	sw.lap("open")
 	// On the latest version of another branch (e.g. gone there before this
 	// was handled): that branch is where commits go.
 	if r.OnOlderVersion() && r.Config.Remote != nil {
@@ -255,81 +256,193 @@ func (a *App) State(root string) (*State, error) {
 		st.Sets = append(st.Sets, filepath.Base(s))
 	}
 
+	sw.lap("head")
 	changes, err := r.Status()
 	if err != nil {
 		return nil, err
 	}
+	sw.lap("status")
 	for _, c := range changes {
 		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
 	}
 	if edits, _, err := r.LocalEdits(); err == nil {
 		st.MyEdits = nonNil(edits)
 	}
+	sw.lap("edits")
 
-	tips := map[string][]string{}
+	// The team's side comes from the last TeamState (no network here); the
+	// page then asks TeamState for a fresh one.
+	var view *project.TeamView
 	if r.Config.Remote != nil {
 		st.RemoteURL = r.Config.Remote.Display()
 		if t, err := r.Team(); err == nil {
 			st.TeamID, st.TeamName = t.ID, t.Name
 		}
-		branches, err := r.Branches()
-		if err != nil {
-			st.Offline = err.Error()
-		} else {
-			st.Online = true
-			for _, b := range branches {
-				tips[b.Head] = append(tips[b.Head], b.Name)
-				br := Branch{Name: b.Name, Current: b.Current}
-				if b.Latest != nil {
-					v := toVersion(b.Latest, nil)
-					br.Latest = &v
-				}
-				st.Branches = append(st.Branches, br)
-			}
-			if in, err := r.IncomingVersions(); err == nil {
-				st.Incoming = toVersions(in, nil)
-			}
-			if mates, err := r.Teammates(); err == nil {
-				for _, m := range mates {
-					st.Teammates = append(st.Teammates, Teammate{Author: m.Author, Updated: m.Updated, Edits: nonNil(m.Edits)})
-				}
-				st.Overlaps = nonNil(project.Overlaps(st.MyEdits, mates))
-			}
+		var tc *teamCache
+		view, tc = a.cachedTeam(root)
+		if tc != nil {
+			st.TeamChecked, st.Online, st.Offline = true, tc.err == "", tc.err
 		}
+	}
+	part, err := a.teamPart(r, view, st.MyEdits, false)
+	if err != nil {
+		return nil, err
+	}
+	sw.lap("log")
+	st.Branches, st.Incoming, st.Teammates, st.Overlaps, st.History = part.Branches, part.Incoming, part.Teammates,
+		part.Overlaps, part.History
+	if part.OlderVersion != nil {
+		st.OlderVersion = part.OlderVersion
+	}
+	return st, nil
+}
+
+// TeamPart is the team's side of a project's state (see TeamState).
+type TeamPart struct {
+	Online       bool       `json:"online"`
+	Offline      string     `json:"offline"`
+	Branches     []Branch   `json:"branches"`
+	Incoming     []Version  `json:"incoming"`
+	Teammates    []Teammate `json:"teammates"`
+	Overlaps     []string   `json:"overlaps"`
+	History      []Version  `json:"history"` // all branches, with the team's
+	OlderVersion *Version   `json:"olderVersion"`
+}
+
+// TeamState asks the team for its branches, new versions and teammates
+// (myEdits: this workspace's, from State, to find overlaps). It runs without
+// the project lock, so the page shows State at once and fills this in.
+func (a *App) TeamState(root string, myEdits []project.TrackEdit) (*TeamPart, error) {
+	sw := startWatch("TeamState " + filepath.Base(root))
+	defer sw.done()
+	r, err := project.Open(root)
+	if err != nil {
+		return nil, err
+	}
+	if r.Config.Remote == nil {
+		return a.teamPart(r, nil, myEdits, false)
+	}
+	view, err := r.FetchTeam()
+	sw.lap("fetch")
+	a.storeTeam(root, view, err)
+	if err != nil {
+		part, perr := a.teamPart(r, nil, myEdits, false)
+		if perr != nil {
+			return nil, perr
+		}
+		part.Offline = err.Error()
+		return part, nil
+	}
+	part, err := a.teamPart(r, view, myEdits, true)
+	sw.lap("log")
+	return part, err
+}
+
+// teamPart works out the team's side from a fetched view (nil: none), with
+// no network except, when fetchNames, the member list (cached a minute).
+func (a *App) teamPart(r *project.Repo, view *project.TeamView, myEdits []project.TrackEdit, fetchNames bool) (*TeamPart, error) {
+	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}, Teammates: []Teammate{},
+		Overlaps: []string{}}
+	tips := map[string][]string{}
+	if view != nil {
+		for _, b := range r.BranchesFrom(view.Heads) {
+			tips[b.Head] = append(tips[b.Head], b.Name)
+			br := Branch{Name: b.Name, Current: b.Current}
+			if b.Latest != nil {
+				v := toVersion(b.Latest, nil)
+				br.Latest = &v
+			}
+			part.Branches = append(part.Branches, br)
+		}
+		if in, err := r.IncomingFrom(view.Heads); err == nil {
+			part.Incoming = toVersions(in, nil)
+		}
+		for _, m := range view.Mates {
+			part.Teammates = append(part.Teammates, Teammate{Author: m.Author, Updated: m.Updated, Edits: nonNil(m.Edits)})
+		}
+		part.Overlaps = nonNil(project.Overlaps(myEdits, view.Mates))
 	}
 	// The whole tree: every branch (including the team's versions of this
 	// branch not taken yet), wherever this workspace is.
 	var heads []string
 	for h := range tips {
-		heads = append(heads, h)
+		if h != "" {
+			heads = append(heads, h)
+		}
 	}
 	sort.Strings(heads)
 	all, err := r.LogAll(heads)
 	if err != nil {
 		return nil, err
 	}
-	st.History = toVersions(all, tips)
-	if r.Config.Remote != nil && st.Online {
-		names := a.memberNames(r)
-		renameAuthors(names, st.History)
-		renameAuthors(names, st.Incoming)
-		for _, b := range st.Branches {
+	part.History = toVersions(all, tips)
+	if r.OnOlderVersion() {
+		if m, err := r.Load(r.Head()); err == nil {
+			v := toVersion(m, nil)
+			part.OlderVersion = &v
+		}
+	}
+	if r.Config.Remote != nil {
+		var names map[string]string
+		if fetchNames {
+			names = a.memberNames(r)
+		} else {
+			names = cachedMemberNames(r)
+		}
+		renameAuthors(names, part.History)
+		renameAuthors(names, part.Incoming)
+		for _, b := range part.Branches {
 			if b.Latest != nil {
 				if n := names[b.Latest.AuthorID]; n != "" {
 					b.Latest.Author = n
 				}
 			}
 		}
-		if v := st.OlderVersion; v != nil && names[v.AuthorID] != "" {
+		if v := part.OlderVersion; v != nil && names[v.AuthorID] != "" {
 			v.Author = names[v.AuthorID]
 		}
 	}
 	if in, err := r.InBranch(); err == nil {
-		for i := range st.History {
-			st.History[i].InBranch = in[st.History[i].ID]
+		for i := range part.History {
+			part.History[i].InBranch = in[part.History[i].ID]
 		}
 	}
-	return st, nil
+	return part, nil
+}
+
+// teamCache keeps each project's last TeamState fetch, so State (and
+// switching back to a project) shows the team's side without waiting.
+type teamCache struct {
+	view *project.TeamView // last good one
+	err  string            // the last fetch failed: why
+}
+
+var teamViews = struct {
+	sync.Mutex
+	byRoot map[string]*teamCache
+}{byRoot: map[string]*teamCache{}}
+
+func (a *App) cachedTeam(root string) (*project.TeamView, *teamCache) {
+	teamViews.Lock()
+	defer teamViews.Unlock()
+	c := teamViews.byRoot[root]
+	if c == nil {
+		return nil, nil
+	}
+	if c.err != "" {
+		return nil, c
+	}
+	return c.view, c
+}
+
+func (a *App) storeTeam(root string, view *project.TeamView, err error) {
+	teamViews.Lock()
+	defer teamViews.Unlock()
+	if err != nil {
+		teamViews.byRoot[root] = &teamCache{err: err.Error()}
+		return
+	}
+	teamViews.byRoot[root] = &teamCache{view: view}
 }
 
 // --- actions ---

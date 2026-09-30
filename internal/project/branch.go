@@ -28,10 +28,19 @@ func (r *Repo) Branches() ([]BranchInfo, error) {
 	if err != nil && !errors.Is(err, remote.ErrNotFound) {
 		return nil, err
 	}
+	for _, head := range heads {
+		r.fetchSnapshots(c, head)
+	}
+	return r.BranchesFrom(heads), nil
+}
+
+// BranchesFrom is Branches for heads already fetched (see FetchTeam): no
+// network; a branch whose latest version isn't here has no Latest.
+func (r *Repo) BranchesFrom(heads map[string]string) []BranchInfo {
 	var out []BranchInfo
 	for name, head := range heads {
 		b := BranchInfo{Name: name, Head: head, Current: name == r.BranchName()}
-		if r.fetchSnapshots(c, head) == nil {
+		if r.HasSnapshot(head) {
 			b.Latest, _ = r.Load(head)
 		}
 		out = append(out, b)
@@ -40,7 +49,7 @@ func (r *Repo) Branches() ([]BranchInfo, error) {
 		out = append(out, BranchInfo{Name: r.BranchName(), Current: true})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out, nil
+	return out
 }
 
 // ErrUnshared means the workspace has versions the current branch lacks.

@@ -56,7 +56,15 @@ func New(root string) *Watcher {
 }
 
 // Check runs one round and returns what happened.
-func (w *Watcher) Check() []Event {
+func (w *Watcher) Check() []Event { return w.CheckLocked(nil) }
+
+// CheckLocked is Check for a project others use at the same time: lock
+// (when set) is held only while reading the project folder, not while
+// talking to the team, so the app stays responsive during slow uploads.
+func (w *Watcher) CheckLocked(lock func() (unlock func())) []Event {
+	if lock == nil {
+		lock = func() func() { return func() {} }
+	}
 	var events []Event
 	// Re-open each time: `switch` may have changed the branch.
 	r, err := project.Open(w.Root)
@@ -66,7 +74,12 @@ func (w *Watcher) Check() []Event {
 
 	// 1. Report unsaved work when a set was saved in Live (or hourly).
 	if sig := r.SetsSignature(); sig != w.lastSig || time.Since(w.lastReport) > time.Hour {
-		st, err := r.ReportWorkspace()
+		unlock := lock()
+		st, err := r.PrepareWorkspace()
+		unlock()
+		if err == nil {
+			err = r.PublishWorkspace(st)
+		}
 		if err == nil {
 			w.lastSig, w.lastReport, w.myEdits = sig, time.Now(), st.Edits
 			if len(st.Edits) > 0 {

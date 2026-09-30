@@ -467,6 +467,12 @@ export class State {
      */
     "teamId": string;
     "teamName": string;
+
+    /**
+     * TeamChecked: the team fields below come from a TeamState call (false
+     * until one ran for this project since DAWGit started).
+     */
+    "teamChecked": boolean;
     "online": boolean;
 
     /**
@@ -522,6 +528,9 @@ export class State {
         if (!("teamName" in $$source)) {
             this["teamName"] = "";
         }
+        if (!("teamChecked" in $$source)) {
+            this["teamChecked"] = false;
+        }
         if (!("online" in $$source)) {
             this["online"] = false;
         }
@@ -572,42 +581,42 @@ export class State {
      * Creates a new State instance from a string or object.
      */
     static createFrom($$source: any = {}): State {
-        const $$createField11_0 = $$createType2;
-        const $$createField12_0 = $$createType1;
-        const $$createField14_0 = $$createType10;
-        const $$createField15_0 = $$createType14;
-        const $$createField16_0 = $$createType8;
-        const $$createField17_0 = $$createType16;
-        const $$createField18_0 = $$createType2;
-        const $$createField19_0 = $$createType8;
-        const $$createField20_0 = $$createType18;
+        const $$createField12_0 = $$createType2;
+        const $$createField13_0 = $$createType1;
+        const $$createField15_0 = $$createType10;
+        const $$createField16_0 = $$createType14;
+        const $$createField17_0 = $$createType8;
+        const $$createField18_0 = $$createType16;
+        const $$createField19_0 = $$createType2;
+        const $$createField20_0 = $$createType8;
+        const $$createField21_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sets" in $$parsedSource) {
-            $$parsedSource["sets"] = $$createField11_0($$parsedSource["sets"]);
+            $$parsedSource["sets"] = $$createField12_0($$parsedSource["sets"]);
         }
         if ("olderVersion" in $$parsedSource) {
-            $$parsedSource["olderVersion"] = $$createField12_0($$parsedSource["olderVersion"]);
+            $$parsedSource["olderVersion"] = $$createField13_0($$parsedSource["olderVersion"]);
         }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField14_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField15_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField15_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField16_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField16_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField17_0($$parsedSource["incoming"]);
         }
         if ("teammates" in $$parsedSource) {
-            $$parsedSource["teammates"] = $$createField17_0($$parsedSource["teammates"]);
+            $$parsedSource["teammates"] = $$createField18_0($$parsedSource["teammates"]);
         }
         if ("overlaps" in $$parsedSource) {
-            $$parsedSource["overlaps"] = $$createField18_0($$parsedSource["overlaps"]);
+            $$parsedSource["overlaps"] = $$createField19_0($$parsedSource["overlaps"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField19_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField20_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField20_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField21_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }
@@ -651,6 +660,86 @@ export class TeamConnection {
             $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
         }
         return new TeamConnection($$parsedSource as Partial<TeamConnection>);
+    }
+}
+
+/**
+ * TeamPart is the team's side of a project's state (see TeamState).
+ */
+export class TeamPart {
+    "online": boolean;
+    "offline": string;
+    "branches": Branch[];
+    "incoming": Version[];
+    "teammates": Teammate[];
+    "overlaps": string[];
+
+    /**
+     * all branches, with the team's
+     */
+    "history": Version[];
+    "olderVersion": Version | null;
+
+    /** Creates a new TeamPart instance. */
+    constructor($$source: Partial<TeamPart> = {}) {
+        if (!("online" in $$source)) {
+            this["online"] = false;
+        }
+        if (!("offline" in $$source)) {
+            this["offline"] = "";
+        }
+        if (!("branches" in $$source)) {
+            this["branches"] = [];
+        }
+        if (!("incoming" in $$source)) {
+            this["incoming"] = [];
+        }
+        if (!("teammates" in $$source)) {
+            this["teammates"] = [];
+        }
+        if (!("overlaps" in $$source)) {
+            this["overlaps"] = [];
+        }
+        if (!("history" in $$source)) {
+            this["history"] = [];
+        }
+        if (!("olderVersion" in $$source)) {
+            this["olderVersion"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TeamPart instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TeamPart {
+        const $$createField2_0 = $$createType18;
+        const $$createField3_0 = $$createType8;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType2;
+        const $$createField6_0 = $$createType8;
+        const $$createField7_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("branches" in $$parsedSource) {
+            $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
+        }
+        if ("incoming" in $$parsedSource) {
+            $$parsedSource["incoming"] = $$createField3_0($$parsedSource["incoming"]);
+        }
+        if ("teammates" in $$parsedSource) {
+            $$parsedSource["teammates"] = $$createField4_0($$parsedSource["teammates"]);
+        }
+        if ("overlaps" in $$parsedSource) {
+            $$parsedSource["overlaps"] = $$createField5_0($$parsedSource["overlaps"]);
+        }
+        if ("history" in $$parsedSource) {
+            $$parsedSource["history"] = $$createField6_0($$parsedSource["history"]);
+        }
+        if ("olderVersion" in $$parsedSource) {
+            $$parsedSource["olderVersion"] = $$createField7_0($$parsedSource["olderVersion"]);
+        }
+        return new TeamPart($$parsedSource as Partial<TeamPart>);
     }
 }
 
