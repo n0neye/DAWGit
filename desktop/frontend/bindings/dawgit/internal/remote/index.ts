@@ -3,5 +3,6 @@
 
 export {
     Member,
-    Project
+    Project,
+    Storage
 } from "./models.js";

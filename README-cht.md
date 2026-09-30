@@ -15,9 +15,7 @@ Ableton Live 專案的版本紀錄與團隊協作工具。為你的歌曲保存�
 - **以音軌為單位合併** — 兩個人編輯同一首歌時，修改會逐軌合併（音軌本身、位置與順序、Send），也包括全曲層級的部分，例如 Main 音軌、Locator 與 Scene。只有在你們改到同一條音軌時，DAWGit 才會詢問要保留哪一邊：你的、對方的，或兩者並存。
 - **取樣跟著專案走** — 專案資料夾內的取樣，以及放在硬碟其他位置的取樣，都會隨版本一起保存。在團員的電腦上，Set 會自動指向這些檔案。Live Pack 裡的取樣只記錄名稱。
 - **知道誰在改什麼** — DAWGit 會顯示團員目前正在編輯哪些音軌，當你們同時改到同一條時會提醒你。你尚未存成版本的工作也會備份到團隊。
-- **兩種架設團隊的方式**
-  - 在團隊中任一台電腦或 NAS 上執行 **Team Server**（單一程式，不需額外設定），或
-  - 使用 **S3 相容儲存空間**，例如 Cloudflare R2：不需要任何電腦保持開機。
+- **團隊自己的儲存空間** — 團隊的歌曲存放在你們自己的 Cloudflare R2 bucket，幾分鐘內就能在 DAWGit 裡設定完成，不需要任何電腦保持開機。
 - **也可以只在本機使用** — 自己一個人用，版本只存在你的電腦上。
 - **不會偷偷改你的檔案** — 只有在你接收團隊的修改時，DAWGit 才會變動專案檔案，而且改寫 Set 之前會請你先關閉 Live。
 - **回到任何版本** — 在 History 分頁把專案切換到舊版本的狀態，之後可以回到最新版，或從那裡開新分支。也可以把其他分支上的任何一個版本合併進你的分支，不只是它的最新版。也可以把某個版本匯出成獨立的專案資料夾，和目前的專案並排開啟。
@@ -44,9 +42,9 @@ Ableton Live 專案的版本紀錄與團隊協作工具。為你的歌曲保存�
 
 ### 加入團隊
 
-向架設團隊的人索取 **Server 位址與 Token**，或你的 **Connection code**。
+向架設團隊的人索取 **Connection code**。
 
-1. 開啟 DAWGit，貼上位址與 Token（或 Connection code），按 **Connect**。
+1. 開啟 DAWGit，選 **Join a team**，貼上 Connection code，按 **Connect**。
 2. 輸入你的名字，它會顯示在你保存的版本旁邊。
 3. 下載你要參與的歌曲，或用 **+ Add a project** 加入你自己的專案。
 
@@ -59,12 +57,14 @@ Ableton Live 專案的版本紀錄與團隊協作工具。為你的歌曲保存�
 
 ### 架設團隊
 
-由一個人設定一次即可，二選一：
+由一個人設定一次即可，大約 5 分鐘。團隊的歌曲存放在你們自己擁有的 [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket；小團隊通常在 R2 的免費額度內。
 
-- **Team Server** — 在工作時會開著的電腦（或 NAS）上：開始選單 → **DAWGit → DAWGit Team Server**。視窗會顯示要分享給團員的位址與 Token。不在同一個網路的團員需要 VPN（例如 Tailscale）或設定連接埠轉送。
-- **團隊儲存空間** — 建立一個 S3 相容的 bucket（例如 Cloudflare R2），為每位成員建立存取金鑰，再用 `dawgit connection-code` 為每個人產生 Connection code。不需要任何電腦保持開機。
+1. 開啟 DAWGit，選 **Create a team**（之後也可以從 Team 選單 → **Join/Create a Team…**）。
+2. 照著畫面上的步驟：在 Cloudflare 後台建立 bucket 和它專用的金鑰，貼進 DAWGit。
+3. 按 **Check & create team**。DAWGit 會實際測試 bucket，然後給你一組 **Connection code**。
+4. 私下把 Connection code 傳給每位團員（裡面含有金鑰）。
 
-詳細步驟請見 [docs/team-setup.md](docs/team-setup.md)（英文）。
+之後可以從 Team 選單中團隊旁的 ⚙ 再次複製 Connection code 或更換金鑰。詳細步驟請見 [docs/team-setup.md](docs/team-setup.md)（英文）。
 
 ## 目前的限制
 

@@ -8,6 +8,9 @@ import { Create as $Create } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as project$0 from "../internal/project/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as remote$0 from "../internal/remote/models.js";
 
 export class Branch {
     "name": string;
@@ -611,6 +614,47 @@ export class State {
 }
 
 /**
+ * TeamConnection is how this computer reaches a team: storage fields, or a
+ * server address and token.
+ */
+export class TeamConnection {
+    "storage": boolean;
+    "settings": remote$0.Storage;
+    "address": string;
+    "token": string;
+
+    /** Creates a new TeamConnection instance. */
+    constructor($$source: Partial<TeamConnection> = {}) {
+        if (!("storage" in $$source)) {
+            this["storage"] = false;
+        }
+        if (!("settings" in $$source)) {
+            this["settings"] = (new remote$0.Storage());
+        }
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("token" in $$source)) {
+            this["token"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TeamConnection instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TeamConnection {
+        const $$createField1_0 = $$createType19;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("settings" in $$parsedSource) {
+            $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
+        }
+        return new TeamConnection($$parsedSource as Partial<TeamConnection>);
+    }
+}
+
+/**
  * TeamProject is a project as the sidebar shows it.
  */
 export class TeamProject {
@@ -871,3 +915,4 @@ const $$createType15 = Teammate.createFrom;
 const $$createType16 = $Create.Array($$createType15);
 const $$createType17 = Branch.createFrom;
 const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = remote$0.Storage.createFrom;

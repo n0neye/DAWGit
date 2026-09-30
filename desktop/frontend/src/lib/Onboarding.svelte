@@ -4,10 +4,10 @@
   import ProgressBar from "./ProgressBar.svelte";
   import { api, errorText, savedAuthor, rememberAuthor, type Overview, type Progress,
     type TeamSummary } from "./api";
-  import ConnectForm from "./ConnectForm.svelte";
+  import JoinOrCreate from "./JoinOrCreate.svelte";
   import IdentityForm from "./IdentityForm.svelte";
 
-  // First run: 1) connect to your team, 2) your name, 3) get or add projects.
+  // First run: 1) join or create your team, 2) your name, 3) get or add projects.
   let { overview, reload, onfinish }: {
     overview: Overview;
     reload: () => Promise<void>;
@@ -105,19 +105,19 @@
 </script>
 
 <div class="onboarding">
-  <div class="card">
+  <div class="card" class:wide={step === 1}>
     <div class="brand"><img src="/icon.png" alt="" /> DAWGit</div>
     <ol class="steps">
-      <li class:on={step === 1} class:done={step > 1}>Connect</li>
+      <li class:on={step === 1} class:done={step > 1}>Team</li>
       <li class:on={step === 2} class:done={step > 2}>Your name</li>
       <li class:on={step >= 3}>Projects</li>
     </ol>
 
     {#if step === 1}
-      <h1>Connect to your team</h1>
-      <p class="muted">Your team shares its songs through a team server or team storage. Ask whoever set it up
-        for the address and token, or for your connection code.</p>
-      <ConnectForm onconnected={connected} />
+      <h1>Your team</h1>
+      <p class="muted">A team shares its songs through storage of its own. One person creates the team; everyone
+        else joins with the connection code they send.</p>
+      <JoinOrCreate onconnected={connected} />
       <p class="local">
         <button class="link" onclick={localOnly}>Just keep versions on this computer</button>
       </p>
@@ -188,6 +188,7 @@
 <style>
   .onboarding { height: 100%; display: flex; align-items: center; justify-content: center; padding: 24px; overflow: auto; }
   .card { width: 560px; max-width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 26px 30px; }
+  .card.wide { width: 660px; }
   .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 14px; }
   .brand img { width: 24px; height: 24px; }
   .steps { list-style: none; display: flex; gap: 8px; padding: 0; margin: 0 0 18px; font-size: 12px; }

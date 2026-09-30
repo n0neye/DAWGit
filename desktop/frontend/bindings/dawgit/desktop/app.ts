@@ -124,6 +124,18 @@ export function CreateBranch(root: string, name: string): $CancellablePromise<vo
 }
 
 /**
+ * CreateStorageTeam sets up a team on storage (e.g. a Cloudflare R2 bucket):
+ * it checks the bucket and keys work, names the team (unless the bucket
+ * already holds a named team) and connects this computer to it. The
+ * connection code for teammates comes from TeamConnectionCode.
+ */
+export function CreateStorageTeam(s: remote$0.Storage, name: string): $CancellablePromise<$models.TeamSummary> {
+    return $Call.ByID(988116111, s, name).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
+/**
  * DeleteProjectFromTeam removes a project from the team's server or storage
  * for everyone. The copy on this computer (if any) is kept, with its history,
  * as a project on this computer only.
@@ -424,11 +436,28 @@ export function SwitchBranch(root: string, name: string, force: boolean): $Cance
 }
 
 /**
+ * TeamConnectionCode is the code teammates paste to join a storage team.
+ */
+export function TeamConnectionCode(teamID: string): $CancellablePromise<string> {
+    return $Call.ByID(2317490817, teamID);
+}
+
+/**
+ * TeamConnectionSettings returns how this computer reaches a team, keys
+ * included (they are this user's own, shown in their settings).
+ */
+export function TeamConnectionSettings(teamID: string): $CancellablePromise<$models.TeamConnection> {
+    return $Call.ByID(1372692665, teamID).then(($result: any) => {
+        return $$createType23($result);
+    });
+}
+
+/**
  * TeamMembers lists a team's members (to pick yourself on a new computer).
  */
 export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
     return $Call.ByID(2113787423, teamID).then(($result: any) => {
-        return $$createType24($result);
+        return $$createType25($result);
     });
 }
 
@@ -445,6 +474,17 @@ export function UnwatchFiles(root: string): $CancellablePromise<void> {
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(4141298428, root, resolutions, force).then(($result: any) => {
         return $$createType9($result);
+    });
+}
+
+/**
+ * UpdateTeamConnection changes how this computer reaches a team (new keys, a
+ * moved server). The new settings are checked first. When the address
+ * changes, the team's downloaded projects are pointed at it.
+ */
+export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection): $CancellablePromise<$models.TeamSummary> {
+    return $Call.ByID(4088282913, teamID, c).then(($result: any) => {
+        return $$createType3($result);
     });
 }
 
@@ -489,5 +529,6 @@ const $$createType19 = remote$0.Project.createFrom;
 const $$createType20 = $Create.Array($$createType19);
 const $$createType21 = $models.State.createFrom;
 const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = remote$0.Member.createFrom;
-const $$createType24 = $Create.Array($$createType23);
+const $$createType23 = $models.TeamConnection.createFrom;
+const $$createType24 = remote$0.Member.createFrom;
+const $$createType25 = $Create.Array($$createType24);

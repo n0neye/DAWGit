@@ -32,6 +32,8 @@ type Server struct {
 	PageSize int
 	// Requests counts requests by method, e.g. to check polling cost.
 	Requests map[string]int
+	// IgnoreConditions acts like storage without conditional writes.
+	IgnoreConditions bool
 }
 
 func New(buckets ...string) *Server {
@@ -92,7 +94,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if !preconditions(w, r, obj) {
+		if !s.IgnoreConditions && !preconditions(w, r, obj) {
 			return
 		}
 		sum := md5.Sum(data)
@@ -101,7 +103,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", o.etag)
 		w.WriteHeader(http.StatusOK)
 	case "DELETE":
-		if !preconditions(w, r, obj) {
+		if !s.IgnoreConditions && !preconditions(w, r, obj) {
 			return
 		}
 		delete(bucket, key)

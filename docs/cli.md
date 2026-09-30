@@ -1,14 +1,6 @@
 # Command line tool
 
-The desktop app covers everyday use. The command line tool `dawgit.exe` is for running a team server, setting up team storage, and a few advanced tasks. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`). Run `dawgit help` for the full list.
-
-## Team server
-
-```
-dawgit serve [--data DIR] [--addr :7331] [--name TEAM]
-```
-
-Runs the team server. It prints the address and the access token members need. Data is kept as plain files in `--data`: back that folder up. The Start menu shortcut **DAWGit Team Server** runs this with `--data "%USERPROFILE%\DAWGit Server"`.
+The desktop app covers everyday use, including creating a team on Cloudflare R2. The command line tool `dawgit.exe` is for a few advanced tasks. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`). Run `dawgit help` for the full list.
 
 ## Team storage (S3-compatible)
 
@@ -16,7 +8,28 @@ Runs the team server. It prints the address and the access token members need. D
 dawgit connection-code --endpoint URL --bucket NAME --access-key K --secret-key S [--prefix P] [--name TEAM]
 ```
 
-Checks that the key can use the bucket and prints a connection code that members paste into DAWGit instead of a server address. `--name` names the team for everyone. The code contains the key: send it privately.
+The same as **Create a team** in the app, for scripts: checks that the key can read and write the bucket (conditional writes included) and prints the connection code members paste into DAWGit. `--name` names the team for everyone. The code contains the key: send it privately.
+
+## Self-hosted team server (advanced)
+
+Instead of storage, a team can run its own server on a computer or NAS that is on while the team works. The app does not offer this when creating a team; members of such a team join by pasting the server address where the app asks for a connection code, then entering the token.
+
+```
+dawgit serve [--data DIR] [--addr :7331] [--name TEAM]
+```
+
+It prints the address and the access token members need, for example:
+
+```
+DAWGit server 0.4.2 for team "Team on STUDIO-PC"
+  data:  C:\Users\you\DAWGit Server
+  token: 3f9c…
+
+team members connect with:
+  dawgit remote http://192.168.0.11:7331 --token 3f9c…
+```
+
+Data is kept as plain files in `--data`: back that folder up. Deleted songs are moved to its `trash` folder. The Start menu shortcut **DAWGit Team Server** runs this with `--data "%USERPROFILE%\DAWGit Server"`. Teammates outside your network need a way to reach the computer, e.g. a VPN such as Tailscale, or port forwarding of port 7331.
 
 ## Everyday commands (inside an Ableton project folder)
 

@@ -357,21 +357,17 @@ func cmdConnectionCode(args []string) error {
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
 	}
-	if *endpoint == "" || *bucket == "" || *access == "" || *secret == "" {
-		return errors.New("--endpoint, --bucket, --access-key and --secret-key are required")
-	}
-	ep := strings.TrimRight(*endpoint, "/")
-	if !strings.HasPrefix(ep, "http://") && !strings.HasPrefix(ep, "https://") {
-		ep = "https://" + ep
-	}
-	cfg := remote.Config{URL: "s3+" + ep + "/" + *bucket + "/" + strings.Trim(*prefix, "/"),
-		AccessKey: *access, SecretKey: *secret, Region: *region}
-	b, err := remote.Open(cfg)
+	cfg, err := remote.Storage{Endpoint: *endpoint, Bucket: *bucket, Folder: *prefix, Region: *region,
+		AccessKey: *access, SecretKey: *secret}.Config()
 	if err != nil {
 		return err
 	}
-	if _, err := b.Projects(); err != nil {
-		return fmt.Errorf("could not use the bucket with these credentials: %w", err)
+	if err := remote.Check(cfg); err != nil {
+		return err
+	}
+	b, err := remote.Open(cfg)
+	if err != nil {
+		return err
 	}
 	if *name != "" {
 		if err := b.SetInfo(remote.TeamInfo{Name: *name}); err != nil {
