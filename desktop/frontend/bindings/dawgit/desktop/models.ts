@@ -278,9 +278,14 @@ export class ProjectFile {
     "size": number;
 
     /**
-     * set | audio | other
+     * set | live (clip, preset, rack) | audio | midi | other
      */
     "kind": string;
+
+    /**
+     * Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
+     */
+    "live": string;
 
     /** Creates a new ProjectFile instance. */
     constructor($$source: Partial<ProjectFile> = {}) {
@@ -295,6 +300,9 @@ export class ProjectFile {
         }
         if (!("kind" in $$source)) {
             this["kind"] = "";
+        }
+        if (!("live" in $$source)) {
+            this["live"] = "";
         }
 
         Object.assign(this, $$source);
