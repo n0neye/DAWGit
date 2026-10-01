@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, errorText } from "./api";
   import { view } from "./compare.svelte";
+  import { highlightLines, languageOf } from "./highlight";
   import type { TextChanges, TextContent } from "../../bindings/dawgit/desktop/models";
 
   // A text file: the whole of one version (preview), or, when comparing
@@ -26,6 +27,10 @@
 
   let diff = $state<TextChanges | null>(null);
   let content = $state<TextContent | null>(null);
+  // Syntax colors, when the language is known: HTML per line.
+  let language = $derived(languageOf(file));
+  let contentHTML = $state<string[] | null>(null);
+  let diffHTML = $state<string[] | null>(null); // the hunks' lines, in order
   let failed = $state("");
   let seq = 0;
   $effect(() => {
@@ -33,20 +38,39 @@
     stamp; // reload with it
     diff = null;
     content = null;
+    contentHTML = null;
+    diffHTML = null;
     failed = "";
+    const lang = language;
+    const colorContent = (c: TextContent | null) => {
+      if (c?.text && lang) highlightLines(c.lines, lang).then((h) => { if (n === seq) contentHTML = h; }).catch(() => {});
+    };
     const fail = (e: unknown) => { if (n === seq) failed = errorText(e); };
     if (comparing) {
       api.TextDiff(root, file, from, to, whole).then((r) => {
         if (n !== seq) return;
         diff = r;
+        // Each hunk colored as one text: a comment over several of its lines
+        // stays one.
+        if (r?.text && r.hunks.length && lang) {
+          Promise.all(r.hunks.map((h) => highlightLines(h.lines.map((l) => l.text), lang)))
+            .then((hs) => { if (n === seq && hs.every((h) => h)) diffHTML = hs.flat() as string[]; }).catch(() => {});
+        }
         // Nothing changed: the file itself, then.
         if (r && r.text && r.hunks.length === 0) {
-          api.TextFile(root, file, shown).then((c) => { if (n === seq) content = c; }).catch(fail);
+          api.TextFile(root, file, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
         }
       }).catch(fail);
     } else {
-      api.TextFile(root, file, shown).then((c) => { if (n === seq) content = c; }).catch(fail);
+      api.TextFile(root, file, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
     }
+  });
+  // Where each hunk starts among all the hunks' lines (for diffHTML).
+  let hunkStart = $derived.by(() => {
+    const out: number[] = [];
+    let n = 0;
+    for (const h of diff?.hunks ?? []) { out.push(n); n += h.lines.length; }
+    return out;
   });
 </script>
 
@@ -56,7 +80,7 @@
   {:else}
     <div class="code mono">
       {#each c.lines as l, i}
-        <div class="row"><span class="no">{i + 1}</span><span class="txt">{l}</span></div>
+        <div class="row"><span class="no">{i + 1}</span>{#if contentHTML}<span class="txt">{@html contentHTML[i]}</span>{:else}<span class="txt">{l}</span>{/if}</div>
       {/each}
     </div>
     {#if c.truncated}<p class="faint small">The file goes on: only its first {c.lines.length} lines are shown.</p>{/if}
@@ -87,11 +111,11 @@
       <div class="code mono">
         {#each diff.hunks as h, i}
           {#if i > 0}<div class="gap" aria-hidden="true">⋯</div>{/if}
-          {#each h.lines as l}
+          {#each h.lines as l, j}
             <div class="row {l.kind}">
               <span class="no">{l.old || ""}</span><span class="no">{l.new || ""}</span>
               <span class="mark">{l.kind === "add" ? "+" : l.kind === "del" ? "−" : ""}</span>
-              <span class="txt">{l.text}</span>
+              {#if diffHTML}<span class="txt">{@html diffHTML[hunkStart[i] + j]}</span>{:else}<span class="txt">{l.text}</span>{/if}
             </div>
           {/each}
         {/each}
@@ -130,4 +154,19 @@
   .row.del .mark { color: var(--del); }
   .txt { white-space: pre; padding: 0 12px 0 6px; tab-size: 4; }
   .gap { color: var(--faint); padding: 0 0 0 100px; user-select: none; }
+  /* Syntax colors (highlight.js classes), for the app's dark look. */
+  .code :global(.hljs-comment), .code :global(.hljs-quote) { color: #6f7685; font-style: italic; }
+  .code :global(.hljs-keyword), .code :global(.hljs-selector-tag), .code :global(.hljs-doctag) { color: #c792ea; }
+  .code :global(.hljs-string), .code :global(.hljs-regexp), .code :global(.hljs-addition) { color: #c3e88d; }
+  .code :global(.hljs-number), .code :global(.hljs-literal), .code :global(.hljs-symbol) { color: #f78c6c; }
+  .code :global(.hljs-title), .code :global(.hljs-section), .code :global(.hljs-title.function_) { color: #82aaff; }
+  .code :global(.hljs-type), .code :global(.hljs-title.class_), .code :global(.hljs-attr),
+  .code :global(.hljs-attribute) { color: #ffcb6b; }
+  .code :global(.hljs-built_in), .code :global(.hljs-meta), .code :global(.hljs-selector-class),
+  .code :global(.hljs-selector-id) { color: #89ddff; }
+  .code :global(.hljs-name), .code :global(.hljs-tag), .code :global(.hljs-deletion) { color: #f07178; }
+  .code :global(.hljs-variable), .code :global(.hljs-template-variable), .code :global(.hljs-params) { color: #e6e7ea; }
+  .code :global(.hljs-bullet), .code :global(.hljs-link) { color: #89ddff; }
+  .code :global(.hljs-emphasis) { font-style: italic; }
+  .code :global(.hljs-strong) { font-weight: 700; }
 </style>
