@@ -30,6 +30,16 @@ Patterns work like `.gitignore` lines and ignore upper/lower case:
 | `Samples/Recorded/*.wav` | `.wav` files in that folder (relative to the project folder) |
 | `**/Bounces/` | a `Bounces` folder at any depth |
 
+### The project's `.gitignore` files
+
+With `gitignore: true` in `.dawgit.yaml` (or a preset that asks for it), DAWGit also follows the project's `.gitignore` files, as git reads them: each applies to its own folder, a deeper one wins over the one above, within a file the last matching line wins, and `!` takes a file back (but not out of a folder that is left out). Your `rules:` still come first.
+
+```yaml
+gitignore: true
+rules:
+  - track: "*.psd"       # a .gitignore leaves them out; keep them in versions
+```
+
 A few things are never tracked, whatever the rules say: DAWGit's own `.dawgit` folder, `.git` folders, and system files such as `desktop.ini` and `Thumbs.db`. `.dawgit.yaml` itself is always tracked.
 
 ## What happens when a rule changes
@@ -46,6 +56,8 @@ The built-in presets:
 | Preset | For | Detected by | Leaves out |
 | --- | --- | --- | --- |
 | `ableton` | Ableton Live projects | an `Ableton Project Info` folder or a `.als` file | `/Backup/`, `*.asd` |
+
+A preset can ask for the project's `.gitignore` files (`gitignore: true`), and can be a fallback (`fallback: true`): detected only when no other preset is, so that a folder with a `.gitignore` can be a code project unless it is also, say, a Unity project.
 
 A preset also tells DAWGit which built-in code handles which files, what to check before rewriting files, and how files are grouped and shown in the app. The handlers a preset can name:
 
