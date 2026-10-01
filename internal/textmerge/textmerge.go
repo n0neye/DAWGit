@@ -3,18 +3,16 @@
 // same lines differently, the merge isn't clean.
 package textmerge
 
-import "strings"
+import (
+	"strings"
 
-// maxCells bounds the line-matching work; bigger files are not merged.
-const maxCells = 40_000_000
+	"dawgit/internal/textdiff"
+)
 
 // Merge merges ours and theirs, both changed from base. clean is false when
-// the changes touch the same lines differently, or the files are too big.
+// the changes touch the same lines differently.
 func Merge(base, ours, theirs []byte) (merged []byte, clean bool, err error) {
 	b, o, t := lines(base), lines(ours), lines(theirs)
-	if len(b)*len(o) > maxCells || len(b)*len(t) > maxCells {
-		return nil, false, nil
-	}
 	mo, mt := match(b, o), match(b, t)
 	var out []string
 	i, j, k := 0, 0, 0
@@ -66,40 +64,16 @@ func equal(a, b []string) bool {
 	return true
 }
 
-// match maps each line of a to its line in b along a longest common
-// subsequence (-1 when unmatched).
+// match maps each line of a to its line in b along a shortest diff (-1 when
+// unmatched).
 func match(a, b []string) []int {
-	n, m := len(a), len(b)
-	// lcs[i][j]: LCS length of a[i:] and b[j:], one row at a time from the end.
-	lcs := make([][]int32, n+1)
-	for i := range lcs {
-		lcs[i] = make([]int32, m+1)
-	}
-	for i := n - 1; i >= 0; i-- {
-		for j := m - 1; j >= 0; j-- {
-			if a[i] == b[j] {
-				lcs[i][j] = lcs[i+1][j+1] + 1
-			} else if lcs[i+1][j] >= lcs[i][j+1] {
-				lcs[i][j] = lcs[i+1][j]
-			} else {
-				lcs[i][j] = lcs[i][j+1]
-			}
-		}
-	}
-	out := make([]int, n)
+	out := make([]int, len(a))
 	for i := range out {
 		out[i] = -1
 	}
-	i, j := 0, 0
-	for i < n && j < m {
-		switch {
-		case a[i] == b[j]:
-			out[i] = j
-			i, j = i+1, j+1
-		case lcs[i+1][j] >= lcs[i][j+1]:
-			i++
-		default:
-			j++
+	for _, op := range textdiff.Diff(a, b) {
+		if op.Kind == '=' {
+			out[op.A] = op.B
 		}
 	}
 	return out

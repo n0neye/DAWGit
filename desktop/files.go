@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"path"
@@ -14,12 +15,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"dawgit/internal/als"
 	"dawgit/internal/audio"
 	"dawgit/internal/convert"
 	"dawgit/internal/project"
 	"dawgit/internal/teams"
+	"dawgit/internal/textdiff"
 )
 
 // ProjectFile is a file as the Changes tab lists it.
@@ -104,6 +107,100 @@ func (a *App) FileDiff(root, file, from, to string) ([]string, error) {
 		return nil, err
 	}
 	return diffLines(d), nil
+}
+
+// TextChanges is how a text file changed, line by line.
+type TextChanges struct {
+	Text      bool            `json:"text"`      // false: not text, or too big to compare
+	TooBig    bool            `json:"tooBig"`    // over maxTextDiff
+	Added     int             `json:"added"`     // lines
+	Removed   int             `json:"removed"`   // lines
+	Hunks     []textdiff.Hunk `json:"hunks"`     // the changes with lines around them
+	Truncated bool            `json:"truncated"` // more changes than shown
+}
+
+const (
+	maxTextDiff  = 8 << 20 // bytes per side
+	maxDiffLines = 5000    // lines sent to the view
+)
+
+// TextDiff compares a text file in two versions. A version is a version id,
+// "" for the project folder now, or "none" when there is no file to compare
+// with (it was added or deleted).
+func (a *App) TextDiff(root, file, from, to string) (*TextChanges, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	read := func(version string) ([]byte, error) {
+		if version == "none" {
+			return nil, nil
+		}
+		// Too big to compare: known before downloading it from the team.
+		if version != "" {
+			if id, err := r.Resolve(version); err == nil {
+				if m, err := r.Load(id); err == nil {
+					if f, ok := m.FileMap()[file]; ok && f.Size > maxTextDiff {
+						return make([]byte, maxTextDiff+1), nil
+					}
+				}
+			}
+		}
+		f, err := r.OpenFile(file, version)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		return io.ReadAll(io.LimitReader(f, maxTextDiff+1))
+	}
+	old, err := read(from)
+	if err != nil {
+		return nil, err
+	}
+	cur, err := read(to)
+	if err != nil {
+		return nil, err
+	}
+	out := &TextChanges{Hunks: []textdiff.Hunk{}}
+	if len(old) > maxTextDiff || len(cur) > maxTextDiff {
+		out.TooBig = true
+		return out, nil
+	}
+	if !isText(old) || !isText(cur) {
+		return out, nil
+	}
+	out.Text = true
+	shown := 0
+	for _, h := range textdiff.Hunks(textdiff.Split(string(old)), textdiff.Split(string(cur)), 3) {
+		for _, l := range h.Lines {
+			switch l.Kind {
+			case "add":
+				out.Added++
+			case "del":
+				out.Removed++
+			}
+		}
+		if shown+len(h.Lines) > maxDiffLines && shown > 0 {
+			out.Truncated = true
+			continue
+		}
+		if len(h.Lines) > maxDiffLines {
+			h.Lines = h.Lines[:maxDiffLines]
+			out.Truncated = true
+		}
+		shown += len(h.Lines)
+		out.Hunks = append(out.Hunks, h)
+	}
+	return out, nil
+}
+
+// isText: UTF-8 without NUL bytes (a UTF-8 BOM is fine).
+func isText(b []byte) bool {
+	return bytes.IndexByte(b, 0) < 0 && utf8.Valid(b)
 }
 
 // DiscardFile puts one file back as it is in the version the project is on.

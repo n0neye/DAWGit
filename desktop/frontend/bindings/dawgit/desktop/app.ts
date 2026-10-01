@@ -332,8 +332,9 @@ export function OpenRules(root: string): $CancellablePromise<void> {
 }
 
 /**
- * OpenURL opens a DAWGit page (release notes, installer download) in the
- * browser. Other addresses are refused.
+ * OpenURL opens a page the app links to in the browser: DAWGit's (release
+ * notes, installer, guides), the update feed's site, Cloudflare's dashboard
+ * and docs (team setup). Other addresses are refused.
  */
 export function OpenURL(url: string): $CancellablePromise<void> {
     return $Call.ByID(3541157752, url);
@@ -559,6 +560,17 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
 }
 
 /**
+ * TextDiff compares a text file in two versions. A version is a version id,
+ * "" for the project folder now, or "none" when there is no file to compare
+ * with (it was added or deleted).
+ */
+export function TextDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<$models.TextChanges | null> {
+    return $Call.ByID(1639953907, root, file, $from, to).then(($result: any) => {
+        return $$createType31($result);
+    });
+}
+
+/**
  * UnwatchFiles ends a WatchFiles.
  */
 export function UnwatchFiles(root: string): $CancellablePromise<void> {
@@ -598,7 +610,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType31($result);
+        return $$createType33($result);
     });
 }
 
@@ -643,5 +655,7 @@ const $$createType26 = $models.FoundProject.createFrom;
 const $$createType27 = $Create.Array($$createType26);
 const $$createType28 = $models.TeamPart.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $models.Change.createFrom;
-const $$createType31 = $Create.Array($$createType30);
+const $$createType30 = $models.TextChanges.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = $models.Change.createFrom;
+const $$createType33 = $Create.Array($$createType32);

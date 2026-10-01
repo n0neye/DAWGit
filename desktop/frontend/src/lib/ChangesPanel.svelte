@@ -5,9 +5,10 @@
   import AudioAB from "./AudioAB.svelte";
   import FileIcon from "./FileIcon.svelte";
   import ConvertDialog from "./ConvertDialog.svelte";
+  import TextDiffView from "./TextDiffView.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
-  // tracks, or the sample to listen to, now and before). "All files" lists
+  // tracks, the sample to listen to now and before, a text file's lines). "All files" lists
   // the whole project folder. Each file has a menu (⋯ or right click).
   let { root, st, summary, ondiscard, ondiscardall, onrestore }: {
     root: string;
@@ -256,6 +257,10 @@
               <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
             {/each}
           </div>
+        {:else if current.kind !== "set" && canDiscard(current)}
+          <TextDiffView {root} file={selected} stamp={loadedAt}
+            from={current.status === "added" || !st.head ? "none" : st.head}
+            to={current.status === "deleted" ? "none" : ""} />
         {/if}
       {:else}
         {#if history === null}
@@ -303,6 +308,9 @@
                 {/if}
               {:else}
                 <p class="muted">{h.status === "added" ? "Added" : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
+                <TextDiffView {root} file={selected}
+                  from={prev && prev.status !== "deleted" ? prev.version.id : "none"}
+                  to={h.status === "deleted" ? "none" : h.version.id} />
               {/if}
             </div>
           {/if}
