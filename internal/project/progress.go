@@ -14,6 +14,7 @@ import (
 const (
 	StageScanning    = "scanning"    // looking for changed files
 	StageStoring     = "storing"     // copying changed files into the history
+	StageChecking    = "checking"    // asking the team's storage which files it has
 	StageUploading   = "uploading"   // sending files to the team
 	StageDownloading = "downloading" // fetching files from the team
 	StageExporting   = "exporting"   // writing a version to another folder
