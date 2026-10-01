@@ -80,8 +80,10 @@ function formatDuration(s: number): string {
   return `${Math.floor(s / 3600)} h ${Math.round((s % 3600) / 60)} min`;
 }
 
-// Recent (time, bytes) samples per folder and stage, for the speed.
-const samples = new Map<string, { stage: string; points: [number, number][] }>();
+// (time, bytes) samples per folder and stage: the recent ones for the
+// speed, the first for the time left (steadier: small files go at a fraction
+// of the speed of big ones, and the mix changes as a transfer goes).
+const samples = new Map<string, { stage: string; first: [number, number]; points: [number, number][] }>();
 
 // "120 MB of 800 MB · 5.2 MB/s · about 2 min left" for transfers, else "".
 export function progressDetail(p: Progress): string {
@@ -89,17 +91,21 @@ export function progressDetail(p: Progress): string {
   const now = performance.now(), bytes = p.bytes ?? 0;
   let s = samples.get(p.root);
   if (!s || s.stage !== p.stage || bytes < (s.points.at(-1)?.[1] ?? 0)) {
-    s = { stage: p.stage, points: [] };
+    s = { stage: p.stage, first: [now, bytes], points: [] };
     samples.set(p.root, s);
   }
   if (s.points.at(-1)?.[1] !== bytes) s.points.push([now, bytes]);
-  while (s.points.length > 2 && now - s.points[0][0] > 5000) s.points.shift();
+  while (s.points.length > 2 && now - s.points[0][0] > 20000) s.points.shift();
   let text = `${formatBytes(bytes)} of ${formatBytes(p.totalBytes!)}`;
   const [t0, b0] = s.points[0];
   const secs = (now - t0) / 1000;
-  if (secs >= 0.7 && bytes > b0) {
-    const rate = (bytes - b0) / secs;
-    text += ` · ${formatBytes(rate)}/s · about ${formatDuration((p.totalBytes! - bytes) / rate)} left`;
+  if (secs >= 1 && bytes > b0) {
+    text += ` · ${formatBytes((bytes - b0) / secs)}/s`;
+    const [f0, fb] = s.first;
+    const all = (now - f0) / 1000;
+    if (all >= 5 && bytes > fb) {
+      text += ` · about ${formatDuration((p.totalBytes! - bytes) / ((bytes - fb) / all))} left`;
+    }
   }
   return text;
 }

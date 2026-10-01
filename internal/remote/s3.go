@@ -59,7 +59,7 @@ func NewS3(endpoint, bucket, prefix, region, accessKey, secretKey string) (*S3Ba
 		endpoint: &url.URL{Scheme: u.Scheme, Host: u.Host},
 		bucket:   bucket, prefix: prefix,
 		sig:  &signer{accessKey: accessKey, secretKey: secretKey, region: region, now: time.Now},
-		http: &http.Client{Timeout: 30 * time.Minute},
+		http: &http.Client{Timeout: 30 * time.Minute, Transport: keepAlive()},
 	}, nil
 }
 
@@ -853,4 +853,15 @@ func (b *S3Backend) SetInfo(info TeamInfo) error {
 		return s3Error(r)
 	}
 	return nil
+}
+
+// keepAlive is a transport that keeps connections for the many requests a
+// transfer makes at once. Go's default keeps 2 per host: the others were
+// closed after each file and set up again, TLS and all, which takes longer
+// than sending a small file.
+func keepAlive() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.MaxIdleConns = 128
+	t.MaxIdleConnsPerHost = 64
+	return t
 }
