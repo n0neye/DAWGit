@@ -32,6 +32,10 @@ type Team struct {
 	// record the id; the name is kept in the team's member list).
 	MemberID   string `json:"memberId,omitempty"`
 	MemberName string `json:"memberName,omitempty"`
+	// KeysUnreadable: the team's keys were sealed by another Windows user
+	// or on another computer (teams.json copied): connect again with the
+	// team's connection code.
+	KeysUnreadable bool `json:"-"`
 }
 
 type Store struct {
@@ -81,6 +85,15 @@ func Load() (*Store, error) {
 		if old := oldDefaultName(t.Remote); old != "" && t.Name == old {
 			s.Teams[i].Name = DefaultName(t.Remote)
 		}
+		rc := &s.Teams[i].Remote
+		for _, secret := range []*string{&rc.Token, &rc.AccessKey, &rc.SecretKey} {
+			plain, err := unsealSecret(*secret)
+			if err != nil {
+				plain = ""
+				s.Teams[i].KeysUnreadable = true
+			}
+			*secret = plain
+		}
 	}
 	return s, nil
 }
@@ -89,7 +102,16 @@ func (s *Store) Save() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return err
 	}
-	data, _ := json.MarshalIndent(s, "", "  ")
+	// Secrets sealed in the file, plain in memory.
+	sealed := *s
+	sealed.Teams = make([]Team, len(s.Teams))
+	for i, t := range s.Teams {
+		t.Remote.Token = sealSecret(t.Remote.Token)
+		t.Remote.AccessKey = sealSecret(t.Remote.AccessKey)
+		t.Remote.SecretKey = sealSecret(t.Remote.SecretKey)
+		sealed.Teams[i] = t
+	}
+	data, _ := json.MarshalIndent(&sealed, "", "  ")
 	tmp := s.path + ".tmp"
 	// 0600: the file holds tokens and storage keys.
 	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {

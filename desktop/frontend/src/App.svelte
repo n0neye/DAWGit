@@ -328,6 +328,10 @@
         </div>
       {/if}
       <TeamMenu {overview} {reload} />
+      {#if current?.keysUnreadable}
+        <p class="keys-warn">This computer can't read the keys of “{current.name}” (DAWGit's settings came from
+          another computer or Windows user). Enter them again in the team's settings (⚙).</p>
+      {/if}
 
       <div class="list">
         <div class="section row-h">
@@ -592,4 +596,6 @@
   .placeholder h1 { margin: 6px 0; }
   .big { font-size: 44px; color: var(--faint); }
   .center { justify-content: center; }
+  .keys-warn { margin: 6px 12px 0; padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.4;
+    background: var(--warn-bg); color: var(--warn); }
 </style>

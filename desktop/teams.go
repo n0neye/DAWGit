@@ -32,6 +32,9 @@ type TeamSummary struct {
 	// Who this computer is in the team ("" until chosen).
 	MemberID   string `json:"memberId"`
 	MemberName string `json:"memberName"`
+	// KeysUnreadable: this computer can't read the team's keys (settings
+	// copied from another computer or Windows user).
+	KeysUnreadable bool `json:"keysUnreadable"`
 }
 
 // TeamProject is a project as the sidebar shows it.
@@ -56,7 +59,7 @@ type Overview struct {
 
 func teamSummary(t teams.Team) TeamSummary {
 	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
-		MemberID: t.MemberID, MemberName: t.MemberName}
+		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable}
 }
 
 func folderProject(root, status string) TeamProject {

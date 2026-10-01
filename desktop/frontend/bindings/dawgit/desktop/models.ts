@@ -907,6 +907,12 @@ export class TeamSummary {
     "memberId": string;
     "memberName": string;
 
+    /**
+     * KeysUnreadable: this computer can't read the team's keys (settings
+     * copied from another computer or Windows user).
+     */
+    "keysUnreadable": boolean;
+
     /** Creates a new TeamSummary instance. */
     constructor($$source: Partial<TeamSummary> = {}) {
         if (!("id" in $$source)) {
@@ -926,6 +932,9 @@ export class TeamSummary {
         }
         if (!("memberName" in $$source)) {
             this["memberName"] = "";
+        }
+        if (!("keysUnreadable" in $$source)) {
+            this["keysUnreadable"] = false;
         }
 
         Object.assign(this, $$source);

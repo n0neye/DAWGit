@@ -3,6 +3,8 @@ package teams
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"dawgit/internal/remote"
@@ -58,5 +60,37 @@ func TestStoreRoundTrip(t *testing.T) {
 	s2.Remove(a.ID)
 	if s2.Current != b.ID || s2.ProjectRoot(a.ID, "p1") != "" || len(s2.Teams) != 1 {
 		t.Fatalf("after remove = %+v", s2)
+	}
+}
+
+// Keys are sealed in teams.json and read back; plain ones from older files
+// still work.
+func TestSecretsSealed(t *testing.T) {
+	t.Setenv("DAWGIT_CONFIG_DIR", t.TempDir())
+	s, _ := Load()
+	s.Upsert(remote.Config{URL: "s3+https://x.r2.cloudflarestorage.com/team/dawgit", AccessKey: "AKIDEXAMPLE",
+		SecretKey: "wJalrXUtnFEMIsecretK7MDENG"}, "")
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(Dir(), "teams.json"))
+	if runtime.GOOS == "windows" && (strings.Contains(string(data), "secretK7MDENG") || strings.Contains(string(data), "AKIDEXAMPLE")) {
+		t.Fatalf("keys in the clear:\n%s", data)
+	}
+	if s.Teams[0].Remote.SecretKey != "wJalrXUtnFEMIsecretK7MDENG" {
+		t.Fatal("saving must not change the keys in memory")
+	}
+	back, err := Load()
+	if err != nil || back.Teams[0].Remote.SecretKey != "wJalrXUtnFEMIsecretK7MDENG" ||
+		back.Teams[0].Remote.AccessKey != "AKIDEXAMPLE" || back.Teams[0].KeysUnreadable {
+		t.Fatalf("read back: %+v %v", back.Teams[0], err)
+	}
+	// Sealed somewhere else: the keys are gone, and the team says so.
+	broken := strings.Replace(string(data), "dpapi:", "dpapi:AAAA", 1)
+	os.WriteFile(filepath.Join(Dir(), "teams.json"), []byte(broken), 0o600)
+	if runtime.GOOS == "windows" {
+		if b, err := Load(); err != nil || !b.Teams[0].KeysUnreadable {
+			t.Fatalf("unreadable keys: %+v %v", b, err)
+		}
 	}
 }
