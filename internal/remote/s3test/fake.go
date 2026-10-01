@@ -258,6 +258,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, bucket map[string]
 	start := 0
 	if token != "" {
 		start = sort.SearchStrings(entries, token)
+	} else if after := q.Get("start-after"); after != "" {
+		start = sort.SearchStrings(entries, after)
+		if start < len(entries) && entries[start] == after {
+			start++
+		}
 	}
 	end := min(len(entries), start+s.PageSize)
 	type content struct{ Key string }

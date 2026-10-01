@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -194,50 +195,78 @@ func (b *S3Backend) list(dir string, delim bool) ([]string, error) {
 	var out []string
 	token := ""
 	for {
-		q := url.Values{"list-type": {"2"}, "prefix": {b.prefix + dir}}
-		if delim {
-			q.Set("delimiter", "/")
-		}
-		if token != "" {
-			q.Set("continuation-token", token)
-		}
-		r, err := b.call("GET", "", q, nil, nil)
+		page, err := b.listPage(dir, delim, "", token)
 		if err != nil {
 			return nil, err
 		}
-		if r.status != http.StatusOK {
-			return nil, s3Error(r)
-		}
-		var res struct {
-			Contents []struct{ Key string }
-			Prefixes []struct {
-				Prefix string
-			} `xml:"CommonPrefixes"`
-			IsTruncated           bool
-			NextContinuationToken string
-		}
-		if err := xml.Unmarshal(r.body, &res); err != nil {
-			return nil, fmt.Errorf("storage list: %w", err)
-		}
-		if delim {
-			for _, p := range res.Prefixes {
-				out = append(out, strings.TrimPrefix(p.Prefix, b.prefix))
-			}
-		} else {
-			for _, c := range res.Contents {
-				out = append(out, strings.TrimPrefix(c.Key, b.prefix))
-			}
-		}
-		if !res.IsTruncated || res.NextContinuationToken == "" {
+		out = append(out, page.keys...)
+		if page.next == "" {
 			return out, nil
 		}
-		token = res.NextContinuationToken
+		token = page.next
 	}
 }
 
+type listing struct {
+	keys []string // relative to prefix: keys, or sub-"folders" with delim
+	next string   // continuation token; "" on the last page
+}
+
+// listPage returns one page (up to 1000 keys) under dir, after the key
+// startAfter (relative to prefix; "" for the start) or from a continuation
+// token.
+func (b *S3Backend) listPage(dir string, delim bool, startAfter, token string) (listing, error) {
+	q := url.Values{"list-type": {"2"}, "prefix": {b.prefix + dir}}
+	if delim {
+		q.Set("delimiter", "/")
+	}
+	if token != "" {
+		q.Set("continuation-token", token)
+	} else if startAfter != "" {
+		q.Set("start-after", b.prefix+startAfter)
+	}
+	r, err := b.call("GET", "", q, nil, nil)
+	if err != nil {
+		return listing{}, err
+	}
+	if r.status != http.StatusOK {
+		return listing{}, s3Error(r)
+	}
+	var res struct {
+		Contents []struct{ Key string }
+		Prefixes []struct {
+			Prefix string
+		} `xml:"CommonPrefixes"`
+		IsTruncated           bool
+		NextContinuationToken string
+	}
+	if err := xml.Unmarshal(r.body, &res); err != nil {
+		return listing{}, fmt.Errorf("storage list: %w", err)
+	}
+	var out listing
+	if delim {
+		for _, p := range res.Prefixes {
+			out.keys = append(out.keys, strings.TrimPrefix(p.Prefix, b.prefix))
+		}
+	} else {
+		for _, c := range res.Contents {
+			out.keys = append(out.keys, strings.TrimPrefix(c.Key, b.prefix))
+		}
+	}
+	if res.IsTruncated {
+		out.next = res.NextContinuationToken
+	}
+	return out, nil
+}
+
 // parallel runs fn over items with bounded concurrency, collecting errors.
-func parallel(items []string, fn func(string) error) error {
-	sem := make(chan struct{}, 8)
+func parallel(items []string, fn func(string) error) error { return parallelN(8, items, fn) }
+
+// checks is how many existence checks (small requests) go at once.
+const checks = 32
+
+func parallelN(n int, items []string, fn func(string) error) error {
+	sem := make(chan struct{}, n)
 	var mu sync.Mutex
 	var first error
 	var wg sync.WaitGroup
@@ -455,7 +484,7 @@ func (b *S3Backend) MissingSnapshots(pid string, ids []string) ([]string, error)
 func (b *S3Backend) missing(names []string, key func(string) string) ([]string, error) {
 	var mu sync.Mutex
 	missing := []string{}
-	err := parallel(names, func(n string) error {
+	err := parallelN(checks, names, func(n string) error {
 		if !validHex(n, 64) {
 			return fmt.Errorf("invalid id %q", n)
 		}
@@ -498,8 +527,101 @@ func (b *S3Backend) GetSnapshot(pid, id string) ([]byte, error) {
 	return r.body, nil
 }
 
+// MissingObjects asks storage about each object, or, where many share a
+// folder (objects/<ab>/), lists the folder: a first share asks about
+// thousands of files, and one listing answers for up to 1000 of them.
 func (b *S3Backend) MissingObjects(hashes []string) ([]string, error) {
-	return b.missing(hashes, objectKey)
+	shards := map[string][]string{}
+	for _, h := range hashes {
+		if !validHex(h, 64) {
+			return nil, fmt.Errorf("invalid id %q", h)
+		}
+		shards[h[:2]] = append(shards[h[:2]], h)
+	}
+	var mu sync.Mutex
+	present := map[string]bool{}
+	var ask []string // to ask about one by one
+	var listed []string
+	for shard, hs := range shards {
+		if len(hs) >= listFrom {
+			listed = append(listed, shard)
+		} else {
+			ask = append(ask, hs...)
+		}
+	}
+	err := parallelN(checks, listed, func(shard string) error {
+		want := slices.Clone(shards[shard])
+		slices.Sort(want)
+		dir := "objects/" + shard + "/"
+		// From just before the first wanted object.
+		first := objectKey(want[0])
+		after, token := first[:len(first)-1], ""
+		for {
+			page, err := b.listPage(dir, false, after, token)
+			if err != nil {
+				return err
+			}
+			mu.Lock()
+			for _, k := range page.keys {
+				present[k] = true
+			}
+			mu.Unlock()
+			if page.next == "" || len(page.keys) == 0 {
+				return nil
+			}
+			// Wanted objects past this page: a few are quicker asked about.
+			last := page.keys[len(page.keys)-1]
+			var rest []string
+			for _, h := range want {
+				if objectKey(h) > last {
+					rest = append(rest, h)
+				}
+			}
+			if len(rest) == 0 {
+				return nil
+			}
+			if len(rest) < listFrom {
+				mu.Lock()
+				ask = append(ask, rest...)
+				mu.Unlock()
+				return nil
+			}
+			token = page.next
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	asked, err := b.missing(ask, objectKey)
+	if err != nil {
+		return nil, err
+	}
+	notAsked := map[string]bool{}
+	for _, h := range ask {
+		notAsked[h] = true
+	}
+	missing := asked
+	for _, h := range dedupeHashes(hashes) {
+		if !notAsked[h] && !present[objectKey(h)] {
+			missing = append(missing, h)
+		}
+	}
+	return missing, nil
+}
+
+// listFrom: a folder holding this many of the wanted objects is listed.
+const listFrom = 4
+
+func dedupeHashes(hs []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, h := range hs {
+		if !seen[h] {
+			seen[h] = true
+			out = append(out, h)
+		}
+	}
+	return out
 }
 
 // PutObject uploads a blob. Its name is the SHA-256 of its contents, which

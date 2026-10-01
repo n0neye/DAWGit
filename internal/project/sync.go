@@ -356,7 +356,11 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 }
 
 func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
-	missing, err := c.MissingObjects(dedupe(hashes))
+	hashes = dedupe(hashes)
+	if len(hashes) > 100 { // a moment on a big project: say so
+		r.report(StageChecking, 0, 0)
+	}
+	missing, err := c.MissingObjects(hashes)
 	if err != nil {
 		return err
 	}
