@@ -378,6 +378,13 @@ func (r *Repo) MissingHere(ms []*Manifest) map[string]bool {
 		return out
 	}
 	for _, m := range ms {
+		if m.Files == nil { // a header
+			full, err := r.Load(m.ID)
+			if err != nil {
+				continue
+			}
+			m = full
+		}
 		for _, h := range m.Objects() {
 			if !r.available(h) {
 				out[m.ID] = true

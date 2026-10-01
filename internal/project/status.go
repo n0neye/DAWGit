@@ -26,7 +26,11 @@ func (r *Repo) Status() ([]Change, error) {
 		return nil, err
 	}
 	defer ix.save()
+	return r.statusOf(files)
+}
 
+// statusOf compares hashed working files with HEAD.
+func (r *Repo) statusOf(files []FileEntry) ([]Change, error) {
 	var head map[string]FileEntry
 	if id := r.Head(); id != "" {
 		m, err := r.Load(id)

@@ -2,13 +2,14 @@ package project
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"dawgit/internal/als"
@@ -88,7 +89,55 @@ func (r *Repo) Load(id string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	return manifest.Parse(id, data)
+	m, err := manifest.Parse(id, data)
+	if err == nil {
+		headers.put(m)
+	}
+	return m, err
+}
+
+// Header is a version without its lists of files (Files, External are
+// nil): enough for history and ancestry. Versions never change, so headers
+// are kept once read; a project with many files then lists its history
+// without reading every version's file list each time.
+func (r *Repo) Header(id string) (*Manifest, error) {
+	if h := headers.get(id); h != nil {
+		return h, nil
+	}
+	m, err := r.Load(id)
+	if err != nil {
+		return nil, err
+	}
+	return headers.get(m.ID), nil
+}
+
+var headers = &headerCache{m: map[string]*Manifest{}}
+
+type headerCache struct {
+	mu sync.Mutex
+	m  map[string]*Manifest // by version id (a content hash)
+}
+
+func (c *headerCache) get(id string) *Manifest {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	h := c.m[id]
+	if h == nil {
+		return nil
+	}
+	cp := *h
+	cp.Parents = slices.Clone(h.Parents)
+	return &cp
+}
+
+func (c *headerCache) put(m *Manifest) {
+	h := *m
+	h.Files, h.External = nil, nil
+	h.Parents = slices.Clone(m.Parents)
+	h.Packs, h.Missing = slices.Clone(m.Packs), slices.Clone(m.Missing)
+	c.mu.Lock()
+	c.m[m.ID] = &h
+	c.mu.Unlock()
 }
 
 // HasSnapshot reports whether a snapshot is stored locally.
@@ -223,17 +272,45 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Content the version we're on already has is kept (here or in the
+	// team's storage): only new content is looked for in the store.
+	var prev *Manifest
+	known := map[string]bool{}
+	head := r.Head()
+	if head != "" {
+		if prev, err = r.Load(head); err != nil {
+			return nil, err
+		}
+		for _, f := range prev.Files {
+			known[f.Hash] = true
+		}
+	}
 	var toStore []FileEntry
 	for _, f := range files {
-		if !r.Store.Has(f.Hash) && !r.remoteOnly()[f.Hash] {
+		if !known[f.Hash] && !r.Store.Has(f.Hash) && !r.remoteOnly()[f.Hash] {
 			toStore = append(toStore, f)
 		}
 	}
+	paths := make([]string, len(toStore))
 	for i, f := range toStore {
-		r.report(StageStoring, i, len(toStore))
-		if _, _, err := r.Store.PutFile(r.Abs(f.Path)); err != nil {
-			return nil, err
+		paths[i] = f.Path
+	}
+	var mu sync.Mutex
+	stored := 0
+	if len(paths) > 0 {
+		r.report(StageStoring, 0, len(paths))
+	}
+	if err := inParallel(paths, func(p string) error {
+		if _, _, err := r.Store.PutFile(r.Abs(p)); err != nil {
+			return err
 		}
+		mu.Lock()
+		stored++
+		r.report(StageStoring, stored, len(paths))
+		mu.Unlock()
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	external, packs, missing, err := r.sampleRefs(files)
 	if err != nil {
@@ -243,11 +320,7 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	m := &Manifest{Version: 1, Parents: []string{}, Author: author, AuthorID: authorID,
 		Time: time.Now().UTC().Format(time.RFC3339), Message: message,
 		Files: files, External: external, Packs: packs, Missing: missing}
-	if head := r.Head(); head != "" {
-		prev, err := r.Load(head)
-		if err != nil {
-			return nil, err
-		}
+	if prev != nil {
 		if sameContent(prev, m) {
 			return nil, ErrNothingToSnapshot
 		}
@@ -263,30 +336,26 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 }
 
 func sameContent(a, b *Manifest) bool {
-	enc := func(m *Manifest) []byte {
-		data, _ := json.Marshal([]any{m.Files, m.External})
-		return data
-	}
-	return bytes.Equal(enc(a), enc(b))
+	return slices.Equal(a.Files, b.Files) && slices.Equal(a.External, b.External)
 }
 
 // Log returns every version of the current branch (everyone's, including
 // both sides of merges), newest first; a version is always listed before its
-// parents.
+// parents. Versions come as headers (see Header).
 func (r *Repo) Log() ([]*Manifest, error) {
 	return r.LogAll(nil)
 }
 
 // LogAll is Log for the whole tree: also every version leading to heads
 // (e.g. the latest version of each branch). Heads not on this computer are
-// skipped.
+// skipped. Versions come as headers (see Header): Load one for its files.
 func (r *Repo) LogAll(heads []string) ([]*Manifest, error) {
 	all := map[string]*Manifest{}
 	for _, h := range append([]string{r.Latest(), r.Head()}, heads...) {
 		if h == "" || all[h] != nil {
 			continue
 		}
-		if _, err := r.Load(h); err != nil {
+		if _, err := r.Header(h); err != nil {
 			continue
 		}
 		anc, err := r.ancestors(h)
@@ -295,7 +364,7 @@ func (r *Repo) LogAll(heads []string) ([]*Manifest, error) {
 		}
 		for id := range anc {
 			if all[id] == nil {
-				m, err := r.Load(id)
+				m, err := r.Header(id)
 				if err != nil {
 					return nil, err
 				}

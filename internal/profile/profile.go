@@ -383,15 +383,35 @@ func (p *Profile) Kind(rel string) string {
 			names = append(names, k)
 		}
 		sort.Strings(names)
+		segs := strings.Split(strings.ToLower(sub), "/")
 		for _, k := range names {
 			for _, pat := range a.preset.Kinds[k] {
-				if matchPath(pat, sub, false) {
+				// "*.png" (the usual kind) by its ending: the app asks for
+				// every file of the project.
+				if end, ok := endsWith(pat); ok {
+					for _, s := range segs {
+						if strings.HasSuffix(s, end) {
+							return k
+						}
+					}
+				} else if matchPath(pat, sub, false) {
 					return k
 				}
 			}
 		}
 	}
 	return "other"
+}
+
+// endsWith returns the lowercased ending a pattern like "*.png" matches
+// (what matchPath does for it: any name in the path ending so).
+func endsWith(pat string) (string, bool) {
+	pat = strings.ToLower(strings.TrimSpace(pat))
+	end, ok := strings.CutPrefix(pat, "*")
+	if !ok || end == "" || strings.ContainsAny(end, `*?[\/`) {
+		return "", false
+	}
+	return end, true
 }
 
 // Handler is the handler for a file (zero when none applies).

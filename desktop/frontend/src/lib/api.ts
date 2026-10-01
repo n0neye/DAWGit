@@ -108,7 +108,7 @@ export function progressText(p: Progress, team = "the team"): string {
   const files = transfers(p) || p.stage === "exporting" || p.stage === "storing" ? " files" : "";
   const n = p.total ? ` · ${Math.min(p.done + 1, p.total)} of ${p.total}${p.total === 1 ? files.replace("files", "file") : files}` : "";
   switch (p.stage) {
-    case "scanning": return "Looking for changed files…";
+    case "scanning": return p.total ? `Reading files · ${p.done} of ${p.total}` : "Looking for changed files…";
     case "storing": return `Adding files to the history${n}`;
     case "uploading": return `Uploading to ${team}${n}`;
     case "downloading": return `Downloading${n}`;
@@ -122,7 +122,7 @@ export function progressText(p: Progress, team = "the team"): string {
 export function progressShort(p: Progress): string {
   const n = transfers(p) ? ` ${Math.round(progressFraction(p) * 100)}%`
     : p.total ? ` ${Math.min(p.done + 1, p.total)}/${p.total}` : "…";
-  return ({ scanning: "reading files…", storing: "saving" + n, uploading: "uploading" + n,
+  return ({ scanning: p.total ? `reading ${p.done}/${p.total}` : "reading files…", storing: "saving" + n, uploading: "uploading" + n,
     downloading: "downloading" + n, exporting: "exporting" + n } as Record<string, string>)[p.stage] ?? "working…";
 }
 

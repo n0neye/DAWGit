@@ -351,9 +351,7 @@ func (a *App) State(root string) (*State, error) {
 	for _, c := range changes {
 		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
 	}
-	if edits, err := r.LocalEdits(); err == nil {
-		st.MyEdits = nonNil(edits)
-	}
+	st.MyEdits = nonNil(project.EditsIn(changes))
 	sw.lap("edits")
 
 	// The team's side comes from the last TeamState (no network here); the
