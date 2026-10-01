@@ -365,12 +365,8 @@ func (r *Repo) previewTarget(c remote.Backend, target string) (*Preview, error) 
 		}
 	}
 	theirs, _ := r.Load(target)
-	need := theirs.Objects()
-	for _, f := range base.Files {
-		if isSet(f.Path) {
-			need = append(need, f.Hash)
-		}
-	}
+	// Comparing needs only the sets; the rest is downloaded when taken in.
+	need := setHashes(theirs, base)
 	r.knowSizes(theirs, base)
 	if err := r.fetchObjects(c, need); err != nil {
 		return nil, err

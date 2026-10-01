@@ -46,7 +46,9 @@ type Repo struct {
 	// OnProgress, when set, hears about long steps (see Progress).
 	OnProgress func(Progress)
 
-	sizes map[string]int64 // object sizes known from manifests (knowSizes)
+	sizes   map[string]int64  // object sizes known from manifests (knowSizes)
+	remote  map[string]bool   // objects only in the team's storage (remoteOnly)
+	sources map[string]string // contents found outside the store (sourcesByHash)
 }
 
 // ErrNotRepo is returned when no .dawgit directory is found.

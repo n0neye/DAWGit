@@ -191,3 +191,24 @@ func cmdExport(args []string) error {
 	fmt.Printf("exported version %s  %s\n  to %s\n", short(m.ID), m.Message, args[1])
 	return nil
 }
+
+// cmdGC frees space in .dawgit: for a team project, local copies of files
+// the team's storage has (sets stay); for any project, objects no version
+// uses.
+func cmdGC() error {
+	r, err := openRepo()
+	if err != nil {
+		return err
+	}
+	pruned, err := r.PruneObjects()
+	if err != nil {
+		return err
+	}
+	freed, err := r.GC()
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%.1f MB kept in the team's storage only, %.1f MB of leftovers removed\n",
+		float64(pruned)/(1<<20), float64(freed)/(1<<20))
+	return nil
+}

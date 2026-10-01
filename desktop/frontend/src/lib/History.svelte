@@ -89,6 +89,7 @@
               {#if v.id === head}<span class="tag here">you are here</span>{/if}
               {#if v.id === latest && latest !== head}<span class="tag">latest</span>{/if}
               {#if incoming.has(v.id)}<span class="tag new">new</span>{/if}
+              {#if v.notHere}<span class="tag away" title="Some of its files are only in the storage of the team this project was in">files in team storage</span>{/if}
             </span>
             <span class="who">{v.author}</span>
             <span class="when faint">{ago(v.time)}</span>
@@ -99,10 +100,10 @@
                 {#if onmerge && !v.inBranch && !incoming.has(v.id)}
                   <button onclick={() => onmerge(v)} title="Merge this version into the branch you are on">Merge</button>
                 {/if}
-                {#if ongoto && v.id !== head && !incoming.has(v.id)}
+                {#if ongoto && v.id !== head && !incoming.has(v.id) && !v.notHere}
                   <button onclick={() => ongoto(v)} title="Put the project in the state of this version">Go to</button>
                 {/if}
-                {#if onexport}
+                {#if onexport && !v.notHere}
                   <button onclick={() => onexport(v)} title="Save this version as a separate project folder">Export…</button>
                 {/if}
               </span>
@@ -154,6 +155,7 @@
   }
   .tag.here { background: #1f3b35; color: var(--accent); }
   .tag.new { background: var(--warn-bg); color: var(--warn); }
+  .tag.away { background: #2a2c31; color: var(--faint); }
   /* Details: a pixel-exact height (the graph follows it), so no collapsing margins. */
   .details { padding: 4px 0 14px; font-size: 13px; display: flow-root; }
   .full { white-space: pre-wrap; margin-bottom: 4px !important; user-select: text; }

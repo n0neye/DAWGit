@@ -44,21 +44,8 @@ func (r *Repo) guardLatest() error {
 // ensureObjects makes the files of m available on this computer, downloading
 // them from the team when needed.
 func (r *Repo) ensureObjects(m *Manifest) error {
-	var need []string
-	for _, h := range m.Objects() {
-		if !r.Store.Has(h) {
-			need = append(need, h)
-		}
-	}
-	if len(need) == 0 {
-		return nil
-	}
-	c, err := r.Client()
-	if err != nil {
-		return fmt.Errorf("some files of this version are not on this computer: %w", err)
-	}
 	r.knowSizes(m)
-	return r.fetchObjects(c, need)
+	return r.ensureHashes(m.Objects())
 }
 
 // GoTo puts the project folder in the state of a version ("latest" for the
@@ -206,7 +193,7 @@ func (r *Repo) Export(ref, dir string) (*Manifest, error) {
 	}
 	for i, f := range m.Files {
 		r.report(StageExporting, i, len(m.Files))
-		if err := r.Store.Export(f.Hash, filepath.Join(dir, filepath.FromSlash(f.Path))); err != nil {
+		if err := r.exportObject(f.Hash, filepath.Join(dir, filepath.FromSlash(f.Path))); err != nil {
 			return nil, fmt.Errorf("%s: %w", f.Path, err)
 		}
 	}
@@ -286,7 +273,7 @@ func (x *exporter) importSample(e FileEntry) (string, error) {
 		ext := path.Ext(name)
 		target = filepath.Join(dir, strings.TrimSuffix(name, ext)+" "+e.Hash[:8]+ext)
 	}
-	if err := x.r.Store.Export(e.Hash, target); err != nil {
+	if err := x.r.exportObject(e.Hash, target); err != nil {
 		return "", err
 	}
 	x.imported[e.Hash] = target

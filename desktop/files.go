@@ -163,6 +163,7 @@ func (a *App) RestoreFileVersion(root, file, version string, force bool) (*Resul
 // DiscardAll drops every uncommitted change: the project folder goes back to
 // the version it is on.
 func (a *App) DiscardAll(root string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err

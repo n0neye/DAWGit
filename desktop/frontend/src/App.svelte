@@ -22,6 +22,9 @@
   let confirmDelete = $state<TeamProject | null>(null);
   // Moving a project out of its team (to Local) or into another team.
   let confirmLocal = $state<TeamProject | null>(null);
+  let localFull = $state(false); // also download older versions' files
+  let localSize = $state(0);
+  const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
   let moving = $state<{ p: TeamProject; team: string } | null>(null);
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
@@ -179,13 +182,16 @@
 
   async function moveToLocal(p: TeamProject) {
     confirmLocal = null;
+    busy = "move";
     try {
-      await api.MoveProjectToLocal(p.root);
+      await api.MoveProjectToLocal(p.root, localFull);
       toast(`“${p.name}” is under Local now; ${current?.name ?? "the team"} keeps its copy`, "info", 7000);
       selected = {};
       await reload();
     } catch (e) {
-      toast(errorText(e), "error");
+      toast(errorText(e), "error", 9000);
+    } finally {
+      busy = "";
     }
   }
 
@@ -417,7 +423,10 @@
           </button>
         {/if}
         {#if p.root && p.status === "downloaded"}
-          <button class="item" onclick={() => { rowMenu = ""; confirmLocal = p; }}>
+          <button class="item" onclick={() => {
+            rowMenu = ""; localFull = false; localSize = 0; confirmLocal = p;
+            api.HistoryDownloadSize(p.root, "").then((n) => (localSize = n)).catch(() => {});
+          }}>
             Move to Local…<span class="faint">keep it on this computer only</span>
           </button>
         {/if}
@@ -455,6 +464,14 @@
     <p>The project leaves <strong>{current?.name}</strong> on this computer only: you keep its versions and can go
       on committing here. The team keeps its copy, and your teammates are not affected.</p>
     <p class="muted">To share it again, join the team (or move it to a team) later.</p>
+    {#if localSize > 0}
+      <label class="full">
+        <input type="checkbox" bind:checked={localFull} />
+        <span>Also download the files of older versions ({mb(localSize)})
+          <span class="faint">Without them, older versions that use other samples than today's need the team again
+            to open.</span></span>
+      </label>
+    {/if}
     {#snippet footer()}
       <button onclick={() => (confirmLocal = null)}>Cancel</button>
       <button class="primary" onclick={() => moveToLocal(p)}>Move to Local</button>
@@ -540,6 +557,9 @@
   }
   .row-menu .item:hover { background: #33363d; }
   .row-menu .item .faint { font-size: 11px; }
+  .full { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
+  .full input { width: auto; margin-top: 3px; }
+  .full .faint { display: block; font-size: 12px; margin-top: 2px; }
   .teams-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
   .teams-pick label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
   .teams-pick input { width: auto; }

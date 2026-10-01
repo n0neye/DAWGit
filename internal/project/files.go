@@ -164,15 +164,8 @@ func (r *Repo) FileDiff(path, from, to string) (*diff.SetDiff, error) {
 
 // fetchFile downloads one file of a version when it is not here yet.
 func (r *Repo) fetchFile(f FileEntry) error {
-	if r.Store.Has(f.Hash) {
-		return nil
-	}
-	c, err := r.Client()
-	if err != nil {
-		return fmt.Errorf("this version of %s is not on this computer: %w", f.Path, err)
-	}
 	r.knowSizes(&Manifest{Files: []FileEntry{f}})
-	return r.fetchObjects(c, []string{f.Hash})
+	return r.ensureHashes([]string{f.Hash})
 }
 
 // OpenFile opens path as it is in a version ("" for the project folder now).
@@ -195,7 +188,7 @@ func (r *Repo) OpenFile(path, version string) (io.ReadSeekCloser, error) {
 	if err := r.fetchFile(f); err != nil {
 		return nil, err
 	}
-	return os.Open(r.Store.Path(f.Hash))
+	return r.openObject(f.Hash)
 }
 
 // RestoreFile puts one file back as it is in a version ("" for the version
@@ -226,7 +219,7 @@ func (r *Repo) RestoreFile(path, version string) error {
 	if err := r.fetchFile(f); err != nil {
 		return err
 	}
-	if err := r.Store.Export(f.Hash, r.Abs(path)); err != nil {
+	if err := r.exportObject(f.Hash, r.Abs(path)); err != nil {
 		return err
 	}
 	ix := r.loadIndex()

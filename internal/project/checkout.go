@@ -51,11 +51,21 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 		have[f.Path] = f.Hash
 	}
 	want := m.FileMap()
+	var need []string
+	for _, f := range m.Files {
+		if have[f.Path] != f.Hash {
+			need = append(need, f.Hash)
+		}
+	}
+	r.knowSizes(m)
+	if err := r.ensureHashes(need); err != nil {
+		return nil, nil, err
+	}
 	for _, f := range m.Files {
 		if have[f.Path] == f.Hash {
 			continue
 		}
-		if err := r.Store.Export(f.Hash, r.Abs(f.Path)); err != nil {
+		if err := r.exportObject(f.Hash, r.Abs(f.Path)); err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", f.Path, err)
 		}
 		if err := ix.record(r.Abs(f.Path), f.Path, f.Hash, f.Size); err != nil {
@@ -173,7 +183,10 @@ func (r *Repo) relinkRef(fr *xmltree.Node, external map[string]FileEntry) (bool,
 	if _, err := os.Stat(target); err != nil {
 		target = r.externalCachePath(e)
 		if _, err := os.Stat(target); err != nil {
-			if err := r.Store.Export(e.Hash, target); err != nil {
+			if err := r.ensureHashes([]string{e.Hash}); err != nil {
+				return false, "", err
+			}
+			if err := r.exportObject(e.Hash, target); err != nil {
 				return false, "", err
 			}
 		}
@@ -233,5 +246,5 @@ func (r *Repo) cacheHash(p string) (string, bool) {
 		return "", false
 	}
 	hash, _, ok := strings.Cut(p[i+len(marker):], "/")
-	return hash, ok && r.Store.Has(hash)
+	return hash, ok && (r.Store.Has(hash) || r.remoteOnly()[hash] || r.sourcesByHash()[hash] != "")
 }
