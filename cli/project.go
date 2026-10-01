@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dawgit/internal/project"
+	"dawgit/internal/remote"
 )
 
 // openRepo opens the project here, kept from other programs (the app) until
@@ -250,6 +251,46 @@ func cmdVerify(args []string) (int, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+func cmdStorageCleanup(args []string) error {
+	fs := flag.NewFlagSet("storage-cleanup", flag.ContinueOnError)
+	del := fs.Bool("delete", false, "delete the unused files that are due")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	r, err := openRepo()
+	if err != nil {
+		return err
+	}
+	c, err := r.Client()
+	if err != nil {
+		return err
+	}
+	s3, ok := c.(*remote.S3Backend)
+	if !ok {
+		return errors.New("cleanup works on teams that use S3 or R2 storage")
+	}
+	rep, err := s3.CollectGarbage(*del)
+	if err != nil {
+		return err
+	}
+	mb := func(n int64) string { return fmt.Sprintf("%.1f MB", float64(n)/(1<<20)) }
+	fmt.Printf("%d files in storage, used by %d versions\n", rep.Stored, rep.Versions)
+	if rep.Deleted > 0 {
+		fmt.Printf("deleted %d unused files (%s)\n", rep.Deleted, mb(rep.DeletedBytes))
+	}
+	switch {
+	case rep.Waiting == 0:
+		fmt.Println("nothing (else) unused")
+	case rep.Due > rep.Deleted:
+		fmt.Printf("%d unused files (%s), %d (%s) due: run with --delete\n", rep.Waiting, mb(rep.WaitingBytes),
+			rep.Due, mb(rep.DueBytes))
+	default:
+		fmt.Printf("%d unused files (%s) can be deleted from %s\n", rep.Waiting, mb(rep.WaitingBytes),
+			rep.NextCleanup.Local().Format("2006-01-02 15:04"))
+	}
+	return nil
 }
 
 func cmdGC() error {

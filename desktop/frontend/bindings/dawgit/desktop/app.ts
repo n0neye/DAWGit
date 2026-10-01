@@ -69,12 +69,23 @@ export function ChooseFolder(title: string): $CancellablePromise<string> {
 }
 
 /**
+ * CleanUpStorage finds files in a team's storage that no version of any
+ * project uses; with remove it deletes those found unused at least a day
+ * before (and not written in the last week). See remote.CollectGarbage.
+ */
+export function CleanUpStorage(teamID: string, remove: boolean): $CancellablePromise<$models.StorageCleanup | null> {
+    return $Call.ByID(819767590, teamID, remove).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * CommitWarnings runs the project's pre-commit checks (e.g. a Unity asset
  * without its .meta) on what would be committed; the page shows them first.
  */
 export function CommitWarnings(root: string): $CancellablePromise<string[]> {
     return $Call.ByID(506767839, root).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -84,7 +95,7 @@ export function CommitWarnings(root: string): $CancellablePromise<string[]> {
  */
 export function ConnectTeam(address: string, token: string): $CancellablePromise<$models.TeamSummary> {
     return $Call.ByID(1743250902, address, token).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -98,7 +109,7 @@ export function ConvertFile(root: string, file: string, format: string, kbps: nu
 
 export function ConvertFormats(): $CancellablePromise<$models.ConvertFormat[]> {
     return $Call.ByID(3291664010).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -107,7 +118,7 @@ export function ConvertFormats(): $CancellablePromise<$models.ConvertFormat[]> {
  */
 export function ConvertInfo(root: string, file: string): $CancellablePromise<convert$0.Info> {
     return $Call.ByID(991517198, root, file).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -118,7 +129,7 @@ export function ConvertInfo(root: string, file: string): $CancellablePromise<con
  */
 export function ConvertPlan(root: string, file: string, format: string, kbps: number, rate: number, channels: number, bits: number): $CancellablePromise<convert$0.Result> {
     return $Call.ByID(1644825813, root, file, format, kbps, rate, channels, bits).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -141,7 +152,7 @@ export function CreateBranch(root: string, name: string): $CancellablePromise<vo
  */
 export function CreateStorageTeam(s: remote$0.Storage, name: string): $CancellablePromise<$models.TeamSummary> {
     return $Call.ByID(179947913, s, name).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -160,7 +171,7 @@ export function DeleteProjectFromTeam(teamID: string, projectID: string): $Cance
  */
 export function DiscardAll(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2516265674, root, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -170,7 +181,7 @@ export function DiscardAll(root: string, force: boolean): $CancellablePromise<$m
  */
 export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(802328553, root, resolutions, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -179,7 +190,7 @@ export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: st
  */
 export function DiscardFile(root: string, file: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2981786833, root, file, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -213,7 +224,7 @@ export function ExportVersion(root: string, id: string, parent: string): $Cancel
  */
 export function FileDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<string[]> {
     return $Call.ByID(3818610066, root, file, $from, to).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -222,7 +233,7 @@ export function FileDiff(root: string, file: string, $from: string, to: string):
  */
 export function FileHistory(root: string, file: string): $CancellablePromise<$models.FileVersion[]> {
     return $Call.ByID(2793313367, root, file).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -240,7 +251,7 @@ export function ForgetProject(root: string): $CancellablePromise<void> {
  */
 export function GoToVersion(root: string, id: string, discard: boolean, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(835698212, root, id, discard, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -259,7 +270,7 @@ export function HistoryDownloadSize(root: string, teamID: string): $CancellableP
  */
 export function KeepThisVersion(root: string, message: string, resolutions: { [_ in string]?: string }): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(1075527342, root, message, resolutions).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -274,7 +285,7 @@ export function LocateProject(teamID: string, projectID: string, folder: string)
 
 export function MergeBranch(root: string, name: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2689824969, root, name, message, resolutions, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -284,7 +295,7 @@ export function MergeBranch(root: string, name: string, message: string, resolut
  */
 export function MergeVersion(root: string, id: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(26777131, root, id, message, resolutions, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -345,13 +356,13 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function Overview(): $CancellablePromise<$models.Overview | null> {
     return $Call.ByID(3267730092).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType16($result);
     });
 }
 
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(667514631, root, name).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
@@ -361,13 +372,13 @@ export function PreviewMerge(root: string, name: string): $CancellablePromise<$m
  */
 export function PreviewMergeVersion(root: string, id: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1189396329, root, id).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
 export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1687188180, root).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
@@ -377,7 +388,7 @@ export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview
  */
 export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$models.ProjectFile[]> {
     return $Call.ByID(523169647, root, all).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -395,7 +406,7 @@ export function ReconnectProjects(teamID: string, roots: string[]): $Cancellable
  */
 export function RecoverSwitch(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(426268349, root, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -428,7 +439,7 @@ export function RenameTeamForEveryone(id: string, name: string): $CancellablePro
  */
 export function RestoreFileVersion(root: string, file: string, version: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(3800490991, root, file, version, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -442,7 +453,7 @@ export function RestoreFileVersion(root: string, file: string, version: string, 
  */
 export function Save(root: string, message: string, combine: boolean, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(1492565294, root, message, combine, resolutions, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -455,7 +466,7 @@ export function SelectTeam(id: string): $CancellablePromise<void> {
  */
 export function ServerProjects(address: string, token: string): $CancellablePromise<remote$0.Project[]> {
     return $Call.ByID(2541020658, address, token).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -478,7 +489,7 @@ export function SetAutostart(on: boolean): $CancellablePromise<void> {
  */
 export function SetIdentity(teamID: string, memberID: string, name: string): $CancellablePromise<$models.TeamSummary> {
     return $Call.ByID(2096508959, teamID, memberID, name).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -513,13 +524,13 @@ export function Signature(root: string): $CancellablePromise<string> {
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
     return $Call.ByID(3201444836, root).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType24($result);
     });
 }
 
 export function SwitchBranch(root: string, name: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2633693627, root, name, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -536,7 +547,7 @@ export function TeamConnectionCode(teamID: string): $CancellablePromise<string> 
  */
 export function TeamConnectionSettings(teamID: string): $CancellablePromise<$models.TeamConnection> {
     return $Call.ByID(3760281451, teamID).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType25($result);
     });
 }
 
@@ -545,7 +556,7 @@ export function TeamConnectionSettings(teamID: string): $CancellablePromise<$mod
  */
 export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
     return $Call.ByID(462026725, teamID).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -555,7 +566,7 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
  */
 export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.FoundProject[]> {
     return $Call.ByID(2946582454, teamID).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -565,7 +576,7 @@ export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.Fo
  */
 export function TeamState(root: string): $CancellablePromise<$models.TeamPart | null> {
     return $Call.ByID(2508473999, root).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
@@ -576,7 +587,7 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
  */
 export function TextDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<$models.TextChanges | null> {
     return $Call.ByID(1639953907, root, file, $from, to).then(($result: any) => {
-        return $$createType31($result);
+        return $$createType33($result);
     });
 }
 
@@ -592,7 +603,7 @@ export function UnwatchFiles(root: string): $CancellablePromise<void> {
  */
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2226037650, root, resolutions, force).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -603,7 +614,7 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
  */
 export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection): $CancellablePromise<$models.TeamSummary> {
     return $Call.ByID(2361674675, teamID, c).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
@@ -613,7 +624,7 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
  */
 export function VerifyProject(root: string, repair: boolean): $CancellablePromise<$models.VerifyResult | null> {
     return $Call.ByID(997401215, root, repair).then(($result: any) => {
-        return $$createType33($result);
+        return $$createType35($result);
     });
 }
 
@@ -630,7 +641,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType35($result);
+        return $$createType37($result);
     });
 }
 
@@ -648,36 +659,38 @@ export function WatchFiles(root: string): $CancellablePromise<boolean> {
 const $$createType0 = $models.TeamProject.createFrom;
 const $$createType1 = $models.UpdateInfo.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = $models.TeamSummary.createFrom;
-const $$createType5 = $models.ConvertFormat.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = convert$0.Info.createFrom;
-const $$createType8 = convert$0.Result.createFrom;
-const $$createType9 = $models.Result.createFrom;
-const $$createType10 = $Create.Nullable($$createType9);
-const $$createType11 = $models.FileVersion.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.Overview.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $models.Preview.createFrom;
+const $$createType3 = $models.StorageCleanup.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = $models.TeamSummary.createFrom;
+const $$createType7 = $models.ConvertFormat.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = convert$0.Info.createFrom;
+const $$createType10 = convert$0.Result.createFrom;
+const $$createType11 = $models.Result.createFrom;
+const $$createType12 = $Create.Nullable($$createType11);
+const $$createType13 = $models.FileVersion.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = $models.Overview.createFrom;
 const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $models.ProjectFile.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = remote$0.Project.createFrom;
+const $$createType17 = $models.Preview.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = $models.ProjectFile.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $models.State.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.TeamConnection.createFrom;
-const $$createType24 = remote$0.Member.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = $models.FoundProject.createFrom;
+const $$createType21 = remote$0.Project.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = $models.State.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = $models.TeamConnection.createFrom;
+const $$createType26 = remote$0.Member.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = $models.TeamPart.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $models.TextChanges.createFrom;
+const $$createType28 = $models.FoundProject.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = $models.TeamPart.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.VerifyResult.createFrom;
+const $$createType32 = $models.TextChanges.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = $models.Change.createFrom;
-const $$createType35 = $Create.Array($$createType34);
+const $$createType34 = $models.VerifyResult.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = $models.Change.createFrom;
+const $$createType37 = $Create.Array($$createType36);

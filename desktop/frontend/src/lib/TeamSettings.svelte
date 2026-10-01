@@ -35,6 +35,26 @@
   const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
   let editingMe = $state(false);
 
+  // Storage cleanup: files no version of any project uses.
+  type Cleanup = { versions: number; stored: number; unused: number; unusedBytes: number; due: number;
+    dueBytes: number; deleted: number; deletedBytes: number; nextCleanup: string };
+  let cleanup = $state<Cleanup | null>(null);
+  let cleaning = $state<"" | "check" | "delete">("");
+  let cleanError = $state("");
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  async function clean(remove: boolean) {
+    cleaning = remove ? "delete" : "check";
+    cleanError = "";
+    try {
+      cleanup = (await api.CleanUpStorage(team.id, remove)) as Cleanup;
+      if (remove) toast(`Deleted ${cleanup.deleted} unused file${cleanup.deleted === 1 ? "" : "s"} (${mb(cleanup.deletedBytes)})`, "ok");
+    } catch (e) {
+      cleanError = errorText(e);
+    } finally {
+      cleaning = "";
+    }
+  }
+
   async function identitySaved(t: TeamSummary) {
     const renamed = !!team.memberId && t.memberName !== team.memberName;
     editingMe = false;
@@ -193,6 +213,40 @@
       </div>
     {/if}
   </section>
+
+  {#if team.isStorage}
+    <section>
+      <h3>Storage cleanup</h3>
+      <p class="faint small">Files no version of any project uses — left by deleted projects, or by uploads that
+        stopped — still take space in the bucket. DAWGit deletes them only once they've been unused for a day and are
+        a week old, so it never takes a file a teammate is sharing right now.</p>
+      {#if cleanup}
+        {@const c = cleanup}
+        {#if c.deleted}
+          <p class="small">Deleted {c.deleted} file{c.deleted === 1 ? "" : "s"} ({mb(c.deletedBytes)}).</p>
+        {/if}
+        {#if c.unused - c.deleted === 0}
+          <p class="small">{c.deleted ? "Nothing else is unused" : "Nothing unused"}: {c.stored} files, used by
+            {c.versions} versions.</p>
+        {:else if c.due && !c.deleted}
+          <p class="small">{c.unused} unused file{c.unused === 1 ? "" : "s"} ({mb(c.unusedBytes)}); {c.due}
+            ({mb(c.dueBytes)}) can be deleted now.</p>
+        {:else}
+          <p class="small">{c.unused - c.deleted} unused file{c.unused - c.deleted === 1 ? "" : "s"}
+            ({mb(c.unusedBytes - c.deletedBytes)}) can be deleted{c.nextCleanup ? ` from ${when(c.nextCleanup)}` : " later"}:
+            come back and clean up again then.</p>
+        {/if}
+      {/if}
+      {#if cleanError}<p class="error small">{cleanError}</p>{/if}
+      <div class="row btns">
+        <button disabled={!!cleaning} onclick={() => clean(false)}>{cleaning === "check" ? "Looking…" : "Find unused files"}</button>
+        {#if cleanup?.due && !cleanup.deleted}
+          <button class="danger" disabled={!!cleaning} onclick={() => clean(true)}>
+            {cleaning === "delete" ? "Deleting…" : `Delete ${cleanup.due} file${cleanup.due === 1 ? "" : "s"} (${mb(cleanup.dueBytes)})`}</button>
+        {/if}
+      </div>
+    </section>
+  {/if}
 
   {#snippet footer()}
     <button class="ghost danger-text" onclick={() => {
