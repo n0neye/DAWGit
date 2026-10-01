@@ -2,6 +2,7 @@
   import type { Snippet } from "svelte";
   import { api, ago, errorText, fileURL, formatBytes, lineKind, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
   import ImageCompare from "./ImageCompare.svelte";
+  import VideoCompare from "./VideoCompare.svelte";
   import { toast } from "./notify.svelte";
   import AudioAB from "./AudioAB.svelte";
   import FileIcon from "./FileIcon.svelte";
@@ -308,6 +309,12 @@
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: nowURL(selected) } : null}
             b={st.head && (current.status === "modified" || current.status === "deleted")
               ? { label: "In the version you're on", src: fileURL(root, selected, st.head) } : null} />
+        {:else if current.video && current.status !== "ignored"}
+          <VideoCompare
+            a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: nowURL(selected) } : null}
+            b={st.head && (current.status === "modified" || current.status === "deleted")
+              ? { label: "In the version you're on", src: fileURL(root, selected, st.head) } : null}
+            onopen={() => api.OpenInLive(root, selected).catch((e) => toast(errorText(e), "error"))} />
         {:else if current.preview && current.status !== "ignored"}
           <ImageCompare
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: `${previewURL(root, selected)}&t=${loadedAt}` } : null}
@@ -354,6 +361,10 @@
               {/if}
               {#if current.kind === "audio"}
                 <AudioAB
+                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
+                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, selected, prev.version.id) } : null} />
+              {:else if current.video}
+                <VideoCompare
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
                   b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, selected, prev.version.id) } : null} />
               {:else if current.preview}

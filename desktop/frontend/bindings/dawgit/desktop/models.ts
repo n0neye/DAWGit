@@ -401,9 +401,11 @@ export class ProjectFile {
     "live": string;
 
     /**
-     * Preview: the app can show it as an image (/dawgit-preview).
+     * Preview: the app can show it as an image (/dawgit-preview); Video:
+     * it can try to play it.
      */
     "preview": boolean;
+    "video": boolean;
 
     /** Creates a new ProjectFile instance. */
     constructor($$source: Partial<ProjectFile> = {}) {
@@ -424,6 +426,9 @@ export class ProjectFile {
         }
         if (!("preview" in $$source)) {
             this["preview"] = false;
+        }
+        if (!("video" in $$source)) {
+            this["video"] = false;
         }
 
         Object.assign(this, $$source);

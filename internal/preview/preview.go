@@ -29,6 +29,16 @@ var native = map[string]string{
 	".bmp": "image/bmp", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".avif": "image/avif",
 }
 
+// IsVideo: a video the page can try to play (H.264 or VP8/9 inside; other
+// codecs, ProRes say, it can't).
+func IsVideo(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".mp4", ".m4v", ".mov", ".webm":
+		return true
+	}
+	return false
+}
+
 // Supported reports whether files named so can have a preview.
 func Supported(name string) bool {
 	ext := strings.ToLower(path.Ext(name))

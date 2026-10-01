@@ -35,8 +35,10 @@ type ProjectFile struct {
 	Kind   string `json:"kind"` // set | live (clip, preset, rack) | audio | midi | other
 	// Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
 	Live string `json:"live"`
-	// Preview: the app can show it as an image (/dawgit-preview).
+	// Preview: the app can show it as an image (/dawgit-preview); Video:
+	// it can try to play it.
 	Preview bool `json:"preview"`
+	Video   bool `json:"video"`
 }
 
 // fileKind groups a file in the app (set, audio, …), as the project's rules
@@ -61,7 +63,7 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	out := []ProjectFile{}
 	for _, f := range files {
 		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path),
-			Preview: preview.Supported(f.Path)}
+			Preview: preview.Supported(f.Path), Video: preview.IsVideo(f.Path)}
 		if pf.Kind == "set" && f.Status != "deleted" {
 			pf.Live = als.CreatorOf(r.Abs(f.Path))
 		}
@@ -351,7 +353,11 @@ func (a *App) fileServer(next http.Handler) http.Handler {
 			http.ServeContent(w, req, name+".wav", time.Time{}, bytes.NewReader(wav))
 			return
 		}
-		if t := mime.TypeByExtension(ext); t != "" {
+		t := mime.TypeByExtension(ext)
+		if ext == ".mov" || ext == ".m4v" {
+			t = "video/mp4" // the web view plays these when it knows the codec, not by their own types
+		}
+		if t != "" {
 			w.Header().Set("Content-Type", t)
 		}
 		http.ServeContent(w, req, name, time.Time{}, f)
