@@ -311,7 +311,7 @@ func TestSaveAndCloneReportProgress(t *testing.T) {
 	seen := map[string]int{}
 	a.OnProgress = func(p Progress) {
 		seen[p.Stage]++
-		if p.Total > 0 && (p.Done < 0 || p.Done >= p.Total) {
+		if p.Total > 0 && (p.Done < 0 || p.Done > p.Total) {
 			t.Errorf("progress out of range: %+v", p)
 		}
 	}

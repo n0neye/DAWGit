@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"dawgit/internal/remote"
@@ -209,9 +210,8 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 		}
 	}
 	t := r.newTransfer(StageDownloading, len(need), total)
-	for i, h := range need {
-		t.done = i
-		t.report()
+	t.report()
+	return inParallel(need, func(h string) error {
 		body, err := c.GetObject(h)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
@@ -224,8 +224,43 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 		if got != h {
 			return fmt.Errorf("download %s: content hash mismatch", short(h))
 		}
+		t.fileDone()
+		return nil
+	})
+}
+
+// transfers is how many files go up or down at once.
+const transfers = 8
+
+// inParallel runs fn on the items, a few at a time, and stops starting new
+// ones after the first error (which it returns).
+func inParallel(items []string, fn func(string) error) error {
+	sem := make(chan struct{}, transfers)
+	var mu sync.Mutex
+	var first error
+	var wg sync.WaitGroup
+	for _, it := range items {
+		mu.Lock()
+		failed := first != nil
+		mu.Unlock()
+		if failed {
+			break
+		}
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(it string) {
+			defer func() { <-sem; wg.Done() }()
+			if err := fn(it); err != nil {
+				mu.Lock()
+				if first == nil {
+					first = err
+				}
+				mu.Unlock()
+			}
+		}(it)
 	}
-	return nil
+	wg.Wait()
+	return first
 }
 
 // publish uploads everything HEAD needs and moves the current branch from
@@ -272,6 +307,9 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 	for _, id := range missing {
 		need[id] = true
 	}
+	// Every file the missing versions need, asked about and uploaded once
+	// (versions share most of their files), before any version refers to them.
+	var objects []string
 	for _, id := range order {
 		if !need[id] {
 			continue
@@ -280,8 +318,14 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 		if err != nil {
 			return err
 		}
-		if err := r.uploadObjects(c, m.Objects()); err != nil {
-			return err
+		objects = append(objects, m.Objects()...)
+	}
+	if err := r.uploadObjects(c, objects); err != nil {
+		return err
+	}
+	for _, id := range order {
+		if !need[id] {
+			continue
 		}
 		data, err := os.ReadFile(r.snapshotPath(id))
 		if err != nil {
@@ -308,9 +352,8 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 		}
 	}
 	t := r.newTransfer(StageUploading, len(missing), total)
-	for i, h := range missing {
-		t.done = i
-		t.report()
+	t.report()
+	return inParallel(missing, func(h string) error {
 		f, err := r.openObject(h)
 		if err != nil {
 			return fmt.Errorf("%w (needed to upload this project's versions)", err)
@@ -324,8 +367,9 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 		if err != nil {
 			return fmt.Errorf("upload %s: %w", short(h), err)
 		}
-	}
-	return nil
+		t.fileDone()
+		return nil
+	})
 }
 
 func dedupe(xs []string) []string {
