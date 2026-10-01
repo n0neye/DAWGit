@@ -314,7 +314,7 @@
         {@const u = update}
         <div class="update">
           <div class="update-h">
-            <span>DAWGit {u.version} is available</span>
+            <span>DAWGit{edition ? ` ${edition}` : ""} {u.version} is available</span>
             <button class="ghost x" title="Hide until the next version"
               onclick={() => { remember(DISMISSED_KEY, u.version); update = null; }}>✕</button>
           </div>
