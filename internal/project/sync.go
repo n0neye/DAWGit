@@ -751,6 +751,52 @@ func (r *Repo) mergeWith(c remote.Backend, ours, theirs string, opts MergeOption
 // merged track by track.
 func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (*Manifest, []string, error) {
 	bf, of, tf := base.FileMap(), ours.FileMap(), theirs.FileMap()
+	// A file one side moved is looked for at its new place on the other side
+	// too: changes made there to it follow it (merged as at one path).
+	var log []string
+	follow := func(moves []renamed, other map[string]FileEntry, who string) {
+		for _, m := range moves {
+			if e, ok := other[m.from]; ok {
+				if _, taken := other[m.to]; !taken {
+					delete(other, m.from)
+					e.Path = m.to
+					other[m.to] = e
+					if e.Hash != bf[m.from].Hash {
+						log = append(log, m.from+": moved by "+who+" to "+m.to+"; the other side's changes follow it")
+					}
+				}
+			}
+			if e, ok := bf[m.from]; ok {
+				delete(bf, m.from)
+				e.Path = m.to
+				bf[m.to] = e
+			}
+		}
+	}
+	oursMoves, theirsMoves := r.renamesBetween(base, ours), r.renamesBetween(base, theirs)
+	// Both moved the same file elsewhere: it goes where you put it.
+	movedByUs := map[string]string{}
+	for _, m := range oursMoves {
+		movedByUs[m.from] = m.to
+	}
+	var theirsOnly []renamed
+	for _, m := range theirsMoves {
+		if to, ok := movedByUs[m.from]; ok {
+			if to != m.to {
+				if e, ok := tf[m.to]; ok {
+					delete(tf, m.to)
+					e.Path = to
+					tf[to] = e
+				}
+				log = append(log, m.from+": moved to "+to+" by you and to "+m.to+" by others -> kept yours")
+			}
+			continue
+		}
+		theirsOnly = append(theirsOnly, m)
+	}
+	follow(oursMoves, tf, "you")
+	follow(theirsOnly, of, "others")
+
 	paths := map[string]bool{}
 	for _, m := range []map[string]FileEntry{bf, of, tf} {
 		for p := range m {
@@ -764,7 +810,6 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (
 	sort.Strings(sorted)
 
 	var files []FileEntry
-	var log []string
 	var conflicts []ConflictItem
 	for _, p := range sorted {
 		b, o, t := bf[p], of[p], tf[p]

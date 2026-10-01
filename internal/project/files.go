@@ -15,8 +15,10 @@ import (
 // ProjectFile is a file in the project folder as the app lists it.
 type ProjectFile struct {
 	Path   string // slash separated, relative to the project folder
-	Status string // "added" | "modified" | "deleted" | "unchanged" | "ignored"
+	Status string // "added" | "modified" | "deleted" | "renamed" | "unchanged" | "ignored"
 	Size   int64  // on disk (0 for deleted files)
+	From   string // renamed: where it was
+	Edited bool   // renamed: its content changed too
 }
 
 // Files lists the changed files; with all, also unchanged ones. Files the
@@ -45,9 +47,13 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 		return nil, err
 	}
 	status := map[string]string{}
+	moved := map[string]Change{}
 	var out []ProjectFile
 	for _, c := range changes {
 		status[c.Path] = c.Status
+		if c.Status == "renamed" {
+			moved[c.Path] = c
+		}
 		if c.Status == "deleted" {
 			out = append(out, ProjectFile{Path: c.Path, Status: "deleted"})
 		}
@@ -68,7 +74,7 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 					n = fi.Size()
 				}
 			}
-			out = append(out, ProjectFile{Path: c.Path, Status: c.Status, Size: n})
+			out = append(out, ProjectFile{Path: c.Path, Status: c.Status, Size: n, From: c.From, Edited: c.Edited})
 		}
 		sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 		return out, nil
@@ -84,7 +90,7 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 		default:
 			st = "unchanged"
 		}
-		out = append(out, ProjectFile{Path: e.rel, Status: st, Size: e.size})
+		out = append(out, ProjectFile{Path: e.rel, Status: st, Size: e.size, From: moved[e.rel].From, Edited: moved[e.rel].Edited})
 	}
 	// Tracked until now, in a folder the rules now leave out whole: listed
 	// still, the next version won't have them.
@@ -113,48 +119,79 @@ func fileHash(m *Manifest, path string) string {
 // FileVersion is a version that changed a file.
 type FileVersion struct {
 	Version *Manifest
-	Status  string // "added" | "modified" | "deleted"
+	Status  string // "added" | "modified" | "deleted" | "renamed" (moved here from From)
 	Hash    string // the file's content in that version ("" when deleted)
+	Path    string // where the file is in that version
+	From    string // renamed: where it was before
 }
 
 // FileHistory lists the versions of the current branch (newest first) that
-// added, changed or deleted path.
+// added, changed, moved or deleted path, following it back through moves:
+// older versions list it where it was then.
 func (r *Repo) FileHistory(path string) ([]FileVersion, error) {
 	log, err := r.Log()
 	if err != nil {
 		return nil, err
 	}
-	// The file's content in each version, each version read once.
+	// The file's content in each version, each version and path read once.
 	hashes := map[string]string{}
-	hashIn := func(id string) string {
-		h, ok := hashes[id]
+	hashIn := func(id, p string) string {
+		key := id + "|" + p
+		h, ok := hashes[key]
 		if !ok {
 			if m, err := r.Load(id); err == nil {
-				h = fileHash(m, path)
+				h = fileHash(m, p)
 			}
-			hashes[id] = h
+			hashes[key] = h
 		}
 		return h
 	}
 	var out []FileVersion
 	for _, m := range log {
-		cur := hashIn(m.ID)
+		cur := hashIn(m.ID, path)
 		prev := ""
 		if len(m.Parents) > 0 {
-			prev = hashIn(m.Parents[0])
+			prev = hashIn(m.Parents[0], path)
 		}
 		switch {
 		case cur == prev:
 			continue
+		case prev == "" && len(m.Parents) > 0:
+			// New here: moved from somewhere else?
+			if from := r.movedFrom(m, path); from != "" {
+				out = append(out, FileVersion{Version: m, Status: "renamed", Hash: cur, Path: path, From: from})
+				path = from
+				continue
+			}
+			out = append(out, FileVersion{Version: m, Status: "added", Hash: cur, Path: path})
 		case prev == "":
-			out = append(out, FileVersion{Version: m, Status: "added", Hash: cur})
+			out = append(out, FileVersion{Version: m, Status: "added", Hash: cur, Path: path})
 		case cur == "":
-			out = append(out, FileVersion{Version: m, Status: "deleted"})
+			out = append(out, FileVersion{Version: m, Status: "deleted", Path: path})
 		default:
-			out = append(out, FileVersion{Version: m, Status: "modified", Hash: cur})
+			out = append(out, FileVersion{Version: m, Status: "modified", Hash: cur, Path: path})
 		}
 	}
 	return out, nil
+}
+
+// movedFrom is where version m moved path from (compared with its first
+// parent), or "".
+func (r *Repo) movedFrom(m *Manifest, path string) string {
+	parent, err := r.Load(m.Parents[0])
+	if err != nil {
+		return ""
+	}
+	full, err := r.Load(m.ID)
+	if err != nil {
+		return ""
+	}
+	for _, mv := range r.renamesBetween(parent, full) {
+		if mv.to == path {
+			return mv.from
+		}
+	}
+	return ""
 }
 
 // FileDiff compares a set between two versions ("" for the version before
@@ -227,7 +264,11 @@ func (r *Repo) OpenFile(path, version string) (io.ReadSeekCloser, error) {
 // RestoreFile puts one file back as it is in a version ("" for the version
 // the project is on: discards its changes). A file the version does not have
 // is removed. Samples in a restored set are relinked for this computer.
-func (r *Repo) RestoreFile(path, version string) error {
+func (r *Repo) RestoreFile(path, version string) error { return r.RestoreFileFrom(path, path, version) }
+
+// RestoreFileFrom puts the file source of a version at path (the file had
+// another name or place then).
+func (r *Repo) RestoreFileFrom(path, source, version string) error {
 	if version == "" {
 		version = r.Head()
 	}
@@ -242,13 +283,14 @@ func (r *Repo) RestoreFile(path, version string) error {
 	if err != nil {
 		return err
 	}
-	f, ok := m.FileMap()[path]
+	f, ok := m.FileMap()[source]
 	if !ok {
 		if err := store.Remove(r.Abs(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 		return nil
 	}
+	f.Path = path
 	if err := r.fetchFile(f); err != nil {
 		return err
 	}

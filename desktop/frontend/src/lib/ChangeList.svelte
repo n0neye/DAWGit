@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { folderMoves } from "./moves";
   import { lineKind, type Change } from "./api";
   import FileIcon from "./FileIcon.svelte";
 
@@ -6,9 +7,13 @@
   // the end of each file's row, a set's track changes under it.
   let { changes, empty = "No changes" }: { changes: Change[]; empty?: string } = $props();
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○" };
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "R" };
   const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted",
-    untracked: "No longer tracked" };
+    untracked: "No longer tracked", renamed: "Moved" };
+  // Folders that moved, said once on the folder (see moves.ts).
+  let moves = $derived(folderMoves(changes));
+  const dirOf = (p: string) => p.slice(0, p.lastIndexOf("/") + 1);
+  const fromLabel = (c: Change) => (dirOf(c.path) === dirOf(c.from) ? name(c.from) : c.from);
   const audio = /\.(wav|aiff?|mp3|flac|ogg|m4a)$/i;
   const kindOf = (p: string) => (/\.als$/i.test(p) ? "set" : audio.test(p) ? "audio" : "other");
 
@@ -60,6 +65,7 @@
             </svg>
             <FileIcon kind="folder" open={!closed[d.path]} />
             <span class="fname">{d.name}</span>
+            {#if moves.movedFrom(d.path)}<span class="from">← {moves.movedFrom(d.path)}/</span>{/if}
             {#if closed[d.path]}<span class="right"><span class="count">{d.count}</span></span>{/if}
           </button>
         </li>
@@ -69,6 +75,9 @@
           <div class="row file {c.status}" style:padding-left="{row.depth * 14 + 20}px" title={c.path}>
             <FileIcon kind={kindOf(c.path)} faint={c.status === "deleted"} />
             <span class="fname">{name(c.path)}</span>
+            {#if c.status === "renamed" && !moves.covered(c.path)}
+              <span class="from" title={`Moved from ${c.from}${c.edited ? ", and changed" : ""}`}>← {fromLabel(c)}</span>
+            {/if}
             <span class="right"><span class="sym" title={statusName[c.status]}>{sym[c.status] ?? "·"}</span></span>
           </div>
           {#if c.details.length}
@@ -102,6 +111,9 @@
   .file.deleted .sym { color: var(--del); background: rgba(229, 103, 95, .16); }
   .file.modified .sym { color: var(--mod); background: rgba(106, 176, 243, .16); }
   .file.untracked .sym { color: var(--muted); }
+  .file.renamed .sym { color: var(--warn); background: rgba(232, 176, 75, .16); }
+  .from { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11.5px; color: var(--faint); }
   .details {
     margin: 4px 0 6px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line);
     border-radius: 6px; line-height: 1.6; user-select: text;

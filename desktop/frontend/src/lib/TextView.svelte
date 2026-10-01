@@ -9,8 +9,9 @@
   // around the changes, or the whole file. A version is a version id, "" for
   // the file on disk now, "none" for no file (added or deleted). `stamp`
   // refetches "now". Files that aren't text show a short note.
-  let { root, file, from, to, stamp = 0 }: {
+  let { root, file, from, to, stamp = 0, fromFile = "" }: {
     root: string; file: string; from: string; to: string; stamp?: number;
+    fromFile?: string; // the file's path in `from`, when it was elsewhere
   } = $props();
 
   const WHOLE = "dawgit.wholeFile";
@@ -24,6 +25,7 @@
   let canCompare = $derived(from !== to && !(from === "none" && to === "none"));
   let comparing = $derived(view.compare && canCompare);
   let shown = $derived(to === "none" ? from : to);
+  let shownFile = $derived(to === "none" && fromFile ? fromFile : file);
 
   let diff = $state<TextChanges | null>(null);
   let content = $state<TextContent | null>(null);
@@ -47,7 +49,7 @@
     };
     const fail = (e: unknown) => { if (n === seq) failed = errorText(e); };
     if (comparing) {
-      api.TextDiff(root, file, from, to, whole).then((r) => {
+      api.TextDiff(root, file, from, to, whole, fromFile === file ? "" : fromFile).then((r) => {
         if (n !== seq) return;
         diff = r;
         // Each hunk colored as one text: a comment over several of its lines
@@ -58,11 +60,11 @@
         }
         // Nothing changed: the file itself, then.
         if (r && r.text && r.hunks.length === 0) {
-          api.TextFile(root, file, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
+          api.TextFile(root, shownFile, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
         }
       }).catch(fail);
     } else {
-      api.TextFile(root, file, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
+      api.TextFile(root, shownFile, shown).then((c) => { if (n === seq) { content = c; colorContent(c); } }).catch(fail);
     }
   });
   // Where each hunk starts among all the hunks' lines (for diffHTML).

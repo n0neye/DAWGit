@@ -75,8 +75,16 @@ func cmdStatus(args []string) error {
 		fmt.Println("nothing changed")
 		return nil
 	}
-	sym := map[string]string{"added": "+", "modified": "~", "deleted": "-"}
+	sym := map[string]string{"added": "+", "modified": "~", "deleted": "-", "renamed": "R", "untracked": "o"}
 	for _, c := range changes {
+		if c.Status == "renamed" {
+			edited := ""
+			if c.Edited {
+				edited = " (and changed)"
+			}
+			fmt.Printf("R %s -> %s%s\n", c.From, c.Path, edited)
+			continue
+		}
 		fmt.Printf("%s %s\n", sym[c.Status], c.Path)
 		if c.SetDiff != nil {
 			for _, line := range strings.Split(c.SetDiff.Render(), "\n") {

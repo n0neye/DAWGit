@@ -29,7 +29,9 @@ type Version struct {
 
 type Change struct {
 	Path    string   `json:"path"`
-	Status  string   `json:"status"`  // added | modified | deleted
+	Status  string   `json:"status"`  // added | modified | deleted | renamed | untracked
+	From    string   `json:"from"`    // renamed: where it was
+	Edited  bool     `json:"edited"`  // renamed: its content changed too
 	Details []string `json:"details"` // semantic diff lines for sets
 }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { folderMoves } from "./moves";
   import type { Snippet } from "svelte";
   import { api, ago, errorText, fileURL, formatBytes, lineKind, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
   import type { IgnoreOption } from "../../bindings/dawgit/desktop/models";
@@ -22,7 +23,7 @@
     summary: Snippet; // shown when no file is selected (tracks you changed)
     ondiscard: (path: string) => void;
     ondiscardall: () => void;
-    onrestore: (path: string, version: string, label: string) => void; // one file from a version
+    onrestore: (path: string, version: string, label: string, source: string) => void; // one file from a version (source: its path then)
     onrules?: () => void; // .dawgit.yaml changed (a file or folder left out)
   } = $props();
 
@@ -70,6 +71,8 @@
 
   let current = $derived(files.find((f) => f.path === selected));
   let change = $derived(st.changes.find((c) => c.path === selected));
+  // Where the selected file is in the version you're on (moved: elsewhere).
+  let before_ = $derived(current?.status === "renamed" && current.from ? current.from : selected);
   // Live versions: "Ableton Live 12.3.1" -> "12.3". A set saved with another
   // Live than most sets in the project stands out.
   const liveShort = (c: string) => c.match(/(\d+\.\d+)/)?.[1] ?? "";
@@ -244,11 +247,19 @@
     return { label, src, resolve: (rel: string) => fileURL(root, dir + rel, version) };
   }
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", unchanged: "", ignored: "" };
-  const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted",
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "R", unchanged: "", ignored: "" };
+  const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted", renamed: "Moved",
     untracked: "No longer tracked: the rules leave it out now" };
+  // Folders that moved, said once on the folder (see moves.ts).
+  let moves = $derived(folderMoves(files));
+  // Where a moved file was, said briefly: its old name in the same folder,
+  // or its old folder.
+  function fromLabel(f: { path: string; from: string }): string {
+    const dir = (p: string) => p.slice(0, p.lastIndexOf("/") + 1);
+    return dir(f.path) === dir(f.from) ? name(f.from) : f.from;
+  }
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
-  const canDiscard = (f: ProjectFile | undefined) => !!f && (f.status === "added" || f.status === "modified" || f.status === "deleted");
+  const canDiscard = (f: ProjectFile | undefined) => !!f && ["added", "modified", "deleted", "renamed"].includes(f.status);
 </script>
 
 <svelte:window onclick={(e) => { if (menu && !(e.target as HTMLElement).closest(".ctx")) menu = null; }}
@@ -291,6 +302,10 @@
                 onclick={() => toggleFolder(d.path)} oncontextmenu={(e) => openMenu(e, d.path, true)} title={d.path}>
                 <FileIcon kind="folder" open={isOpen(d.path)} faint={!d.tracked} />
                 <span class="fname">{d.name}</span>
+                {#if d.changed}
+                  {@const ff = moves.movedFrom(d.path)}
+                  {#if ff}<span class="from" title={`Moved from ${ff}/`}>← {ff}/</span>{/if}
+                {/if}
                 {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count" title="Changed files inside">{d.changed}</span></span>{/if}
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
@@ -310,6 +325,9 @@
                 onclick={() => select(f.path)} oncontextmenu={(e) => openMenu(e, f.path)} title={f.path}>
                 <FileIcon kind={f.kind} faint={f.status === "ignored" || f.status === "deleted"} />
                 <span class="fname">{name(f.path)}</span>
+                {#if f.status === "renamed" && !moves.covered(f.path)}
+                  <span class="from" title={`Moved from ${f.from}${f.edited ? ", and changed" : ""}`}>← {fromLabel(f)}</span>
+                {/if}
                 <span class="right">
                   {#if f.live}
                     {@const v = liveShort(f.live)}
@@ -357,33 +375,34 @@
         {:else if current.status === "unchanged"}
           <p class="muted">No changes since the version you're on. {formatBytes(current.size)}</p>
         {:else}
-          <p class="muted">{current.status === "added" ? "New file" : current.status === "deleted" ? "Deleted" : "Changed"}
+          <p class="muted">{current.status === "renamed" ? `Moved from ${current.from}${current.edited ? ", and changed," : ""}`
+            : current.status === "added" ? "New file" : current.status === "deleted" ? "Deleted" : "Changed"}
             since the version you're on{current.size ? ` · ${formatBytes(current.size)}` : ""}.</p>
         {/if}
 
         {#if current.kind === "audio" && current.status !== "ignored"}
           <AudioAB
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: nowURL(selected) } : null}
-            b={st.head && (current.status === "modified" || current.status === "deleted")
-              ? { label: "In the version you're on", src: fileURL(root, selected, st.head) } : null} />
+            b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
+              ? { label: "In the version you're on", src: fileURL(root, before_, st.head) } : null} />
         {:else if current.video && current.status !== "ignored"}
           <VideoCompare
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: nowURL(selected) } : null}
-            b={st.head && (current.status === "modified" || current.status === "deleted")
-              ? { label: "In the version you're on", src: fileURL(root, selected, st.head) } : null}
+            b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
+              ? { label: "In the version you're on", src: fileURL(root, before_, st.head) } : null}
             onopen={() => api.OpenInLive(root, selected).catch((e) => toast(errorText(e), "error"))} />
         {:else if current.model && current.status !== "ignored"}
           {#key selected}
             <ModelCompare ext={extOf(selected)}
               a={current.status !== "deleted" ? modelTake(current.status === "unchanged" ? "In the project" : "Now (not committed)", selected, "", current.size) : null}
-              b={st.head && (current.status === "modified" || current.status === "deleted")
-                ? modelTake("In the version you're on", selected, st.head) : null} />
+              b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
+                ? modelTake("In the version you're on", before_, st.head) : null} />
           {/key}
         {:else if current.preview && current.status !== "ignored"}
           <ImageCompare
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: `${previewURL(root, selected)}&t=${loadedAt}` } : null}
-            b={st.head && (current.status === "modified" || current.status === "deleted")
-              ? { label: "In the version you're on", src: previewURL(root, selected, st.head) } : null} />
+            b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
+              ? { label: "In the version you're on", src: previewURL(root, before_, st.head) } : null} />
         {:else if change?.details.length}
           <div class="lines mono">
             {#each change.details as line}
@@ -391,7 +410,7 @@
             {/each}
           </div>
         {:else if current.kind !== "set" && current.status !== "ignored"}
-          <TextView {root} file={selected} stamp={loadedAt}
+          <TextView {root} file={selected} stamp={loadedAt} fromFile={before_}
             from={current.status === "added" || !st.head ? "none" : st.head}
             to={current.status === "deleted" ? "none" : ""} />
         {/if}
@@ -407,6 +426,7 @@
                 <button class:on={h.version.id === picked} onclick={() => pick(h.version.id)}>
                   <span class="vsym {h.status}">{sym[h.status]}</span>
                   <span class="vmsg">{h.version.message || "(no description)"}</span>
+                  {#if h.status === "renamed"}<span class="from" title={`Moved here from ${h.from}`}>← {h.from}</span>{/if}
                   <span class="faint">{h.version.author} · {ago(h.version.time)}</span>
                 </button>
               </li>
@@ -415,32 +435,35 @@
           {#if picked}
             {@const h = history.find((x) => x.version.id === picked)!}
             {@const prev = before(picked)}
+            <!-- where the file was in each version (it may have moved since) -->
+            {@const hp = h.path || selected}
+            {@const pp = prev?.path || selected}
             <div class="picked">
               {#if h.status !== "deleted"}
                 <div class="restore">
-                  <button onclick={() => onrestore(selected, h.version.id, h.version.message || h.version.short)}
+                  <button onclick={() => onrestore(selected, h.version.id, h.version.message || h.version.short, hp)}
                     title="Put this file back as it was in this version; the rest of the project stays">Restore this version</button>
                   <span class="faint small">Only this file changes; commit it when you're happy.</span>
                 </div>
               {/if}
               {#if current.kind === "audio"}
                 <AudioAB
-                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
-                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, selected, prev.version.id) } : null} />
+                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, hp, h.version.id) } : null}
+                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, pp, prev.version.id) } : null} />
               {:else if current.video}
                 <VideoCompare
-                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
-                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, selected, prev.version.id) } : null} />
+                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, hp, h.version.id) } : null}
+                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, pp, prev.version.id) } : null} />
               {:else if current.model}
                 {#key selected + h.version.id}
-                  <ModelCompare ext={extOf(selected)}
-                    a={h.status !== "deleted" ? modelTake(`“${h.version.message || h.version.short}”`, selected, h.version.id) : null}
-                    b={prev && prev.status !== "deleted" ? modelTake(`Before: “${prev.version.message || prev.version.short}”`, selected, prev.version.id) : null} />
+                  <ModelCompare ext={extOf(hp)}
+                    a={h.status !== "deleted" ? modelTake(`“${h.version.message || h.version.short}”`, hp, h.version.id) : null}
+                    b={prev && prev.status !== "deleted" ? modelTake(`Before: “${prev.version.message || prev.version.short}”`, pp, prev.version.id) : null} />
                 {/key}
               {:else if current.preview}
                 <ImageCompare
-                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: previewURL(root, selected, h.version.id) } : null}
-                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: previewURL(root, selected, prev.version.id) } : null} />
+                  a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: previewURL(root, hp, h.version.id) } : null}
+                  b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: previewURL(root, pp, prev.version.id) } : null} />
               {:else if current.kind === "set"}
                 {#if pickedDiff === null}
                   <p class="muted">Comparing…</p>
@@ -454,8 +477,8 @@
                   </div>
                 {/if}
               {:else}
-                <p class="muted">{h.status === "added" ? "Added" : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
-                <TextView {root} file={selected}
+                <p class="muted">{h.status === "renamed" ? `Moved here from ${h.from}` : h.status === "added" ? "Added" : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
+                <TextView {root} file={h.path || selected} fromFile={before(picked)?.path || ""}
                   from={prev && prev.status !== "deleted" ? prev.version.id : "none"}
                   to={h.status === "deleted" ? "none" : h.version.id} />
               {/if}
@@ -475,7 +498,7 @@
       <button class="item" onclick={() => openFile(m.path)}>{f.kind === "set" ? "Open in Live" : f.kind === "audio" ? "Open in default player" : "Open"}</button>
     {/if}
     {#if m.dir || (f && f.status !== "deleted")}
-      <button class="item" onclick={() => { menu = null; api.ShowFile(root, m.path).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
+      <button class="item" onclick={() => { const p = m.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
     {/if}
     {#if !m.dir}
       <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>View file history</button>
@@ -483,7 +506,7 @@
         <button class="item" onclick={() => { converting = m.path; menu = null; }}>Convert…</button>
       {/if}
       {#if canDiscard(f)}
-        <button class="item danger-text" onclick={() => { menu = null; ondiscard(m.path); }}>Discard changes…</button>
+        <button class="item danger-text" onclick={() => { const p = m.path; menu = null; ondiscard(p); }}>Discard changes…</button>
       {/if}
     {/if}
     {#if m.ignore.length}
@@ -570,6 +593,10 @@
   .file.ignored .fname, .file.unchanged .fname { color: var(--muted); }
   .file.ignored .fname { color: var(--faint); }
   .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .from { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 11.5px; color: var(--faint); }
+  .file.renamed .sym { color: var(--warn); background: rgba(232, 176, 75, .16); }
+  .vsym.renamed { color: var(--warn); }
   .live { font-size: 10.5px; padding: 0 5px; border-radius: 7px; background: #33363d; color: var(--muted);
     font-variant-numeric: tabular-nums; flex: none; }
   .live.odd { background: var(--warn-bg); color: var(--warn); }

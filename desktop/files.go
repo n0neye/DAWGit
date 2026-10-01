@@ -35,6 +35,9 @@ type ProjectFile struct {
 	Kind   string `json:"kind"` // set | live (clip, preset, rack) | audio | midi | other
 	// Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
 	Live string `json:"live"`
+	// Renamed: where it was, and whether its content changed too.
+	From   string `json:"from"`
+	Edited bool   `json:"edited"`
 	// Preview: the app can show it as an image (/dawgit-preview); Video:
 	// it can try to play it; Model: a 3D model it can show.
 	Preview bool `json:"preview"`
@@ -63,7 +66,7 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	}
 	out := []ProjectFile{}
 	for _, f := range files {
-		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path),
+		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path), From: f.From, Edited: f.Edited,
 			Preview: preview.Supported(f.Path), Video: preview.IsVideo(f.Path), Model: preview.IsModel(f.Path)}
 		if pf.Kind == "set" && f.Status != "deleted" {
 			pf.Live = als.CreatorOf(r.Abs(f.Path))
@@ -76,7 +79,9 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 // FileVersion is a version that changed a file.
 type FileVersion struct {
 	Version Version `json:"version"`
-	Status  string  `json:"status"` // added | modified | deleted
+	Status  string  `json:"status"` // added | modified | deleted | renamed
+	Path    string  `json:"path"`   // where the file is in that version
+	From    string  `json:"from"`   // renamed: where it was before
 }
 
 // FileHistory lists the versions of the current branch that changed path.
@@ -97,7 +102,7 @@ func (a *App) FileHistory(root, file string) ([]FileVersion, error) {
 		if n := names[v.AuthorID]; n != "" {
 			v.Author = n
 		}
-		out = append(out, FileVersion{Version: v, Status: h.Status})
+		out = append(out, FileVersion{Version: v, Status: h.Status, Path: h.Path, From: h.From})
 	}
 	return out, nil
 }
@@ -164,13 +169,17 @@ func readText(r *project.Repo, file, version string) ([]byte, error) {
 // "" for the project folder now, or "none" when there is no file to compare
 // with (it was added or deleted). whole: every line, not just the changes
 // with a few around them.
-func (a *App) TextDiff(root, file, from, to string, whole bool) (*TextChanges, error) {
+// fromFile: the file's path in from, when it was elsewhere ("" for file).
+func (a *App) TextDiff(root, file, from, to string, whole bool, fromFile string) (*TextChanges, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	old, err := readText(r, file, from)
+	if fromFile == "" {
+		fromFile = file
+	}
+	old, err := readText(r, fromFile, from)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +265,9 @@ func isText(b []byte) bool {
 	return bytes.IndexByte(b, 0) < 0 && utf8.Valid(b)
 }
 
-// DiscardFile puts one file back as it is in the version the project is on.
-func (a *App) DiscardFile(root, file string, force bool) (*Result, error) {
+// DiscardFile puts one file back as it is in the version the project is on;
+// from: where a moved file was (it goes back there).
+func (a *App) DiscardFile(root, file, from string, force bool) (*Result, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -271,12 +281,18 @@ func (a *App) DiscardFile(root, file string, force bool) (*Result, error) {
 	if err := r.RestoreFile(file, ""); err != nil {
 		return nil, err
 	}
+	if from != "" { // a move: back where it was too
+		if err := r.RestoreFile(from, ""); err != nil {
+			return nil, err
+		}
+	}
 	return &Result{Action: "discarded", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
 }
 
 // RestoreFileVersion puts one file back as it was in a version; the rest of
-// the project stays. The result is an uncommitted change.
-func (a *App) RestoreFileVersion(root, file, version string, force bool) (*Result, error) {
+// the project stays. The result is an uncommitted change. source: the file's
+// path in that version, when it had another ("" for file).
+func (a *App) RestoreFileVersion(root, file, version, source string, force bool) (*Result, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -290,7 +306,10 @@ func (a *App) RestoreFileVersion(root, file, version string, force bool) (*Resul
 			return blocked(set), nil
 		}
 	}
-	if err := r.RestoreFile(file, version); err != nil {
+	if source == "" {
+		source = file
+	}
+	if err := r.RestoreFileFrom(file, source, version); err != nil {
 		return nil, err
 	}
 	return &Result{Action: "restored", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
