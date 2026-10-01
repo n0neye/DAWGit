@@ -40,6 +40,13 @@ func (a *App) tidyLater(root string) {
 		if err != nil {
 			return
 		}
+		// Cleanup removes files: never while another program (the command
+		// line, the other edition) works on the project. Next time, then.
+		release, err := r.Lock(0)
+		if err != nil {
+			return
+		}
+		defer release()
 		pruned, err := r.PruneObjects()
 		if err != nil && tracing {
 			log.Printf("trace tidy %s: %v", root, err)

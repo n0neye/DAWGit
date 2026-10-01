@@ -200,7 +200,7 @@
       </label>
     </div>
     {#if files.length === 0}
-      <p class="muted empty">{all ? "The project folder is empty." : (st.tool && st.tool !== "Ableton Live" ? `No uncommitted changes. Work in ${st.tool} and save — your changes show up here.` : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here.")}</p>
+      <p class="muted empty">{all ? "The project folder is empty." : (st.tool === "Ableton Live" ? "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." : `No uncommitted changes. Work in ${st.tool || "your app"} and save — your changes show up here.`)}</p>
     {:else}
       <ul bind:this={list} style:padding-top="{win.from * ROW}px" style:padding-bottom="{(rows.length - win.to) * ROW}px">
         {#each rows.slice(win.from, win.to) as row (row.file ? row.file.path : "dir:" + row.folder!.path)}

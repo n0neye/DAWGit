@@ -91,9 +91,15 @@ func (a *App) open(root string) (*project.Repo, func(), error) {
 		unlock()
 		return nil, nil, err
 	}
+	// Other programs (the command line, the other edition) wait their turn.
+	release, err := r.Lock(30 * time.Second)
+	if err != nil {
+		unlock()
+		return nil, nil, err
+	}
 	var done func()
 	r.OnProgress, done = a.progressFor(r.Root)
-	return r, func() { done(); unlock() }, nil
+	return r, func() { done(); release(); unlock() }, nil
 }
 
 // ProgressEvent tells the frontend how a long step (save, upload, download)
@@ -332,6 +338,13 @@ func (a *App) State(root string) (*State, error) {
 		if m, err := r.Load(r.Head()); err == nil {
 			v := toVersion(m, nil)
 			st.OlderVersion = &v
+		}
+	}
+	st.CloudFolder = cloudFolder(r.Root)
+	if id := r.UnfinishedSwitch(); id != "" {
+		if m, err := r.Header(id); err == nil {
+			v := toVersion(m, nil)
+			st.Unfinished = &v
 		}
 	}
 	if rules, _ := r.Profile(); rules != nil {
@@ -702,6 +715,25 @@ func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error)
 	if errors.Is(err, project.ErrDirty) {
 		return nil, errors.New("you have uncommitted changes: commit or discard them first")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &Result{Action: "moved", Log: []string{}, Relinked: nonNil(notes), Conflicts: []Conflict{}}, nil
+}
+
+// RecoverSwitch puts the files back as the version the project is on, after
+// a switch that stopped halfway (State.Unfinished).
+func (a *App) RecoverSwitch(root string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
+	}
+	notes, err := r.RecoverSwitch()
 	if err != nil {
 		return nil, err
 	}

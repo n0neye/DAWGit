@@ -1,9 +1,11 @@
 package project
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // On Windows "Kick.wav" and "kick.wav" are the same file: going between
@@ -28,4 +30,90 @@ func TestCaseOnlyRenameSurvivesCheckout(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, "kick.wav")); err != nil {
 		t.Errorf("after going forward: %v", err)
 	}
+}
+
+// Projects from Perforce have read-only files: going between versions and
+// restoring a file still work.
+func TestReadOnlyFilesDontStopCheckout(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	p := filepath.Join(root, "Kick.wav")
+	os.WriteFile(p, []byte("kick"), 0o644)
+	a := mustSnapshot(t, r, "a")
+	os.Chmod(p, 0o644)
+	os.WriteFile(p, []byte("kick 2"), 0o644)
+	os.WriteFile(filepath.Join(root, "Snare.wav"), []byte("snare"), 0o644)
+	b := mustSnapshot(t, r, "b")
+	os.Chmod(p, 0o444)
+	os.Chmod(filepath.Join(root, "Snare.wav"), 0o444)
+	if _, _, err := r.GoTo(a.ID, false); err != nil {
+		t.Fatalf("back with read-only files: %v", err)
+	}
+	if _, _, err := r.GoTo(b.ID, false); err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+	if err := r.RestoreFile("Kick.wav", a.ID); err != nil {
+		t.Fatalf("restore over read-only: %v", err)
+	}
+}
+
+// Only one program changes a project at a time.
+func TestProjectLock(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	mustSnapshot(t, r, "first")
+	unlock, err := r.Lock(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := Open(root)
+	if _, err := other.Lock(200 * time.Millisecond); !errors.Is(err, ErrBusy) {
+		t.Fatalf("second lock: %v", err)
+	}
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		unlock()
+	}()
+	release, err := other.Lock(2 * time.Second)
+	if err != nil {
+		t.Fatalf("after release: %v", err)
+	}
+	release()
+	assertClean(t, r) // the lock file isn't a project file
+}
+
+// A switch that stops halfway is known, and the files can be put back.
+func TestUnfinishedSwitch(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	a := mustSnapshot(t, r, "a")
+	os.WriteFile(filepath.Join(root, "x.wav"), []byte("x"), 0o644)
+	b := mustSnapshot(t, r, "b")
+	if _, _, err := r.GoTo(a.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	if r.UnfinishedSwitch() != "" {
+		t.Fatal("a finished switch isn't unfinished")
+	}
+	// Something in the way of x.wav: the switch stops.
+	os.MkdirAll(filepath.Join(root, "x.wav", "in the way"), 0o755)
+	if _, _, err := r.Checkout(b.ID, true); err == nil {
+		t.Fatal("expected the switch to fail")
+	}
+	if got := r.UnfinishedSwitch(); got != b.ID {
+		t.Fatalf("unfinished: %q", got)
+	}
+	os.RemoveAll(filepath.Join(root, "x.wav"))
+	if _, err := r.RecoverSwitch(); err != nil {
+		t.Fatal(err)
+	}
+	if r.UnfinishedSwitch() != "" || r.Head() != a.ID {
+		t.Fatalf("after recovering: head %s", r.Head()[:8])
+	}
+	assertClean(t, r)
+	// Then the switch works.
+	if _, _, err := r.Checkout(b.ID, false); err != nil {
+		t.Fatal(err)
+	}
+	assertClean(t, r)
 }

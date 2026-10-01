@@ -390,6 +390,16 @@ export function ReconnectProjects(teamID: string, roots: string[]): $Cancellable
 }
 
 /**
+ * RecoverSwitch puts the files back as the version the project is on, after
+ * a switch that stopped halfway (State.Unfinished).
+ */
+export function RecoverSwitch(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(426268349, root, force).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * RemoveTeam disconnects this computer from a team. With keepProjects its
  * downloaded projects move to Local (their versions stay, and they can be
  * committed to here or reconnected later); otherwise they are no longer

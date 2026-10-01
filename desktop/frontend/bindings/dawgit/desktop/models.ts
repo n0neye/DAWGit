@@ -590,6 +590,19 @@ export class State {
      */
     "olderVersion": Version | null;
     "latest": string;
+
+    /**
+     * Unfinished is the version a switch was putting in place when it
+     * stopped halfway (DAWGit closed, a file in use); nil normally. The
+     * project is still on Head (OlderVersion or the latest).
+     */
+    "unfinished": Version | null;
+
+    /**
+     * CloudFolder names the syncing service whose folder holds the project
+     * (OneDrive, Dropbox…); "" when none.
+     */
+    "cloudFolder": string;
     "changes": Change[];
     "myEdits": project$0.TrackEdit[];
     "incoming": Version[];
@@ -649,6 +662,12 @@ export class State {
         if (!("latest" in $$source)) {
             this["latest"] = "";
         }
+        if (!("unfinished" in $$source)) {
+            this["unfinished"] = null;
+        }
+        if (!("cloudFolder" in $$source)) {
+            this["cloudFolder"] = "";
+        }
         if (!("changes" in $$source)) {
             this["changes"] = [];
         }
@@ -675,11 +694,12 @@ export class State {
         const $$createField0_0 = $$createType15;
         const $$createField14_0 = $$createType2;
         const $$createField15_0 = $$createType1;
-        const $$createField17_0 = $$createType10;
-        const $$createField18_0 = $$createType17;
-        const $$createField19_0 = $$createType8;
-        const $$createField20_0 = $$createType8;
-        const $$createField21_0 = $$createType19;
+        const $$createField17_0 = $$createType1;
+        const $$createField19_0 = $$createType10;
+        const $$createField20_0 = $$createType17;
+        const $$createField21_0 = $$createType8;
+        const $$createField22_0 = $$createType8;
+        const $$createField23_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -690,20 +710,23 @@ export class State {
         if ("olderVersion" in $$parsedSource) {
             $$parsedSource["olderVersion"] = $$createField15_0($$parsedSource["olderVersion"]);
         }
+        if ("unfinished" in $$parsedSource) {
+            $$parsedSource["unfinished"] = $$createField17_0($$parsedSource["unfinished"]);
+        }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField17_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField19_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField18_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField20_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField19_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField21_0($$parsedSource["incoming"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField20_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField22_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField21_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField23_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }
