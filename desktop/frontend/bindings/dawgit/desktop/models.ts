@@ -574,9 +574,12 @@ export class State {
     "head": string;
 
     /**
-     * .als files in the project folder
+     * Tool is the program the project is made with ("Ableton Live", "Unity";
+     * "" when its rules don't say); Openable what "Open in <Tool>" offers
+     * (relative paths, "." for the project folder).
      */
-    "sets": string[];
+    "tool": string;
+    "openable": string[];
 
     /**
      * OlderVersion is the version the project was moved back to (Go to
@@ -631,8 +634,11 @@ export class State {
         if (!("head" in $$source)) {
             this["head"] = "";
         }
-        if (!("sets" in $$source)) {
-            this["sets"] = [];
+        if (!("tool" in $$source)) {
+            this["tool"] = "";
+        }
+        if (!("openable" in $$source)) {
+            this["openable"] = [];
         }
         if (!("olderVersion" in $$source)) {
             this["olderVersion"] = null;
@@ -664,37 +670,37 @@ export class State {
      */
     static createFrom($$source: any = {}): State {
         const $$createField0_0 = $$createType15;
-        const $$createField13_0 = $$createType2;
-        const $$createField14_0 = $$createType1;
-        const $$createField16_0 = $$createType10;
-        const $$createField17_0 = $$createType17;
-        const $$createField18_0 = $$createType8;
+        const $$createField14_0 = $$createType2;
+        const $$createField15_0 = $$createType1;
+        const $$createField17_0 = $$createType10;
+        const $$createField18_0 = $$createType17;
         const $$createField19_0 = $$createType8;
-        const $$createField20_0 = $$createType19;
+        const $$createField20_0 = $$createType8;
+        const $$createField21_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
         }
-        if ("sets" in $$parsedSource) {
-            $$parsedSource["sets"] = $$createField13_0($$parsedSource["sets"]);
+        if ("openable" in $$parsedSource) {
+            $$parsedSource["openable"] = $$createField14_0($$parsedSource["openable"]);
         }
         if ("olderVersion" in $$parsedSource) {
-            $$parsedSource["olderVersion"] = $$createField14_0($$parsedSource["olderVersion"]);
+            $$parsedSource["olderVersion"] = $$createField15_0($$parsedSource["olderVersion"]);
         }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField16_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField17_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField17_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField18_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField18_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField19_0($$parsedSource["incoming"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField19_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField20_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField20_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField21_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }

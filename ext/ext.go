@@ -56,6 +56,23 @@ type RunningFunc = handlers.RunningFunc
 // field.
 func RegisterRunning(name string, fn RunningFunc) { handlers.RegisterRunning(name, fn) }
 
+// OpenFunc opens a project's file (or folder: rel ".") in its tool, for a
+// preset whose open: names it with with:.
+type OpenFunc = handlers.OpenFunc
+
+// RegisterOpener adds an opener.
+func RegisterOpener(name string, fn OpenFunc) { handlers.RegisterOpener(name, fn) }
+
+// Change is a file about to be committed (see CheckFunc).
+type Change = handlers.Change
+
+// CheckFunc looks at what is about to be committed and returns warnings,
+// shown before committing (e.g. a Unity asset without its .meta).
+type CheckFunc = handlers.CheckFunc
+
+// RegisterCheck adds a pre-commit check, named by a preset's checks: list.
+func RegisterCheck(name string, fn CheckFunc) { handlers.RegisterCheck(name, fn) }
+
 // --- backends ---
 
 type (

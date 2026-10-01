@@ -41,12 +41,25 @@ var presetFiles embed.FS
 
 // Preset is what DAWGit knows about one creative tool.
 type Preset struct {
-	Name     string              `yaml:"name"`
+	Name string `yaml:"name"`
+	// Tool is the program's name in the app ("Ableton Live", "Unity").
+	Tool string `yaml:"tool"`
+	// Open: what "Open in <tool>" offers, and with which opener.
+	Open     Open                `yaml:"open"`
+	Checks   []string            `yaml:"checks"` // run before a commit (see handlers)
 	Detect   []string            `yaml:"detect"`
 	Ignore   []string            `yaml:"ignore"`
 	Handlers []Handler           `yaml:"handlers"`
 	Running  string              `yaml:"running"`
 	Kinds    map[string][]string `yaml:"kinds"`
+}
+
+// Open is what the app offers to open in the tool: files matching Files in
+// the preset's folder ("." for the folder itself), opened by the opener With
+// (a handler; "" for the file's own program).
+type Open struct {
+	Files []string `yaml:"files"`
+	With  string   `yaml:"with"`
 }
 
 // Handler names built-in code that handles some files (a preset can only
@@ -402,6 +415,60 @@ func (p *Profile) Running() []string {
 	for _, a := range p.applied {
 		if a.preset != nil && a.preset.Running != "" {
 			out = append(out, a.preset.Running)
+		}
+	}
+	return out
+}
+
+// Tool is the program of the project's main preset ("" when none says).
+func (p *Profile) Tool() string {
+	for i := len(p.applied) - 1; i >= 0; i-- { // the project folder's first
+		if a := p.applied[i]; a.preset != nil && a.preset.Tool != "" {
+			return a.preset.Tool
+		}
+	}
+	return ""
+}
+
+// Openable lists what "Open in <tool>" offers in root: paths relative to it
+// ("." for a preset's folder), and for each the opener ("" for the file's own
+// program).
+func (p *Profile) Openable(root string) (paths []string, openers map[string]string) {
+	openers = map[string]string{}
+	for _, a := range p.applied {
+		if a.preset == nil {
+			continue
+		}
+		for _, pat := range a.preset.Open.Files {
+			if pat == "." {
+				rel := a.Folder
+				if rel == "" {
+					rel = "."
+				}
+				paths = append(paths, rel)
+				openers[rel] = a.preset.Open.With
+				continue
+			}
+			matches, _ := filepath.Glob(filepath.Join(root, filepath.FromSlash(a.Folder), filepath.FromSlash(pat)))
+			for _, m := range matches {
+				if rel, err := filepath.Rel(root, m); err == nil {
+					rel = filepath.ToSlash(rel)
+					paths = append(paths, rel)
+					openers[rel] = a.preset.Open.With
+				}
+			}
+		}
+	}
+	sort.Strings(paths)
+	return paths, openers
+}
+
+// Checks lists the checks the presets in use run before a commit.
+func (p *Profile) Checks() []string {
+	var out []string
+	for _, a := range p.applied {
+		if a.preset != nil {
+			out = append(out, a.preset.Checks...)
 		}
 	}
 	return out
