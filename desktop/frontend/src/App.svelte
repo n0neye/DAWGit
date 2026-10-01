@@ -78,6 +78,7 @@
   // version.
   let firstShare = $state("");
   let appVersion = $state("");
+  let edition = $state(""); // a build with extensions, e.g. "Pro"
 
   // A newer release on GitHub: offered until the user hides that version.
   let update = $state<{ version: string; pageUrl: string; downloadUrl: string } | null>(null);
@@ -265,6 +266,7 @@
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
     api.Version().then((v) => (appVersion = v)).catch(() => {});
+    api.Edition().then((e) => (edition = e)).catch(() => {});
     checkUpdate();
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
@@ -305,6 +307,7 @@
     <aside>
       <div class="brand">
         <img src="/icon.png" alt="" /> DAWGit
+        {#if edition}<span class="edition" title="A DAWGit build with extensions">{edition}</span>{/if}
         {#if appVersion}<span class="version faint" title="DAWGit version">v{appVersion}</span>{/if}
       </div>
       {#if update}
@@ -573,6 +576,8 @@
   .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
   .version { margin-left: auto; font-size: 11px; font-weight: 400; }
+  .edition { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px;
+    border-radius: 6px; color: var(--accent-ink); background: var(--accent); }
   .update { margin: 0 0 10px; padding: 8px 10px; border-radius: 8px; background: #1f3b35; border: 1px solid #2c5a4e; font-size: 12.5px; }
   .update-h { display: flex; align-items: center; gap: 6px; font-weight: 600; color: var(--accent); }
   .update-h span { flex: 1; }

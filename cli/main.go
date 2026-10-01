@@ -116,7 +116,7 @@ func Main() {
 	case "-h", "--help", "help":
 		fmt.Print(usage)
 	case "version", "--version", "-v":
-		fmt.Println("dawgit " + version.Version)
+		fmt.Println("dawgit " + version.Display())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", os.Args[1], usage)
 		os.Exit(2)
