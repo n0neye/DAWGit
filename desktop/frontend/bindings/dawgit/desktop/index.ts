@@ -17,6 +17,7 @@ export {
     Preview,
     ProjectFile,
     Result,
+    RulesInfo,
     State,
     TeamConnection,
     TeamPart,

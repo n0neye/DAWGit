@@ -50,6 +50,12 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	for _, f := range working {
 		have[f.Path] = f.Hash
 	}
+	// Files the version's rules leave out stay on disk: when a teammate
+	// starts ignoring a folder, it is not deleted from everyone's computer.
+	target, err := r.profileOf(m)
+	if err != nil {
+		return nil, nil, err
+	}
 	want := m.FileMap()
 	var need []string
 	for _, f := range m.Files {
@@ -73,7 +79,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 		}
 	}
 	for p := range have {
-		if _, ok := want[p]; !ok {
+		if _, ok := want[p]; !ok && !target.Ignored(p, false) {
 			if err := os.Remove(r.Abs(p)); err != nil {
 				return nil, nil, err
 			}
@@ -81,6 +87,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 			ix.dirty = true
 		}
 	}
+	r.forgetProfile() // the version may have brought another .dawgit.yaml
 
 	notes, err := r.relink(m, ix)
 	if err != nil {

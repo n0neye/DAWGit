@@ -1,6 +1,7 @@
 package project
 
 import (
+	"os"
 	"sort"
 	"sync"
 
@@ -9,8 +10,10 @@ import (
 )
 
 type Change struct {
-	Path   string
-	Status string // "added" | "modified" | "deleted"
+	Path string
+	// Status: "added" | "modified" | "deleted" | "untracked" (still on disk,
+	// but the rules now leave it out: the next version won't have it).
+	Status string
 	// SetDiff is the semantic diff for a modified Live Set.
 	SetDiff *diff.SetDiff
 }
@@ -48,10 +51,16 @@ func (r *Repo) Status() ([]Change, error) {
 			out = append(out, c)
 		}
 	}
+	rules := r.rules()
 	for path := range head {
-		if !seen[path] {
-			out = append(out, Change{Path: path, Status: "deleted"})
+		if seen[path] {
+			continue
 		}
+		status := "deleted"
+		if _, err := os.Stat(r.Abs(path)); err == nil && rules.Ignored(path, false) {
+			status = "untracked"
+		}
+		out = append(out, Change{Path: path, Status: status})
 	}
 	sortChanges(out)
 	return out, nil

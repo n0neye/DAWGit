@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"dawgit/internal/remote"
+	"dawgit/internal/profile"
 	"dawgit/internal/store"
 	"dawgit/internal/teams"
 )
@@ -49,6 +50,8 @@ type Repo struct {
 	sizes   map[string]int64  // object sizes known from manifests (knowSizes)
 	remote  map[string]bool   // objects only in the team's storage (remoteOnly)
 	sources map[string]string // contents found outside the store (sourcesByHash)
+	prof    *profile.Profile  // the project's rules (Profile)
+	profErr error
 }
 
 // ErrNotRepo is returned when no .dawgit directory is found.

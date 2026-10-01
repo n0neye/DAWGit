@@ -299,6 +299,14 @@ export function OpenInLive(root: string, $set: string): $CancellablePromise<void
 }
 
 /**
+ * OpenRules opens the project's .dawgit.yaml in a text editor, creating it
+ * from a commented template first.
+ */
+export function OpenRules(root: string): $CancellablePromise<void> {
+    return $Call.ByID(2219275516, root);
+}
+
+/**
  * OpenURL opens a DAWGit page (release notes, installer download) in the
  * browser. Other addresses are refused.
  */

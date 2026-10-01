@@ -156,7 +156,7 @@
     menu = { path: p, x: e.clientX, y: e.clientY };
   }
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", unchanged: "", ignored: "" };
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", unchanged: "", ignored: "" };
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   const canDiscard = (f: ProjectFile | undefined) => !!f && (f.status === "added" || f.status === "modified" || f.status === "deleted");
 </script>
@@ -371,6 +371,7 @@
   .file.deleted .sym { color: var(--del); }
   .file.modified .sym { color: var(--mod); }
   .file.deleted .fname { text-decoration: line-through; color: var(--muted); }
+  .file.untracked .sym, .file.untracked .fname { color: var(--muted); }
   .file.ignored .fname, .file.unchanged .fname { color: var(--muted); }
   .file.ignored .fname { color: var(--faint); }
   .fname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
