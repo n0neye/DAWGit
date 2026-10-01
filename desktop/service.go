@@ -340,6 +340,12 @@ func (a *App) State(root string) (*State, error) {
 			st.OlderVersion = &v
 		}
 	}
+	if id := r.UnfinishedSwitch(); id != "" {
+		if m, err := r.Header(id); err == nil {
+			v := toVersion(m, nil)
+			st.Unfinished = &v
+		}
+	}
 	if rules, _ := r.Profile(); rules != nil {
 		st.Tool = rules.Tool()
 		st.Openable, _ = rules.Openable(r.Root)
@@ -708,6 +714,25 @@ func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error)
 	if errors.Is(err, project.ErrDirty) {
 		return nil, errors.New("you have uncommitted changes: commit or discard them first")
 	}
+	if err != nil {
+		return nil, err
+	}
+	return &Result{Action: "moved", Log: []string{}, Relinked: nonNil(notes), Conflicts: []Conflict{}}, nil
+}
+
+// FinishSwitch completes a switch to another version that stopped halfway
+// (State.Unfinished).
+func (a *App) FinishSwitch(root string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
+	}
+	notes, err := r.FinishSwitch()
 	if err != nil {
 		return nil, err
 	}

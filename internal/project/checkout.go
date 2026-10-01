@@ -68,6 +68,11 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	if err := r.ensureHashes(need); err != nil {
 		return nil, nil, err
 	}
+	// Files change from here on: a switch that stops halfway (a crash, the
+	// power) is known until it's done, and can be finished (UnfinishedSwitch).
+	if err := os.WriteFile(filepath.Join(r.Dir, switchingFile), []byte(id+"\n"), 0o644); err != nil {
+		return nil, nil, err
+	}
 	// Removed files go first: on Windows a file renamed only in case
 	// ("Kick.wav" to "kick.wav") is the same file, and removing the old name
 	// after writing the new one would remove it.
@@ -100,7 +105,41 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	if err := r.setHead(m.ID); err != nil {
 		return nil, nil, err
 	}
-	return m, notes, ix.save()
+	if err := ix.save(); err != nil {
+		return nil, nil, err
+	}
+	os.Remove(filepath.Join(r.Dir, switchingFile))
+	return m, notes, nil
+}
+
+// switchingFile names the version a checkout is putting in place.
+const switchingFile = "switching"
+
+// UnfinishedSwitch returns the version a checkout was putting in place when
+// it stopped ("" when none): the project's files are partly that version.
+// FinishSwitch completes it.
+func (r *Repo) UnfinishedSwitch() string {
+	data, err := os.ReadFile(filepath.Join(r.Dir, switchingFile))
+	if err != nil {
+		return ""
+	}
+	id := strings.TrimSpace(string(data))
+	if id == "" || id == r.Head() || !r.HasSnapshot(id) {
+		os.Remove(filepath.Join(r.Dir, switchingFile))
+		return ""
+	}
+	return id
+}
+
+// FinishSwitch completes a checkout that stopped halfway. Changes made since
+// to the files it was replacing are lost, as they would have been.
+func (r *Repo) FinishSwitch() ([]string, error) {
+	id := r.UnfinishedSwitch()
+	if id == "" {
+		return nil, nil
+	}
+	_, notes, err := r.Checkout(id, true)
+	return notes, err
 }
 
 // relink rewrites sample paths in the checked-out sets so they resolve on this

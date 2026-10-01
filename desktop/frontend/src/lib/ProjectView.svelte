@@ -635,6 +635,18 @@
       <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
     {/if}
 
+    {#if st.unfinished}
+      {@const v = st.unfinished}
+      <div class="banner warn">
+        <div>
+          Switching to <strong>“{v.message || v.short}”</strong> didn't finish
+          <span class="muted">— DAWGit was closed or a file was in use. Some files are from that version, some aren't.</span>
+        </div>
+        <button class="primary" disabled={!!busy} onclick={() => run({ name: "goto", message: "",
+          call: (_res, force) => api.FinishSwitch(root, force),
+          done: () => toast(`Switched to “${v.message || v.short}”`, "ok") })}>Finish switching</button>
+      </div>
+    {/if}
     {#if st.olderVersion}
       {@const v = st.olderVersion}
       <div class="banner older">

@@ -79,6 +79,9 @@ type State struct {
 	// version); nil on the latest version. Latest is the branch's newest.
 	OlderVersion *Version `json:"olderVersion"`
 	Latest       string   `json:"latest"`
+	// Unfinished is the version a switch was putting in place when it
+	// stopped halfway (DAWGit closed, a file in use); nil normally.
+	Unfinished *Version `json:"unfinished"`
 
 	Changes  []Change            `json:"changes"`
 	MyEdits  []project.TrackEdit `json:"myEdits"`

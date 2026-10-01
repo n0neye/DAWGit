@@ -227,6 +227,16 @@ export function FileHistory(root: string, file: string): $CancellablePromise<$mo
 }
 
 /**
+ * FinishSwitch completes a switch to another version that stopped halfway
+ * (State.Unfinished).
+ */
+export function FinishSwitch(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(833291272, root, force).then(($result: any) => {
+        return $$createType10($result);
+    });
+}
+
+/**
  * ForgetProject removes a project from the list (the folder is untouched).
  */
 export function ForgetProject(root: string): $CancellablePromise<void> {
