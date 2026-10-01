@@ -47,7 +47,15 @@ The built-in presets:
 | --- | --- | --- | --- |
 | `ableton` | Ableton Live projects | an `Ableton Project Info` folder or a `.als` file | `/Backup/`, `*.asd` |
 
-A preset also tells DAWGit which built-in code handles which files: Live Sets are compared and merged track by track and their samples are collected. It also says what to check before rewriting files (Live having the set open), and how files are grouped and shown in the app.
+A preset also tells DAWGit which built-in code handles which files, what to check before rewriting files, and how files are grouped and shown in the app. The handlers a preset can name:
+
+| Handler | Kind | Does |
+| --- | --- | --- |
+| `ableton-set` | `merge:` | Compares and merges Live Sets track by track; with `samples: ableton`, collects and relinks their samples |
+| `text` | `merge:` | Merges text files line by line when both sides changed them; if the same lines changed differently, you choose the whole file |
+| `ableton-live` | `running:` | Doesn't rewrite a set while Live has it open |
+
+Files without a merge handler are chosen whole (yours, theirs or both) when both sides changed them.
 
 ## Checking the rules
 

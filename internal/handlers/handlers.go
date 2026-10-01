@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"dawgit/internal/livecheck"
+	"dawgit/internal/textmerge"
 )
 
 // MergeFunc merges a file changed on both sides from its three versions.
@@ -27,6 +28,7 @@ var (
 
 func init() {
 	RegisterRunning("ableton-live", livecheck.OpenSet)
+	RegisterMerge("text", textmerge.Merge)
 }
 
 // RegisterMerge adds a merge handler (the name a preset's merge: uses).
