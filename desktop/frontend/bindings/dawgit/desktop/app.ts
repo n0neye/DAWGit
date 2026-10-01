@@ -24,6 +24,15 @@ import * as remote$0 from "../internal/remote/models.js";
 import * as $models from "./models.js";
 
 /**
+ * AddIgnoreRule adds `- ignore: pattern` at the end of the rules in the
+ * project's .dawgit.yaml (creating the file): the last rule wins. The file
+ * is committed with the project, so the rule is the team's once shared.
+ */
+export function AddIgnoreRule(root: string, pattern: string): $CancellablePromise<void> {
+    return $Call.ByID(4156455302, root, pattern);
+}
+
+/**
  * AddLocalProject tracks a folder on this computer only (no team).
  */
 export function AddLocalProject(folder: string): $CancellablePromise<$models.TeamProject> {
@@ -265,6 +274,16 @@ export function HistoryDownloadSize(root: string, teamID: string): $CancellableP
 }
 
 /**
+ * IgnoreOptions are the rules offered for leaving a file or folder out:
+ * just it, or all like it (same extension, or folders of that name).
+ */
+export function IgnoreOptions(rel: string, isDir: boolean): $CancellablePromise<$models.IgnoreOption[]> {
+    return $Call.ByID(2769552289, rel, isDir).then(($result: any) => {
+        return $$createType16($result);
+    });
+}
+
+/**
  * KeepThisVersion continues from the older version the project is on: it
  * becomes a new version on top of the latest (shared with the team).
  */
@@ -356,13 +375,13 @@ export function OpenURL(url: string): $CancellablePromise<void> {
  */
 export function Overview(): $CancellablePromise<$models.Overview | null> {
     return $Call.ByID(3267730092).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType18($result);
     });
 }
 
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(667514631, root, name).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
@@ -372,23 +391,23 @@ export function PreviewMerge(root: string, name: string): $CancellablePromise<$m
  */
 export function PreviewMergeVersion(root: string, id: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1189396329, root, id).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
 export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview | null> {
     return $Call.ByID(1687188180, root).then(($result: any) => {
-        return $$createType18($result);
+        return $$createType20($result);
     });
 }
 
 /**
- * ProjectFiles lists the changed files; with all, every file in the project
- * folder (files DAWGit leaves out are "ignored").
+ * ProjectFiles lists the changed files; with all, every tracked file in the
+ * project folder (not those the rules leave out).
  */
 export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$models.ProjectFile[]> {
     return $Call.ByID(523169647, root, all).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType22($result);
     });
 }
 
@@ -468,7 +487,7 @@ export function SelectTeam(id: string): $CancellablePromise<void> {
  */
 export function ServerProjects(address: string, token: string): $CancellablePromise<remote$0.Project[]> {
     return $Call.ByID(2541020658, address, token).then(($result: any) => {
-        return $$createType22($result);
+        return $$createType24($result);
     });
 }
 
@@ -526,7 +545,7 @@ export function Signature(root: string): $CancellablePromise<string> {
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
     return $Call.ByID(3201444836, root).then(($result: any) => {
-        return $$createType24($result);
+        return $$createType26($result);
     });
 }
 
@@ -549,7 +568,7 @@ export function TeamConnectionCode(teamID: string): $CancellablePromise<string> 
  */
 export function TeamConnectionSettings(teamID: string): $CancellablePromise<$models.TeamConnection> {
     return $Call.ByID(3760281451, teamID).then(($result: any) => {
-        return $$createType25($result);
+        return $$createType27($result);
     });
 }
 
@@ -558,7 +577,7 @@ export function TeamConnectionSettings(teamID: string): $CancellablePromise<$mod
  */
 export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
     return $Call.ByID(462026725, teamID).then(($result: any) => {
-        return $$createType27($result);
+        return $$createType29($result);
     });
 }
 
@@ -568,7 +587,7 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
  */
 export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.FoundProject[]> {
     return $Call.ByID(2946582454, teamID).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType31($result);
     });
 }
 
@@ -578,7 +597,7 @@ export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.Fo
  */
 export function TeamState(root: string): $CancellablePromise<$models.TeamPart | null> {
     return $Call.ByID(2508473999, root).then(($result: any) => {
-        return $$createType31($result);
+        return $$createType33($result);
     });
 }
 
@@ -589,7 +608,7 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
  */
 export function TextDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<$models.TextChanges | null> {
     return $Call.ByID(1639953907, root, file, $from, to).then(($result: any) => {
-        return $$createType33($result);
+        return $$createType35($result);
     });
 }
 
@@ -626,7 +645,7 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
  */
 export function VerifyProject(root: string, repair: boolean): $CancellablePromise<$models.VerifyResult | null> {
     return $Call.ByID(997401215, root, repair).then(($result: any) => {
-        return $$createType35($result);
+        return $$createType37($result);
     });
 }
 
@@ -643,7 +662,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType37($result);
+        return $$createType39($result);
     });
 }
 
@@ -673,26 +692,28 @@ const $$createType11 = $models.Result.createFrom;
 const $$createType12 = $Create.Nullable($$createType11);
 const $$createType13 = $models.FileVersion.createFrom;
 const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = $models.Overview.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $models.Preview.createFrom;
+const $$createType15 = $models.IgnoreOption.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.Overview.createFrom;
 const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = $models.ProjectFile.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = remote$0.Project.createFrom;
+const $$createType19 = $models.Preview.createFrom;
+const $$createType20 = $Create.Nullable($$createType19);
+const $$createType21 = $models.ProjectFile.createFrom;
 const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $models.State.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = $models.TeamConnection.createFrom;
-const $$createType26 = remote$0.Member.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = $models.FoundProject.createFrom;
+const $$createType23 = remote$0.Project.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = $models.State.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = $models.TeamConnection.createFrom;
+const $$createType28 = remote$0.Member.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = $models.TeamPart.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.TextChanges.createFrom;
+const $$createType30 = $models.FoundProject.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = $models.TeamPart.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = $models.VerifyResult.createFrom;
+const $$createType34 = $models.TextChanges.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.Change.createFrom;
-const $$createType37 = $Create.Array($$createType36);
+const $$createType36 = $models.VerifyResult.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = $models.Change.createFrom;
+const $$createType39 = $Create.Array($$createType38);
