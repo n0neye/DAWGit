@@ -1,17 +1,12 @@
 <script lang="ts">
+  import { setCompare, view } from "./compare.svelte";
+
   // A video now and before: the one you watch large, the other as a small
-  // still. Compare (remembered, shared with pictures) plays both side by
-  // side, together, with one set of controls.
+  // still. Compare (view.compare, shared) plays both side by side, together,
+  // with one set of controls.
   type Take = { label: string; src: string };
   let { a, b, onopen }: { a: Take | null; b: Take | null; onopen?: () => void } = $props();
-
-  const KEY = "dawgit.compareImages";
-  const read = () => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } };
-  let comparing = $state(read());
-  function setComparing(on: boolean) {
-    comparing = on;
-    try { localStorage.setItem(KEY, on ? "1" : "0"); } catch { /* not remembered */ }
-  }
+  let comparing = $derived(view.compare);
 
   let both = $derived(!!a && !!b);
   let main = $derived(a ?? b);
@@ -76,10 +71,8 @@
 <div class="vc">
   {#if both}
     <div class="bar">
-      <label class="toggle"><input type="checkbox" class="switch" checked={comparing}
-        onchange={(e) => setComparing((e.currentTarget as HTMLInputElement).checked)} /> Compare</label>
       {#if !comparing}
-        <button class="thumb" onclick={() => setComparing(true)} title="Compare with this">
+        <button class="thumb" onclick={() => setCompare(true)} title="Compare with this">
           {@render player(b!, "small")}
           <span>{b!.label}</span>
         </button>
@@ -107,13 +100,6 @@
 <style>
   .vc { display: flex; flex-direction: column; gap: 10px; }
   .bar { display: flex; align-items: center; gap: 12px; }
-  .toggle { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--muted); cursor: pointer; }
-  .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
-    border: none; padding: 0; border-radius: 8px; background: #3a3d45; transition: background .15s; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
-    background: #d8dae0; transition: transform .15s; }
-  .switch:checked { background: var(--accent); }
-  .switch:checked::after { transform: translateX(11px); background: #fff; }
   figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   figcaption { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .frame { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #000; line-height: 0; }

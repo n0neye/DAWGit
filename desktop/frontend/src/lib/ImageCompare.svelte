@@ -1,17 +1,13 @@
 <script lang="ts">
+  import { setCompare, setImageMode, view } from "./compare.svelte";
+
   // A design file now and before: the one you look at large, the other as a
-  // small thumbnail. Compare (remembered) shows both large, side by side or
-  // under a slider.
+  // small thumbnail. Compare (view.compare, shared) shows both large, side by
+  // side or under a slider.
   type Take = { label: string; src: string };
   let { a, b }: { a: Take | null; b: Take | null } = $props();
-
-  const KEY = "dawgit.compareImages", MODE = "dawgit.compareMode";
-  const read = (k: string) => { try { return localStorage.getItem(k) ?? ""; } catch { return ""; } };
-  const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* not remembered */ } };
-  let comparing = $state(read(KEY) === "1");
-  let mode = $state<"side" | "slider">(read(MODE) === "slider" ? "slider" : "side");
-  function setComparing(on: boolean) { comparing = on; write(KEY, on ? "1" : "0"); }
-  function setMode(m: "side" | "slider") { mode = m; write(MODE, m); }
+  let comparing = $derived(view.compare);
+  let mode = $derived(view.imageMode);
 
   let failed = $state<Record<string, boolean>>({});
   let split = $state(50); // slider position, %
@@ -39,15 +35,13 @@
 <div class="ic">
   {#if both}
     <div class="bar">
-      <label class="toggle"><input type="checkbox" class="switch" checked={comparing}
-        onchange={(e) => setComparing((e.currentTarget as HTMLInputElement).checked)} /> Compare</label>
       {#if comparing}
         <div class="modes">
-          <button class:on={mode === "side"} onclick={() => setMode("side")}>Side by side</button>
-          <button class:on={mode === "slider"} onclick={() => setMode("slider")}>Slider</button>
+          <button class:on={mode === "side"} onclick={() => setImageMode("side")}>Side by side</button>
+          <button class:on={mode === "slider"} onclick={() => setImageMode("slider")}>Slider</button>
         </div>
       {:else}
-        <button class="thumb" onclick={() => setComparing(true)} title="Compare with this">
+        <button class="thumb" onclick={() => setCompare(true)} title="Compare with this">
           {@render picture(b!, "small")}
           <span>{b!.label}</span>
         </button>
@@ -80,13 +74,6 @@
 <style>
   .ic { display: flex; flex-direction: column; gap: 10px; }
   .bar { display: flex; align-items: center; gap: 12px; }
-  .toggle { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--muted); cursor: pointer; }
-  .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
-    border: none; padding: 0; border-radius: 8px; background: #3a3d45; transition: background .15s; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
-    background: #d8dae0; transition: transform .15s; }
-  .switch:checked { background: var(--accent); }
-  .switch:checked::after { transform: translateX(11px); background: #fff; }
   .modes { display: flex; }
   .modes button { padding: 3px 9px; font-size: 12px; border-radius: 0; }
   .modes button:first-child { border-radius: 6px 0 0 6px; }

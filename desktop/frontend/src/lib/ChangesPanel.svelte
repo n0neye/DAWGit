@@ -9,7 +9,8 @@
   import AudioAB from "./AudioAB.svelte";
   import FileIcon from "./FileIcon.svelte";
   import ConvertDialog from "./ConvertDialog.svelte";
-  import TextDiffView from "./TextDiffView.svelte";
+  import TextView from "./TextView.svelte";
+  import { setCompare, view } from "./compare.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, the sample to listen to now and before, a text file's lines). "All files" lists
@@ -84,7 +85,11 @@
   // closed; a folder shows how many changed files it holds.
   type Folder = { path: string; name: string; folders: Map<string, Folder>; files: ProjectFile[];
     changed: number; tracked: boolean };
+  // Folders start open in the list of changes (a tree of them), closed in
+  // All files; either way they remember being opened or closed.
   let open = $state<Record<string, boolean>>({});
+  const isOpen = (p: string) => open[p] ?? !all;
+  const toggleFolder = (p: string) => (open[p] = !isOpen(p));
 
   let tree = $derived.by(() => {
     const mk = (path: string, name: string): Folder =>
@@ -115,7 +120,7 @@
     const walk = (node: Folder, depth: number) => {
       for (const sub of [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name))) {
         out.push({ folder: sub, depth });
-        if (open[sub.path]) walk(sub, depth + 1);
+        if (isOpen(sub.path)) walk(sub, depth + 1);
       }
       for (const f of [...node.files].sort((a, b) => a.path.localeCompare(b.path))) out.push({ file: f, depth });
     };
@@ -269,8 +274,8 @@
             {@const d = row.folder}
             <li>
               <span class="indent" style:width="{row.depth * 14}px"></span>
-              <button class="ghost chevbtn" onclick={() => (open[d.path] = !open[d.path])} aria-label={open[d.path] ? "Close folder" : "Open folder"}>
-                <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
+              <button class="ghost chevbtn" onclick={() => toggleFolder(d.path)} aria-label={isOpen(d.path) ? "Close folder" : "Open folder"}>
+                <svg class="chev" class:open={isOpen(d.path)} viewBox="0 0 10 10" aria-hidden="true">
                   <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
               </button>
@@ -283,10 +288,10 @@
                 {:else}<span class="pick"></span>{/if}
               {/if}
               <button class="file dir" class:untracked={!d.tracked} class:changed={d.changed > 0}
-                onclick={() => (open[d.path] = !open[d.path])} oncontextmenu={(e) => openMenu(e, d.path, true)} title={d.path}>
-                <FileIcon kind="folder" open={open[d.path]} faint={!d.tracked} />
+                onclick={() => toggleFolder(d.path)} oncontextmenu={(e) => openMenu(e, d.path, true)} title={d.path}>
+                <FileIcon kind="folder" open={isOpen(d.path)} faint={!d.tracked} />
                 <span class="fname">{d.name}</span>
-                {#if d.changed && !open[d.path]}<span class="right"><span class="count" title="Changed files inside">{d.changed}</span></span>{/if}
+                {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count" title="Changed files inside">{d.changed}</span></span>{/if}
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
@@ -332,6 +337,12 @@
           <div class="faint small mono">{selected}</div>
           {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
         </div>
+        {#if current.kind !== "set" && current.kind !== "audio" && current.status !== "ignored"}
+          <div class="modes" title="One version, or what changed from the one before">
+            <button class:on={!view.compare} onclick={() => setCompare(false)}>Preview</button>
+            <button class:on={view.compare} onclick={() => setCompare(true)}>Compare</button>
+          </div>
+        {/if}
         <div class="modes">
           <button class:on={mode === "changes"} onclick={() => (mode = "changes")}>Changes</button>
           <button class:on={mode === "history"} onclick={() => showHistory(selected)}
@@ -379,8 +390,8 @@
               <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
             {/each}
           </div>
-        {:else if current.kind !== "set" && canDiscard(current)}
-          <TextDiffView {root} file={selected} stamp={loadedAt}
+        {:else if current.kind !== "set" && current.status !== "ignored"}
+          <TextView {root} file={selected} stamp={loadedAt}
             from={current.status === "added" || !st.head ? "none" : st.head}
             to={current.status === "deleted" ? "none" : ""} />
         {/if}
@@ -444,7 +455,7 @@
                 {/if}
               {:else}
                 <p class="muted">{h.status === "added" ? "Added" : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
-                <TextDiffView {root} file={selected}
+                <TextView {root} file={selected}
                   from={prev && prev.status !== "deleted" ? prev.version.id : "none"}
                   to={h.status === "deleted" ? "none" : h.version.id} />
               {/if}

@@ -26,6 +26,7 @@ export {
     TeamProject,
     TeamSummary,
     TextChanges,
+    TextContent,
     UpdateInfo,
     VerifyProblem,
     VerifyResult,
