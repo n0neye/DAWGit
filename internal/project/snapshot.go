@@ -300,6 +300,17 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 			known[f.Hash] = true
 		}
 	}
+	// Only some changes (Repo.Only): every other file stays as in the version
+	// we're on, its changes left uncommitted. Samples are found in the sets
+	// committed as they are now.
+	working := files
+	if r.Only != nil {
+		var base []FileEntry
+		if prev != nil {
+			base = prev.Files
+		}
+		files, working = onlyChanges(base, files, r.Only)
+	}
 	var toStore []FileEntry
 	for _, f := range files {
 		if !known[f.Hash] && !r.Store.Has(f.Hash) && !r.remoteOnly()[f.Hash] {
@@ -327,9 +338,12 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	}); err != nil {
 		return nil, err
 	}
-	external, packs, missing, err := r.sampleRefs(files)
+	external, packs, missing, err := r.sampleRefs(working)
 	if err != nil {
 		return nil, err
+	}
+	if r.Only != nil && prev != nil { // the sets not committed keep theirs
+		external, packs, missing = keepRefs(prev, external, packs, missing)
 	}
 	authorID, author := r.Identity()
 	m := &Manifest{Version: manifest.Format, Parents: []string{}, Author: author, AuthorID: authorID,
@@ -348,6 +362,55 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 		return nil, err
 	}
 	return m, ix.save()
+}
+
+// onlyChanges is base with the files at paths as they are in working (or
+// gone, if not there), and those working files.
+func onlyChanges(base, working []FileEntry, paths []string) (files, picked []FileEntry) {
+	now := map[string]FileEntry{}
+	for _, f := range working {
+		now[f.Path] = f
+	}
+	out := map[string]FileEntry{}
+	for _, f := range base {
+		out[f.Path] = f
+	}
+	for _, p := range paths {
+		if f, ok := now[p]; ok {
+			out[p] = f
+			picked = append(picked, f)
+		} else {
+			delete(out, p)
+		}
+	}
+	for _, f := range out {
+		files = append(files, f)
+	}
+	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
+	return files, picked
+}
+
+// keepRefs adds prev's outside samples, packs and missing samples to the
+// ones found: sets left out of a commit still use them.
+func keepRefs(prev *Manifest, external []FileEntry, packs, missing []string) ([]FileEntry, []string, []string) {
+	have := map[string]bool{}
+	for _, e := range external {
+		have[e.Path] = true
+	}
+	for _, e := range prev.External {
+		if !have[e.Path] {
+			external = append(external, e)
+		}
+	}
+	add := func(xs, more []string) []string {
+		for _, x := range more {
+			if !slices.Contains(xs, x) {
+				xs = append(xs, x)
+			}
+		}
+		return xs
+	}
+	return external, add(packs, prev.Packs), add(missing, prev.Missing)
 }
 
 func sameContent(a, b *Manifest) bool {

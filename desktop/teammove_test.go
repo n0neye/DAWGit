@@ -37,7 +37,7 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 	if _, err := a.AddProjectToTeam(one.ID, root); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Save(root, "first", true, nil, true); err != nil {
+	if _, err := a.Save(root, "first", true, nil, true, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,7 +79,7 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 	if len(store.Local) != 0 || store.ProjectRoot(again.ID, r.Config.ProjectID) != root {
 		t.Fatalf("not reconnected: local %v projects %v", store.Local, store.Projects)
 	}
-	if res, err := a.Save(root, "First version", true, nil, true); err != nil || res.Action == "published" {
+	if res, err := a.Save(root, "First version", true, nil, true, nil); err != nil || res.Action == "published" {
 		t.Fatalf("reconnecting made a version: %+v %v", res, err)
 	}
 
@@ -88,7 +88,7 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 	if _, err := a.MoveProjectToTeam(root, two.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Save(root, "First version", true, nil, true); err != nil {
+	if _, err := a.Save(root, "First version", true, nil, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	store, _ = teams.Load()

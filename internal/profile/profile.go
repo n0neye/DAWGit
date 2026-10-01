@@ -52,6 +52,11 @@ type Preset struct {
 	Handlers []Handler           `yaml:"handlers"`
 	Running  string              `yaml:"running"`
 	Kinds    map[string][]string `yaml:"kinds"`
+	// Gitignore: follow the project's .gitignore files too.
+	Gitignore bool `yaml:"gitignore"`
+	// Fallback: detected only when no other preset is (e.g. a .gitignore
+	// says "code", unless the folder is also a Unity project).
+	Fallback bool `yaml:"fallback"`
 }
 
 // Open is what the app offers to open in the tool: files matching Files in
@@ -85,9 +90,10 @@ func (r Rule) pattern() string {
 
 // file is the shape of .dawgit.yaml.
 type file struct {
-	Requires string            `yaml:"requires"`
-	Use      map[string]string `yaml:"use"`
-	Rules    []Rule            `yaml:"rules"`
+	Requires  string            `yaml:"requires"`
+	Use       map[string]string `yaml:"use"`
+	Rules     []Rule            `yaml:"rules"`
+	Gitignore bool              `yaml:"gitignore"`
 }
 
 // Applied is a preset in use for a folder ("" is the project folder).
@@ -103,6 +109,11 @@ type Profile struct {
 	Rules    []Rule
 	applied  []applied // longest folder first
 	FromFile bool      // read from .dawgit.yaml (not detected)
+	// Gitignore: the project's .gitignore files apply too (from
+	// .dawgit.yaml, or a preset in use).
+	Gitignore bool
+	root      string
+	gi        gitignores
 }
 
 type applied struct {
@@ -173,7 +184,8 @@ func Parse(data []byte, root string) (*Profile, error) {
 	if err := strictUnmarshal(data, &f); err != nil {
 		return Detect(root), fmt.Errorf("%s: %s", FileName, plainYAMLError(err))
 	}
-	p := &Profile{Requires: strings.TrimSpace(f.Requires), Rules: f.Rules, FromFile: true}
+	p := &Profile{Requires: strings.TrimSpace(f.Requires), Rules: f.Rules, FromFile: true, root: root,
+		Gitignore: f.Gitignore}
 	if p.Requires != "" {
 		if _, err := parseVersion(p.Requires); err != nil {
 			return Detect(root), fmt.Errorf("%s: requires: %q is not a version like \"0.7\"", FileName, p.Requires)
@@ -203,7 +215,17 @@ func Parse(data []byte, root string) (*Profile, error) {
 		p.applied = append(p.applied, applied{Applied: Applied{Folder: folder, Preset: name}, preset: preset})
 	}
 	p.sort()
+	p.followGitignore()
 	return p, nil
+}
+
+// followGitignore: a preset in use may ask for the .gitignore files.
+func (p *Profile) followGitignore() {
+	for _, a := range p.applied {
+		if a.preset != nil && a.preset.Gitignore {
+			p.Gitignore = true
+		}
+	}
 }
 
 var (
@@ -221,11 +243,15 @@ func plainYAMLError(err error) string {
 
 // Detect finds the preset of a project without .dawgit.yaml.
 func Detect(root string) *Profile {
-	p := &Profile{}
-	for _, name := range Names() {
-		if detects(builtin[name], root) {
-			p.applied = append(p.applied, applied{Applied: Applied{Folder: "", Preset: name, Detected: true}, preset: builtin[name]})
-			break
+	p := &Profile{root: root}
+	// Specific presets first, then fallbacks (see Preset.Fallback).
+	for _, fallback := range []bool{false, true} {
+		for _, name := range Names() {
+			if builtin[name].Fallback == fallback && detects(builtin[name], root) {
+				p.applied = append(p.applied, applied{Applied: Applied{Folder: "", Preset: name, Detected: true}, preset: builtin[name]})
+				p.followGitignore()
+				return p
+			}
 		}
 	}
 	return p
@@ -319,6 +345,11 @@ func (p *Profile) Explain(rel string, isDir bool) Decision {
 				return Decision{Ignored: true, By: fmt.Sprintf("rule %d: ignore %q", i+1, r.Ignore)}
 			}
 			return Decision{By: fmt.Sprintf("rule %d: track %q", i+1, r.Track)}
+		}
+	}
+	if p.Gitignore {
+		if d, ok := p.gitignored(rel, isDir); ok {
+			return d
 		}
 	}
 	if a, sub := p.presetFor(rel); a != nil && a.preset != nil && sub != "" {

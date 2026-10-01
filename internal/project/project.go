@@ -47,6 +47,10 @@ type Repo struct {
 	// OnProgress, when set, hears about long steps (see Progress).
 	OnProgress func(Progress)
 
+	// Only, when not nil, limits the next commits to the changes of these
+	// paths (from Status); other changes stay uncommitted.
+	Only []string
+
 	sizes   map[string]int64  // object sizes known from manifests (knowSizes)
 	remote  map[string]bool   // objects only in the team's storage (remoteOnly)
 	sources map[string]string // contents found outside the store (sourcesByHash)

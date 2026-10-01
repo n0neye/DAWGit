@@ -606,7 +606,9 @@ func opts(resolutions map[string]string) project.MergeOptions {
 // versions are combined with this one. Without it such a save changes
 // nothing and returns action "behind", so the user decides (combine, new
 // branch, or discard) with a preview.
-func (a *App) Save(root, message string, combine bool, resolutions map[string]string, force bool) (*Result, error) {
+// Save commits (and shares) the changes; paths, when not empty, are the
+// changes to commit: the others stay uncommitted.
+func (a *App) Save(root, message string, combine bool, resolutions map[string]string, force bool, paths []string) (*Result, error) {
 	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
@@ -615,6 +617,9 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 	defer unlock()
 	if strings.TrimSpace(message) == "" {
 		return nil, errors.New("describe what changed")
+	}
+	if len(paths) > 0 {
+		r.Only = paths
 	}
 	incoming := false
 	if r.Config.Remote != nil {

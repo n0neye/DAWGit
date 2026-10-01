@@ -18,7 +18,7 @@ func TestTextDiff(t *testing.T) {
 	if _, err := a.AddLocalProject(root); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := a.Save(root, "first", true, nil, true); err != nil {
+	if _, err := a.Save(root, "first", true, nil, true, nil); err != nil {
 		t.Fatal(err)
 	}
 	r, _ := project.Open(root)

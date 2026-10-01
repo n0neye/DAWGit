@@ -233,16 +233,28 @@
       if (r.action !== "nothing") message = "";
   };
 
-  const saveAction = (msg: string, combineWithTeam = false): Action => ({
-    name: "save",
-    message: msg,
-    call: (res, force) => api.Save(root, msg, combineWithTeam, res, force),
-    done: saveDone,
-  });
+  // Changes left out of the next commit (unticked in the Changes list),
+  // per project; a commit starts over with all ticked.
+  let excluded = $state<Record<string, boolean>>({});
+  $effect.pre(() => { root; excluded = {}; });
+  let leftOut = $derived(st?.changes.filter((c) => excluded[c.path]).length ?? 0);
+  // The changes to commit, or none for all of them.
+  const picked = () => (leftOut && st ? st.changes.filter((c) => !excluded[c.path]).map((c) => c.path) : []);
+
+  const saveAction = (msg: string, combineWithTeam = false): Action => {
+    const paths = picked();
+    return {
+      name: "save",
+      message: msg,
+      call: (res, force) => api.Save(root, msg, combineWithTeam, res, force, paths),
+      done: (r) => { excluded = {}; saveDone(r); },
+    };
+  };
 
   // Commit from the commit box: when the team is ahead, ask first.
   async function commit(confirmed = false) {
     if (!message.trim() || busy || (st?.olderVersion && !st.remoteUrl)) return;
+    if (st && st.changes.length && leftOut === st.changes.length) return; // nothing ticked
     if (!confirmed) {
       // Files the rules now leave out, and what the project's checks warn
       // about (e.g. a Unity asset without its .meta): say so first.
@@ -455,7 +467,7 @@
     await run({
       name: "save",
       message: l.message,
-      call: (res, force) => api.Save(root, l.message, false, res, force),
+      call: (res, force) => api.Save(root, l.message, false, res, force, []),
       done: () => (committed = true),
     });
     if (committed) run(goAction(l.target?.id ?? "latest", false, l.target?.message ?? ""));
@@ -543,7 +555,7 @@
     onfirstshared?.(); // started: don't start again if this view is reopened
     run({
       name: "first-share",
-      call: (res, force) => api.Save(root, "First version", true, res, force),
+      call: (res, force) => api.Save(root, "First version", true, res, force, []),
       done: () => {
         toast(`“${st?.name ?? folderName}” is shared with ${team || st?.teamName || "the team"}`, "ok");
       },
@@ -752,7 +764,7 @@
             {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
         {/snippet}
-        <ChangesPanel {root} st={st} {summary} ondiscard={(p) => (discardFile = p)}
+        <ChangesPanel {root} st={st} {summary} bind:excluded ondiscard={(p) => (discardFile = p)}
           ondiscardall={() => (discardAllOpen = true)}
           onrestore={(path, version, label) => (restoreFile = { path, version, label })} />
       {:else if tab === "history"}
@@ -783,9 +795,12 @@
               Commits on this computer. Share the project with a team to work on it together.
             {/if}
           </p>
-          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)} onclick={() => commit()}
-            title="Ctrl+Enter">
-            {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
+          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)
+            || (st.changes.length > 0 && leftOut === st.changes.length)} onclick={() => commit()}
+            title={leftOut ? "Ctrl+Enter — unticked files stay uncommitted" : "Ctrl+Enter"}>
+            {busy === "save" || busy === "first-share" ? "Committing…"
+              : leftOut ? `Commit ${st.changes.length - leftOut} of ${st.changes.length} files${st.remoteUrl ? " & share" : ""}`
+              : st.remoteUrl ? "Commit version & share" : "Commit version"}
           </button>
         </div>
       </footer>
