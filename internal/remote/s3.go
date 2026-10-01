@@ -6,12 +6,14 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -524,6 +526,9 @@ func (b *S3Backend) PutObject(hash string, r io.Reader) error {
 		}
 		r, size = bytes.NewReader(data), int64(len(data))
 	}
+	if size > multipartThreshold {
+		return b.putMultipart(objectKey(hash), r, size)
+	}
 	resp, err := b.do("PUT", objectKey(hash), nil, r, size, hash, nil)
 	if err != nil {
 		return err
@@ -534,6 +539,62 @@ func (b *S3Backend) PutObject(hash string, r io.Reader) error {
 		return s3Error(&s3Response{status: resp.StatusCode, body: data})
 	}
 	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
+// Objects bigger than multipartThreshold go up in parts of partSize: storage
+// takes at most 5 GB per request. Parts are streamed, not held in memory.
+var (
+	multipartThreshold int64 = 512 << 20
+	partSize           int64 = 64 << 20
+)
+
+// putMultipart uploads a big object in parts; on any failure the upload is
+// aborted, so no parts are left behind (and billed).
+func (b *S3Backend) putMultipart(key string, r io.Reader, size int64) error {
+	start, err := b.call("POST", key, url.Values{"uploads": {""}}, nil, nil)
+	if err != nil {
+		return err
+	}
+	if start.status != http.StatusOK {
+		return s3Error(start)
+	}
+	var started struct{ UploadId string }
+	if err := xml.Unmarshal(start.body, &started); err != nil || started.UploadId == "" {
+		return fmt.Errorf("storage did not start an upload of %s", key)
+	}
+	id := started.UploadId
+	abort := func(err error) error {
+		b.call("DELETE", key, url.Values{"uploadId": {id}}, nil, nil)
+		return err
+	}
+	var done bytes.Buffer
+	done.WriteString("<CompleteMultipartUpload>")
+	for n, off := 1, int64(0); off < size; n, off = n+1, off+partSize {
+		part := min(partSize, size-off)
+		q := url.Values{"partNumber": {strconv.Itoa(n)}, "uploadId": {id}}
+		// The object's hash covers the whole file; parts go unsigned, and the
+		// download checks the hash.
+		resp, err := b.do("PUT", key, q, io.LimitReader(r, part), part, unsignedPayload, nil)
+		if err != nil {
+			return abort(err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return abort(s3Error(&s3Response{status: resp.StatusCode, body: body}))
+		}
+		fmt.Fprintf(&done, "<Part><PartNumber>%d</PartNumber><ETag>%s</ETag></Part>", n, html.EscapeString(resp.Header.Get("ETag")))
+	}
+	done.WriteString("</CompleteMultipartUpload>")
+	end, err := b.call("POST", key, url.Values{"uploadId": {id}}, done.Bytes(), nil)
+	if err != nil {
+		return abort(err)
+	}
+	// Completing can fail with 200 and an error in the body.
+	if end.status != http.StatusOK || bytes.Contains(end.body, []byte("<Error>")) {
+		return abort(s3Error(end))
+	}
 	return nil
 }
 
