@@ -36,9 +36,10 @@ type ProjectFile struct {
 	// Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
 	Live string `json:"live"`
 	// Preview: the app can show it as an image (/dawgit-preview); Video:
-	// it can try to play it.
+	// it can try to play it; Model: a 3D model it can show.
 	Preview bool `json:"preview"`
 	Video   bool `json:"video"`
+	Model   bool `json:"model"`
 }
 
 // fileKind groups a file in the app (set, audio, …), as the project's rules
@@ -63,7 +64,7 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	out := []ProjectFile{}
 	for _, f := range files {
 		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path),
-			Preview: preview.Supported(f.Path), Video: preview.IsVideo(f.Path)}
+			Preview: preview.Supported(f.Path), Video: preview.IsVideo(f.Path), Model: preview.IsModel(f.Path)}
 		if pf.Kind == "set" && f.Status != "deleted" {
 			pf.Live = als.CreatorOf(r.Abs(f.Path))
 		}

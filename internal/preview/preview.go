@@ -39,6 +39,15 @@ func IsVideo(name string) bool {
 	return false
 }
 
+// IsModel: a 3D model the page can show (glTF, FBX, OBJ, STL, PLY).
+func IsModel(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".glb", ".gltf", ".fbx", ".obj", ".stl", ".ply":
+		return true
+	}
+	return false
+}
+
 // Supported reports whether files named so can have a preview.
 func Supported(name string) bool {
 	ext := strings.ToLower(path.Ext(name))

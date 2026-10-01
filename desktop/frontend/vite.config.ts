@@ -10,4 +10,7 @@ export default defineConfig({
     strictPort: true,
   },
   plugins: [svelte(), wails("./bindings")],
+  // three.js (the 3D model viewer) is one big chunk, loaded only when a
+  // model is shown.
+  build: { chunkSizeWarningLimit: 800 },
 });

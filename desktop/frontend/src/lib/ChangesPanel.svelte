@@ -3,6 +3,7 @@
   import { api, ago, errorText, fileURL, formatBytes, lineKind, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
   import ImageCompare from "./ImageCompare.svelte";
   import VideoCompare from "./VideoCompare.svelte";
+  import ModelCompare from "./ModelCompare.svelte";
   import { toast } from "./notify.svelte";
   import AudioAB from "./AudioAB.svelte";
   import FileIcon from "./FileIcon.svelte";
@@ -202,6 +203,17 @@
     return out === 0 ? "on" : out === ps.length ? "off" : "some";
   }
 
+  // A 3D model in a version ("" now), and the files it names (a glTF's .bin
+  // and textures) next to it in the same version.
+  const extOf = (p: string) => p.slice(p.lastIndexOf(".")).toLowerCase();
+  // Now's address changes with the file's size, not with every reload of the
+  // list: the viewer (and where you turned it) stays.
+  function modelTake(label: string, p: string, version: string, size = 0) {
+    const dir = p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "";
+    const src = version ? fileURL(root, p, version) : `${fileURL(root, p)}&size=${size}`;
+    return { label, src, resolve: (rel: string) => fileURL(root, dir + rel, version) };
+  }
+
   const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", unchanged: "", ignored: "" };
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   const canDiscard = (f: ProjectFile | undefined) => !!f && (f.status === "added" || f.status === "modified" || f.status === "deleted");
@@ -315,6 +327,13 @@
             b={st.head && (current.status === "modified" || current.status === "deleted")
               ? { label: "In the version you're on", src: fileURL(root, selected, st.head) } : null}
             onopen={() => api.OpenInLive(root, selected).catch((e) => toast(errorText(e), "error"))} />
+        {:else if current.model && current.status !== "ignored"}
+          {#key selected}
+            <ModelCompare ext={extOf(selected)}
+              a={current.status !== "deleted" ? modelTake(current.status === "unchanged" ? "In the project" : "Now (not committed)", selected, "", current.size) : null}
+              b={st.head && (current.status === "modified" || current.status === "deleted")
+                ? modelTake("In the version you're on", selected, st.head) : null} />
+          {/key}
         {:else if current.preview && current.status !== "ignored"}
           <ImageCompare
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: `${previewURL(root, selected)}&t=${loadedAt}` } : null}
@@ -367,6 +386,12 @@
                 <VideoCompare
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: fileURL(root, selected, h.version.id) } : null}
                   b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: fileURL(root, selected, prev.version.id) } : null} />
+              {:else if current.model}
+                {#key selected + h.version.id}
+                  <ModelCompare ext={extOf(selected)}
+                    a={h.status !== "deleted" ? modelTake(`“${h.version.message || h.version.short}”`, selected, h.version.id) : null}
+                    b={prev && prev.status !== "deleted" ? modelTake(`Before: “${prev.version.message || prev.version.short}”`, selected, prev.version.id) : null} />
+                {/key}
               {:else if current.preview}
                 <ImageCompare
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: previewURL(root, selected, h.version.id) } : null}
