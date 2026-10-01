@@ -50,3 +50,39 @@ func TestUnusualNamesAndLongPaths(t *testing.T) {
 	}
 	assertClean(t, r)
 }
+
+// Committing some changes leaves the others uncommitted.
+func TestCommitSomeChanges(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	os.WriteFile(filepath.Join(root, "a.txt"), []byte("a"), 0o644)
+	os.WriteFile(filepath.Join(root, "gone.txt"), []byte("x"), 0o644)
+	first := mustSnapshot(t, r, "first")
+
+	os.WriteFile(filepath.Join(root, "a.txt"), []byte("a2"), 0o644)
+	os.WriteFile(filepath.Join(root, "new.txt"), []byte("n"), 0o644)
+	os.WriteFile(filepath.Join(root, "later.txt"), []byte("l"), 0o644)
+	os.Remove(filepath.Join(root, "gone.txt"))
+	r.Only = []string{"a.txt", "new.txt", "gone.txt"}
+	m := mustSnapshot(t, r, "some")
+	r.Only = nil
+	fm := m.FileMap()
+	if _, ok := fm["later.txt"]; ok {
+		t.Fatal("later.txt wasn't picked")
+	}
+	if _, ok := fm["gone.txt"]; ok {
+		t.Fatal("gone.txt was picked: it should be gone")
+	}
+	if fm["a.txt"].Hash == first.FileMap()["a.txt"].Hash || fm["new.txt"].Hash == "" {
+		t.Fatal("a.txt and new.txt should be committed")
+	}
+	changes, _ := r.Status()
+	if len(changes) != 1 || changes[0].Path != "later.txt" || changes[0].Status != "added" {
+		t.Fatalf("left uncommitted: %+v", changes)
+	}
+	// Nothing picked that changed: nothing to commit.
+	r.Only = []string{"a.txt"}
+	if _, err := r.Snapshot("again"); err != ErrNothingToSnapshot {
+		t.Fatalf("nothing picked: %v", err)
+	}
+}

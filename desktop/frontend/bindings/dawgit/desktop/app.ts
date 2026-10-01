@@ -450,9 +450,11 @@ export function RestoreFileVersion(root: string, file: string, version: string, 
  * versions are combined with this one. Without it such a save changes
  * nothing and returns action "behind", so the user decides (combine, new
  * branch, or discard) with a preview.
+ * Save commits (and shares) the changes; paths, when not empty, are the
+ * changes to commit: the others stay uncommitted.
  */
-export function Save(root: string, message: string, combine: boolean, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(1492565294, root, message, combine, resolutions, force).then(($result: any) => {
+export function Save(root: string, message: string, combine: boolean, resolutions: { [_ in string]?: string }, force: boolean, paths: string[]): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(1492565294, root, message, combine, resolutions, force, paths).then(($result: any) => {
         return $$createType12($result);
     });
 }

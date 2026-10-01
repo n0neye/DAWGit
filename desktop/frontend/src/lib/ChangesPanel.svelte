@@ -10,9 +10,10 @@
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, the sample to listen to now and before, a text file's lines). "All files" lists
   // the whole project folder. Each file has a menu (⋯ or right click).
-  let { root, st, summary, ondiscard, ondiscardall, onrestore }: {
+  let { root, st, summary, excluded = $bindable({}), ondiscard, ondiscardall, onrestore }: {
     root: string;
     st: State;
+    excluded?: Record<string, boolean>; // changes unticked: left out of the next commit
     summary: Snippet; // shown when no file is selected (tracks you changed)
     ondiscard: (path: string) => void;
     ondiscardall: () => void;
@@ -180,6 +181,25 @@
     menu = { path: p, x: e.clientX, y: e.clientY };
   }
 
+  // Ticking: each change, or a folder's changes at once.
+  const changedPaths = $derived(st.changes.map((c) => c.path));
+  const isChange = (f: ProjectFile) => f.status !== "unchanged" && f.status !== "ignored";
+  const inside = (dir: string) => changedPaths.filter((p) => p.startsWith(dir + "/"));
+  function tick(paths: string[], on: boolean) {
+    const next = { ...excluded };
+    for (const p of paths) {
+      if (on) delete next[p];
+      else next[p] = true;
+    }
+    excluded = next;
+  }
+  // A folder's box: ticked, unticked, or some (indeterminate).
+  function folderState(dir: string): "on" | "off" | "some" {
+    const ps = inside(dir);
+    const out = ps.filter((p) => excluded[p]).length;
+    return out === 0 ? "on" : out === ps.length ? "off" : "some";
+  }
+
   const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", unchanged: "", ignored: "" };
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   const canDiscard = (f: ProjectFile | undefined) => !!f && (f.status === "added" || f.status === "modified" || f.status === "deleted");
@@ -207,6 +227,13 @@
           {#if row.folder}
             {@const d = row.folder}
             <li>
+              {#if changedPaths.length}
+                {#if d.changed}
+                  {@const fs = folderState(d.path)}
+                  <input type="checkbox" class="pick" checked={fs === "on"} indeterminate={fs === "some"}
+                    title="Commit the changes in this folder" onchange={() => tick(inside(d.path), fs !== "on")} />
+                {:else}<span class="pick"></span>{/if}
+              {/if}
               <button class="file dir" class:untracked={!d.tracked} class:changed={d.changed > 0} style:padding-left="{8 + row.depth * 14}px"
                 onclick={() => (open[d.path] = !open[d.path])} title={d.tracked ? d.path : `${d.path} — not tracked`}>
                 <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
@@ -221,6 +248,12 @@
           {:else}
             {@const f = row.file!}
             <li>
+              {#if changedPaths.length}
+                {#if isChange(f)}
+                  <input type="checkbox" class="pick" checked={!excluded[f.path]} title="Commit this change"
+                    onchange={(e) => tick([f.path], (e.currentTarget as HTMLInputElement).checked)} />
+                {:else}<span class="pick"></span>{/if}
+              {/if}
               <button class="file {f.status}" class:on={f.path === selected} style:padding-left="{8 + row.depth * 14}px"
                 onclick={() => select(f.path)} oncontextmenu={(e) => openMenu(e, f.path)} title={f.path}>
                 <span class="sym">{sym[f.status]}</span>
@@ -385,7 +418,9 @@
   .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .empty { padding: 0 8px; font-size: 13px; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { position: relative; display: flex; height: 30px; }
+  li { position: relative; display: flex; align-items: center; height: 30px; }
+  .pick { flex: none; width: 14px; height: 14px; margin: 0 0 0 8px; accent-color: var(--accent); cursor: pointer; }
+  span.pick { cursor: default; }
   .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .12s; }
   .chev.open { transform: rotate(90deg); }
   /* Folders read like files: bright when they hold changes, muted otherwise,
