@@ -521,8 +521,9 @@
   .chevbtn { flex: none; width: 18px; height: 22px; padding: 0; margin-left: 4px; display: flex; align-items: center;
     justify-content: center; border: none; background: transparent; }
   /* The commit box: ticked, unticked, or some of a folder (gray with a dash). */
-  .pick { appearance: none; position: relative; flex: none; width: 14px; height: 14px; margin: 0 4px 0 2px;
-    border: 1.5px solid var(--muted); border-radius: 3px; background: transparent; cursor: pointer; }
+  /* (padding 0: inputs have padding everywhere, which made the box wide) */
+  .pick { appearance: none; position: relative; flex: none; width: 14px; min-width: 14px; height: 14px; padding: 0;
+    margin: 0 4px 0 2px; border: 1.5px solid var(--muted); border-radius: 3px; background: transparent; cursor: pointer; }
   .pick:checked { background: var(--accent); border-color: var(--accent); }
   .pick:checked::after { content: ""; position: absolute; left: 3.5px; top: 0.5px; width: 3.5px; height: 7.5px;
     border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
