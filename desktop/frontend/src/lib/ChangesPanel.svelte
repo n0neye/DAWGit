@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { api, ago, errorText, fileURL, formatBytes, lineKind, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
+  import type { IgnoreOption } from "../../bindings/dawgit/desktop/models";
   import ImageCompare from "./ImageCompare.svelte";
   import VideoCompare from "./VideoCompare.svelte";
   import ModelCompare from "./ModelCompare.svelte";
@@ -13,7 +14,7 @@
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, the sample to listen to now and before, a text file's lines). "All files" lists
   // the whole project folder. Each file has a menu (⋯ or right click).
-  let { root, st, summary, excluded = $bindable({}), ondiscard, ondiscardall, onrestore }: {
+  let { root, st, summary, excluded = $bindable({}), ondiscard, ondiscardall, onrestore, onrules }: {
     root: string;
     st: State;
     excluded?: Record<string, boolean>; // changes unticked: left out of the next commit
@@ -21,6 +22,7 @@
     ondiscard: (path: string) => void;
     ondiscardall: () => void;
     onrestore: (path: string, version: string, label: string) => void; // one file from a version
+    onrules?: () => void; // .dawgit.yaml changed (a file or folder left out)
   } = $props();
 
   // "All files" is remembered per project.
@@ -35,7 +37,10 @@
   let files = $state<ProjectFile[]>([]);
   let selected = $state("");
   let mode = $state<"changes" | "history">("changes");
-  let menu = $state<{ path: string; x: number; y: number } | null>(null);
+  // The menu of a file or folder (right click, or ⋯), with the ways to
+  // leave it out of versions.
+  let menu = $state<{ path: string; x: number; y: number; dir: boolean; ignore: IgnoreOption[] } | null>(null);
+  let ignoreOpen = $state(false); // the Ignore submenu
 
   // history of the selected file
   let history = $state<FileVersion[] | null>(null);
@@ -179,9 +184,29 @@
     }
   }
 
-  function openMenu(e: MouseEvent, p: string) {
+  function openMenu(e: MouseEvent, p: string, dir = false) {
     e.preventDefault();
-    menu = { path: p, x: e.clientX, y: e.clientY };
+    ignoreOpen = false;
+    const m = { path: p, x: e.clientX, y: e.clientY, dir, ignore: [] as IgnoreOption[] };
+    menu = m;
+    api.IgnoreOptions(p, dir).then((o) => { if (menu?.path === p) menu = { ...menu, ignore: o ?? [] }; }).catch(() => {});
+  }
+
+  async function ignore(pattern: string) {
+    menu = null;
+    try {
+      await api.AddIgnoreRule(root, pattern);
+      toast(`Left out of versions: ${pattern} — a rule in .dawgit.yaml; commit it to share it with the team`, "ok", 7000);
+      await loadFiles(all);
+      onrules?.();
+    } catch (e) {
+      toast(errorText(e), "error", 9000);
+    }
+  }
+
+  function openFile(p: string) {
+    menu = null;
+    api.OpenInLive(root, p).catch((e) => toast(errorText(e), "error"));
   }
 
   // Ticking: each change, or a folder's changes at once.
@@ -215,6 +240,8 @@
   }
 
   const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", unchanged: "", ignored: "" };
+  const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted",
+    untracked: "No longer tracked: the rules leave it out now" };
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   const canDiscard = (f: ProjectFile | undefined) => !!f && (f.status === "added" || f.status === "modified" || f.status === "deleted");
 </script>
@@ -241,44 +268,51 @@
           {#if row.folder}
             {@const d = row.folder}
             <li>
+              <span class="indent" style:width="{row.depth * 14}px"></span>
+              <button class="ghost chevbtn" onclick={() => (open[d.path] = !open[d.path])} aria-label={open[d.path] ? "Close folder" : "Open folder"}>
+                <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
               {#if changedPaths.length}
                 {#if d.changed}
                   {@const fs = folderState(d.path)}
                   <input type="checkbox" class="pick" checked={fs === "on"} indeterminate={fs === "some"}
-                    title="Commit the changes in this folder" onchange={() => tick(inside(d.path), fs !== "on")} />
+                    title={fs === "some" ? "Some changes in this folder are ticked" : "Commit the changes in this folder"}
+                    onchange={() => tick(inside(d.path), fs !== "on")} />
                 {:else}<span class="pick"></span>{/if}
               {/if}
-              <button class="file dir" class:untracked={!d.tracked} class:changed={d.changed > 0} style:padding-left="{8 + row.depth * 14}px"
-                onclick={() => (open[d.path] = !open[d.path])} title={d.tracked ? d.path : `${d.path} — not tracked`}>
-                <svg class="chev" class:open={open[d.path]} viewBox="0 0 10 10" aria-hidden="true">
-                  <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+              <button class="file dir" class:untracked={!d.tracked} class:changed={d.changed > 0}
+                onclick={() => (open[d.path] = !open[d.path])} oncontextmenu={(e) => openMenu(e, d.path, true)} title={d.path}>
                 <FileIcon kind="folder" open={open[d.path]} faint={!d.tracked} />
                 <span class="fname">{d.name}</span>
-                {#if d.changed && !open[d.path]}<span class="count" title="Changed files inside">{d.changed}</span>{/if}
-                {#if !d.tracked}<span class="tag dir-tag">not tracked</span>{/if}
+                {#if d.changed && !open[d.path]}<span class="right"><span class="count" title="Changed files inside">{d.changed}</span></span>{/if}
               </button>
+              <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
           {:else}
             {@const f = row.file!}
             <li>
+              <span class="indent" style:width="{row.depth * 14}px"></span>
+              <span class="chevbtn"></span>
               {#if changedPaths.length}
                 {#if isChange(f)}
                   <input type="checkbox" class="pick" checked={!excluded[f.path]} title="Commit this change"
                     onchange={(e) => tick([f.path], (e.currentTarget as HTMLInputElement).checked)} />
                 {:else}<span class="pick"></span>{/if}
               {/if}
-              <button class="file {f.status}" class:on={f.path === selected} style:padding-left="{8 + row.depth * 14}px"
+              <button class="file {f.status}" class:on={f.path === selected}
                 onclick={() => select(f.path)} oncontextmenu={(e) => openMenu(e, f.path)} title={f.path}>
-                <span class="sym">{sym[f.status]}</span>
                 <FileIcon kind={f.kind} faint={f.status === "ignored" || f.status === "deleted"} />
                 <span class="fname">{name(f.path)}</span>
-                {#if f.live}
-                  {@const v = liveShort(f.live)}
-                  <span class="live" class:odd={usualLive && v !== usualLive}
-                    title={`Saved with ${f.live}${usualLive && v !== usualLive ? ` — most sets here use Live ${usualLive}` : ""}`}>{v}</span>
-                {/if}
-                {#if f.status === "ignored"}<span class="tag">not tracked</span>{/if}
+                <span class="right">
+                  {#if f.live}
+                    {@const v = liveShort(f.live)}
+                    <span class="live" class:odd={usualLive && v !== usualLive}
+                      title={`Saved with ${f.live}${usualLive && v !== usualLive ? ` — most sets here use Live ${usualLive}` : ""}`}>{v}</span>
+                  {/if}
+                  {#if sym[f.status]}<span class="sym" title={statusName[f.status]}>{sym[f.status]}</span>{/if}
+                </span>
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
             </li>
@@ -423,21 +457,39 @@
 </div>
 
 {#if menu}
-  {@const f = files.find((x) => x.path === menu!.path)}
-  <div class="ctx" role="menu" style:left="{Math.min(menu.x, window.innerWidth - 240)}px" style:top="{Math.min(menu.y, window.innerHeight - 200)}px">
-    <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(menu!.path)}>View file history</button>
-    {#if canDiscard(f)}
-      <button class="item danger-text" onclick={() => { const p = menu!.path; menu = null; ondiscard(p); }}>Discard changes…</button>
+  {@const m = menu}
+  {@const f = m.dir ? undefined : files.find((x) => x.path === m.path)}
+  <div class="ctx" role="menu" style:left="{Math.min(m.x, window.innerWidth - 240)}px" style:top="{Math.min(m.y, window.innerHeight - 260)}px">
+    {#if !m.dir && f && f.status !== "deleted"}
+      <button class="item" onclick={() => openFile(m.path)}>{f.kind === "set" ? "Open in Live" : f.kind === "audio" ? "Open in default player" : "Open"}</button>
     {/if}
-    <div class="sep"></div>
-    {#if f && f.status !== "deleted"}
-      <button class="item" onclick={() => { const p = menu!.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
-      {#if f.kind === "set"}
-        <button class="item" onclick={() => { const p = menu!.path; menu = null; api.OpenInLive(root, p); }}>Open in Live</button>
-      {:else if f.kind === "audio"}
-        <button class="item" onclick={() => { const p = menu!.path; menu = null; api.OpenInLive(root, p); }}>Open in default player</button>
-        <button class="item" onclick={() => { converting = menu!.path; menu = null; }}>Convert…</button>
+    {#if m.dir || (f && f.status !== "deleted")}
+      <button class="item" onclick={() => { menu = null; api.ShowFile(root, m.path).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
+    {/if}
+    {#if !m.dir}
+      <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>View file history</button>
+      {#if f?.kind === "audio" && f.status !== "deleted"}
+        <button class="item" onclick={() => { converting = m.path; menu = null; }}>Convert…</button>
       {/if}
+      {#if canDiscard(f)}
+        <button class="item danger-text" onclick={() => { menu = null; ondiscard(m.path); }}>Discard changes…</button>
+      {/if}
+    {/if}
+    {#if m.ignore.length}
+      <div class="sep"></div>
+      <div class="sub" role="none" onmouseenter={() => (ignoreOpen = true)} onmouseleave={() => (ignoreOpen = false)}>
+        <button class="item has-sub" onclick={() => (ignoreOpen = !ignoreOpen)} aria-expanded={ignoreOpen}>
+          Ignore<span class="arrow">›</span>
+        </button>
+        {#if ignoreOpen}
+          <div class="ctx submenu" role="menu" class:left={m.x > window.innerWidth - 480}>
+            {#each m.ignore as o}
+              <button class="item" onclick={() => ignore(o.pattern)}>{o.label}<span class="faint pat mono">{o.pattern}</span></button>
+            {/each}
+            <p class="faint note">Adds a rule to .dawgit.yaml: the files stay on disk, out of versions.</p>
+          </div>
+        {/if}
+      </div>
     {/if}
   </div>
 {/if}
@@ -465,21 +517,39 @@
   .empty { padding: 0 8px; font-size: 13px; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { position: relative; display: flex; align-items: center; height: 30px; }
-  .pick { flex: none; width: 14px; height: 14px; margin: 0 0 0 8px; accent-color: var(--accent); cursor: pointer; }
-  span.pick { cursor: default; }
+  .indent { flex: none; }
+  .chevbtn { flex: none; width: 18px; height: 22px; padding: 0; margin-left: 4px; display: flex; align-items: center;
+    justify-content: center; border: none; background: transparent; }
+  /* The commit box: ticked, unticked, or some of a folder (gray with a dash). */
+  .pick { appearance: none; position: relative; flex: none; width: 14px; height: 14px; margin: 0 4px 0 2px;
+    border: 1.5px solid var(--muted); border-radius: 3px; background: transparent; cursor: pointer; }
+  .pick:checked { background: var(--accent); border-color: var(--accent); }
+  .pick:checked::after { content: ""; position: absolute; left: 3.5px; top: 0.5px; width: 3.5px; height: 7.5px;
+    border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .pick:indeterminate { background: #5b606b; border-color: #5b606b; }
+  .pick:indeterminate::after { content: ""; position: absolute; left: 2px; right: 2px; top: 4.5px; height: 2px;
+    border-radius: 1px; background: #fff; }
+  .pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  span.pick { border-color: transparent; cursor: default; }
   .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .12s; }
   .chev.open { transform: rotate(90deg); }
   /* Folders read like files: bright when they hold changes, muted otherwise,
      faint when nothing inside is tracked. */
   .dir .fname { color: var(--muted); }
   .dir.changed .fname { color: var(--text); }
-  .dir.untracked .fname, .dir.untracked .chev { color: var(--faint); }
+  .dir.untracked .fname { color: var(--faint); }
   .count { font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; color: var(--mod); }
   .file { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; border: none; background: transparent;
-    padding: 5px 30px 5px 8px; border-radius: 6px; text-align: left; font-size: 13.5px; }
+    padding: 5px 30px 5px 4px; border-radius: 6px; text-align: left; font-size: 13.5px; }
   .file:hover { background: var(--panel); }
   .file.on { background: var(--panel-2); }
-  .sym { width: 12px; text-align: center; font-weight: 700; }
+  /* What changed, at the end of the row: a small colored square. */
+  .right { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
+  .sym { width: 16px; height: 16px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; line-height: 1; }
+  .file.added .sym { background: rgba(111, 207, 127, .16); }
+  .file.deleted .sym { background: rgba(229, 103, 95, .16); }
+  .file.modified .sym { background: rgba(106, 176, 243, .16); }
   .file.added .sym { color: var(--add); }
   .file.deleted .sym { color: var(--del); }
   .file.modified .sym { color: var(--mod); }
@@ -491,14 +561,6 @@
   .live { font-size: 10.5px; padding: 0 5px; border-radius: 7px; background: #33363d; color: var(--muted);
     font-variant-numeric: tabular-nums; flex: none; }
   .live.odd { background: var(--warn-bg); color: var(--warn); }
-  /* Untracked shows as a faint name; the label only on hover, laid over the
-     end of the name so rows don't shift. */
-  .tag { position: absolute; right: 30px; top: 50%; transform: translateY(-50%); display: none; pointer-events: none;
-    font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 5px;
-    background: var(--panel); box-shadow: -10px 0 8px var(--panel); white-space: nowrap; }
-  .tag.dir-tag { right: 8px; }
-  .file:hover .tag, li:hover .tag { display: block; }
-  .file.on .tag { background: var(--panel-2); box-shadow: -10px 0 8px var(--panel-2); }
   .more { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); visibility: hidden; padding: 0 6px; }
   li:hover .more { visibility: visible; }
 
@@ -535,6 +597,14 @@
     border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }
   .ctx .item { display: block; width: 100%; border: none; background: transparent; padding: 6px 8px; text-align: left; }
   .ctx .item:hover:not(:disabled) { background: #33363d; }
+  .sub { position: relative; }
+  .has-sub { display: flex !important; align-items: center; }
+  .arrow { margin-left: auto; color: var(--muted); }
+  .submenu { position: absolute; left: calc(100% + 2px); top: -6px; min-width: 250px; }
+  .submenu.left { left: auto; right: calc(100% + 2px); }
+  .submenu .item { display: flex; flex-direction: column; gap: 1px; }
+  .pat { font-size: 11px; }
+  .note { margin: 6px 8px 2px; font-size: 11px; line-height: 1.4; }
   .danger-text { color: var(--danger); }
   .sep { height: 1px; background: var(--line); margin: 6px 0; }
 </style>

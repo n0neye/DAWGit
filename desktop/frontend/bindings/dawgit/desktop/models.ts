@@ -261,6 +261,34 @@ export class FoundProject {
     }
 }
 
+/**
+ * IgnoreOption is a rule offered for leaving a file or folder out.
+ */
+export class IgnoreOption {
+    "label": string;
+    "pattern": string;
+
+    /** Creates a new IgnoreOption instance. */
+    constructor($$source: Partial<IgnoreOption> = {}) {
+        if (!("label" in $$source)) {
+            this["label"] = "";
+        }
+        if (!("pattern" in $$source)) {
+            this["pattern"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new IgnoreOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): IgnoreOption {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new IgnoreOption($$parsedSource as Partial<IgnoreOption>);
+    }
+}
+
 export class Overview {
     "author": string;
     "teams": TeamSummary[];

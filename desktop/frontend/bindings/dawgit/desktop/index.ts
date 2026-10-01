@@ -13,6 +13,7 @@ export {
     ConvertFormat,
     FileVersion,
     FoundProject,
+    IgnoreOption,
     Overview,
     Preview,
     ProjectFile,

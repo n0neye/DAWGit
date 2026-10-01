@@ -764,7 +764,7 @@
             {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
         {/snippet}
-        <ChangesPanel {root} st={st} {summary} bind:excluded ondiscard={(p) => (discardFile = p)}
+        <ChangesPanel {root} st={st} {summary} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
           ondiscardall={() => (discardAllOpen = true)}
           onrestore={(path, version, label) => (restoreFile = { path, version, label })} />
       {:else if tab === "history"}
