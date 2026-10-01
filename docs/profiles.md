@@ -57,7 +57,7 @@ The built-in presets:
 | --- | --- | --- | --- |
 | `ableton` | Ableton Live projects | an `Ableton Project Info` folder or a `.als` file | `/Backup/`, `*.asd` |
 
-A preset can ask for the project's `.gitignore` files (`gitignore: true`), and can be a fallback (`fallback: true`): detected only when no other preset is, so that a folder with a `.gitignore` can be a code project unless it is also, say, a Unity project.
+A preset can ask for the project's `.gitignore` files (`gitignore: true`), and has a `priority` for detection (0 by default): when several presets recognize a folder, the highest wins. So a folder with a `.gitignore` can be a code project (a low priority) unless it is also, say, a Unity project.
 
 A preset also tells DAWGit which built-in code handles which files, what to check before rewriting files, and how files are grouped and shown in the app. The handlers a preset can name:
 

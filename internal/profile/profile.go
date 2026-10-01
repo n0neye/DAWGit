@@ -54,9 +54,11 @@ type Preset struct {
 	Kinds    map[string][]string `yaml:"kinds"`
 	// Gitignore: follow the project's .gitignore files too.
 	Gitignore bool `yaml:"gitignore"`
-	// Fallback: detected only when no other preset is (e.g. a .gitignore
-	// says "code", unless the folder is also a Unity project).
-	Fallback bool `yaml:"fallback"`
+	// Priority orders detection: when several presets recognize a folder,
+	// the highest wins (0 by default; tools' own project folders, like
+	// Unity's, before general ones: design files, then code, which a
+	// .gitignore alone suggests).
+	Priority int `yaml:"priority"`
 }
 
 // Open is what the app offers to open in the tool: files matching Files in
@@ -244,14 +246,14 @@ func plainYAMLError(err error) string {
 // Detect finds the preset of a project without .dawgit.yaml.
 func Detect(root string) *Profile {
 	p := &Profile{root: root}
-	// Specific presets first, then fallbacks (see Preset.Fallback).
-	for _, fallback := range []bool{false, true} {
-		for _, name := range Names() {
-			if builtin[name].Fallback == fallback && detects(builtin[name], root) {
-				p.applied = append(p.applied, applied{Applied: Applied{Folder: "", Preset: name, Detected: true}, preset: builtin[name]})
-				p.followGitignore()
-				return p
-			}
+	// The highest priority first (see Preset.Priority), then by name.
+	names := Names()
+	sort.SliceStable(names, func(i, j int) bool { return builtin[names[i]].Priority > builtin[names[j]].Priority })
+	for _, name := range names {
+		if detects(builtin[name], root) {
+			p.applied = append(p.applied, applied{Applied: Applied{Folder: "", Preset: name, Detected: true}, preset: builtin[name]})
+			p.followGitignore()
+			return p
 		}
 	}
 	return p

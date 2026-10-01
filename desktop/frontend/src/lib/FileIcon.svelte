@@ -70,6 +70,15 @@
     <circle cx="8" cy="8" r="6" class="line" />
     <ellipse cx="8" cy="8" rx="2.6" ry="6" class="line" />
     <path d="M2 8 H14" class="line" />
+  {:else if kind === "video"}
+    <!-- a frame with a play mark -->
+    <rect x="1.5" y="3" width="13" height="10" rx="2" class="line" />
+    <path d="M6.5 5.8 L10.5 8 L6.5 10.2 Z" class="solid" />
+  {:else if kind === "design"}
+    <!-- a pen nib -->
+    <path d="M8 1.8 L12.5 7 L10 13.8 H6 L3.5 7 Z" class="line" stroke-linejoin="round" />
+    <path d="M8 1.8 V8.2" class="line" />
+    <circle cx="8" cy="9" r="1" class="solid" />
   {:else if kind === "meta"}
     <!-- a tag -->
     <path d="M2 3.5 a1.5 1.5 0 0 1 1.5 -1.5 h4 l6.5 6.5 l-5.5 5.5 l-6.5 -6.5 Z" class="line" stroke-linejoin="round" />
