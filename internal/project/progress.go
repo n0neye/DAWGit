@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Stages reported while saving or downloading a project.
@@ -34,9 +35,12 @@ func (r *Repo) report(stage string, done, total int) {
 }
 
 // transfer tracks the bytes of one upload or download of several files.
+// transfer counts an upload or download; files go several at a time, so
+// it is safe for concurrent use (and reports one at a time).
 type transfer struct {
 	r                 *Repo
 	stage             string
+	mu                sync.Mutex
 	done, total       int
 	bytes, totalBytes int64
 }
@@ -46,9 +50,23 @@ func (r *Repo) newTransfer(stage string, files int, totalBytes int64) *transfer 
 }
 
 func (t *transfer) report() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.reportLocked()
+}
+
+func (t *transfer) reportLocked() {
 	if t.r.OnProgress != nil {
 		t.r.OnProgress(Progress{Stage: t.stage, Done: t.done, Total: t.total, Bytes: t.bytes, TotalBytes: t.totalBytes})
 	}
+}
+
+// fileDone counts a finished file.
+func (t *transfer) fileDone() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.done++
+	t.reportLocked()
 }
 
 // reader counts what passes through rd. Size lets uploads stream a file of
@@ -66,8 +84,10 @@ type countingReader struct {
 func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.rd.Read(p)
 	if n > 0 {
+		c.t.mu.Lock()
 		c.t.bytes += int64(n)
-		c.t.report()
+		c.t.reportLocked()
+		c.t.mu.Unlock()
 	}
 	return n, err
 }
