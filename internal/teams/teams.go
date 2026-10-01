@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"dawgit/internal/remote"
+	"dawgit/internal/version"
 )
 
 type Team struct {
@@ -55,7 +56,9 @@ func Dir() string {
 	if err != nil {
 		d = "."
 	}
-	return filepath.Join(d, "DAWGit")
+	// A build with extensions keeps its own teams and settings
+	// (%APPDATA%\DAWGit Pro), so it can run next to the public app.
+	return filepath.Join(d, version.Name())
 }
 
 // Load reads the store; a missing file is an empty store.
