@@ -29,3 +29,28 @@ func TestCaseOnlyRenameSurvivesCheckout(t *testing.T) {
 		t.Errorf("after going forward: %v", err)
 	}
 }
+
+// Projects from Perforce have read-only files: going between versions and
+// restoring a file still work.
+func TestReadOnlyFilesDontStopCheckout(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	p := filepath.Join(root, "Kick.wav")
+	os.WriteFile(p, []byte("kick"), 0o644)
+	a := mustSnapshot(t, r, "a")
+	os.Chmod(p, 0o644)
+	os.WriteFile(p, []byte("kick 2"), 0o644)
+	os.WriteFile(filepath.Join(root, "Snare.wav"), []byte("snare"), 0o644)
+	b := mustSnapshot(t, r, "b")
+	os.Chmod(p, 0o444)
+	os.Chmod(filepath.Join(root, "Snare.wav"), 0o444)
+	if _, _, err := r.GoTo(a.ID, false); err != nil {
+		t.Fatalf("back with read-only files: %v", err)
+	}
+	if _, _, err := r.GoTo(b.ID, false); err != nil {
+		t.Fatalf("forward: %v", err)
+	}
+	if err := r.RestoreFile("Kick.wav", a.ID); err != nil {
+		t.Fatalf("restore over read-only: %v", err)
+	}
+}

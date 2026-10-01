@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"dawgit/internal/als"
+	"dawgit/internal/store"
 	"dawgit/internal/xmltree"
 )
 
@@ -72,7 +73,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	// after writing the new one would remove it.
 	for p := range have {
 		if _, ok := want[p]; !ok && !target.Ignored(p, false) {
-			if err := os.Remove(r.Abs(p)); err != nil {
+			if err := store.Remove(r.Abs(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, nil, err
 			}
 			delete(ix.entries, p)

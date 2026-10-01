@@ -67,7 +67,7 @@ func (s *Store) Put(r io.Reader) (string, int64, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return "", 0, err
 	}
-	if err := os.Rename(tmp.Name(), dst); err != nil && !s.Has(hash) {
+	if err := Replace(tmp.Name(), dst); err != nil && !s.Has(hash) {
 		return "", 0, err
 	}
 	return hash, n, nil
@@ -131,7 +131,7 @@ func WriteAtomic(path string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	return Replace(tmp.Name(), path)
 }
 
 // HashFile returns the SHA-256 of a file without storing it.

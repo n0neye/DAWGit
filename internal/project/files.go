@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"dawgit/internal/diff"
+	"dawgit/internal/store"
 )
 
 // ProjectFile is a file in the project folder as the app lists it.
@@ -228,7 +229,7 @@ func (r *Repo) RestoreFile(path, version string) error {
 	}
 	f, ok := m.FileMap()[path]
 	if !ok {
-		if err := os.Remove(r.Abs(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := store.Remove(r.Abs(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 		return nil

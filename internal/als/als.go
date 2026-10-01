@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	"dawgit/internal/store"
 	"dawgit/internal/xmltree"
 )
 
@@ -85,7 +86,8 @@ func (s *LiveSet) Gzip() []byte {
 }
 
 func (s *LiveSet) Save(path string) error {
-	return os.WriteFile(path, s.Gzip(), 0o644)
+	// Whole or not at all: a set half written is a set lost.
+	return store.WriteAtomic(path, bytes.NewReader(s.Gzip()))
 }
 
 // Clone returns an independent deep copy.
