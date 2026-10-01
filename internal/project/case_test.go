@@ -1,9 +1,11 @@
 package project
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // On Windows "Kick.wav" and "kick.wav" are the same file: going between
@@ -53,4 +55,29 @@ func TestReadOnlyFilesDontStopCheckout(t *testing.T) {
 	if err := r.RestoreFile("Kick.wav", a.ID); err != nil {
 		t.Fatalf("restore over read-only: %v", err)
 	}
+}
+
+// Only one program changes a project at a time.
+func TestProjectLock(t *testing.T) {
+	root := newProject(t)
+	r, _ := Init(root, "yi")
+	mustSnapshot(t, r, "first")
+	unlock, err := r.Lock(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := Open(root)
+	if _, err := other.Lock(200 * time.Millisecond); !errors.Is(err, ErrBusy) {
+		t.Fatalf("second lock: %v", err)
+	}
+	go func() {
+		time.Sleep(150 * time.Millisecond)
+		unlock()
+	}()
+	release, err := other.Lock(2 * time.Second)
+	if err != nil {
+		t.Fatalf("after release: %v", err)
+	}
+	release()
+	assertClean(t, r) // the lock file isn't a project file
 }

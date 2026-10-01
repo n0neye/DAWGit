@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
@@ -487,11 +488,17 @@ func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
 		return TeamProject{}, fmt.Errorf("this project already belongs to another team (%s)", r.Config.Remote.URL)
 	}
 	unlock := a.lock(r.Root)
-	if err := r.JoinTeam(t); err != nil {
+	release, err := r.Lock(30 * time.Second)
+	if err != nil {
 		unlock()
 		return TeamProject{}, err
 	}
+	err = r.JoinTeam(t)
+	release()
 	unlock()
+	if err != nil {
+		return TeamProject{}, err
+	}
 	// The project now lives in this team, so show that team.
 	if err := a.SelectTeam(teamID); err != nil {
 		return TeamProject{}, err

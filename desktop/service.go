@@ -91,9 +91,15 @@ func (a *App) open(root string) (*project.Repo, func(), error) {
 		unlock()
 		return nil, nil, err
 	}
+	// Other programs (the command line, the other edition) wait their turn.
+	release, err := r.Lock(30 * time.Second)
+	if err != nil {
+		unlock()
+		return nil, nil, err
+	}
 	var done func()
 	r.OnProgress, done = a.progressFor(r.Root)
-	return r, func() { done(); unlock() }, nil
+	return r, func() { done(); release(); unlock() }, nil
 }
 
 // ProgressEvent tells the frontend how a long step (save, upload, download)

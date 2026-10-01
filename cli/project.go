@@ -5,11 +5,23 @@ import (
 	"flag"
 	"fmt"
 	"strings"
+	"time"
 
 	"dawgit/internal/project"
 )
 
-func openRepo() (*project.Repo, error) { return project.Open(".") }
+// openRepo opens the project here, kept from other programs (the app) until
+// the command ends.
+func openRepo() (*project.Repo, error) {
+	r, err := project.Open(".")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := r.Lock(10 * time.Second); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
 
 func short(id string) string { return id[:min(10, len(id))] }
 
