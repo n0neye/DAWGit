@@ -362,6 +362,22 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 			roots = append(roots, m.Tree)
 		}
 	}
+	// Storage cleanup (on any computer) leaves what this share relies on,
+	// including files the storage has already, until the versions are up.
+	if l, ok := c.(remote.Leaser); ok && len(objects)+len(roots) > 0 {
+		leased := dedupe(objects)
+		if err := r.walkTrees(roots, func(h string, _ []manifest.TreeEntry) error {
+			leased = append(leased, h)
+			return nil
+		}); err != nil {
+			return err
+		}
+		release, err := l.Lease(leased)
+		if err != nil {
+			return err
+		}
+		defer release()
+	}
 	if err := r.uploadObjects(c, objects); err != nil {
 		return err
 	}

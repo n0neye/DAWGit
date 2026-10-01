@@ -19,6 +19,7 @@ export {
     Result,
     RulesInfo,
     State,
+    StorageCleanup,
     TeamConnection,
     TeamPart,
     TeamProject,

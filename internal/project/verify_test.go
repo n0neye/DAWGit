@@ -105,3 +105,32 @@ func mustTree(t *testing.T, r *Repo, h string) []manifest.TreeEntry {
 	}
 	return es
 }
+
+// A shared project's files and folder lists all count as used by storage
+// cleanup: nothing of it waits to be deleted.
+func TestStorageCleanupKeepsSharedProject(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	cfg := remote.Config{URL: "s3+" + fake.URL + "/team/dawgit", AccessKey: "key", SecretKey: "secret"}
+	r, _ := Init(newProject(t), "yi")
+	if err := r.SetRemote(remote.EncodeConnectionCode(cfg), ""); err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Join(r.Root, "Stems"), 0o755)
+	os.WriteFile(filepath.Join(r.Root, "Stems", "bass.wav"), []byte("bass"), 0o644)
+	if _, _, err := r.Save("first", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(r.Root, "Stems", "bass.wav"), []byte("bass 2"), 0o644)
+	if _, _, err := r.Save("second", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := remote.Open(cfg)
+	rep, err := b.(*remote.S3Backend).CollectGarbage(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Versions != 2 || rep.Waiting != 0 || rep.Deleted != 0 || rep.Used != rep.Stored {
+		t.Fatalf("cleanup of a shared project: %+v", rep)
+	}
+}

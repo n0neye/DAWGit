@@ -208,8 +208,15 @@ func (b *S3Backend) list(dir string, delim bool) ([]string, error) {
 }
 
 type listing struct {
-	keys []string // relative to prefix: keys, or sub-"folders" with delim
-	next string   // continuation token; "" on the last page
+	keys  []string   // relative to prefix: keys, or sub-"folders" with delim
+	items []listItem // the keys' sizes and times (without delim)
+	next  string     // continuation token; "" on the last page
+}
+
+type listItem struct {
+	key      string
+	size     int64
+	modified time.Time
 }
 
 // listPage returns one page (up to 1000 keys) under dir, after the key
@@ -233,7 +240,11 @@ func (b *S3Backend) listPage(dir string, delim bool, startAfter, token string) (
 		return listing{}, s3Error(r)
 	}
 	var res struct {
-		Contents []struct{ Key string }
+		Contents []struct {
+			Key          string
+			Size         int64
+			LastModified string
+		}
 		Prefixes []struct {
 			Prefix string
 		} `xml:"CommonPrefixes"`
@@ -250,7 +261,10 @@ func (b *S3Backend) listPage(dir string, delim bool, startAfter, token string) (
 		}
 	} else {
 		for _, c := range res.Contents {
-			out.keys = append(out.keys, strings.TrimPrefix(c.Key, b.prefix))
+			key := strings.TrimPrefix(c.Key, b.prefix)
+			out.keys = append(out.keys, key)
+			t, _ := time.Parse(time.RFC3339Nano, c.LastModified)
+			out.items = append(out.items, listItem{key, c.Size, t})
 		}
 	}
 	if res.IsTruncated {

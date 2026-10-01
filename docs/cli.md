@@ -80,6 +80,15 @@ dawgit verify --repair   # bring back what can be: from the project folder or th
 
 The app does the same from a project's ⋯ menu in the sidebar (**Check project…**). A file damaged here (a failing disk, say) comes back from a file in the project folder with the same content, or from the team's storage; what has no copy left anywhere is listed with the version it's in.
 
+## Cleaning up the team's storage
+
+```
+dawgit storage-cleanup            # files in the team's storage no version of any project uses
+dawgit storage-cleanup --delete   # delete those that are due
+```
+
+Or in the app: the team's settings (⚙) → **Storage cleanup**. Deleted projects and uploads that stopped leave files behind. A file is deleted only once a cleanup has found it unused a day before and it is at least a week old; files a teammate's share in progress relies on are never deleted. Works on teams that use S3 or R2 storage.
+
 ## Working with Live Sets directly
 
 ```

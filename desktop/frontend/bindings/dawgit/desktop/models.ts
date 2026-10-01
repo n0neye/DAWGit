@@ -733,6 +733,78 @@ export class State {
 }
 
 /**
+ * StorageCleanup is what cleaning up a team's storage found (and did).
+ */
+export class StorageCleanup {
+    /**
+     * version records read, all projects
+     */
+    "versions": number;
+
+    /**
+     * files in storage
+     */
+    "stored": number;
+
+    /**
+     * Unused files: due for deleting now; waiting (all unused, when only
+     * checking); deleted.
+     */
+    "unused": number;
+    "unusedBytes": number;
+    "due": number;
+    "dueBytes": number;
+    "deleted": number;
+    "deletedBytes": number;
+
+    /**
+     * when waiting files can go (RFC 3339), "" if none
+     */
+    "nextCleanup": string;
+
+    /** Creates a new StorageCleanup instance. */
+    constructor($$source: Partial<StorageCleanup> = {}) {
+        if (!("versions" in $$source)) {
+            this["versions"] = 0;
+        }
+        if (!("stored" in $$source)) {
+            this["stored"] = 0;
+        }
+        if (!("unused" in $$source)) {
+            this["unused"] = 0;
+        }
+        if (!("unusedBytes" in $$source)) {
+            this["unusedBytes"] = 0;
+        }
+        if (!("due" in $$source)) {
+            this["due"] = 0;
+        }
+        if (!("dueBytes" in $$source)) {
+            this["dueBytes"] = 0;
+        }
+        if (!("deleted" in $$source)) {
+            this["deleted"] = 0;
+        }
+        if (!("deletedBytes" in $$source)) {
+            this["deletedBytes"] = 0;
+        }
+        if (!("nextCleanup" in $$source)) {
+            this["nextCleanup"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StorageCleanup instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StorageCleanup {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new StorageCleanup($$parsedSource as Partial<StorageCleanup>);
+    }
+}
+
+/**
  * TeamConnection is how this computer reaches a team: storage fields, or a
  * server address and token.
  */

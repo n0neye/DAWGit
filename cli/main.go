@@ -51,6 +51,8 @@ advanced:
                                          leftovers no version uses)
   verify [--repair]                      check the history: every version and stored file;
                                          --repair brings back what it can
+  storage-cleanup [--delete]             files in the team's storage no version uses; --delete
+                                         deletes those unused for a day (and a week old)
 
 set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
@@ -99,6 +101,8 @@ func Main() {
 		err = cmdGC()
 	case "verify":
 		code, err = cmdVerify(os.Args[2:])
+	case "storage-cleanup":
+		err = cmdStorageCleanup(os.Args[2:])
 	case "profile":
 		err = cmdProfile(os.Args[2:])
 	case "serve":

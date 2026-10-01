@@ -3,6 +3,7 @@ package desktop
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
@@ -154,4 +155,52 @@ func (a *App) repoint(root, url string) {
 		unlock()
 	}
 	a.startAgent(root)
+}
+
+// StorageCleanup is what cleaning up a team's storage found (and did).
+type StorageCleanup struct {
+	Versions int `json:"versions"` // version records read, all projects
+	Stored   int `json:"stored"`   // files in storage
+	// Unused files: due for deleting now; waiting (all unused, when only
+	// checking); deleted.
+	Unused       int    `json:"unused"`
+	UnusedBytes  int64  `json:"unusedBytes"`
+	Due          int    `json:"due"`
+	DueBytes     int64  `json:"dueBytes"`
+	Deleted      int    `json:"deleted"`
+	DeletedBytes int64  `json:"deletedBytes"`
+	NextCleanup  string `json:"nextCleanup"` // when waiting files can go (RFC 3339), "" if none
+}
+
+// CleanUpStorage finds files in a team's storage that no version of any
+// project uses; with remove it deletes those found unused at least a day
+// before (and not written in the last week). See remote.CollectGarbage.
+func (a *App) CleanUpStorage(teamID string, remove bool) (*StorageCleanup, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return nil, errors.New("unknown team")
+	}
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return nil, err
+	}
+	s3, ok := b.(*remote.S3Backend)
+	if !ok {
+		return nil, errors.New("cleanup works on teams that use S3 or R2 storage")
+	}
+	rep, err := s3.CollectGarbage(remove)
+	if err != nil {
+		return nil, err
+	}
+	out := &StorageCleanup{Versions: rep.Versions, Stored: rep.Stored, Due: rep.Due, DueBytes: rep.DueBytes,
+		Deleted: rep.Deleted, DeletedBytes: rep.DeletedBytes,
+		Unused: rep.Waiting + rep.Deleted, UnusedBytes: rep.WaitingBytes + rep.DeletedBytes}
+	if !rep.NextCleanup.IsZero() {
+		out.NextCleanup = rep.NextCleanup.UTC().Format(time.RFC3339)
+	}
+	return out, nil
 }

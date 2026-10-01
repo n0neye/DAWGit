@@ -17,11 +17,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type object struct {
-	data []byte
-	etag string
+	data     []byte
+	etag     string
+	modified time.Time
 }
 
 type Server struct {
@@ -37,6 +39,9 @@ type Server struct {
 	IgnoreConditions bool
 	// FailPart makes uploading that part number of a multipart upload fail.
 	FailPart int
+	// Clock is when objects are written (time.Now when nil): tests set it
+	// to make objects old.
+	Clock func() time.Time
 
 	uploads map[string]*upload // multipart uploads in progress
 	nextID  int
@@ -49,6 +54,13 @@ func New(buckets ...string) *Server {
 	}
 	s.Server = httptest.NewServer(http.HandlerFunc(s.handle))
 	return s
+}
+
+func (s *Server) now() time.Time {
+	if s.Clock != nil {
+		return s.Clock()
+	}
+	return time.Now()
 }
 
 func xmlError(w http.ResponseWriter, status int, code string) {
@@ -123,7 +135,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sum := md5.Sum(data)
-		o := &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `"`}
+		o := &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `"`, modified: s.now()}
 		bucket[key] = o
 		w.Header().Set("ETag", o.etag)
 		w.WriteHeader(http.StatusOK)
@@ -208,7 +220,7 @@ func (s *Server) completeUpload(w http.ResponseWriter, r *http.Request, bucket m
 		data = append(data, part...)
 	}
 	sum := md5.Sum(data)
-	bucket[key] = &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `-multipart"`}
+	bucket[key] = &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `-multipart"`, modified: s.now()}
 	delete(s.uploads, id)
 	fmt.Fprintf(w, "<CompleteMultipartUploadResult><Key>%s</Key></CompleteMultipartUploadResult>", key)
 }
@@ -265,7 +277,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, bucket map[string]
 		}
 	}
 	end := min(len(entries), start+s.PageSize)
-	type content struct{ Key string }
+	type content struct {
+		Key          string
+		Size         int
+		LastModified string
+	}
 	type cp struct{ Prefix string }
 	res := struct {
 		XMLName               xml.Name  `xml:"ListBucketResult"`
@@ -278,7 +294,8 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, bucket map[string]
 		if common[e] {
 			res.CommonPrefixes = append(res.CommonPrefixes, cp{e})
 		} else {
-			res.Contents = append(res.Contents, content{e})
+			o := bucket[e]
+			res.Contents = append(res.Contents, content{e, len(o.data), o.modified.UTC().Format(time.RFC3339Nano)})
 		}
 	}
 	if res.IsTruncated {
