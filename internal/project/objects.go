@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"dawgit/internal/manifest"
 	"dawgit/internal/profile"
 	"dawgit/internal/store"
 )
@@ -169,18 +171,14 @@ func (r *Repo) ensureHashes(hashes []string) error {
 	return r.fetchObjects(c, need)
 }
 
-// allManifests reads every version stored here.
+// allManifests reads every version stored here, with its files.
 func (r *Repo) allManifests() ([]*Manifest, error) {
-	entries, err := os.ReadDir(filepath.Join(r.Dir, "snapshots"))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	ids, err := r.storedVersions()
+	if err != nil {
 		return nil, err
 	}
 	var out []*Manifest
-	for _, e := range entries {
-		id, ok := strings.CutSuffix(e.Name(), ".json")
-		if !ok {
-			continue
-		}
+	for _, id := range ids {
 		if m, err := r.Load(id); err == nil {
 			out = append(out, m)
 		}
@@ -188,27 +186,71 @@ func (r *Repo) allManifests() ([]*Manifest, error) {
 	return out, nil
 }
 
+// storedVersions lists the ids of the versions stored here.
+func (r *Repo) storedVersions() ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(r.Dir, "snapshots"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	var ids []string
+	for _, e := range entries {
+		if id, ok := strings.CutSuffix(e.Name(), ".json"); ok {
+			ids = append(ids, id)
+		}
+	}
+	return ids, nil
+}
+
 // referenced lists every object a version here refers to; sets marks those
 // kept on this computer anyway: Live Sets, and the rules (.dawgit.yaml) that
-// decide what an update may delete.
+// decide what an update may delete. Versions share most folders: each
+// folder's list is read once.
 func (r *Repo) referenced() (all map[string]int64, sets map[string]bool, err error) {
-	ms, err := r.allManifests()
+	ids, err := r.storedVersions()
 	if err != nil {
 		return nil, nil, err
 	}
 	all, sets = map[string]int64{}, map[string]bool{}
-	for _, m := range ms {
-		for _, f := range m.Files {
-			all[f.Hash] = f.Size
-			if isSet(f.Path) || f.Path == profile.FileName {
-				sets[f.Hash] = true
-			}
+	add := func(path string, f FileEntry) {
+		all[f.Hash] = f.Size
+		if isSet(path) || path == profile.FileName {
+			sets[f.Hash] = true
+		}
+	}
+	tops := map[string]bool{}
+	for _, id := range ids {
+		m, err := r.readRecord(id)
+		if err != nil {
+			continue
+		}
+		for _, f := range m.Files { // format 1
+			add(f.Path, f)
 		}
 		for _, f := range m.External {
 			all[f.Hash] = f.Size
 		}
+		if m.Tree != "" {
+			tops[m.Tree] = true
+		}
 	}
-	return all, sets, nil
+	var roots []string
+	for h := range tops {
+		roots = append(roots, h)
+	}
+	err = r.walkTrees(roots, func(h string, entries []manifest.TreeEntry) error {
+		for _, e := range entries {
+			if e.Dir {
+				continue
+			}
+			name := e.Name // a set by its name; the rules file only at the top
+			if !tops[h] && name == profile.FileName {
+				name = "sub/" + name
+			}
+			add(name, FileEntry{Hash: e.Hash, Size: e.Size})
+		}
+		return nil
+	})
+	return all, sets, err
 }
 
 // PruneObjects removes local copies of a team project's samples and other
@@ -344,8 +386,10 @@ func (r *Repo) DownloadHistory() error {
 	for h := range all {
 		hs = append(hs, h)
 	}
-	ms, _ := r.allManifests()
-	r.knowSizes(ms...)
+	if r.sizes == nil {
+		r.sizes = map[string]int64{}
+	}
+	maps.Copy(r.sizes, all)
 	return r.ensureHashes(hs)
 }
 

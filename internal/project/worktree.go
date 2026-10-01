@@ -1,6 +1,9 @@
 package project
 
 import (
+	"bytes"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"io/fs"
 	"os"
@@ -123,9 +126,25 @@ type index struct {
 	dirty   bool
 }
 
+// The index is kept in .dawgit/index.bin (binary: a big project has a
+// hundred thousand entries, read on every status). Projects from before
+// have index.json, read once and replaced.
+const (
+	indexFile    = "index.bin"
+	oldIndexFile = "index.json"
+	indexMagic   = "DAWGIT-INDEX-1\n"
+)
+
 func (r *Repo) loadIndex() *index {
-	ix := &index{path: filepath.Join(r.Dir, "index.json"), entries: map[string]indexEntry{}}
-	_ = readJSON(ix.path, &ix.entries)
+	ix := &index{path: filepath.Join(r.Dir, indexFile), entries: map[string]indexEntry{}}
+	data, err := os.ReadFile(ix.path)
+	if err == nil && decodeIndex(data, ix.entries) == nil {
+		return ix
+	}
+	clear(ix.entries)
+	if readJSON(filepath.Join(r.Dir, oldIndexFile), &ix.entries) == nil {
+		ix.dirty = true // saved in the new form
+	}
 	return ix
 }
 
@@ -133,7 +152,65 @@ func (ix *index) save() error {
 	if !ix.dirty {
 		return nil
 	}
-	return writeJSON(ix.path, ix.entries)
+	if err := store.WriteAtomic(ix.path, bytes.NewReader(encodeIndex(ix.entries))); err != nil {
+		return err
+	}
+	os.Remove(filepath.Join(filepath.Dir(ix.path), oldIndexFile))
+	ix.dirty = false
+	return nil
+}
+
+// encodeIndex: the magic line, then per entry the path (length first),
+// size, time, object size (varints) and the hash (32 bytes).
+func encodeIndex(entries map[string]indexEntry) []byte {
+	b := make([]byte, 0, 64+len(entries)*80)
+	b = append(b, indexMagic...)
+	for rel, e := range entries {
+		raw, err := hex.DecodeString(e.Hash)
+		if err != nil || len(raw) != 32 {
+			continue // not a content hash: hashed again when needed
+		}
+		b = binary.AppendUvarint(b, uint64(len(rel)))
+		b = append(b, rel...)
+		b = binary.AppendVarint(b, e.Size)
+		b = binary.AppendVarint(b, e.Mtime)
+		b = binary.AppendVarint(b, e.ObjSize)
+		b = append(b, raw...)
+	}
+	return b
+}
+
+func decodeIndex(data []byte, into map[string]indexEntry) error {
+	bad := errors.New("damaged index")
+	rest, ok := bytes.CutPrefix(data, []byte(indexMagic))
+	if !ok {
+		return bad
+	}
+	varint := func() (int64, bool) {
+		v, n := binary.Varint(rest)
+		if n <= 0 {
+			return 0, false
+		}
+		rest = rest[n:]
+		return v, true
+	}
+	for len(rest) > 0 {
+		l, n := binary.Uvarint(rest)
+		if n <= 0 || uint64(len(rest)-n) < l {
+			return bad
+		}
+		rel := string(rest[n : n+int(l)])
+		rest = rest[n+int(l):]
+		size, ok1 := varint()
+		mtime, ok2 := varint()
+		objSize, ok3 := varint()
+		if !ok1 || !ok2 || !ok3 || len(rest) < 32 {
+			return bad
+		}
+		into[rel] = indexEntry{Size: size, Mtime: mtime, ObjSize: objSize, Hash: hex.EncodeToString(rest[:32])}
+		rest = rest[32:]
+	}
+	return nil
 }
 
 // record associates the file's current stat with object hash (of objSize bytes).

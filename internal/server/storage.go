@@ -140,7 +140,11 @@ func (s *Storage) PutSnapshot(pid, id string, data []byte) error {
 	if err != nil {
 		return err
 	}
-	for _, h := range m.Objects() {
+	refs := m.Objects()
+	if m.Tree != "" { // format 2: its folders' lists go up before it
+		refs = append(refs, m.Tree)
+	}
+	for _, h := range refs {
 		if !s.Objects.Has(h) {
 			return fmt.Errorf("snapshot %s references missing object %s", id[:10], h[:10])
 		}

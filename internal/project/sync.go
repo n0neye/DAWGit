@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/teams"
 )
@@ -190,10 +191,19 @@ func (r *Repo) fetchSnapshots(c remote.Backend, id string) error {
 		if err != nil {
 			return fmt.Errorf("download version %s: %w", short(cur), err)
 		}
+		m, err := manifest.Parse(cur, data)
+		if err != nil {
+			return err
+		}
+		// Its folders first: a version stored here can always be read.
+		if m.Tree != "" {
+			if err := r.fetchTrees(c, m.Tree); err != nil {
+				return err
+			}
+		}
 		if err := r.storeSnapshot(cur, data); err != nil {
 			return err
 		}
-		m, _ := r.Load(cur)
 		stack = append(stack, m.Parents...)
 	}
 	return nil
@@ -309,7 +319,7 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 	}
 	// Every file the missing versions need, asked about and uploaded once
 	// (versions share most of their files), before any version refers to them.
-	var objects []string
+	var objects, roots []string
 	for _, id := range order {
 		if !need[id] {
 			continue
@@ -319,8 +329,15 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 			return err
 		}
 		objects = append(objects, m.Objects()...)
+		if m.Tree != "" {
+			roots = append(roots, m.Tree)
+		}
 	}
 	if err := r.uploadObjects(c, objects); err != nil {
+		return err
+	}
+	// The versions' folder lists, after the files they list.
+	if err := r.uploadTrees(c, roots); err != nil {
 		return err
 	}
 	for _, id := range order {
@@ -781,7 +798,7 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 
 	authorID, author := r.Identity()
-	m := &Manifest{Version: 1, Parents: []string{ours.ID, theirs.ID}, Author: author, AuthorID: authorID,
+	m := &Manifest{Version: manifest.Format, Parents: []string{ours.ID, theirs.ID}, Author: author, AuthorID: authorID,
 		Time: time.Now().UTC().Format(time.RFC3339), Message: "Merge versions from the team",
 		Files: files}
 	ext := map[string]FileEntry{}
