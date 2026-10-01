@@ -221,7 +221,7 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	}
 	t := r.newTransfer(StageDownloading, len(need), total)
 	t.report()
-	return inParallel(need, func(h string) error {
+	return transferAll(need, func(h string) int64 { return r.sizes[h] }, func(h string) error {
 		body, err := c.GetObject(h)
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
@@ -242,10 +242,39 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 // transfers is how many files go up or down at once.
 const transfers = 8
 
+// Small files are as slow as a request's round trip to the storage, not
+// the connection's speed: many go at once. Big ones share the bandwidth.
+const (
+	smallFile      = 1 << 20
+	smallTransfers = 32
+	bigTransfers   = 6
+)
+
+// transferAll runs fn on the items, small ones (by size; unknown counts as
+// small) and big ones side by side, each a few at a time.
+func transferAll(items []string, size func(string) int64, fn func(string) error) error {
+	var small, big []string
+	for _, it := range items {
+		if size(it) >= smallFile {
+			big = append(big, it)
+		} else {
+			small = append(small, it)
+		}
+	}
+	errs := make(chan error, 2)
+	go func() { errs <- inParallelN(smallTransfers, small, fn) }()
+	go func() { errs <- inParallelN(bigTransfers, big, fn) }()
+	return errors.Join(<-errs, <-errs)
+}
+
 // inParallel runs fn on the items, a few at a time, and stops starting new
 // ones after the first error (which it returns).
 func inParallel(items []string, fn func(string) error) error {
-	sem := make(chan struct{}, transfers)
+	return inParallelN(transfers, items, fn)
+}
+
+func inParallelN(n int, items []string, fn func(string) error) error {
+	sem := make(chan struct{}, n)
 	var mu sync.Mutex
 	var first error
 	var wg sync.WaitGroup
@@ -374,7 +403,7 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	}
 	t := r.newTransfer(StageUploading, len(missing), total)
 	t.report()
-	return inParallel(missing, func(h string) error {
+	return transferAll(missing, func(h string) int64 { return sizes[h] }, func(h string) error {
 		f, err := r.openObject(h)
 		if err != nil {
 			return fmt.Errorf("%w (needed to upload this project's versions)", err)

@@ -21,7 +21,7 @@ type Client struct {
 
 func New(baseURL, token string) *Client {
 	return &Client{URL: strings.TrimRight(baseURL, "/"), Token: token,
-		HTTP: &http.Client{Timeout: 30 * time.Minute}}
+		HTTP: &http.Client{Timeout: 30 * time.Minute, Transport: keepAlive()}}
 }
 
 type Project struct {
