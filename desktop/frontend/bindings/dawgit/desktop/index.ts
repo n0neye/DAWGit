@@ -25,5 +25,7 @@ export {
     TeamSummary,
     TextChanges,
     UpdateInfo,
+    VerifyProblem,
+    VerifyResult,
     Version
 } from "./models.js";

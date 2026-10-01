@@ -1060,6 +1060,99 @@ export class UpdateInfo {
     }
 }
 
+export class VerifyProblem {
+    /**
+     * version | folder-list | file
+     */
+    "kind": string;
+
+    /**
+     * a path, or a short id
+     */
+    "what": string;
+    "detail": string;
+    "fixed": boolean;
+
+    /**
+     * how it was repaired, or why it can't be
+     */
+    "how": string;
+
+    /** Creates a new VerifyProblem instance. */
+    constructor($$source: Partial<VerifyProblem> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("what" in $$source)) {
+            this["what"] = "";
+        }
+        if (!("detail" in $$source)) {
+            this["detail"] = "";
+        }
+        if (!("fixed" in $$source)) {
+            this["fixed"] = false;
+        }
+        if (!("how" in $$source)) {
+            this["how"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VerifyProblem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VerifyProblem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VerifyProblem($$parsedSource as Partial<VerifyProblem>);
+    }
+}
+
+/**
+ * VerifyResult is what checking a project's history found (VerifyProject).
+ */
+export class VerifyResult {
+    "summary": string;
+
+    /**
+     * TeamChecked: the team's storage was asked about the files only it has;
+     * InTeam: the project has a team (so it could have been).
+     */
+    "teamChecked": boolean;
+    "inTeam": boolean;
+    "problems": VerifyProblem[];
+
+    /** Creates a new VerifyResult instance. */
+    constructor($$source: Partial<VerifyResult> = {}) {
+        if (!("summary" in $$source)) {
+            this["summary"] = "";
+        }
+        if (!("teamChecked" in $$source)) {
+            this["teamChecked"] = false;
+        }
+        if (!("inTeam" in $$source)) {
+            this["inTeam"] = false;
+        }
+        if (!("problems" in $$source)) {
+            this["problems"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VerifyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VerifyResult {
+        const $$createField3_0 = $$createType25;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("problems" in $$parsedSource) {
+            $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
+        }
+        return new VerifyResult($$parsedSource as Partial<VerifyResult>);
+    }
+}
+
 export class Version {
     "id": string;
     "short": string;
@@ -1172,3 +1265,5 @@ const $$createType20 = remote$0.Storage.createFrom;
 const $$createType21 = remote$0.Capabilities.createFrom;
 const $$createType22 = textdiff$0.Hunk.createFrom;
 const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = VerifyProblem.createFrom;
+const $$createType25 = $Create.Array($$createType24);

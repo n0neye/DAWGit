@@ -71,6 +71,15 @@ On an older version, newer versions are kept. Committing, getting updates and me
 
 Versions store file contents by SHA-256 in `.dawgit/objects` inside the project (deduplicated). Samples referenced from outside the project are stored too and, on a computer that lacks them, placed under `.dawgit/external/` with the set's sample paths rewritten. Samples from Live packs are only recorded by pack name. `Backup/` and `*.asd` are ignored.
 
+## Checking the history
+
+```
+dawgit verify            # read every version and stored file again, report damage
+dawgit verify --repair   # bring back what can be: from the project folder or the team's storage
+```
+
+The app does the same from a project's ⋯ menu in the sidebar (**Check project…**). A file damaged here (a failing disk, say) comes back from a file in the project folder with the same content, or from the team's storage; what has no copy left anywhere is listed with the version it's in.
+
 ## Working with Live Sets directly
 
 ```

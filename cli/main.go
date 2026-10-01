@@ -49,6 +49,8 @@ advanced:
   profile explain <file>...              why a file is tracked or ignored
   gc                                     free space in .dawgit (files the team's storage has,
                                          leftovers no version uses)
+  verify [--repair]                      check the history: every version and stored file;
+                                         --repair brings back what it can
 
 set commands:
   info <set.als>                         tracks, devices, clips, plugins, samples
@@ -95,6 +97,8 @@ func Main() {
 		err = cmdExport(os.Args[2:])
 	case "gc":
 		err = cmdGC()
+	case "verify":
+		code, err = cmdVerify(os.Args[2:])
 	case "profile":
 		err = cmdProfile(os.Args[2:])
 	case "serve":

@@ -608,6 +608,16 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
 }
 
 /**
+ * VerifyProject checks the project's history (every version, folder list
+ * and stored file); with repair it brings back what it can.
+ */
+export function VerifyProject(root: string, repair: boolean): $CancellablePromise<$models.VerifyResult | null> {
+    return $Call.ByID(997401215, root, repair).then(($result: any) => {
+        return $$createType33($result);
+    });
+}
+
+/**
  * Version is the DAWGit release number.
  */
 export function Version(): $CancellablePromise<string> {
@@ -620,7 +630,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType33($result);
+        return $$createType35($result);
     });
 }
 
@@ -667,5 +677,7 @@ const $$createType28 = $models.TeamPart.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
 const $$createType30 = $models.TextChanges.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.Change.createFrom;
-const $$createType33 = $Create.Array($$createType32);
+const $$createType32 = $models.VerifyResult.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = $models.Change.createFrom;
+const $$createType35 = $Create.Array($$createType34);
