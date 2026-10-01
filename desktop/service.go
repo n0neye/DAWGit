@@ -291,6 +291,12 @@ func (a *App) CommitWarnings(root string) ([]string, error) {
 	}
 	var list []handlers.Change
 	for _, c := range changes {
+		// Checks reason with files added and deleted: a move is both (an asset
+		// moved without its .meta is still found).
+		if c.Status == "renamed" {
+			list = append(list, handlers.Change{Path: c.From, Status: "deleted"}, handlers.Change{Path: c.Path, Status: "added"})
+			continue
+		}
 		list = append(list, handlers.Change{Path: c.Path, Status: c.Status})
 	}
 	for _, name := range names {
@@ -362,7 +368,8 @@ func (a *App) State(root string) (*State, error) {
 	}
 	sw.lap("status")
 	for _, c := range changes {
-		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
+		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited,
+			Details: diffLines(c.SetDiff)})
 	}
 	st.MyEdits = nonNil(project.EditsIn(changes))
 	sw.lap("edits")
@@ -667,7 +674,8 @@ func toPreview(p *project.Preview, names map[string]string) *Preview {
 		Conflicts: toConflicts(p.Conflicts)}
 	renameAuthors(names, out.Versions)
 	for _, c := range p.Changes {
-		out.Changes = append(out.Changes, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
+		out.Changes = append(out.Changes, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited,
+			Details: diffLines(c.SetDiff)})
 	}
 	return out
 }
@@ -898,7 +906,7 @@ func (a *App) VersionChanges(root, id string) ([]Change, error) {
 	}
 	out := []Change{}
 	for _, c := range changes {
-		out = append(out, Change{Path: c.Path, Status: c.Status, Details: diffLines(c.SetDiff)})
+		out = append(out, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited, Details: diffLines(c.SetDiff)})
 	}
 	return out, nil
 }

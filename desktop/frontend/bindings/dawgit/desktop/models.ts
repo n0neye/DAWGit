@@ -55,9 +55,19 @@ export class Change {
     "path": string;
 
     /**
-     * added | modified | deleted
+     * added | modified | deleted | renamed | untracked
      */
     "status": string;
+
+    /**
+     * renamed: where it was
+     */
+    "from": string;
+
+    /**
+     * renamed: its content changed too
+     */
+    "edited": boolean;
 
     /**
      * semantic diff lines for sets
@@ -72,6 +82,12 @@ export class Change {
         if (!("status" in $$source)) {
             this["status"] = "";
         }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("edited" in $$source)) {
+            this["edited"] = false;
+        }
         if (!("details" in $$source)) {
             this["details"] = [];
         }
@@ -83,10 +99,10 @@ export class Change {
      * Creates a new Change instance from a string or object.
      */
     static createFrom($$source: any = {}): Change {
-        const $$createField2_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("details" in $$parsedSource) {
-            $$parsedSource["details"] = $$createField2_0($$parsedSource["details"]);
+            $$parsedSource["details"] = $$createField4_0($$parsedSource["details"]);
         }
         return new Change($$parsedSource as Partial<Change>);
     }
@@ -204,9 +220,19 @@ export class FileVersion {
     "version": Version;
 
     /**
-     * added | modified | deleted
+     * added | modified | deleted | renamed
      */
     "status": string;
+
+    /**
+     * where the file is in that version
+     */
+    "path": string;
+
+    /**
+     * renamed: where it was before
+     */
+    "from": string;
 
     /** Creates a new FileVersion instance. */
     constructor($$source: Partial<FileVersion> = {}) {
@@ -215,6 +241,12 @@ export class FileVersion {
         }
         if (!("status" in $$source)) {
             this["status"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
         }
 
         Object.assign(this, $$source);
@@ -429,6 +461,12 @@ export class ProjectFile {
     "live": string;
 
     /**
+     * Renamed: where it was, and whether its content changed too.
+     */
+    "from": string;
+    "edited": boolean;
+
+    /**
      * Preview: the app can show it as an image (/dawgit-preview); Video:
      * it can try to play it; Model: a 3D model it can show.
      */
@@ -452,6 +490,12 @@ export class ProjectFile {
         }
         if (!("live" in $$source)) {
             this["live"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("edited" in $$source)) {
+            this["edited"] = false;
         }
         if (!("preview" in $$source)) {
             this["preview"] = false;

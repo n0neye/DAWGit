@@ -12,8 +12,11 @@ import (
 type Change struct {
 	Path string
 	// Status: "added" | "modified" | "deleted" | "untracked" (still on disk,
-	// but the rules now leave it out: the next version won't have it).
+	// but the rules now leave it out: the next version won't have it) |
+	// "renamed" (moved from From; Edited when its content changed too).
 	Status string
+	From   string
+	Edited bool
 	// SetDiff is the semantic diff for a modified Live Set.
 	SetDiff *diff.SetDiff
 }
@@ -66,8 +69,58 @@ func (r *Repo) statusOf(files []FileEntry) ([]Change, error) {
 		}
 		out = append(out, Change{Path: path, Status: status})
 	}
+	out = r.pairMoves(out, head, files)
 	sortChanges(out)
 	return out, nil
+}
+
+// pairMoves turns a deleted file and an added one that are the same file
+// moved into one "renamed" change.
+func (r *Repo) pairMoves(changes []Change, head map[string]FileEntry, files []FileEntry) []Change {
+	now := map[string]FileEntry{}
+	for _, f := range files {
+		now[f.Path] = f
+	}
+	var gone, added []FileEntry
+	for _, c := range changes {
+		switch c.Status {
+		case "deleted":
+			gone = append(gone, head[c.Path])
+		case "added":
+			added = append(added, now[c.Path])
+		}
+	}
+	if len(gone) == 0 || len(added) == 0 {
+		return changes
+	}
+	moves := findRenames(gone, added, func(f FileEntry, old bool) ([]byte, bool) {
+		if old {
+			return r.storedContent(f)
+		}
+		return r.workingContent(f)
+	})
+	if len(moves) == 0 {
+		return changes
+	}
+	from := map[string]renamed{}
+	moved := map[string]bool{}
+	for _, m := range moves {
+		from[m.to] = m
+		moved[m.from] = true
+	}
+	var out []Change
+	for _, c := range changes {
+		switch {
+		case c.Status == "deleted" && moved[c.Path]:
+			continue // shown as where it went
+		case c.Status == "added":
+			if m, ok := from[c.Path]; ok {
+				c = Change{Path: c.Path, Status: "renamed", From: m.from, Edited: !m.same}
+			}
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 // workingSetDiff compares a set in the project folder (whose content hash is

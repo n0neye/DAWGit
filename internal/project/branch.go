@@ -265,7 +265,9 @@ func (r *Repo) mergeVersion(c remote.Backend, target, message string, opts Merge
 
 type FileChange struct {
 	Path   string
-	Status string // "added" | "modified" | "deleted"
+	Status string // "added" | "modified" | "deleted" | "renamed" (from From)
+	From   string
+	Edited bool // renamed, its content changed too
 	// SetDiff is the semantic diff of a modified Live Set.
 	SetDiff *diff.SetDiff
 }
@@ -413,6 +415,27 @@ func (r *Repo) fileChanges(a, b *Manifest) ([]FileChange, error) {
 		if _, ok := bf[f.Path]; !ok {
 			out = append(out, FileChange{Path: f.Path, Status: "deleted"})
 		}
+	}
+	// Moves: a deleted file and an added one, paired.
+	if moves := r.renamesBetween(a, b); len(moves) > 0 {
+		to := map[string]renamed{}
+		gone := map[string]bool{}
+		for _, m := range moves {
+			to[m.to] = m
+			gone[m.from] = true
+		}
+		kept := out[:0]
+		for _, c := range out {
+			switch {
+			case c.Status == "deleted" && gone[c.Path]:
+				continue
+			case c.Status == "added" && to[c.Path].to != "":
+				m := to[c.Path]
+				c = FileChange{Path: c.Path, Status: "renamed", From: m.from, Edited: !m.same}
+			}
+			kept = append(kept, c)
+		}
+		out = kept
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil

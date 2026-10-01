@@ -78,7 +78,7 @@
   let discardOpen = $state(false);
   let discardFile = $state(""); // one file's changes, after confirming
   let discardAllOpen = $state(false);
-  let restoreFile = $state<{ path: string; version: string; label: string } | null>(null);
+  let restoreFile = $state<{ path: string; version: string; label: string; source: string } | null>(null);
 
   // Two steps: the project folder (fast), then the team's side (network),
   // so the page never waits for the team.
@@ -239,7 +239,8 @@
   $effect.pre(() => { root; excluded = {}; });
   let leftOut = $derived(st?.changes.filter((c) => excluded[c.path]).length ?? 0);
   // The changes to commit, or none for all of them.
-  const picked = () => (leftOut && st ? st.changes.filter((c) => !excluded[c.path]).map((c) => c.path) : []);
+  // (a move commits both its places)
+  const picked = () => (leftOut && st ? st.changes.filter((c) => !excluded[c.path]).flatMap((c) => (c.from ? [c.path, c.from] : [c.path])) : []);
 
   const saveAction = (msg: string, combineWithTeam = false): Action => {
     const paths = picked();
@@ -330,7 +331,7 @@
     restoreFile = null;
     run({
       name: "restore",
-      call: (_res, force) => api.RestoreFileVersion(root, r.path, r.version, force),
+      call: (_res, force) => api.RestoreFileVersion(root, r.path, r.version, r.source, force),
       done: () => toast(`Restored ${r.path.slice(r.path.lastIndexOf("/") + 1)} from “${r.label}” — commit it to keep it`, "ok", 8000),
     });
   }
@@ -340,7 +341,7 @@
     discardFile = "";
     run({
       name: "discard",
-      call: (_res, force) => api.DiscardFile(root, path, force),
+      call: (_res, force) => api.DiscardFile(root, path, st?.changes.find((c) => c.path === path)?.from ?? "", force),
       done: () => toast(`Discarded your changes to ${path.slice(path.lastIndexOf("/") + 1)}`, "ok"),
     });
   }
@@ -766,7 +767,7 @@
         {/snippet}
         <ChangesPanel {root} st={st} {summary} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
           ondiscardall={() => (discardAllOpen = true)}
-          onrestore={(path, version, label) => (restoreFile = { path, version, label })} />
+          onrestore={(path, version, label, source) => (restoreFile = { path, version, label, source })} />
       {:else if tab === "history"}
         <History {root} versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
@@ -839,7 +840,8 @@
 
   {#if discardFile}
     <Modal title="Discard your changes to {discardFile.slice(discardFile.lastIndexOf('/') + 1)}?" onclose={() => (discardFile = "")}>
-      <p>The file goes back to how it is in the version you're on. This can't be undone.</p>
+      {@const movedFrom = st?.changes.find((c) => c.path === discardFile)?.from}
+      <p>The file goes back {movedFrom ? `to ${movedFrom}, ` : ""}as it is in the version you're on. This can't be undone.</p>
       {#snippet footer()}
         <button onclick={() => (discardFile = "")}>Cancel</button>
         <button class="danger" onclick={discardOneFile}>Discard changes</button>

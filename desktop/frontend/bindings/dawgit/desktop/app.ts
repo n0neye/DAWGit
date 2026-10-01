@@ -195,10 +195,11 @@ export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: st
 }
 
 /**
- * DiscardFile puts one file back as it is in the version the project is on.
+ * DiscardFile puts one file back as it is in the version the project is on;
+ * from: where a moved file was (it goes back there).
  */
-export function DiscardFile(root: string, file: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(2981786833, root, file, force).then(($result: any) => {
+export function DiscardFile(root: string, file: string, $from: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(2981786833, root, file, $from, force).then(($result: any) => {
         return $$createType12($result);
     });
 }
@@ -454,10 +455,11 @@ export function RenameTeamForEveryone(id: string, name: string): $CancellablePro
 
 /**
  * RestoreFileVersion puts one file back as it was in a version; the rest of
- * the project stays. The result is an uncommitted change.
+ * the project stays. The result is an uncommitted change. source: the file's
+ * path in that version, when it had another ("" for file).
  */
-export function RestoreFileVersion(root: string, file: string, version: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3800490991, root, file, version, force).then(($result: any) => {
+export function RestoreFileVersion(root: string, file: string, version: string, source: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(3800490991, root, file, version, source, force).then(($result: any) => {
         return $$createType12($result);
     });
 }
@@ -606,9 +608,10 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
  * "" for the project folder now, or "none" when there is no file to compare
  * with (it was added or deleted). whole: every line, not just the changes
  * with a few around them.
+ * fromFile: the file's path in from, when it was elsewhere ("" for file).
  */
-export function TextDiff(root: string, file: string, $from: string, to: string, whole: boolean): $CancellablePromise<$models.TextChanges | null> {
-    return $Call.ByID(1639953907, root, file, $from, to, whole).then(($result: any) => {
+export function TextDiff(root: string, file: string, $from: string, to: string, whole: boolean, fromFile: string): $CancellablePromise<$models.TextChanges | null> {
+    return $Call.ByID(1639953907, root, file, $from, to, whole, fromFile).then(($result: any) => {
         return $$createType35($result);
     });
 }
