@@ -67,6 +67,18 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	if err := r.ensureHashes(need); err != nil {
 		return nil, nil, err
 	}
+	// Removed files go first: on Windows a file renamed only in case
+	// ("Kick.wav" to "kick.wav") is the same file, and removing the old name
+	// after writing the new one would remove it.
+	for p := range have {
+		if _, ok := want[p]; !ok && !target.Ignored(p, false) {
+			if err := os.Remove(r.Abs(p)); err != nil {
+				return nil, nil, err
+			}
+			delete(ix.entries, p)
+			ix.dirty = true
+		}
+	}
 	for _, f := range m.Files {
 		if have[f.Path] == f.Hash {
 			continue
@@ -76,15 +88,6 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 		}
 		if err := ix.record(r.Abs(f.Path), f.Path, f.Hash, f.Size); err != nil {
 			return nil, nil, err
-		}
-	}
-	for p := range have {
-		if _, ok := want[p]; !ok && !target.Ignored(p, false) {
-			if err := os.Remove(r.Abs(p)); err != nil {
-				return nil, nil, err
-			}
-			delete(ix.entries, p)
-			ix.dirty = true
 		}
 	}
 	r.forgetProfile() // the version may have brought another .dawgit.yaml
