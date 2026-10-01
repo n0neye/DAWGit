@@ -19,6 +19,7 @@ import (
 	"dawgit/internal/handlers"
 	"dawgit/internal/profile"
 	"dawgit/internal/remote"
+	"dawgit/internal/update"
 	"dawgit/internal/version"
 )
 
@@ -26,6 +27,11 @@ import (
 // name and version, and doesn't offer the public app's updates (they would
 // replace this build). Call it before the app starts.
 func SetEdition(name string) { version.Edition = name }
+
+// SetUpdateFeed points this build's update check at a feed (a JSON file
+// {"version", "download", "notes"}; links on the feed's own site) instead of
+// the public app's releases.
+func SetUpdateFeed(url string) { update.Feed = url }
 
 // --- presets and handlers ---
 

@@ -28,9 +28,9 @@ var updateCache struct {
 // returns it, or nil when this is the newest. DAWGIT_NO_UPDATE_CHECK=1 turns
 // it off; DAWGIT_DEV_VERSION pretends to be another version (testing).
 func (a *App) CheckUpdate() (*UpdateInfo, error) {
-	// A build with extensions is updated with its own installer: the public
-	// release would replace it.
-	if os.Getenv("DAWGIT_NO_UPDATE_CHECK") != "" || version.Edition != "" {
+	// A build with extensions is updated from its own feed (the public
+	// release would replace it); without one it doesn't check.
+	if os.Getenv("DAWGIT_NO_UPDATE_CHECK") != "" || (version.Edition != "" && update.Feed == "") {
 		return nil, nil
 	}
 	updateCache.Lock()
@@ -42,7 +42,13 @@ func (a *App) CheckUpdate() (*UpdateInfo, error) {
 	if v := os.Getenv("DAWGIT_DEV_VERSION"); v != "" {
 		current = v
 	}
-	r, err := update.Newer(update.ReleasesAPI, current)
+	var r *update.Release
+	var err error
+	if update.Feed != "" {
+		r, err = update.FromFeed(update.Feed, current)
+	} else {
+		r, err = update.Newer(update.ReleasesAPI, current)
+	}
 	if err != nil {
 		return nil, err // offline, rate limited…: try again next time
 	}
@@ -53,11 +59,20 @@ func (a *App) CheckUpdate() (*UpdateInfo, error) {
 	return updateCache.info, nil
 }
 
-// OpenURL opens a DAWGit page (release notes, installer download) in the
-// browser. Other addresses are refused.
+// OpenURL opens a page the app links to in the browser: DAWGit's (release
+// notes, installer, guides), the update feed's site, Cloudflare's dashboard
+// and docs (team setup). Other addresses are refused.
 func (a *App) OpenURL(url string) error {
-	if !strings.HasPrefix(url, update.PageURLPrefix) {
-		return errors.New("not a DAWGit link")
+	allowed := []string{update.PageURLPrefix, "https://dash.cloudflare.com/", "https://developers.cloudflare.com/"}
+	if update.Feed != "" {
+		allowed = append(allowed, update.FeedSite(update.Feed))
+	}
+	ok := false
+	for _, p := range allowed {
+		ok = ok || strings.HasPrefix(url, p)
+	}
+	if !ok {
+		return errors.New("not a link DAWGit opens")
 	}
 	if a.openURL == nil {
 		return errors.New("cannot open a browser here")
