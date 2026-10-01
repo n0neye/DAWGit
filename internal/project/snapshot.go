@@ -84,7 +84,17 @@ func (r *Repo) Resolve(ref string) (string, error) {
 	return "", fmt.Errorf("ambiguous snapshot %q (%d matches)", ref, len(found))
 }
 
+// Load reads a version with all its files.
 func (r *Repo) Load(id string) (*Manifest, error) {
+	m, err := r.readRecord(id)
+	if err != nil {
+		return nil, err
+	}
+	return m, r.fillFiles(m)
+}
+
+// readRecord reads a version record (format 2: without its files).
+func (r *Repo) readRecord(id string) (*Manifest, error) {
 	data, err := os.ReadFile(r.snapshotPath(id))
 	if err != nil {
 		return nil, err
@@ -104,7 +114,7 @@ func (r *Repo) Header(id string) (*Manifest, error) {
 	if h := headers.get(id); h != nil {
 		return h, nil
 	}
-	m, err := r.Load(id)
+	m, err := r.readRecord(id)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +156,13 @@ func (r *Repo) HasSnapshot(id string) bool {
 	return err == nil
 }
 
-// save seals m (computing its id) and stores it.
+// save seals m (computing its id) and stores it, as format 2: its folders'
+// trees first.
 func (r *Repo) save(m *Manifest) error {
+	m.Version = manifest.Format
+	if err := r.sealTrees(m); err != nil {
+		return err
+	}
 	data := m.Seal() // sets m.ID
 	return r.storeSnapshot(m.ID, data)
 }
@@ -317,7 +332,7 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 		return nil, err
 	}
 	authorID, author := r.Identity()
-	m := &Manifest{Version: 1, Parents: []string{}, Author: author, AuthorID: authorID,
+	m := &Manifest{Version: manifest.Format, Parents: []string{}, Author: author, AuthorID: authorID,
 		Time: time.Now().UTC().Format(time.RFC3339), Message: message,
 		Files: files, External: external, Packs: packs, Missing: missing}
 	if prev != nil {

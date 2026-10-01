@@ -1,6 +1,6 @@
 # Tree manifests (version format 2)
 
-Status: proposal, not built.
+Status: built (0.8). Measured results at the end.
 
 ## Why
 
@@ -75,78 +75,58 @@ Text rather than JSON: about half the size, and quick to read and write.
 
 - **Team storage:** with file contents, under `objects/<ab>/<rest>`. They
   are content-addressed like files, so they go up with the same batched
-  "which are missing" check and parallel uploads, and are shared between
-  versions, branches and projects.
+  "which are missing" check and parallel uploads, after the files they list
+  and before the version record that names them.
 - **This computer:** `.dawgit/trees/<ab>/<rest>`, apart from file contents.
-  Trees are never pruned: they are the history. File contents are pruned as
-  today. GC (unreferenced cleanup) follows trees.
-- **Memory:** parsed trees are cached by hash. Versions share nearly all
-  their trees, so reading the 31st version of a project costs only the few
-  trees that changed since the 30th.
+  Trees are never pruned: they are the history. A downloaded version's
+  trees are stored before its record, so a version stored here can always
+  be read.
+- **Memory:** parsed trees are cached by hash (shared by all projects in
+  the process). Versions share nearly all their trees, so reading the next
+  version of a project reads only the trees that changed.
 
-## Safety: old clients must not misread a format-2 version
+## Old clients
 
-Today no client checks a version record's `version` field. A 0.7 client
-reading a format-2 record would see no `files`: **an empty project**, and
-taking it in would remove every file. So format-2 records must be
-unreadable to old clients, not merely different:
-
-- Their key is `projects/<pid>/snapshots/<id>.v2.json` (and
-  `.dawgit/snapshots/<id>.v2.json` locally). An old client asking for
-  `<id>.json` gets "not found" and stops, with nothing changed.
-- From now on, clients check `version` and refuse records newer than they
-  understand ("This project needs DAWGit 0.9 or later"), so the next format
-  change can be a normal one.
-- The project's `project.json` in team storage gets `"format": 2` once its
-  first format-2 version is shared. Clients that know the field explain the
-  upgrade instead of failing on a missing record.
+No client before 0.8 checks a record's `version`. A format-2 record's
+`files` is the number of files, not a list, so an older DAWGit fails to read
+the record (and stops, changing nothing) instead of taking the version for
+an empty project. From 0.8 on, clients refuse records of a newer format
+than they know ("update DAWGit").
 
 ## Rollout
 
-1. **0.8 reads format 2, still writes format 1.** It also checks `version`
-   and the project's `format`. Teammates update at their own pace; nothing
-   changes for anyone yet.
-2. **0.9 writes format 2** for:
-   - projects created with 0.9 or later, and
-   - existing projects when someone chooses **Upgrade project format** in the
-     project's menu. The app first lists team members whose app is older
-     (from their workspace records) and warns that they'll need to update.
+None: DAWGit is in testing, used by a couple of people on test projects.
+From 0.8 every new version is format 2; format-1 versions stay readable, and
+a format-2 version may have format-1 parents. Old versions are never
+rewritten. Everyone on a team needs 0.8 once someone commits with it.
 
-   Songs and other small projects can stay on format 1 for good. Both
-   formats are read forever, and a format-2 version may have a format-1
-   parent.
+## What changed in the code
 
-Old versions are never rewritten: their ids, and every branch pointing at
-them, stay valid.
+- `manifest`: format-2 records (`Tree`, `FileCount`, `TotalSize`); trees
+  (`EncodeTree`, `ParseTree`, `BuildTrees`, `Flatten`). In memory a version
+  still has the flat list of files, filled from its trees on load, so merge,
+  checkout and status didn't change.
+- `project`: commits write the trees of changed folders (a parent's trees
+  are known stored); sync uploads and downloads trees; history and ancestry
+  read records only; cleanup (GC) reads each folder's tree once across all
+  versions.
+- `server` (the hidden self-hosted server): checks a record's top tree was
+  uploaded, as it checks files.
+- `.dawgit/index.json` (the local stat cache, 17.7 MB at 100,000 files)
+  became `index.bin`, a compact binary file; the old file is read once and
+  replaced.
 
-## What changes in the code
+## Results (100,000 files)
 
-- `manifest`: `Tree`, `FileCount`, `TotalSize`; tree encode/parse; a
-  `Files(load)` accessor that flattens trees (through the cache) so most
-  callers keep working on a flat list during the move.
-- `project`:
-  - Snapshot builds trees bottom-up from the scanned files, reusing the
-    previous version's tree for every unchanged folder.
-  - Status, merge and checkout compare trees first and descend only into
-    folders whose hashes differ.
-  - History and ancestry already use headers only (stage 1).
-- `sync`: upload and download the trees a version needs that the other
-  side doesn't have; then file contents, as today.
-- `server` (the hidden self-hosted server): stores trees like objects and
-  `<id>.v2.json` like snapshots. No other change.
-- GC and pruning: follow trees; never prune trees locally.
-- `.dawgit/index.json` (local stat cache, 17.7 MB at 100,000 files and
-  rewritten on every commit) becomes a compact binary file, read once per
-  process. This is local only and can ship in 0.8.
+|                                | format 1 | format 2             |
+|--------------------------------|----------|----------------------|
+| record per commit (10 changes) | 16.5 MB  | 307 B + 21 trees, 147 KB |
+| all trees of the project       | -        | 1,024 trees, 9 MB    |
+| commit, 10 files changed       | 0.43 s   | 0.35 s               |
+| reading a version              | ~0.2 s (16.5 MB JSON) | 0.09 s (cached trees), 0.14 s cold |
 
-## Expected results (100,000 files)
-
-|                                | today   | format 2              |
-|--------------------------------|---------|-----------------------|
-| record per commit (10 changes) | 16.5 MB | ~30 trees, tens of KB |
-| sharing a commit               | 16.5 MB | the same tens of KB   |
-| 31 versions on disk            | 512 MB  | ~20 MB                |
-| comparing two versions         | both whole records | changed folders only |
+The first format-2 commit of a project writes all its trees (about 1.5 s
+here); later ones write only what changed.
 
 It also prepares partial download: a folder not downloaded is one tree hash
 the version keeps from its parent.
@@ -157,4 +137,6 @@ the version keeps from its parent.
   big tree, rewritten whenever any file in it changes (about 2 MB). If that
   turns out to matter, big trees can be split into fixed-size parts later
   without changing anything above them.
-- Format-2 projects can't be opened by DAWGit 0.7 or older.
+- Format-2 versions can't be read by DAWGit 0.7 or older.
+- Trees no version uses any more (after a branch is deleted) stay on disk;
+  they are small.
