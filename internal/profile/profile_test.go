@@ -151,3 +151,30 @@ func TestErrors(t *testing.T) {
 		t.Errorf("empty file: %v", err)
 	}
 }
+
+// The quick way to match "*.png" agrees with matchPath.
+func TestEndsWithMatchesLikeMatchPath(t *testing.T) {
+	pats := []string{"*.png", "*.PNG", " *.tar.gz", "*~", "*.c?", "*.[ch]", "*", "a*.png", "*/x.png", "*.meta"}
+	paths := []string{"a.png", "Art/A.PNG", "x.tar.gz", "notes~", "f.cs", "f.h", "pics.png/readme.txt",
+		"a", "dir/a.meta", ".png", "png", "x/y/z.Meta"}
+	for _, pat := range pats {
+		end, ok := endsWith(pat)
+		if !ok {
+			continue
+		}
+		for _, rel := range paths {
+			quick := false
+			for _, s := range strings.Split(strings.ToLower(rel), "/") {
+				quick = quick || strings.HasSuffix(s, end)
+			}
+			if want := matchPath(pat, rel, false); quick != want {
+				t.Errorf("%q on %q: quick %v, matchPath %v", pat, rel, quick, want)
+			}
+		}
+	}
+	for pat, ok := range map[string]bool{"*.png": true, "*.c?": false, "*": false, "a*.png": false, "*/x": false} {
+		if _, got := endsWith(pat); got != ok {
+			t.Errorf("endsWith(%q) = %v", pat, got)
+		}
+	}
+}

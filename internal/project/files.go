@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"sort"
 
 	"dawgit/internal/diff"
@@ -22,54 +21,77 @@ type ProjectFile struct {
 // Files lists the changed files; with all, also unchanged files and the ones
 // DAWGit leaves out of versions (Live's backups and caches).
 func (r *Repo) Files(all bool) ([]ProjectFile, error) {
-	changes, err := r.Status()
+	entries, err := r.scan(all)
+	if err != nil {
+		return nil, err
+	}
+	var tracked []scanned
+	for _, e := range entries {
+		if !e.ignored {
+			tracked = append(tracked, e)
+		}
+	}
+	ix := r.loadIndex()
+	files, err := r.hashScanned(ix, tracked)
+	if err != nil {
+		return nil, err
+	}
+	defer ix.save()
+	changes, err := r.statusOf(files)
 	if err != nil {
 		return nil, err
 	}
 	status := map[string]string{}
-	for _, c := range changes {
-		status[c.Path] = c.Status
-	}
 	var out []ProjectFile
 	for _, c := range changes {
+		status[c.Path] = c.Status
 		if c.Status == "deleted" {
 			out = append(out, ProjectFile{Path: c.Path, Status: "deleted"})
 		}
 	}
-	err = filepath.WalkDir(r.Root, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || p == r.Root {
-			return err
+	if !all {
+		// Only the changes; "untracked" ones aren't among the scanned files.
+		size := map[string]int64{}
+		for _, e := range entries {
+			size[e.rel] = e.size
 		}
-		rel, _ := filepath.Rel(r.Root, p)
-		rel = filepath.ToSlash(rel)
-		if d.IsDir() {
-			if rel == metaDir {
-				return filepath.SkipDir
+		for _, c := range changes {
+			if c.Status == "deleted" {
+				continue
 			}
-			return nil
+			n, ok := size[c.Path]
+			if !ok {
+				if fi, err := os.Stat(r.Abs(c.Path)); err == nil {
+					n = fi.Size()
+				}
+			}
+			out = append(out, ProjectFile{Path: c.Path, Status: c.Status, Size: n})
 		}
-		if !d.Type().IsRegular() {
-			return nil
-		}
-		st, changed := status[rel]
+		sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+		return out, nil
+	}
+	for _, e := range entries {
+		st, changed := status[e.rel]
 		switch {
 		case changed:
-		case !all:
-			return nil
-		case r.rules().Ignored(rel, false):
+		case e.ignored:
 			st = "ignored"
 		default:
 			st = "unchanged"
 		}
-		var size int64
-		if fi, err := d.Info(); err == nil {
-			size = fi.Size()
-		}
-		out = append(out, ProjectFile{Path: rel, Status: st, Size: size})
-		return nil
-	})
+		out = append(out, ProjectFile{Path: e.rel, Status: st, Size: e.size})
+	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, err
+	return out, nil
+}
+
+func fileHash(m *Manifest, path string) string {
+	for _, f := range m.Files {
+		if f.Path == path {
+			return f.Hash
+		}
+	}
+	return ""
 }
 
 // FileVersion is a version that changed a file.
@@ -86,14 +108,24 @@ func (r *Repo) FileHistory(path string) ([]FileVersion, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The file's content in each version, each version read once.
+	hashes := map[string]string{}
+	hashIn := func(id string) string {
+		h, ok := hashes[id]
+		if !ok {
+			if m, err := r.Load(id); err == nil {
+				h = fileHash(m, path)
+			}
+			hashes[id] = h
+		}
+		return h
+	}
 	var out []FileVersion
 	for _, m := range log {
-		cur := m.FileMap()[path].Hash
+		cur := hashIn(m.ID)
 		prev := ""
 		if len(m.Parents) > 0 {
-			if p, err := r.Load(m.Parents[0]); err == nil {
-				prev = p.FileMap()[path].Hash
-			}
+			prev = hashIn(m.Parents[0])
 		}
 		switch {
 		case cur == prev:

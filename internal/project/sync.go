@@ -134,7 +134,7 @@ func (r *Repo) ancestors(id string) (map[string]bool, error) {
 			continue
 		}
 		seen[cur] = true
-		m, err := r.Load(cur)
+		m, err := r.Header(cur)
 		if err != nil {
 			return nil, err
 		}

@@ -114,6 +114,29 @@
     return out;
   });
 
+  // Only the rows in view are drawn (a folder can hold thousands of files);
+  // rows have a fixed height.
+  const ROW = 30;
+  let scroller = $state<HTMLElement>();
+  let list = $state<HTMLElement>();
+  let scrollTop = $state(0);
+  let viewH = $state(800);
+  let listOffset = $state(0); // where the list starts in the scrolled panel
+  function onScroll() {
+    if (!scroller || !list) return;
+    scrollTop = scroller.scrollTop;
+    listOffset = list.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+  }
+  $effect(() => {
+    rows; // the list may have moved (e.g. the empty note went away)
+    onScroll();
+  });
+  let win = $derived.by(() => {
+    const top = scrollTop - listOffset;
+    const from = Math.max(0, Math.floor(top / ROW) - 15);
+    return { from, to: Math.min(rows.length, Math.ceil((top + viewH) / ROW) + 15) };
+  });
+
   function select(p: string) {
     selected = p;
     mode = "changes";
@@ -166,7 +189,7 @@
   onkeydown={(e) => { if (e.key === "Escape") menu = null; }} />
 
 <div class="panel">
-  <aside class="files">
+  <aside class="files" bind:this={scroller} bind:clientHeight={viewH} onscroll={onScroll}>
     <div class="files-h">
       <span>{all ? "All files" : `Changed files${changedCount ? ` (${changedCount})` : ""}`}</span>
       {#if changedCount}
@@ -179,8 +202,8 @@
     {#if files.length === 0}
       <p class="muted empty">{all ? "The project folder is empty." : (st.tool && st.tool !== "Ableton Live" ? `No uncommitted changes. Work in ${st.tool} and save — your changes show up here.` : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here.")}</p>
     {:else}
-      <ul>
-        {#each rows as row (row.file ? row.file.path : "dir:" + row.folder!.path)}
+      <ul bind:this={list} style:padding-top="{win.from * ROW}px" style:padding-bottom="{(rows.length - win.to) * ROW}px">
+        {#each rows.slice(win.from, win.to) as row (row.file ? row.file.path : "dir:" + row.folder!.path)}
           {#if row.folder}
             {@const d = row.folder}
             <li>
@@ -362,7 +385,7 @@
   .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .empty { padding: 0 8px; font-size: 13px; }
   ul { list-style: none; margin: 0; padding: 0; }
-  li { position: relative; display: flex; }
+  li { position: relative; display: flex; height: 30px; }
   .chev { width: 12px; height: 12px; flex: none; color: var(--muted); transition: transform .12s; }
   .chev.open { transform: rotate(90deg); }
   /* Folders read like files: bright when they hold changes, muted otherwise,

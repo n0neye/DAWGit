@@ -18,45 +18,36 @@ type TrackEdit struct {
 
 // LocalEdits lists unsaved track-level changes in the working sets.
 func (r *Repo) LocalEdits() ([]TrackEdit, error) {
-	ix := r.loadIndex()
-	files, err := r.workingFiles(ix)
+	changes, err := r.Status()
 	if err != nil {
 		return nil, err
 	}
-	defer ix.save()
-	head := map[string]FileEntry{}
-	if id := r.Head(); id != "" {
-		m, err := r.Load(id)
-		if err != nil {
-			return nil, err
-		}
-		head = m.FileMap()
-	}
+	return EditsIn(changes), nil
+}
+
+// EditsIn lists the track-level changes in sets among changes (from Status).
+func EditsIn(changes []Change) []TrackEdit {
 	var edits []TrackEdit
-	for _, f := range files {
-		if !isSet(f.Path) {
+	for _, c := range changes {
+		if !isSet(c.Path) {
 			continue
 		}
-		old, ok := head[f.Path]
-		if ok && old.Hash == f.Hash {
-			continue
-		}
-		if !ok {
-			edits = append(edits, TrackEdit{Set: f.Path, Name: "(new set)", Change: "added"})
-			continue
-		}
-		d := r.workingSetDiff(old.Hash, f.Hash, f.Path)
-		if d == nil {
-			continue
-		}
-		for _, g := range d.GlobalChanges {
-			edits = append(edits, TrackEdit{Set: f.Path, Name: g, Change: "modified"})
-		}
-		for _, tc := range d.TrackChanges {
-			edits = append(edits, TrackEdit{Set: f.Path, TrackID: tc.TrackID, Name: tc.Name, Change: tc.Status})
+		switch c.Status {
+		case "added":
+			edits = append(edits, TrackEdit{Set: c.Path, Name: "(new set)", Change: "added"})
+		case "modified":
+			if c.SetDiff == nil {
+				continue
+			}
+			for _, g := range c.SetDiff.GlobalChanges {
+				edits = append(edits, TrackEdit{Set: c.Path, Name: g, Change: "modified"})
+			}
+			for _, tc := range c.SetDiff.TrackChanges {
+				edits = append(edits, TrackEdit{Set: c.Path, TrackID: tc.TrackID, Name: tc.Name, Change: tc.Status})
+			}
 		}
 	}
-	return edits, nil
+	return edits
 }
 
 // IncomingVersions lists versions on the server branch that this workspace
