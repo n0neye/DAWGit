@@ -49,8 +49,8 @@ func fileKind(r *project.Repo, p string) string {
 	return rules.Kind(p)
 }
 
-// ProjectFiles lists the changed files; with all, every file in the project
-// folder (files DAWGit leaves out are "ignored").
+// ProjectFiles lists the changed files; with all, every tracked file in the
+// project folder (not those the rules leave out).
 func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {

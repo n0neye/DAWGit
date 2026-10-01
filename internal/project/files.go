@@ -19,10 +19,12 @@ type ProjectFile struct {
 	Size   int64  // on disk (0 for deleted files)
 }
 
-// Files lists the changed files; with all, also unchanged files and the ones
-// DAWGit leaves out of versions (Live's backups and caches).
+// Files lists the changed files; with all, also unchanged ones. Files the
+// rules leave out (Live's backups, caches) aren't listed, except those that
+// were tracked until now.
 func (r *Repo) Files(all bool) ([]ProjectFile, error) {
-	entries, err := r.scan(all)
+	// (scan can list what the rules leave out too: an option one day)
+	entries, err := r.scan(false)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +73,9 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 		sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 		return out, nil
 	}
+	listed := map[string]bool{}
 	for _, e := range entries {
+		listed[e.rel] = true
 		st, changed := status[e.rel]
 		switch {
 		case changed:
@@ -81,6 +85,17 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 			st = "unchanged"
 		}
 		out = append(out, ProjectFile{Path: e.rel, Status: st, Size: e.size})
+	}
+	// Tracked until now, in a folder the rules now leave out whole: listed
+	// still, the next version won't have them.
+	for _, c := range changes {
+		if c.Status == "untracked" && !listed[c.Path] {
+			pf := ProjectFile{Path: c.Path, Status: c.Status}
+			if fi, err := os.Stat(r.Abs(c.Path)); err == nil {
+				pf.Size = fi.Size()
+			}
+			out = append(out, pf)
+		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil

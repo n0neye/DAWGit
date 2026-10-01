@@ -30,8 +30,8 @@ type scanned struct {
 const scanWorkers = 8
 
 // scan lists working files as slash-separated paths relative to the root,
-// sorted. withIgnored also lists the files the rules leave out (everything
-// but DAWGit's own folder).
+// sorted. withIgnored also lists the files the rules leave out, but not
+// the folders they leave out whole (Unity's Library, say).
 func (r *Repo) scan(withIgnored bool) ([]scanned, error) {
 	rules := r.rules()
 	var (
@@ -67,7 +67,7 @@ func (r *Repo) scan(withIgnored bool) ([]scanned, error) {
 				p = rel + "/" + p
 			}
 			if d.IsDir() {
-				if p == metaDir || (!withIgnored && rules.SkipDir(p)) {
+				if p == metaDir || rules.SkipDir(p) {
 					continue
 				}
 				wg.Add(1)

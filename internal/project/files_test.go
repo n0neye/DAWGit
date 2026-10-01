@@ -17,7 +17,7 @@ func TestFilesHistoryAndRestore(t *testing.T) {
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(root, "Song.als"))
 	mustSnapshot(t, r, "v3 (set only)")
 
-	// Changed files only, then everything (Live's backups show as ignored).
+	// Changed files only, then every tracked file (not Live's backups).
 	os.WriteFile(filepath.Join(root, "Samples", "kick.wav"), []byte("RIFF-now"), 0o644)
 	changed, err := r.Files(false)
 	if err != nil || len(changed) != 1 || changed[0].Path != "Samples/kick.wav" || changed[0].Status != "modified" {
@@ -28,7 +28,7 @@ func TestFilesHistoryAndRestore(t *testing.T) {
 	for _, f := range all {
 		st[f.Path] = f.Status
 	}
-	if st["Song.als"] != "unchanged" || st["Backup/Song [old].als"] != "ignored" || st["Samples/kick.wav"] != "modified" {
+	if _, listed := st["Backup/Song [old].als"]; listed || st["Song.als"] != "unchanged" || st["Samples/kick.wav"] != "modified" {
 		t.Fatalf("all files: %v", st)
 	}
 
