@@ -219,7 +219,7 @@
         "nothing": "Nothing changed since your last version",
       };
       toast(text[r.action] ?? "Version committed", r.action === "nothing" ? "info" : "ok");
-      if (r.log.length && r.action === "published") toast("The team's changes were merged into your files — reopen the set in Live", "warn", 9000);
+      if (r.log.length && r.action === "published") toast("The team's changes were merged into your files" + reopen(), "warn", 9000);
       if (r.action !== "nothing") message = "";
   };
 
@@ -231,20 +231,33 @@
   });
 
   // Commit from the commit box: when the team is ahead, ask first.
-  function commit(confirmed = false) {
+  async function commit(confirmed = false) {
     if (!message.trim() || busy || (st?.olderVersion && !st.remoteUrl)) return;
-    // Files the rules now leave out: say so before they leave the versions.
-    const leaving = st?.changes.filter((c) => c.status === "untracked").map((c) => c.path) ?? [];
-    if (leaving.length && !confirmed) {
-      untrackedConfirm = leaving;
-      return;
+    if (!confirmed) {
+      // Files the rules now leave out, and what the project's checks warn
+      // about (e.g. a Unity asset without its .meta): say so first.
+      const leaving = st?.changes.filter((c) => c.status === "untracked").map((c) => c.path) ?? [];
+      const warnings = (await api.CommitWarnings(root).catch(() => [])) ?? [];
+      if (leaving.length || warnings.length) {
+        untrackedConfirm = leaving;
+        commitWarnings = warnings;
+        return;
+      }
     }
     if (st?.incoming.length || st?.olderVersion) openCombine(message);
     else run(saveAction(message));
   }
 
+  // The tool the project is made with: Live gets its own words.
+  let isLive = $derived(st?.tool === "Ableton Live");
+  // What to do after DAWGit changed the project's files.
+  const reopen = () => (st?.tool === "Ableton Live" ? " — reopen the set in Live"
+    : st?.tool ? ` — switch back to ${st.tool} to load the changes` : "");
+  const label = (rel: string) => (rel === "." ? st?.name ?? "the project" : rel);
+
   // The project's rules (.dawgit.yaml): files no longer tracked, the dialog.
   let untrackedConfirm = $state<string[] | null>(null);
+  let commitWarnings = $state<string[]>([]);
   let rulesOpen = $state(false);
   async function openRules() {
     try {
@@ -286,7 +299,7 @@
     run({
       name: "discard",
       call: (_res, force) => api.DiscardAll(root, force),
-      done: () => toast("Discarded all your uncommitted changes — reopen the set in Live", "ok"),
+      done: () => toast("Discarded all your uncommitted changes" + reopen(), "ok"),
     });
   }
 
@@ -315,7 +328,7 @@
     run({
       name: "update",
       call: (res, force) => api.DiscardAndUpdate(root, res, force),
-      done: () => toast("Your changes were discarded and you have the team's latest versions — reopen the set in Live", "ok", 8000),
+      done: () => toast("Your changes were discarded and you have the team's latest versions" + reopen(), "ok", 8000),
     });
   }
 
@@ -324,7 +337,7 @@
     call: (res, force) => api.Update(root, res, force),
     done: (r) => {
       if (r.action === "fast-forward" || r.action === "merged") {
-        toast("You're up to date — reopen the set in Live to see the changes", "ok", 8000);
+        toast("You're up to date" + reopen(), "ok", 8000);
         if (r.action === "merged") toast("Your versions and the team's were combined. Commit a version to share the result.", "info", 9000);
       } else toast("Already up to date", "info");
     },
@@ -361,7 +374,7 @@
           name: "merge",
           call: (res, force) => api.MergeBranch(root, name, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
-            ? `Nothing to merge from ${name}` : `Merged ${name} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
+            ? `Nothing to merge from ${name}` : `Merged ${name} into ${st?.branch} and shared it${reopen()}`, "ok", 8000),
         },
       };
     } catch (e) {
@@ -387,7 +400,7 @@
           name: "merge",
           call: (res, force) => api.MergeVersion(root, v.id, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
-            ? `“${st?.branch}” already has ${label}` : `Merged ${label} into ${st?.branch} and shared it — reopen the set in Live`, "ok", 8000),
+            ? `“${st?.branch}” already has ${label}` : `Merged ${label} into ${st?.branch} and shared it${reopen()}`, "ok", 8000),
         },
       };
     } catch (e) {
@@ -402,7 +415,7 @@
     run({
       name: "switch",
       call: (_res, force) => api.SwitchBranch(root, name, force),
-      done: () => toast(`Now working on “${name}” — reopen the set in Live`, "ok", 8000),
+      done: () => toast(`Now working on “${name}”${reopen()}`, "ok", 8000),
     });
   }
 
@@ -411,8 +424,8 @@
   const goAction = (id: string, discard: boolean, label: string): Action => ({
     name: "goto",
     call: (_res, force) => api.GoToVersion(root, id, discard, force),
-    done: () => toast(id === "latest" ? "Back to the latest version — reopen the set in Live"
-      : `Now on “${label}” — reopen the set in Live`, "ok", 8000),
+    done: () => toast(id === "latest" ? "Back to the latest version" + reopen()
+      : `Now on “${label}”${reopen()}`, "ok", 8000),
   });
 
   // Go to a version (null: back to the latest), asking first about
@@ -596,15 +609,16 @@
         </div>
       </div>
       <div class="actions">
-        {#if st.sets.length === 1}
-          <button onclick={() => api.OpenInLive(st!.root, st!.sets[0])} title="Open {st.sets[0]} in Ableton Live">▶ Open in Live</button>
-        {:else if st.sets.length > 1}
+        {#if st.openable.length === 1}
+          <button onclick={() => api.OpenInTool(st!.root, st!.openable[0]).catch((e) => toast(errorText(e), "error"))}
+            title="Open {label(st.openable[0])} in {st.tool || "its program"}">▶ Open in {isLive ? "Live" : st.tool || "app"}</button>
+        {:else if st.openable.length > 1}
           <div class="open-wrap">
-            <button onclick={() => (setMenu = !setMenu)} title="Open a set in Ableton Live">▶ Open in Live ▾</button>
+            <button onclick={() => (setMenu = !setMenu)} title="Open in {st.tool || "its program"}">▶ Open in {isLive ? "Live" : st.tool || "app"} ▾</button>
             {#if setMenu}
               <div class="menu right" role="menu">
-                {#each st.sets as s}
-                  <button class="item" onclick={() => { setMenu = false; api.OpenInLive(st!.root, s); }}>{s}</button>
+                {#each st.openable as s}
+                  <button class="item" onclick={() => { setMenu = false; api.OpenInTool(st!.root, s).catch((e) => toast(errorText(e), "error")); }}>{label(s)}</button>
                 {/each}
               </div>
             {/if}
@@ -699,7 +713,7 @@
                 {/each}
               </ul>
             {:else}
-              <p class="muted">{st!.changes.length ? "Pick a file on the left to see what changed." : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here."}</p>
+              <p class="muted">{st!.changes.length ? "Pick a file on the left to see what changed." : `No uncommitted changes. Work in ${isLive ? "Live" : st!.tool || "your app"} and save (Ctrl+S) — your changes show up here.`}</p>
             {/if}
             {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
@@ -798,16 +812,25 @@
 
   {#if untrackedConfirm}
     {@const files = untrackedConfirm}
-    <Modal title="No longer tracked" onclose={() => (untrackedConfirm = null)}>
-      <p>The project's rules now leave {files.length === 1 ? "this file" : `these ${files.length} files`} out of versions.
-        {files.length === 1 ? "It stays" : "They stay"} on this computer, and on your teammates' computers too.</p>
-      <ul class="untracked mono">
-        {#each files.slice(0, 12) as f}<li>{f}</li>{/each}
-        {#if files.length > 12}<li class="faint">… and {files.length - 12} more</li>{/if}
-      </ul>
+    <Modal title={commitWarnings.length ? "Before you commit" : "No longer tracked"} onclose={() => (untrackedConfirm = null)}>
+      {#if commitWarnings.length}
+        <ul class="warnings">
+          {#each commitWarnings.slice(0, 12) as w}<li>⚠ {w}</li>{/each}
+          {#if commitWarnings.length > 12}<li class="faint">… and {commitWarnings.length - 12} more</li>{/if}
+        </ul>
+      {/if}
+      {#if files.length}
+        <p>The project's rules now leave {files.length === 1 ? "this file" : `these ${files.length} files`} out of versions.
+          {files.length === 1 ? "It stays" : "They stay"} on this computer, and on your teammates' computers too.</p>
+        <ul class="untracked mono">
+          {#each files.slice(0, 12) as f}<li>{f}</li>{/each}
+          {#if files.length > 12}<li class="faint">… and {files.length - 12} more</li>{/if}
+        </ul>
+      {/if}
       {#snippet footer()}
         <button onclick={() => (untrackedConfirm = null)}>Cancel</button>
-        <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>Commit</button>
+        <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>
+          {commitWarnings.length ? "Commit anyway" : "Commit"}</button>
       {/snippet}
     </Modal>
   {/if}
@@ -818,7 +841,8 @@
         committed with the project, so the whole team uses the same rules.</p>
       <ul class="applied">
         {#each st.rules.applied as a}
-          <li><strong>{a.preset === "none" ? "No preset" : a.preset === "ableton" ? "Ableton Live project" : a.preset}</strong>
+          <li><strong>{a.preset === "none" ? "No preset" : a.preset === "ableton" ? "Ableton Live project"
+            : st.tool ? `${st.tool} project (${a.preset})` : a.preset}</strong>
             <span class="faint">{a.folder ? `in ${a.folder}/` : "the project folder"}{a.detected ? " · detected" : ""}</span></li>
         {:else}
           <li class="faint">No preset: every file is tracked.</li>
@@ -851,12 +875,19 @@
 
   {#if liveBlocked}
     {@const b = liveBlocked}
-    <Modal title={b.set ? `“${b.set}” is open in Live` : "Ableton Live is running"} onclose={() => (liveBlocked = null)}>
-      <p>DAWGit is about to change files in this project. Live keeps the open set in memory and would
-        overwrite the changes the next time you save it.</p>
-      <p class="muted">Save and close the set in Live first — you can leave Live open with another set.
-        {#if b.set}Live only shows the set's name, so a set with the same name from another project counts too.
-        {:else}DAWGit cannot tell which set Live has open: close Live to go on.{/if}</p>
+    <Modal title={isLive || !st?.tool ? (b.set ? `“${b.set}” is open in Live` : "Ableton Live is running")
+      : `${st.tool} has this project open`} onclose={() => (liveBlocked = null)}>
+      {#if isLive || !st?.tool}
+        <p>DAWGit is about to change files in this project. Live keeps the open set in memory and would
+          overwrite the changes the next time you save it.</p>
+        <p class="muted">Save and close the set in Live first — you can leave Live open with another set.
+          {#if b.set}Live only shows the set's name, so a set with the same name from another project counts too.
+          {:else}DAWGit cannot tell which set Live has open: close Live to go on.{/if}</p>
+      {:else}
+        <p>DAWGit is about to change files in this project. {st.tool} may hold some of them open, or write over
+          the changes.</p>
+        <p class="muted">Save your work and close the project in {st.tool} first.</p>
+      {/if}
       {#snippet footer()}
         <button onclick={() => (liveBlocked = null)}>Cancel</button>
         <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }}>
@@ -972,6 +1003,8 @@
   .rules-btn.bad { color: var(--warn); }
   .untracked { list-style: none; padding: 8px 12px; margin: 10px 0 0; background: var(--bg); border-radius: 8px;
     font-size: 12.5px; max-height: 220px; overflow: auto; }
+  .warnings { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px;
+    color: var(--warn); font-size: 13.5px; user-select: text; }
   .applied { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
   .applied li { display: flex; gap: 10px; align-items: baseline; }
 

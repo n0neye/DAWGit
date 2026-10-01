@@ -65,12 +65,16 @@ type State struct {
 	TeamName  string    `json:"teamName"`
 	// TeamChecked: the team fields below come from a TeamState call (false
 	// until one ran for this project since DAWGit started).
-	TeamChecked bool     `json:"teamChecked"`
-	Online      bool     `json:"online"`
-	Offline     string   `json:"offline"`     // why the server is unreachable
-	LiveRunning bool     `json:"liveRunning"` // a set of this project is open in Live
-	Head        string   `json:"head"`
-	Sets        []string `json:"sets"` // .als files in the project folder
+	TeamChecked bool   `json:"teamChecked"`
+	Online      bool   `json:"online"`
+	Offline     string `json:"offline"`     // why the server is unreachable
+	LiveRunning bool   `json:"liveRunning"` // a set of this project is open in Live
+	Head        string `json:"head"`
+	// Tool is the program the project is made with ("Ableton Live", "Unity";
+	// "" when its rules don't say); Openable what "Open in <Tool>" offers
+	// (relative paths, "." for the project folder).
+	Tool     string   `json:"tool"`
+	Openable []string `json:"openable"`
 	// OlderVersion is the version the project was moved back to (Go to
 	// version); nil on the latest version. Latest is the branch's newest.
 	OlderVersion *Version `json:"olderVersion"`

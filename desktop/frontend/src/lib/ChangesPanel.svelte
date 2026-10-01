@@ -176,7 +176,7 @@
       </label>
     </div>
     {#if files.length === 0}
-      <p class="muted empty">{all ? "The project folder is empty." : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here."}</p>
+      <p class="muted empty">{all ? "The project folder is empty." : (st.tool && st.tool !== "Ableton Live" ? `No uncommitted changes. Work in ${st.tool} and save — your changes show up here.` : "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here.")}</p>
     {:else}
       <ul>
         {#each rows as row (row.file ? row.file.path : "dir:" + row.folder!.path)}
@@ -236,7 +236,8 @@
 
       {#if mode === "changes"}
         {#if current.status === "ignored"}
-          <p class="muted">DAWGit doesn't keep this file in versions (Live's backups and analysis files are left out).</p>
+          <p class="muted">DAWGit doesn't keep this file in versions: the project's rules leave it out (see Rules at the
+            top).</p>
         {:else if current.status === "unchanged"}
           <p class="muted">No changes since the version you're on. {formatBytes(current.size)}</p>
         {:else}

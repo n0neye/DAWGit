@@ -2,13 +2,15 @@
   // A small icon per kind of file, so sets, samples, MIDI and the rest are
   // told apart at a glance.
   let { kind, open = false, faint = false }: {
-    kind: string; // set | live | audio | midi | other | folder
+    kind: string; // set | live | audio | midi | other | folder, and kinds presets add (scene, script…)
     open?: boolean; // folders
     faint?: boolean;
   } = $props();
 
   const titles: Record<string, string> = {
     set: "Live Set", live: "Live clip, preset or rack", audio: "Audio", midi: "MIDI", other: "File", folder: "Folder",
+    scene: "Scene", level: "Level", prefab: "Prefab", asset: "Asset", script: "Code", image: "Image", model: "3D model",
+    meta: "Unity .meta",
   };
 </script>
 
@@ -47,6 +49,31 @@
     {:else}
       <path d="M1.5 4.5 a1.5 1.5 0 0 1 1.5 -1.5 h3 l1.5 1.5 h5 a1.5 1.5 0 0 1 1.5 1.5 v6 a1.5 1.5 0 0 1 -1.5 1.5 h-9.5 a1.5 1.5 0 0 1 -1.5 -1.5 Z" class="solid" />
     {/if}
+  {:else if kind === "scene" || kind === "level"}
+    <!-- a landscape: hills under a sun -->
+    <rect x="1.5" y="2.5" width="13" height="11" rx="2" class="line" />
+    <path d="M2.5 12 L6.5 7.5 L9 10 L11 8 L13.5 11" class="line" stroke-linejoin="round" />
+    <circle cx="11" cy="5.5" r="1.2" class="solid" />
+  {:else if kind === "prefab" || kind === "asset"}
+    <!-- a cube -->
+    <path d="M8 1.8 L14 5 V11 L8 14.2 L2 11 V5 Z" class="line" stroke-linejoin="round" />
+    <path d="M2 5 L8 8.2 L14 5 M8 8.2 V14.2" class="line" stroke-linejoin="round" />
+  {:else if kind === "script"}
+    <!-- brackets -->
+    <path d="M5.5 4 L2 8 L5.5 12 M10.5 4 L14 8 L10.5 12" class="line" stroke-linecap="round" stroke-linejoin="round" />
+  {:else if kind === "image"}
+    <rect x="1.5" y="2.5" width="13" height="11" rx="2" class="line" />
+    <circle cx="5.5" cy="6.2" r="1.3" class="solid" />
+    <path d="M2 12.5 L6.5 8.5 L9.5 11 L11.5 9.5 L14 11.5" class="line" stroke-linejoin="round" />
+  {:else if kind === "model"}
+    <!-- a wireframe sphere -->
+    <circle cx="8" cy="8" r="6" class="line" />
+    <ellipse cx="8" cy="8" rx="2.6" ry="6" class="line" />
+    <path d="M2 8 H14" class="line" />
+  {:else if kind === "meta"}
+    <!-- a tag -->
+    <path d="M2 3.5 a1.5 1.5 0 0 1 1.5 -1.5 h4 l6.5 6.5 l-5.5 5.5 l-6.5 -6.5 Z" class="line" stroke-linejoin="round" />
+    <circle cx="5" cy="5" r="1" class="solid" />
   {:else}
     <!-- any other file -->
     <path d="M4 1.5 h5 l3.5 3.5 v8 a1.5 1.5 0 0 1 -1.5 1.5 h-7 a1.5 1.5 0 0 1 -1.5 -1.5 v-10 a1.5 1.5 0 0 1 1.5 -1.5 Z" class="line" />
@@ -68,5 +95,11 @@
   .midi { color: #a78bfa; }
   .folder { color: #7c8490; }
   .other { color: var(--muted); }
+  .scene, .level { color: #6ab0f3; }
+  .prefab, .asset { color: #7fd1c7; }
+  .script { color: #c3a6ff; }
+  .image { color: #f29fc5; }
+  .model { color: #f0b44c; }
+  .meta { color: var(--faint); }
   .faint { opacity: .45; }
 </style>

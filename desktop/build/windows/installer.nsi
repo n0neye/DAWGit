@@ -13,7 +13,15 @@ Unicode true
   !error "DIST (folder with the built executables) is required"
 !endif
 
-!define APP "DAWGit"
+; A build with extensions passes its own name (/DAPP="DAWGit Pro") and
+; welcome line (/DTAGLINE=...): it installs next to the public app, with its
+; own folder, shortcuts and uninstall entry.
+!ifndef APP
+  !define APP "DAWGit"
+!endif
+!ifndef TAGLINE
+  !define TAGLINE "Version history and teamwork for your Ableton Live projects."
+!endif
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP}"
 !define RUN_KEY "Software\Microsoft\Windows\CurrentVersion\Run"
 
@@ -36,7 +44,7 @@ VIAddVersionKey "LegalCopyright" "(c) 2026 ${APP}"
 !define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
 !define MUI_WELCOMEPAGE_TITLE "Welcome to ${APP}"
-!define MUI_WELCOMEPAGE_TEXT "Version history and teamwork for your Ableton Live projects.$\r$\n$\r$\n${APP} runs in the system tray: it tells you when your team commits new versions. It never changes your project files on its own.$\r$\n$\r$\nClick Next to continue."
+!define MUI_WELCOMEPAGE_TEXT "${TAGLINE}$\r$\n$\r$\n${APP} runs in the system tray: it tells you when your team commits new versions. It never changes your project files on its own.$\r$\n$\r$\nClick Next to continue."
 !define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP}.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Open ${APP} now"

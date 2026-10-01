@@ -1,5 +1,8 @@
 # Ableton Live projects (the folder with "Ableton Project Info" and the sets).
 name: ableton
+tool: Ableton Live
+open:
+  files: ["*.als"]      # each set, opened with Live
 detect: ["Ableton Project Info/", "*.als"]
 ignore:
   - /Backup/        # Live's own backups of sets (only the project's own folder)

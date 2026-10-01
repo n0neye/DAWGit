@@ -239,6 +239,62 @@ func (a *App) OpenInLive(root, set string) error {
 	return shellOpen(filepath.Join(root, set))
 }
 
+// OpenInTool opens one of State.Openable in the project's tool: with the
+// preset's opener, or the file's own program.
+func (a *App) OpenInTool(root, rel string) error {
+	if !knownProject(root) {
+		return errors.New("unknown project")
+	}
+	r, err := project.Open(root)
+	if err != nil {
+		return err
+	}
+	rules, _ := r.Profile()
+	_, openers := rules.Openable(root)
+	with, ok := openers[rel]
+	if !ok {
+		return fmt.Errorf("%s can't be opened from DAWGit", rel)
+	}
+	if with != "" {
+		open := handlers.Opener(with)
+		if open == nil {
+			return fmt.Errorf("this DAWGit can't open it (no %q)", with)
+		}
+		return open(root, rel)
+	}
+	return shellOpen(filepath.Join(root, filepath.FromSlash(rel)))
+}
+
+// CommitWarnings runs the project's pre-commit checks (e.g. a Unity asset
+// without its .meta) on what would be committed; the page shows them first.
+func (a *App) CommitWarnings(root string) ([]string, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	rules, _ := r.Profile()
+	names := rules.Checks()
+	out := []string{}
+	if len(names) == 0 {
+		return out, nil
+	}
+	changes, err := r.Status()
+	if err != nil {
+		return nil, err
+	}
+	var list []handlers.Change
+	for _, c := range changes {
+		list = append(list, handlers.Change{Path: c.Path, Status: c.Status})
+	}
+	for _, name := range names {
+		if check := handlers.Check(name); check != nil {
+			out = append(out, check(root, list)...)
+		}
+	}
+	return out, nil
+}
+
 func (a *App) ShowFolder(root string) error {
 	return shellOpen(root)
 }
@@ -260,7 +316,7 @@ func (a *App) State(root string) (*State, error) {
 		r.AdoptBranchAtHead()
 	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
-		Head: r.Head(), LiveRunning: toolOpen(r) != "", Sets: []string{},
+		Head: r.Head(), LiveRunning: toolOpen(r) != "",
 		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, History: []Version{},
 		Branches: []Branch{}}
 	if st.Name == "" {
@@ -278,9 +334,12 @@ func (a *App) State(root string) (*State, error) {
 			st.OlderVersion = &v
 		}
 	}
-	sets, _ := filepath.Glob(filepath.Join(r.Root, "*.als"))
-	for _, s := range sets {
-		st.Sets = append(st.Sets, filepath.Base(s))
+	if rules, _ := r.Profile(); rules != nil {
+		st.Tool = rules.Tool()
+		st.Openable, _ = rules.Openable(r.Root)
+	}
+	if st.Openable == nil {
+		st.Openable = []string{}
 	}
 
 	sw.lap("head")
