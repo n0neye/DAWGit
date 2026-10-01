@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -108,4 +109,68 @@ func less(a, b [3]int) bool {
 		}
 	}
 	return false
+}
+
+// Feed is an update feed's address for a build with extensions (set through
+// ext.SetUpdateFeed): a JSON file {"version", "download", "notes"} next to
+// the installer. "" checks this repository's GitHub releases.
+var Feed string
+
+type feedEntry struct {
+	Version  string `json:"version"`  // e.g. "0.7.1"
+	Download string `json:"download"` // the installer
+	Notes    string `json:"notes"`    // what's new (a page), optional
+}
+
+// FromFeed returns the feed's release when it is newer than current.
+// Its links must be on the feed's own site.
+func FromFeed(feedURL, current string) (*Release, error) {
+	cur, ok := parse(current)
+	if !ok {
+		return nil, fmt.Errorf("bad current version %q", current)
+	}
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("GET", feedURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "DAWGit/"+current)
+	req.Header.Set("Cache-Control", "no-cache")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("update feed: %s", resp.Status)
+	}
+	var e feedEntry
+	if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+		return nil, fmt.Errorf("update feed: %w", err)
+	}
+	v, ok := parse(e.Version)
+	if !ok || !less(cur, v) {
+		return nil, nil
+	}
+	site := FeedSite(feedURL)
+	rel := &Release{Version: strings.TrimPrefix(e.Version, "v")}
+	if strings.HasPrefix(e.Download, site) {
+		rel.DownloadURL = e.Download
+	}
+	if strings.HasPrefix(e.Notes, site) {
+		rel.PageURL = e.Notes
+	} else {
+		rel.PageURL = rel.DownloadURL
+	}
+	return rel, nil
+}
+
+// FeedSite is the scheme and host of a feed ("https://example.com/"); its
+// links must start with it.
+func FeedSite(feedURL string) string {
+	u, err := url.Parse(feedURL)
+	if err != nil || u.Host == "" {
+		return "\x00" // matches nothing
+	}
+	return u.Scheme + "://" + u.Host + "/"
 }
