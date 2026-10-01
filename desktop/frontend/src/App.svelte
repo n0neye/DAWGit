@@ -7,6 +7,7 @@
   import ProjectView from "./lib/ProjectView.svelte";
   import Onboarding from "./lib/Onboarding.svelte";
   import TeamMenu from "./lib/TeamMenu.svelte";
+  import VerifyDialog from "./lib/VerifyDialog.svelte";
   import Modal from "./lib/Modal.svelte";
   import Toasts from "./lib/Toasts.svelte";
 
@@ -22,6 +23,7 @@
   let confirmDelete = $state<TeamProject | null>(null);
   // Moving a project out of its team (to Local) or into another team.
   let confirmLocal = $state<TeamProject | null>(null);
+  let checking = $state<TeamProject | null>(null); // Check project…
   let localFull = $state(false); // also download older versions' files
   let localSize = $state(0);
   const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
@@ -429,6 +431,11 @@
             Remove from list<span class="faint">the folder stays on this computer</span>
           </button>
         {/if}
+        {#if p.root && (p.status === "downloaded" || p.status === "local")}
+          <button class="item" onclick={() => { rowMenu = ""; checking = p; }}>
+            Check project…<span class="faint">read its whole history again for damage</span>
+          </button>
+        {/if}
         {#if p.root && p.status === "downloaded"}
           <button class="item" onclick={() => {
             rowMenu = ""; localFull = false; localSize = 0; confirmLocal = p;
@@ -463,6 +470,10 @@
       <button class="primary" onclick={() => share(folder)}>Share</button>
     {/snippet}
   </Modal>
+{/if}
+
+{#if checking}
+  <VerifyDialog root={checking.root} name={checking.name} onclose={() => (checking = null)} />
 {/if}
 
 {#if confirmLocal}

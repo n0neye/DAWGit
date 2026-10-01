@@ -207,6 +207,51 @@ func cmdExport(args []string) error {
 // cmdGC frees space in .dawgit: for a team project, local copies of files
 // the team's storage has (sets stay); for any project, objects no version
 // uses.
+func cmdVerify(args []string) (int, error) {
+	fs := flag.NewFlagSet("verify", flag.ContinueOnError)
+	repair := fs.Bool("repair", false, "bring back what can be: from the project folder or the team's storage")
+	if err := fs.Parse(args); err != nil {
+		return 0, err
+	}
+	r, err := openRepo()
+	if err != nil {
+		return 0, err
+	}
+	rep, err := r.Verify(*repair)
+	if err != nil {
+		return 0, err
+	}
+	open := 0
+	for _, p := range rep.Problems {
+		what := p.ID[:min(10, len(p.ID))]
+		if p.Path != "" {
+			what = p.Path
+		}
+		status := ""
+		switch {
+		case p.Fixed:
+			status = "  -> repaired: " + p.How
+		case p.How != "":
+			status = "  -> " + p.How
+			open++
+		default:
+			open++
+		}
+		fmt.Printf("%-12s %s: %s%s\n", p.Kind, what, p.Detail, status)
+	}
+	if r.Config.Remote != nil && !rep.TeamChecked {
+		fmt.Println("(the team's storage couldn't be reached: files only it has weren't checked)")
+	}
+	fmt.Println(rep.Summary())
+	if open > 0 {
+		if !*repair {
+			fmt.Println("run `dawgit verify --repair` to bring back what can be")
+		}
+		return 1, nil
+	}
+	return 0, nil
+}
+
 func cmdGC() error {
 	r, err := openRepo()
 	if err != nil {

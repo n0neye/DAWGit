@@ -148,3 +148,31 @@ func HashFile(path string) (string, int64, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
 }
+
+// List returns every object stored, by hash, with its size on disk.
+func (s *Store) List() (map[string]int64, error) {
+	out := map[string]int64{}
+	shards, err := os.ReadDir(s.dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, shard := range shards {
+		if !shard.IsDir() || len(shard.Name()) != 2 {
+			continue // e.g. tmp
+		}
+		files, err := os.ReadDir(filepath.Join(s.dir, shard.Name()))
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range files {
+			h := shard.Name() + f.Name()
+			if !validHash(h) {
+				continue
+			}
+			if fi, err := f.Info(); err == nil {
+				out[h] = fi.Size()
+			}
+		}
+	}
+	return out, nil
+}
