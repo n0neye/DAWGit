@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"dawgit/internal/project"
+	"dawgit/internal/profile"
 	"dawgit/internal/watch"
 )
 
@@ -38,8 +38,11 @@ func (a *App) WatchFiles(root string) bool {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	err := watch.Dir(ctx, root, 500*time.Millisecond, func(paths []string) {
-		if len(paths) > 0 && !slices.ContainsFunc(paths, worthReloading) {
-			return
+		if len(paths) > 0 {
+			rules, _ := profile.Load(root)
+			if !slices.ContainsFunc(paths, func(p string) bool { return worthReloading(rules, p) }) {
+				return
+			}
 		}
 		if a.emit != nil {
 			a.emit("files", FilesEvent{Root: root})
@@ -65,10 +68,10 @@ func (a *App) UnwatchFiles(root string) {
 	}
 }
 
-// worthReloading: a change DAWGit shows (not its own files, Live's backups,
-// a set in the root or a conversion still being written).
-func worthReloading(rel string) bool {
-	if project.IgnoredPath(rel) || project.Ignored(rel, true) || strings.Contains(path.Base(rel), ".part.") {
+// worthReloading: a change DAWGit shows (not one the project's rules leave
+// out, a set in the root or a conversion still being written).
+func worthReloading(rules *profile.Profile, rel string) bool {
+	if rules.Ignored(rel, false) || strings.Contains(path.Base(rel), ".part.") {
 		return false
 	}
 	return !(strings.EqualFold(path.Ext(rel), ".als") && !strings.Contains(rel, "/"))

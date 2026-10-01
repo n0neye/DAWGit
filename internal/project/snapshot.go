@@ -214,6 +214,9 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	if err := r.guardLatest(); err != nil {
 		return nil, err
 	}
+	if err := r.checkProfile(); err != nil {
+		return nil, err
+	}
 	ix := r.loadIndex()
 	r.report(StageScanning, 0, 0)
 	files, err := r.workingFiles(ix)

@@ -1,0 +1,16 @@
+# Ableton Live projects (the folder with "Ableton Project Info" and the sets).
+name: ableton
+detect: ["Ableton Project Info/", "*.als"]
+ignore:
+  - /Backup/        # Live's own backups of sets (only the project's own folder)
+  - "*.asd"         # Live's analysis files: rebuilt from the samples
+handlers:
+  - files: ["*.als"]
+    merge: ableton-set  # track-level diff and merge
+    samples: ableton    # collect samples, relink them on other computers
+running: ableton-live   # sets are not rewritten while Live has them open
+kinds:
+  set: ["*.als"]
+  live: ["*.alc", "*.adv", "*.adg", "*.agr", "*.ams", "*.alp"]
+  audio: ["*.wav", "*.aif", "*.aiff", "*.mp3", "*.flac", "*.ogg", "*.m4a"]
+  midi: ["*.mid", "*.midi"]

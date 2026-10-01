@@ -5,24 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"dawgit/internal/store"
 )
-
-// Ignored reports whether a project-relative path (slash separated) is left
-// out of snapshots: Live's own backups and analysis caches, OS litter.
-func Ignored(rel string, isDir bool) bool {
-	base := rel[strings.LastIndex(rel, "/")+1:]
-	if isDir {
-		return rel == metaDir || rel == "Backup" || base == ".git"
-	}
-	switch strings.ToLower(base) {
-	case "desktop.ini", "thumbs.db", ".ds_store":
-		return true
-	}
-	return strings.HasSuffix(strings.ToLower(base), ".asd") || strings.HasPrefix(base, ".dawgit-")
-}
 
 // scan lists working files as slash-separated paths relative to the root.
 func (r *Repo) scan() ([]string, error) {
@@ -36,10 +21,14 @@ func (r *Repo) scan() ([]string, error) {
 		}
 		rel, _ := filepath.Rel(r.Root, p)
 		rel = filepath.ToSlash(rel)
-		if Ignored(rel, d.IsDir()) {
-			if d.IsDir() {
+		rules := r.rules()
+		if d.IsDir() {
+			if rules.SkipDir(rel) {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if rules.Ignored(rel, false) {
 			return nil
 		}
 		if d.Type().IsRegular() {

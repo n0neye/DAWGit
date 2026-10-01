@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"dawgit/internal/diff"
+	"dawgit/internal/profile"
 	"dawgit/internal/project"
 )
 
@@ -46,14 +47,22 @@ type Conflict struct {
 	CanKeepBoth bool   `json:"canKeepBoth"`
 }
 
+// RulesInfo is how a project's rules come about (see profile).
+type RulesInfo struct {
+	Applied  []profile.Applied `json:"applied"`  // presets by folder
+	FromFile bool              `json:"fromFile"` // a .dawgit.yaml (else detected)
+	Error    string            `json:"error"`    // why commits are refused
+}
+
 type State struct {
-	Root      string `json:"root"`
-	Name      string `json:"name"`
-	Author    string `json:"author"`
-	Branch    string `json:"branch"`
-	RemoteURL string `json:"remoteUrl"`
-	TeamID    string `json:"teamId"` // "" for a project kept on this computer only
-	TeamName  string `json:"teamName"`
+	Rules     RulesInfo `json:"rules"`
+	Root      string    `json:"root"`
+	Name      string    `json:"name"`
+	Author    string    `json:"author"`
+	Branch    string    `json:"branch"`
+	RemoteURL string    `json:"remoteUrl"`
+	TeamID    string    `json:"teamId"` // "" for a project kept on this computer only
+	TeamName  string    `json:"teamName"`
 	// TeamChecked: the team fields below come from a TeamState call (false
 	// until one ran for this project since DAWGit started).
 	TeamChecked bool     `json:"teamChecked"`

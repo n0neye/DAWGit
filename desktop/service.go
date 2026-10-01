@@ -256,11 +256,16 @@ func (a *App) State(root string) (*State, error) {
 		r.AdoptBranchAtHead()
 	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
-		Head: r.Head(), LiveRunning: livecheck.OpenSet(r.Root) != "", Sets: []string{},
+		Head: r.Head(), LiveRunning: toolOpen(r) != "", Sets: []string{},
 		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, History: []Version{},
 		Branches: []Branch{}}
 	if st.Name == "" {
 		st.Name = filepath.Base(r.Root)
+	}
+	rules, _ := r.Profile()
+	st.Rules = RulesInfo{Applied: rules.Applied(), FromFile: rules.FromFile}
+	if err := r.CheckRules(); err != nil {
+		st.Rules.Error = err.Error()
 	}
 	st.Latest = r.Latest()
 	if r.OnOlderVersion() {
@@ -468,7 +473,21 @@ func liveGuard(r *project.Repo, force bool) string {
 	if force {
 		return ""
 	}
-	return livecheck.OpenSet(r.Root)
+	return toolOpen(r)
+}
+
+// toolOpen runs the running-tool checks of the project's rules: the set of
+// this project open in Live ("?" when Live runs but that cannot be told).
+func toolOpen(r *project.Repo) string {
+	rules, _ := r.Profile()
+	for _, check := range rules.Running() {
+		if check == "ableton-live" {
+			if set := livecheck.OpenSet(r.Root); set != "" {
+				return set
+			}
+		}
+	}
+	return ""
 }
 
 // blocked asks the user to close the set in Live first.

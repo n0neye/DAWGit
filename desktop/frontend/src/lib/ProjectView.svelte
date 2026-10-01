@@ -231,10 +231,28 @@
   });
 
   // Commit from the commit box: when the team is ahead, ask first.
-  function commit() {
+  function commit(confirmed = false) {
     if (!message.trim() || busy || (st?.olderVersion && !st.remoteUrl)) return;
+    // Files the rules now leave out: say so before they leave the versions.
+    const leaving = st?.changes.filter((c) => c.status === "untracked").map((c) => c.path) ?? [];
+    if (leaving.length && !confirmed) {
+      untrackedConfirm = leaving;
+      return;
+    }
     if (st?.incoming.length || st?.olderVersion) openCombine(message);
     else run(saveAction(message));
+  }
+
+  // The project's rules (.dawgit.yaml): files no longer tracked, the dialog.
+  let untrackedConfirm = $state<string[] | null>(null);
+  let rulesOpen = $state(false);
+  async function openRules() {
+    try {
+      await api.OpenRules(root);
+      toast("Save the file, then DAWGit follows the new rules", "info");
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
   }
 
   async function openCombine(msg: string) {
@@ -573,6 +591,8 @@
           {:else}
             <span class="faint">on this computer only</span>
           {/if}
+          <button class="ghost rules-btn" class:bad={!!st.rules.error} onclick={() => (rulesOpen = true)}
+            title="Which files DAWGit tracks in this project">{st.rules.error ? "⚠ Rules" : "Rules"}</button>
         </div>
       </div>
       <div class="actions">
@@ -649,6 +669,13 @@
       </div>
     {/if}
 
+    {#if st.rules.error}
+      <div class="banner warn">
+        <div>⚠ {st.rules.error}</div>
+        <button onclick={openRules}>Open {".dawgit.yaml"}</button>
+      </div>
+    {/if}
+
     <nav>
       <button class:on={tab === "changes"} onclick={() => (tab = "changes")}>
         Changes {#if st.changes.length}<span class="count">{st.changes.length}</span>{/if}
@@ -708,7 +735,7 @@
               Commits on this computer. Share the project with a team to work on it together.
             {/if}
           </p>
-          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)} onclick={commit}
+          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)} onclick={() => commit()}
             title="Ctrl+Enter">
             {busy === "save" || busy === "first-share" ? "Committing…" : st.remoteUrl ? "Commit version & share" : "Commit version"}
           </button>
@@ -765,6 +792,46 @@
       {#snippet footer()}
         <button onclick={() => (discardOpen = false)}>Cancel</button>
         <button class="danger" onclick={discardAndUpdate}>Discard and update</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if untrackedConfirm}
+    {@const files = untrackedConfirm}
+    <Modal title="No longer tracked" onclose={() => (untrackedConfirm = null)}>
+      <p>The project's rules now leave {files.length === 1 ? "this file" : `these ${files.length} files`} out of versions.
+        {files.length === 1 ? "It stays" : "They stay"} on this computer, and on your teammates' computers too.</p>
+      <ul class="untracked mono">
+        {#each files.slice(0, 12) as f}<li>{f}</li>{/each}
+        {#if files.length > 12}<li class="faint">… and {files.length - 12} more</li>{/if}
+      </ul>
+      {#snippet footer()}
+        <button onclick={() => (untrackedConfirm = null)}>Cancel</button>
+        <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>Commit</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if rulesOpen}
+    <Modal title="Rules of “{st.name}”" onclose={() => (rulesOpen = false)}>
+      <p class="muted">Which files DAWGit tracks, set in the project's <span class="mono">.dawgit.yaml</span>. The file is
+        committed with the project, so the whole team uses the same rules.</p>
+      <ul class="applied">
+        {#each st.rules.applied as a}
+          <li><strong>{a.preset === "none" ? "No preset" : a.preset === "ableton" ? "Ableton Live project" : a.preset}</strong>
+            <span class="faint">{a.folder ? `in ${a.folder}/` : "the project folder"}{a.detected ? " · detected" : ""}</span></li>
+        {:else}
+          <li class="faint">No preset: every file is tracked.</li>
+        {/each}
+      </ul>
+      <p class="faint small">{st.rules.fromFile ? "Your .dawgit.yaml may add rules on top, e.g. to leave a folder out."
+        : "No .dawgit.yaml yet: DAWGit follows the preset as is. Create one to leave folders out or track more."}</p>
+      {#if st.rules.error}<p class="error">{st.rules.error}</p>{/if}
+      {#snippet footer()}
+        <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
+        <span class="spacer"></span>
+        <button onclick={() => (rulesOpen = false)}>Close</button>
+        <button class="primary" onclick={() => { rulesOpen = false; openRules(); }}>{st?.rules.fromFile ? "Open .dawgit.yaml" : "Create .dawgit.yaml"}</button>
       {/snippet}
     </Modal>
   {/if}
@@ -900,6 +967,13 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
   .dot.on { background: var(--accent); }
   .dot.checking { background: var(--faint); }
+  .rules-btn { padding: 2px 8px; font-size: 12.5px; color: var(--faint); }
+  .rules-btn:hover { color: var(--text); }
+  .rules-btn.bad { color: var(--warn); }
+  .untracked { list-style: none; padding: 8px 12px; margin: 10px 0 0; background: var(--bg); border-radius: 8px;
+    font-size: 12.5px; max-height: 220px; overflow: auto; }
+  .applied { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
+  .applied li { display: flex; gap: 10px; align-items: baseline; }
 
   .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
   .banner > div { flex: 1; }

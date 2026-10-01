@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"dawgit/internal/profile"
 	"dawgit/internal/store"
 )
 
@@ -188,7 +189,8 @@ func (r *Repo) allManifests() ([]*Manifest, error) {
 }
 
 // referenced lists every object a version here refers to; sets marks those
-// that are Live Sets (kept on this computer).
+// kept on this computer anyway: Live Sets, and the rules (.dawgit.yaml) that
+// decide what an update may delete.
 func (r *Repo) referenced() (all map[string]int64, sets map[string]bool, err error) {
 	ms, err := r.allManifests()
 	if err != nil {
@@ -198,7 +200,7 @@ func (r *Repo) referenced() (all map[string]int64, sets map[string]bool, err err
 	for _, m := range ms {
 		for _, f := range m.Files {
 			all[f.Hash] = f.Size
-			if isSet(f.Path) {
+			if isSet(f.Path) || f.Path == profile.FileName {
 				sets[f.Hash] = true
 			}
 		}

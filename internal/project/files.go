@@ -56,7 +56,7 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 		case changed:
 		case !all:
 			return nil
-		case ignoredPath(rel):
+		case r.rules().Ignored(rel, false):
 			st = "ignored"
 		default:
 			st = "unchanged"
@@ -70,21 +70,6 @@ func (r *Repo) Files(all bool) ([]ProjectFile, error) {
 	})
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, err
-}
-
-// IgnoredPath: the file or one of its folders is left out of versions.
-func IgnoredPath(rel string) bool { return ignoredPath(rel) }
-
-func ignoredPath(rel string) bool {
-	if Ignored(rel, false) {
-		return true
-	}
-	for dir := filepath.ToSlash(filepath.Dir(rel)); dir != "." && dir != "/"; dir = filepath.ToSlash(filepath.Dir(dir)) {
-		if Ignored(dir, true) {
-			return true
-		}
-	}
-	return false
 }
 
 // FileVersion is a version that changed a file.

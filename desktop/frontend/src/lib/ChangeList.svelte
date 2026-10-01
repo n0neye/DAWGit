@@ -3,7 +3,7 @@
 
   let { changes, empty = "No changes" }: { changes: Change[]; empty?: string } = $props();
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−" };
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○" };
 </script>
 
 {#if changes.length === 0}

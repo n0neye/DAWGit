@@ -32,25 +32,11 @@ type ProjectFile struct {
 	Live string `json:"live"`
 }
 
-// Live's own documents besides sets: clips, device presets, racks, grooves.
-var liveExts = map[string]bool{".alc": true, ".adv": true, ".adg": true, ".agr": true, ".ams": true, ".alp": true}
-
-var audioExts = map[string]bool{".wav": true, ".aif": true, ".aiff": true, ".mp3": true, ".flac": true,
-	".ogg": true, ".m4a": true}
-
-func fileKind(p string) string {
-	ext := strings.ToLower(path.Ext(p))
-	switch {
-	case ext == ".als":
-		return "set"
-	case audioExts[ext]:
-		return "audio"
-	case liveExts[ext]:
-		return "live"
-	case ext == ".mid" || ext == ".midi":
-		return "midi"
-	}
-	return "other"
+// fileKind groups a file in the app (set, audio, …), as the project's rules
+// say (the Ableton preset's kinds for an Ableton project).
+func fileKind(r *project.Repo, p string) string {
+	rules, _ := r.Profile()
+	return rules.Kind(p)
 }
 
 // ProjectFiles lists the changed files; with all, every file in the project
@@ -67,7 +53,7 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	}
 	out := []ProjectFile{}
 	for _, f := range files {
-		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(f.Path)}
+		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path)}
 		if pf.Kind == "set" && f.Status != "deleted" {
 			pf.Live = als.CreatorOf(r.Abs(f.Path))
 		}
@@ -127,7 +113,7 @@ func (a *App) DiscardFile(root, file string, force bool) (*Result, error) {
 		return nil, err
 	}
 	defer unlock()
-	if fileKind(file) == "set" {
+	if fileKind(r, file) == "set" {
 		if set := liveGuard(r, force); set != "" {
 			return blocked(set), nil
 		}
@@ -149,7 +135,7 @@ func (a *App) RestoreFileVersion(root, file, version string, force bool) (*Resul
 	if version == "" {
 		return nil, errors.New("pick a version")
 	}
-	if fileKind(file) == "set" {
+	if fileKind(r, file) == "set" {
 		if set := liveGuard(r, force); set != "" {
 			return blocked(set), nil
 		}
@@ -174,7 +160,7 @@ func (a *App) DiscardAll(root string, force bool) (*Result, error) {
 		return nil, err
 	}
 	for _, c := range changes { // only rewriting a set needs Live to let go of it
-		if fileKind(c.Path) == "set" {
+		if fileKind(r, c.Path) == "set" {
 			if set := liveGuard(r, force); set != "" {
 				return blocked(set), nil
 			}

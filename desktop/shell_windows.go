@@ -32,3 +32,18 @@ func shellSelect(path string) error {
 	}
 	return windows.ShellExecute(0, verb, exe, args, nil, windows.SW_SHOWNORMAL)
 }
+
+// shellEdit opens a text file in its editor, or Notepad when no program is
+// set for its type (e.g. .yaml on a fresh Windows).
+func shellEdit(path string) error {
+	if err := shellOpen(path); err == nil {
+		return nil
+	}
+	verb, _ := windows.UTF16PtrFromString("open")
+	exe, _ := windows.UTF16PtrFromString("notepad.exe")
+	arg, err := windows.UTF16PtrFromString(`"` + path + `"`)
+	if err != nil {
+		return err
+	}
+	return windows.ShellExecute(0, verb, exe, arg, nil, windows.SW_SHOWNORMAL)
+}
