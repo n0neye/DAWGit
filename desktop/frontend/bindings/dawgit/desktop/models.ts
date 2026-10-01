@@ -1138,6 +1138,57 @@ export class TextChanges {
 }
 
 /**
+ * TextContent is a text file's lines (TextFile).
+ */
+export class TextContent {
+    /**
+     * false: not text, too big, or no file
+     */
+    "text": boolean;
+
+    /**
+     * over maxTextDiff
+     */
+    "tooBig": boolean;
+    "lines": string[];
+
+    /**
+     * more lines than sent
+     */
+    "truncated": boolean;
+
+    /** Creates a new TextContent instance. */
+    constructor($$source: Partial<TextContent> = {}) {
+        if (!("text" in $$source)) {
+            this["text"] = false;
+        }
+        if (!("tooBig" in $$source)) {
+            this["tooBig"] = false;
+        }
+        if (!("lines" in $$source)) {
+            this["lines"] = [];
+        }
+        if (!("truncated" in $$source)) {
+            this["truncated"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TextContent instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TextContent {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("lines" in $$parsedSource) {
+            $$parsedSource["lines"] = $$createField2_0($$parsedSource["lines"]);
+        }
+        return new TextContent($$parsedSource as Partial<TextContent>);
+    }
+}
+
+/**
  * UpdateInfo describes a newer release than the one running.
  */
 export class UpdateInfo {

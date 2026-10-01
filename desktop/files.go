@@ -130,46 +130,51 @@ type TextChanges struct {
 const (
 	maxTextDiff  = 8 << 20 // bytes per side
 	maxDiffLines = 5000    // lines sent to the view
+	maxWhole     = 20000   // lines sent when showing a whole file
 )
+
+// readText reads file in a version (a version id, "" for the project folder
+// now, "none" for no file: empty), at most maxTextDiff+1 bytes; a file known
+// to be bigger isn't downloaded from the team just to find that out.
+func readText(r *project.Repo, file, version string) ([]byte, error) {
+	if version == "none" {
+		return nil, nil
+	}
+	if version != "" {
+		if id, err := r.Resolve(version); err == nil {
+			if m, err := r.Load(id); err == nil {
+				if f, ok := m.FileMap()[file]; ok && f.Size > maxTextDiff {
+					return make([]byte, maxTextDiff+1), nil
+				}
+			}
+		}
+	}
+	f, err := r.OpenFile(file, version)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, maxTextDiff+1))
+}
 
 // TextDiff compares a text file in two versions. A version is a version id,
 // "" for the project folder now, or "none" when there is no file to compare
-// with (it was added or deleted).
-func (a *App) TextDiff(root, file, from, to string) (*TextChanges, error) {
+// with (it was added or deleted). whole: every line, not just the changes
+// with a few around them.
+func (a *App) TextDiff(root, file, from, to string, whole bool) (*TextChanges, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	read := func(version string) ([]byte, error) {
-		if version == "none" {
-			return nil, nil
-		}
-		// Too big to compare: known before downloading it from the team.
-		if version != "" {
-			if id, err := r.Resolve(version); err == nil {
-				if m, err := r.Load(id); err == nil {
-					if f, ok := m.FileMap()[file]; ok && f.Size > maxTextDiff {
-						return make([]byte, maxTextDiff+1), nil
-					}
-				}
-			}
-		}
-		f, err := r.OpenFile(file, version)
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		return io.ReadAll(io.LimitReader(f, maxTextDiff+1))
-	}
-	old, err := read(from)
+	old, err := readText(r, file, from)
 	if err != nil {
 		return nil, err
 	}
-	cur, err := read(to)
+	cur, err := readText(r, file, to)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +187,13 @@ func (a *App) TextDiff(root, file, from, to string) (*TextChanges, error) {
 		return out, nil
 	}
 	out.Text = true
+	a1, b1 := textdiff.Split(string(old)), textdiff.Split(string(cur))
+	context, limit := 3, maxDiffLines
+	if whole {
+		context, limit = len(a1)+len(b1), maxWhole
+	}
 	shown := 0
-	for _, h := range textdiff.Hunks(textdiff.Split(string(old)), textdiff.Split(string(cur)), 3) {
+	for _, h := range textdiff.Hunks(a1, b1, context) {
 		for _, l := range h.Lines {
 			switch l.Kind {
 			case "add":
@@ -192,16 +202,51 @@ func (a *App) TextDiff(root, file, from, to string) (*TextChanges, error) {
 				out.Removed++
 			}
 		}
-		if shown+len(h.Lines) > maxDiffLines && shown > 0 {
+		if shown+len(h.Lines) > limit && shown > 0 {
 			out.Truncated = true
 			continue
 		}
-		if len(h.Lines) > maxDiffLines {
-			h.Lines = h.Lines[:maxDiffLines]
+		if len(h.Lines) > limit {
+			h.Lines = h.Lines[:limit]
 			out.Truncated = true
 		}
 		shown += len(h.Lines)
 		out.Hunks = append(out.Hunks, h)
+	}
+	return out, nil
+}
+
+// TextContent is a text file's lines (TextFile).
+type TextContent struct {
+	Text      bool     `json:"text"`   // false: not text, too big, or no file
+	TooBig    bool     `json:"tooBig"` // over maxTextDiff
+	Lines     []string `json:"lines"`
+	Truncated bool     `json:"truncated"` // more lines than sent
+}
+
+// TextFile reads a text file in a version ("" for the project folder now).
+func (a *App) TextFile(root, file, version string) (*TextContent, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	data, err := readText(r, file, version)
+	if err != nil {
+		return nil, err
+	}
+	out := &TextContent{Lines: []string{}}
+	switch {
+	case len(data) > maxTextDiff:
+		out.TooBig = true
+	case isText(data) && len(data) > 0:
+		out.Text = true
+		out.Lines = textdiff.Split(string(data))
+		if len(out.Lines) > maxWhole {
+			out.Lines, out.Truncated = out.Lines[:maxWhole], true
+		}
+	case len(data) == 0:
+		out.Text = true // an empty file
 	}
 	return out, nil
 }

@@ -604,11 +604,21 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
 /**
  * TextDiff compares a text file in two versions. A version is a version id,
  * "" for the project folder now, or "none" when there is no file to compare
- * with (it was added or deleted).
+ * with (it was added or deleted). whole: every line, not just the changes
+ * with a few around them.
  */
-export function TextDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<$models.TextChanges | null> {
-    return $Call.ByID(1639953907, root, file, $from, to).then(($result: any) => {
+export function TextDiff(root: string, file: string, $from: string, to: string, whole: boolean): $CancellablePromise<$models.TextChanges | null> {
+    return $Call.ByID(1639953907, root, file, $from, to, whole).then(($result: any) => {
         return $$createType35($result);
+    });
+}
+
+/**
+ * TextFile reads a text file in a version ("" for the project folder now).
+ */
+export function TextFile(root: string, file: string, version: string): $CancellablePromise<$models.TextContent | null> {
+    return $Call.ByID(3165266818, root, file, version).then(($result: any) => {
+        return $$createType37($result);
     });
 }
 
@@ -645,7 +655,7 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
  */
 export function VerifyProject(root: string, repair: boolean): $CancellablePromise<$models.VerifyResult | null> {
     return $Call.ByID(997401215, root, repair).then(($result: any) => {
-        return $$createType37($result);
+        return $$createType39($result);
     });
 }
 
@@ -662,7 +672,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType39($result);
+        return $$createType41($result);
     });
 }
 
@@ -713,7 +723,9 @@ const $$createType32 = $models.TeamPart.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
 const $$createType34 = $models.TextChanges.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = $models.VerifyResult.createFrom;
+const $$createType36 = $models.TextContent.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = $models.Change.createFrom;
-const $$createType39 = $Create.Array($$createType38);
+const $$createType38 = $models.VerifyResult.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = $models.Change.createFrom;
+const $$createType41 = $Create.Array($$createType40);

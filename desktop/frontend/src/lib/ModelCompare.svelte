@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { createViewer, type ModelStats, type Viewer } from "./model3d";
+  import { setCompare, view as shared } from "./compare.svelte";
 
   // A 3D model now and before: the one you look at in a viewer, the other a
   // small label. Compare (remembered, shared with pictures) shows both,
@@ -8,13 +9,7 @@
   type Take = { label: string; src: string; resolve: (rel: string) => string };
   let { a, b, ext }: { a: Take | null; b: Take | null; ext: string } = $props();
 
-  const KEY = "dawgit.compareImages";
-  const read = () => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } };
-  let comparing = $state(read());
-  function setComparing(on: boolean) {
-    comparing = on;
-    try { localStorage.setItem(KEY, on ? "1" : "0"); } catch { /* not remembered */ }
-  }
+  let comparing = $derived(shared.compare);
   let both = $derived(!!a && !!b);
   let main = $derived(a ?? b);
 
@@ -74,10 +69,8 @@
 <div class="mc">
   {#if both}
     <div class="bar">
-      <label class="toggle"><input type="checkbox" class="switch" checked={comparing}
-        onchange={(e) => setComparing((e.currentTarget as HTMLInputElement).checked)} /> Compare</label>
       {#if !comparing}
-        <button class="chip" onclick={() => setComparing(true)} title="Compare with this">{b!.label}</button>
+        <button class="chip" onclick={() => setCompare(true)} title="Compare with this">{b!.label}</button>
       {/if}
       <span class="faint hint">Drag to turn · right-drag to move · wheel to zoom</span>
     </div>
@@ -95,13 +88,6 @@
   .mc { display: flex; flex-direction: column; gap: 10px; }
   .bar { display: flex; align-items: center; gap: 12px; }
   .hint { margin-left: auto; font-size: 11.5px; }
-  .toggle { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; color: var(--muted); cursor: pointer; }
-  .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
-    border: none; padding: 0; border-radius: 8px; background: #3a3d45; transition: background .15s; }
-  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
-    background: #d8dae0; transition: transform .15s; }
-  .switch:checked { background: var(--accent); }
-  .switch:checked::after { transform: translateX(11px); background: #fff; }
   .chip { padding: 3px 10px; font-size: 12px; color: var(--muted); background: var(--panel); border-radius: 8px; }
   figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; text-transform: uppercase;
