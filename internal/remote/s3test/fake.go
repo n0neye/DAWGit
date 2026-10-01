@@ -35,6 +35,11 @@ type Server struct {
 	Requests map[string]int
 	// IgnoreConditions acts like storage without conditional writes.
 	IgnoreConditions bool
+	// FailPart makes uploading that part number of a multipart upload fail.
+	FailPart int
+
+	uploads map[string]*upload // multipart uploads in progress
+	nextID  int
 }
 
 func New(buckets ...string) *Server {
@@ -77,6 +82,22 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		s.list(w, r, bucket)
 		return
 	}
+	q := r.URL.Query()
+	switch {
+	case r.Method == "POST" && q.Has("uploads"):
+		s.startUpload(w, parts[0], key)
+		return
+	case r.Method == "PUT" && q.Get("uploadId") != "":
+		s.putPart(w, r, q)
+		return
+	case r.Method == "POST" && q.Get("uploadId") != "":
+		s.completeUpload(w, r, bucket, key, q.Get("uploadId"))
+		return
+	case r.Method == "DELETE" && q.Get("uploadId") != "":
+		delete(s.uploads, q.Get("uploadId"))
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	obj := bucket[key]
 	switch r.Method {
 	case "GET", "HEAD":
@@ -115,6 +136,88 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	default:
 		xmlError(w, http.StatusMethodNotAllowed, "MethodNotAllowed")
 	}
+}
+
+type upload struct {
+	bucket, key string
+	parts       map[int][]byte
+}
+
+// Uploads is how many multipart uploads are started and not finished or
+// aborted.
+func (s *Server) Uploads() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.uploads)
+}
+
+func (s *Server) startUpload(w http.ResponseWriter, bucket, key string) {
+	if s.uploads == nil {
+		s.uploads = map[string]*upload{}
+	}
+	s.nextID++
+	id := fmt.Sprintf("up%d", s.nextID)
+	s.uploads[id] = &upload{bucket: bucket, key: key, parts: map[int][]byte{}}
+	s.Requests["MULTIPART"]++
+	fmt.Fprintf(w, "<InitiateMultipartUploadResult><Bucket>%s</Bucket><Key>%s</Key><UploadId>%s</UploadId></InitiateMultipartUploadResult>",
+		bucket, key, id)
+}
+
+func (s *Server) putPart(w http.ResponseWriter, r *http.Request, q map[string][]string) {
+	u := s.uploads[first(q["uploadId"])]
+	n, err := strconv.Atoi(first(q["partNumber"]))
+	if u == nil || err != nil || n < 1 {
+		xmlError(w, http.StatusNotFound, "NoSuchUpload")
+		return
+	}
+	if n == s.FailPart {
+		xmlError(w, http.StatusInternalServerError, "InternalError")
+		return
+	}
+	data, _ := io.ReadAll(r.Body)
+	u.parts[n] = data
+	sum := md5.Sum(data)
+	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:])+`"`)
+	w.WriteHeader(http.StatusOK)
+}
+
+func (s *Server) completeUpload(w http.ResponseWriter, r *http.Request, bucket map[string]*object, key, id string) {
+	u := s.uploads[id]
+	if u == nil || u.key != key {
+		xmlError(w, http.StatusNotFound, "NoSuchUpload")
+		return
+	}
+	var req struct {
+		Parts []struct {
+			PartNumber int
+			ETag       string
+		} `xml:"Part"`
+	}
+	if err := xml.NewDecoder(r.Body).Decode(&req); err != nil || len(req.Parts) == 0 {
+		xmlError(w, http.StatusBadRequest, "MalformedXML")
+		return
+	}
+	var data []byte
+	for i, p := range req.Parts {
+		part, ok := u.parts[p.PartNumber]
+		sum := md5.Sum(part)
+		if !ok || p.PartNumber != i+1 || p.ETag != `"`+hex.EncodeToString(sum[:])+`"` {
+			xmlError(w, http.StatusBadRequest, "InvalidPart")
+			return
+		}
+		data = append(data, part...)
+	}
+	sum := md5.Sum(data)
+	bucket[key] = &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `-multipart"`}
+	delete(s.uploads, id)
+	fmt.Fprintf(w, "<CompleteMultipartUploadResult><Key>%s</Key></CompleteMultipartUploadResult>", key)
+}
+
+func first(v []string) string {
+	if len(v) == 0 {
+		return ""
+	}
+	return v[0]
 }
 
 func preconditions(w http.ResponseWriter, r *http.Request, obj *object) bool {
