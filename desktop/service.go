@@ -340,6 +340,7 @@ func (a *App) State(root string) (*State, error) {
 			st.OlderVersion = &v
 		}
 	}
+	st.CloudFolder = cloudFolder(r.Root)
 	if id := r.UnfinishedSwitch(); id != "" {
 		if m, err := r.Header(id); err == nil {
 			v := toVersion(m, nil)
@@ -720,9 +721,9 @@ func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error)
 	return &Result{Action: "moved", Log: []string{}, Relinked: nonNil(notes), Conflicts: []Conflict{}}, nil
 }
 
-// FinishSwitch completes a switch to another version that stopped halfway
-// (State.Unfinished).
-func (a *App) FinishSwitch(root string, force bool) (*Result, error) {
+// RecoverSwitch puts the files back as the version the project is on, after
+// a switch that stopped halfway (State.Unfinished).
+func (a *App) RecoverSwitch(root string, force bool) (*Result, error) {
 	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
@@ -732,7 +733,7 @@ func (a *App) FinishSwitch(root string, force bool) (*Result, error) {
 	if set := liveGuard(r, force); set != "" {
 		return blocked(set), nil
 	}
-	notes, err := r.FinishSwitch()
+	notes, err := r.RecoverSwitch()
 	if err != nil {
 		return nil, err
 	}

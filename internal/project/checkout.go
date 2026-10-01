@@ -117,7 +117,7 @@ const switchingFile = "switching"
 
 // UnfinishedSwitch returns the version a checkout was putting in place when
 // it stopped ("" when none): the project's files are partly that version.
-// FinishSwitch completes it.
+// RecoverSwitch puts them back.
 func (r *Repo) UnfinishedSwitch() string {
 	data, err := os.ReadFile(filepath.Join(r.Dir, switchingFile))
 	if err != nil {
@@ -131,12 +131,19 @@ func (r *Repo) UnfinishedSwitch() string {
 	return id
 }
 
-// FinishSwitch completes a checkout that stopped halfway. Changes made since
-// to the files it was replacing are lost, as they would have been.
-func (r *Repo) FinishSwitch() ([]string, error) {
+// RecoverSwitch puts the files back as the version the project is on,
+// after a switch that stopped halfway: what was switching (going to a
+// version, another branch, the team's latest) changes the project's state
+// only once its files are in place, so that version is where it still is.
+// The switch can then be made again. A project with no version yet gets the
+// version it was getting.
+func (r *Repo) RecoverSwitch() ([]string, error) {
 	id := r.UnfinishedSwitch()
 	if id == "" {
 		return nil, nil
+	}
+	if h := r.Head(); h != "" {
+		id = h
 	}
 	_, notes, err := r.Checkout(id, true)
 	return notes, err

@@ -58,6 +58,16 @@
 
   // message: for a save, what to describe the version with (asked again when
   // the team committed in the meantime: see combine).
+  // The warning about OneDrive & co., once understood, stays away (per project).
+  let cloudOk = $state<Record<string, boolean>>({});
+  $effect.pre(() => {
+    try { cloudOk[root] = localStorage.getItem(`dawgit.cloudOk:${root}`) === "1"; } catch { /* shown */ }
+  });
+  function okCloud(r: string) {
+    cloudOk[r] = true;
+    try { localStorage.setItem(`dawgit.cloudOk:${r}`, "1"); } catch { /* shown again next time */ }
+  }
+
   type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>;
     done: (r: Result) => void; message?: string };
 
@@ -635,16 +645,28 @@
       <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
     {/if}
 
+    {#if st.cloudFolder && !cloudOk[root]}
+      <div class="banner warn">
+        <div>
+          This project is in your <strong>{st.cloudFolder}</strong> folder.
+          <span class="muted">{st.cloudFolder} also syncs DAWGit's history (the hidden .dawgit folder): used from two
+            computers it can damage it, and files kept online-only aren't really here. Best keep projects in a folder
+            {st.cloudFolder} doesn't sync: DAWGit and your team storage already keep them safe.</span>
+        </div>
+        <button onclick={() => okCloud(root)}>I understand</button>
+      </div>
+    {/if}
     {#if st.unfinished}
       {@const v = st.unfinished}
       <div class="banner warn">
         <div>
           Switching to <strong>“{v.message || v.short}”</strong> didn't finish
-          <span class="muted">— DAWGit was closed or a file was in use. Some files are from that version, some aren't.</span>
+          <span class="muted">— DAWGit was closed or a file was in use. Some files are from that version, some aren't.
+            Put them back as they were, then try again.</span>
         </div>
         <button class="primary" disabled={!!busy} onclick={() => run({ name: "goto", message: "",
-          call: (_res, force) => api.FinishSwitch(root, force),
-          done: () => toast(`Switched to “${v.message || v.short}”`, "ok") })}>Finish switching</button>
+          call: (_res, force) => api.RecoverSwitch(root, force),
+          done: () => toast("Files put back as they were", "ok") })}>Put files back</button>
       </div>
     {/if}
     {#if st.olderVersion}

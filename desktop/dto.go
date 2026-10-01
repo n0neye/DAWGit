@@ -80,8 +80,12 @@ type State struct {
 	OlderVersion *Version `json:"olderVersion"`
 	Latest       string   `json:"latest"`
 	// Unfinished is the version a switch was putting in place when it
-	// stopped halfway (DAWGit closed, a file in use); nil normally.
+	// stopped halfway (DAWGit closed, a file in use); nil normally. The
+	// project is still on Head (OlderVersion or the latest).
 	Unfinished *Version `json:"unfinished"`
+	// CloudFolder names the syncing service whose folder holds the project
+	// (OneDrive, Dropbox…); "" when none.
+	CloudFolder string `json:"cloudFolder"`
 
 	Changes  []Change            `json:"changes"`
 	MyEdits  []project.TrackEdit `json:"myEdits"`

@@ -227,16 +227,6 @@ export function FileHistory(root: string, file: string): $CancellablePromise<$mo
 }
 
 /**
- * FinishSwitch completes a switch to another version that stopped halfway
- * (State.Unfinished).
- */
-export function FinishSwitch(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(833291272, root, force).then(($result: any) => {
-        return $$createType10($result);
-    });
-}
-
-/**
  * ForgetProject removes a project from the list (the folder is untouched).
  */
 export function ForgetProject(root: string): $CancellablePromise<void> {
@@ -397,6 +387,16 @@ export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$m
  */
 export function ReconnectProjects(teamID: string, roots: string[]): $CancellablePromise<void> {
     return $Call.ByID(2614388322, teamID, roots);
+}
+
+/**
+ * RecoverSwitch puts the files back as the version the project is on, after
+ * a switch that stopped halfway (State.Unfinished).
+ */
+export function RecoverSwitch(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(426268349, root, force).then(($result: any) => {
+        return $$createType10($result);
+    });
 }
 
 /**

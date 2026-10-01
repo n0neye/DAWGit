@@ -82,7 +82,7 @@ func TestProjectLock(t *testing.T) {
 	assertClean(t, r) // the lock file isn't a project file
 }
 
-// A switch that stops halfway is known, and can be finished.
+// A switch that stops halfway is known, and the files can be put back.
 func TestUnfinishedSwitch(t *testing.T) {
 	root := newProject(t)
 	r, _ := Init(root, "yi")
@@ -104,11 +104,16 @@ func TestUnfinishedSwitch(t *testing.T) {
 		t.Fatalf("unfinished: %q", got)
 	}
 	os.RemoveAll(filepath.Join(root, "x.wav"))
-	if _, err := r.FinishSwitch(); err != nil {
+	if _, err := r.RecoverSwitch(); err != nil {
 		t.Fatal(err)
 	}
-	if r.UnfinishedSwitch() != "" || r.Head() != b.ID {
-		t.Fatalf("after finishing: head %s", r.Head()[:8])
+	if r.UnfinishedSwitch() != "" || r.Head() != a.ID {
+		t.Fatalf("after recovering: head %s", r.Head()[:8])
+	}
+	assertClean(t, r)
+	// Then the switch works.
+	if _, _, err := r.Checkout(b.ID, false); err != nil {
+		t.Fatal(err)
 	}
 	assertClean(t, r)
 }
