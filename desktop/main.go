@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -49,7 +50,7 @@ func Run() {
 			Middleware: svc.fileServer, // audio previews of project files
 		},
 		SingleInstance: &application.SingleInstanceOptions{
-			UniqueID: "com.dawgit.desktop",
+			UniqueID: instanceID(),
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
 				showWindow()
 			},
@@ -119,4 +120,13 @@ func Run() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// instanceID makes a second launch open the running app's window; a build
+// with extensions has its own, so it runs next to the public app.
+func instanceID() string {
+	if version.Edition == "" {
+		return "com.dawgit.desktop"
+	}
+	return "com.dawgit.desktop." + strings.ToLower(strings.ReplaceAll(version.Edition, " ", "-"))
 }
