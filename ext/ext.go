@@ -27,6 +27,14 @@ import (
 // docs/profiles.md); a preset with the same name replaces it.
 func RegisterPreset(yaml []byte) error { return profile.RegisterPreset(yaml) }
 
+// Rules are a project's resolved rules: which preset applies where, and for
+// each file whether it is tracked, its kind and handler (e.g. to test a
+// preset).
+type Rules = profile.Profile
+
+// LoadRules reads a project folder's rules (its .dawgit.yaml, or detected).
+func LoadRules(root string) (*Rules, error) { return profile.Load(root) }
+
 // MergeFunc merges a file changed on both sides from its three versions;
 // clean is false when the changes collide (the file is then chosen whole).
 type MergeFunc = handlers.MergeFunc
