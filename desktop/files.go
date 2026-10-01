@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -20,6 +21,7 @@ import (
 	"dawgit/internal/als"
 	"dawgit/internal/audio"
 	"dawgit/internal/convert"
+	"dawgit/internal/preview"
 	"dawgit/internal/project"
 	"dawgit/internal/teams"
 	"dawgit/internal/textdiff"
@@ -33,6 +35,8 @@ type ProjectFile struct {
 	Kind   string `json:"kind"` // set | live (clip, preset, rack) | audio | midi | other
 	// Live is the Live that last saved a set, e.g. "Ableton Live 12.3.1".
 	Live string `json:"live"`
+	// Preview: the app can show it as an image (/dawgit-preview).
+	Preview bool `json:"preview"`
 }
 
 // fileKind groups a file in the app (set, audio, …), as the project's rules
@@ -56,7 +60,8 @@ func (a *App) ProjectFiles(root string, all bool) ([]ProjectFile, error) {
 	}
 	out := []ProjectFile{}
 	for _, f := range files {
-		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path)}
+		pf := ProjectFile{Path: f.Path, Status: f.Status, Size: f.Size, Kind: fileKind(r, f.Path),
+			Preview: preview.Supported(f.Path)}
 		if pf.Kind == "set" && f.Status != "deleted" {
 			pf.Live = als.CreatorOf(r.Abs(f.Path))
 		}
@@ -299,6 +304,10 @@ func (a *App) fileServer(next http.Handler) http.Handler {
 			a.servePeaks(w, req)
 			return
 		}
+		if req.URL.Path == "/dawgit-preview" {
+			a.servePreview(w, req)
+			return
+		}
 		if req.URL.Path != "/dawgit-file" {
 			next.ServeHTTP(w, req)
 			return
@@ -414,6 +423,85 @@ func (a *App) servePeaks(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	json.NewEncoder(w).Encode(wf)
+}
+
+// previewCache keeps recent previews (decoding a big PSD takes a moment), by
+// file content: a version's never changes; the folder's is keyed by size
+// and time.
+var previewCache = struct {
+	sync.Mutex
+	m     map[string]cachedPreview
+	bytes int
+}{m: map[string]cachedPreview{}}
+
+type cachedPreview struct {
+	data []byte
+	typ  string
+}
+
+const previewCacheBytes = 200 << 20
+
+// servePreview answers /dawgit-preview (same parameters as /dawgit-file,
+// plus max: the longest side) with an image of a design file: Photoshop,
+// TIFF, TGA, Affinity, Blender, Cinema 4D, or images the page shows as
+// they are. 415 for files without a preview.
+func (a *App) servePreview(w http.ResponseWriter, req *http.Request) {
+	q := req.URL.Query()
+	root, rel, version := q.Get("root"), q.Get("path"), q.Get("version")
+	maxSide, _ := strconv.Atoi(q.Get("max"))
+	if maxSide <= 0 || maxSide > 8192 {
+		maxSide = 2048
+	}
+	if !safeRel(rel) || !knownProject(root) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if !preview.Supported(rel) {
+		http.Error(w, "no preview", http.StatusUnsupportedMediaType)
+		return
+	}
+	r, err := project.Open(root)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	key := fmt.Sprintf("%s|%d|", version, maxSide)
+	if version == "" {
+		fi, err := os.Stat(r.Abs(rel))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		key += fmt.Sprintf("%s|%s|%d|%d", root, rel, fi.Size(), fi.ModTime().UnixNano())
+	} else {
+		key += root + "|" + rel
+	}
+	previewCache.Lock()
+	c, ok := previewCache.m[key]
+	previewCache.Unlock()
+	if !ok {
+		f, err := r.OpenFile(rel, version)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		c.data, c.typ, err = preview.Image(rel, f, maxSide)
+		f.Close()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+			return
+		}
+		previewCache.Lock()
+		if previewCache.bytes+len(c.data) > previewCacheBytes {
+			previewCache.m, previewCache.bytes = map[string]cachedPreview{}, 0
+		}
+		previewCache.m[key] = c
+		previewCache.bytes += len(c.data)
+		previewCache.Unlock()
+	}
+	w.Header().Set("Content-Type", c.typ)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Write(c.data)
 }
 
 // knownProject reports whether root is a project folder the app lists.

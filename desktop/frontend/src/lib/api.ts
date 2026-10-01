@@ -11,6 +11,12 @@ export function fileURL(root: string, path: string, version = ""): string {
   const q = new URLSearchParams({ root, path, version });
   return `/dawgit-file?${q}`;
 }
+// A design file as an image (/dawgit-preview): now or as in a version, at
+// most max pixels on its longer side.
+export function previewURL(root: string, path: string, version = "", max = 2048): string {
+  const q = new URLSearchParams({ root, path, version, max: String(max) });
+  return `/dawgit-preview?${q}`;
+}
 export type { TrackEdit } from "../../bindings/dawgit/internal/project/models";
 export type { Project as ServerProject, Member } from "../../bindings/dawgit/internal/remote/models";
 

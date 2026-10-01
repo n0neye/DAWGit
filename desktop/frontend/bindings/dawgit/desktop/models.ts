@@ -400,6 +400,11 @@ export class ProjectFile {
      */
     "live": string;
 
+    /**
+     * Preview: the app can show it as an image (/dawgit-preview).
+     */
+    "preview": boolean;
+
     /** Creates a new ProjectFile instance. */
     constructor($$source: Partial<ProjectFile> = {}) {
         if (!("path" in $$source)) {
@@ -416,6 +421,9 @@ export class ProjectFile {
         }
         if (!("live" in $$source)) {
             this["live"] = "";
+        }
+        if (!("preview" in $$source)) {
+            this["preview"] = false;
         }
 
         Object.assign(this, $$source);
