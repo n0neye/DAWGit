@@ -58,9 +58,9 @@ func TestGitignore(t *testing.T) {
 	}
 }
 
-// A fallback preset is detected only when no other one is.
-func TestFallbackPreset(t *testing.T) {
-	if err := RegisterPreset([]byte("name: zz-code\nfallback: true\ngitignore: true\ndetect: [\".gitignore\"]\n")); err != nil {
+// A preset of lower priority is detected only when no other one is.
+func TestPresetPriority(t *testing.T) {
+	if err := RegisterPreset([]byte("name: zz-code\npriority: -2\ngitignore: true\ndetect: [\".gitignore\"]\n")); err != nil {
 		t.Fatal(err)
 	}
 	defer delete(builtin, "zz-code")
