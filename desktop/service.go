@@ -1,4 +1,4 @@
-package main
+package desktop
 
 import (
 	"context"
@@ -15,8 +15,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"dawgit/internal/agent"
-	"dawgit/internal/livecheck"
+	"dawgit/internal/handlers"
 	"dawgit/internal/project"
+	"dawgit/internal/remote"
 	"dawgit/internal/teams"
 	"dawgit/internal/version"
 )
@@ -327,6 +328,9 @@ type TeamPart struct {
 	Incoming     []Version `json:"incoming"`
 	History      []Version `json:"history"` // all branches, with the team's
 	OlderVersion *Version  `json:"olderVersion"`
+	// Capabilities of the team's backend (locks, presence…): the app shows
+	// what goes with them only when it has them.
+	Capabilities remote.Capabilities `json:"capabilities"`
 }
 
 // TeamState asks the team for its branches and new versions. It runs
@@ -354,6 +358,11 @@ func (a *App) TeamState(root string) (*TeamPart, error) {
 	}
 	part, err := a.teamPart(r, view, true)
 	sw.lap("log")
+	if err == nil {
+		if c, cerr := r.Client(); cerr == nil {
+			part.Capabilities = remote.CapabilitiesOf(c)
+		}
+	}
 	return part, err
 }
 
@@ -480,10 +489,10 @@ func liveGuard(r *project.Repo, force bool) string {
 // this project open in Live ("?" when Live runs but that cannot be told).
 func toolOpen(r *project.Repo) string {
 	rules, _ := r.Profile()
-	for _, check := range rules.Running() {
-		if check == "ableton-live" {
-			if set := livecheck.OpenSet(r.Root); set != "" {
-				return set
+	for _, name := range rules.Running() {
+		if check := handlers.Running(name); check != nil {
+			if open := check(r.Root); open != "" {
+				return open
 			}
 		}
 	}

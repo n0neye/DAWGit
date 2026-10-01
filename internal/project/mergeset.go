@@ -3,9 +3,11 @@ package project
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 
 	"dawgit/internal/als"
+	"dawgit/internal/handlers"
 	"dawgit/internal/merge"
 )
 
@@ -52,6 +54,43 @@ func (r *Repo) mergeSet(path, baseHash, oursHash, theirsHash string, opts MergeO
 		return FileEntry{}, nil, nil, err
 	}
 	return FileEntry{Path: path, Hash: h, Size: n}, log, conflicts, nil
+}
+
+// mergeWithHandler merges a file changed on both sides with the merge handler
+// its preset names; ok is false when there is none or the changes collide.
+func (r *Repo) mergeWithHandler(path, baseHash, oursHash, theirsHash string) (FileEntry, bool, error) {
+	name := r.rules().Handler(path).Merge
+	fn := handlers.Merge(name)
+	if fn == nil {
+		return FileEntry{}, false, nil
+	}
+	if err := r.ensureHashes([]string{baseHash, oursHash, theirsHash}); err != nil {
+		return FileEntry{}, false, err
+	}
+	var data [3][]byte
+	for i, h := range []string{baseHash, oursHash, theirsHash} {
+		f, err := r.openObject(h)
+		if err != nil {
+			return FileEntry{}, false, err
+		}
+		data[i], err = io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			return FileEntry{}, false, err
+		}
+	}
+	merged, clean, err := fn(data[0], data[1], data[2])
+	if err != nil {
+		return FileEntry{}, false, fmt.Errorf("%s: %s merge: %w", path, name, err)
+	}
+	if !clean {
+		return FileEntry{}, false, nil
+	}
+	h, n, err := r.Store.Put(bytes.NewReader(merged))
+	if err != nil {
+		return FileEntry{}, false, err
+	}
+	return FileEntry{Path: path, Hash: h, Size: n}, true, nil
 }
 
 // setKeySep joins a set path and a merge key in conflict keys: "Song.als#track:14".

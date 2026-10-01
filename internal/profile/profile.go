@@ -103,12 +103,25 @@ func init() {
 	entries, _ := presetFiles.ReadDir("presets")
 	for _, e := range entries {
 		data, _ := presetFiles.ReadFile("presets/" + e.Name())
-		var p Preset
-		if err := strictUnmarshal(data, &p); err != nil {
+		if err := RegisterPreset(data); err != nil {
 			panic(fmt.Sprintf("built-in preset %s: %v", e.Name(), err))
 		}
-		builtin[p.Name] = &p
 	}
+}
+
+// RegisterPreset adds a preset (YAML, as in presets/) to the ones DAWGit
+// knows; a preset with the same name replaces it. Call it before projects
+// are opened (e.g. from an extension's init).
+func RegisterPreset(data []byte) error {
+	var p Preset
+	if err := strictUnmarshal(data, &p); err != nil {
+		return err
+	}
+	if p.Name == "" || p.Name == "none" {
+		return fmt.Errorf("a preset needs a name (not %q)", p.Name)
+	}
+	builtin[p.Name] = &p
+	return nil
 }
 
 // Builtin returns a built-in preset by name.

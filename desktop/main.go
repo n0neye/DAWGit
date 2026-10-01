@@ -1,6 +1,8 @@
-// Command desktop is the DAWGit desktop app: a tray app that runs the agent for
-// each project and a window to save versions, get updates and manage branches.
-package main
+// Package desktop is the DAWGit desktop app: a tray app that runs the agent
+// for each project and a window to commit versions, get updates and manage
+// branches. cmd/dawgit-desktop runs it, and so can a build with extensions
+// (see dawgit/ext).
+package desktop
 
 import (
 	"embed"
@@ -19,7 +21,9 @@ var assets embed.FS
 //go:embed build/windows/icon.ico
 var trayIcon []byte
 
-func main() {
+// Run starts the app and returns when it quits (extensions register what
+// they add first).
+func Run() {
 	svc := NewApp()
 	ns := notifications.New()
 

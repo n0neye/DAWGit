@@ -728,6 +728,19 @@ func (r *Repo) mergeManifests(base, ours, theirs *Manifest, opts MergeOptions) (
 			files = append(files, entry)
 			continue
 		}
+		// A file whose preset names a merge handler (e.g. text merged line by
+		// line): merged when the changes don't collide.
+		if b.Hash != "" && o.Hash != "" && t.Hash != "" {
+			entry, ok, err := r.mergeWithHandler(p, b.Hash, o.Hash, t.Hash)
+			if err != nil {
+				return nil, nil, err
+			}
+			if ok {
+				files = append(files, entry)
+				log = append(log, p+": changed on both sides -> merged")
+				continue
+			}
+		}
 		what := "changed on both sides"
 		switch {
 		case o.Hash == "":
