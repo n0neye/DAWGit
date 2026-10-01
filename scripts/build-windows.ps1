@@ -44,13 +44,13 @@ $info.info."0409".FileVersion = $Version
 $infoFile = Join-Path $env:TEMP "dawgit-info.json"
 [IO.File]::WriteAllText($infoFile, ($info | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest `
-  -info $infoFile -out wails_windows_amd64.syso; Check "syso"
+  -info $infoFile -out cmd/dawgit-desktop/wails_windows_amd64.syso; Check "syso"
 Remove-Item $infoFile
 
 Step "desktop app"
 $ldflags = "-w -s -H windowsgui"
-go build -tags production -trimpath -buildvcs=false -ldflags="$ldflags" -o "$dist\DAWGit.exe" .; Check "desktop build"
-Remove-Item wails_windows_amd64.syso
+go build -tags production -trimpath -buildvcs=false -ldflags="$ldflags" -o "$dist\DAWGit.exe" ./cmd/dawgit-desktop; Check "desktop build"
+Remove-Item cmd/dawgit-desktop/wails_windows_amd64.syso
 Pop-Location
 
 Step "command line tool"

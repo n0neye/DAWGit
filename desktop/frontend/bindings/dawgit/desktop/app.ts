@@ -27,7 +27,7 @@ import * as $models from "./models.js";
  * AddLocalProject tracks a folder on this computer only (no team).
  */
 export function AddLocalProject(folder: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(3415343716, folder).then(($result: any) => {
+    return $Call.ByID(777528550, folder).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -38,7 +38,7 @@ export function AddLocalProject(folder: string): $CancellablePromise<$models.Tea
  * version with Save, showing its progress.
  */
 export function AddProjectToTeam(teamID: string, folder: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(1141302713, teamID, folder).then(($result: any) => {
+    return $Call.ByID(3963794339, teamID, folder).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -47,7 +47,7 @@ export function AddProjectToTeam(teamID: string, folder: string): $CancellablePr
  * Autostart reports whether DAWGit starts when the user signs in to Windows.
  */
 export function Autostart(): $CancellablePromise<boolean> {
-    return $Call.ByID(4156082814);
+    return $Call.ByID(2749226356);
 }
 
 /**
@@ -56,7 +56,7 @@ export function Autostart(): $CancellablePromise<boolean> {
  * it off; DAWGIT_DEV_VERSION pretends to be another version (testing).
  */
 export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo | null> {
-    return $Call.ByID(586574094).then(($result: any) => {
+    return $Call.ByID(2091993444).then(($result: any) => {
         return $$createType2($result);
     });
 }
@@ -65,7 +65,7 @@ export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo | null> {
  * ChooseFolder asks the user for a folder ("" when cancelled).
  */
 export function ChooseFolder(title: string): $CancellablePromise<string> {
-    return $Call.ByID(3880522108, title);
+    return $Call.ByID(2228239046, title);
 }
 
 /**
@@ -73,7 +73,7 @@ export function ChooseFolder(title: string): $CancellablePromise<string> {
  * makes it the current one.
  */
 export function ConnectTeam(address: string, token: string): $CancellablePromise<$models.TeamSummary> {
-    return $Call.ByID(225746720, address, token).then(($result: any) => {
+    return $Call.ByID(1743250902, address, token).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -83,11 +83,11 @@ export function ConnectTeam(address: string, token: string): $CancellablePromise
  * new file's path. Progress comes as "progress" events (stage "converting").
  */
 export function ConvertFile(root: string, file: string, format: string, kbps: number, rate: number, channels: number, bits: number): $CancellablePromise<string> {
-    return $Call.ByID(1868258278, root, file, format, kbps, rate, channels, bits);
+    return $Call.ByID(1939611336, root, file, format, kbps, rate, channels, bits);
 }
 
 export function ConvertFormats(): $CancellablePromise<$models.ConvertFormat[]> {
-    return $Call.ByID(2491173952).then(($result: any) => {
+    return $Call.ByID(3291664010).then(($result: any) => {
         return $$createType5($result);
     });
 }
@@ -96,7 +96,7 @@ export function ConvertFormats(): $CancellablePromise<$models.ConvertFormat[]> {
  * ConvertInfo describes a sample (rate, channels, bits, length).
  */
 export function ConvertInfo(root: string, file: string): $CancellablePromise<convert$0.Info> {
-    return $Call.ByID(153167212, root, file).then(($result: any) => {
+    return $Call.ByID(991517198, root, file).then(($result: any) => {
         return $$createType6($result);
     });
 }
@@ -107,7 +107,7 @@ export function ConvertInfo(root: string, file: string): $CancellablePromise<con
  * original's.
  */
 export function ConvertPlan(root: string, file: string, format: string, kbps: number, rate: number, channels: number, bits: number): $CancellablePromise<convert$0.Result> {
-    return $Call.ByID(807394467, root, file, format, kbps, rate, channels, bits).then(($result: any) => {
+    return $Call.ByID(1644825813, root, file, format, kbps, rate, channels, bits).then(($result: any) => {
         return $$createType7($result);
     });
 }
@@ -116,11 +116,11 @@ export function ConvertPlan(root: string, file: string, format: string, kbps: nu
  * ConvertTarget is the file a conversion would write (relative path).
  */
 export function ConvertTarget(root: string, file: string, format: string): $CancellablePromise<string> {
-    return $Call.ByID(1793459641, root, file, format);
+    return $Call.ByID(981929823, root, file, format);
 }
 
 export function CreateBranch(root: string, name: string): $CancellablePromise<void> {
-    return $Call.ByID(3624428965, root, name);
+    return $Call.ByID(3812372955, root, name);
 }
 
 /**
@@ -130,7 +130,7 @@ export function CreateBranch(root: string, name: string): $CancellablePromise<vo
  * connection code for teammates comes from TeamConnectionCode.
  */
 export function CreateStorageTeam(s: remote$0.Storage, name: string): $CancellablePromise<$models.TeamSummary> {
-    return $Call.ByID(988116111, s, name).then(($result: any) => {
+    return $Call.ByID(179947913, s, name).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -141,7 +141,7 @@ export function CreateStorageTeam(s: remote$0.Storage, name: string): $Cancellab
  * as a project on this computer only.
  */
 export function DeleteProjectFromTeam(teamID: string, projectID: string): $CancellablePromise<void> {
-    return $Call.ByID(1271903518, teamID, projectID);
+    return $Call.ByID(1342546028, teamID, projectID);
 }
 
 /**
@@ -149,7 +149,7 @@ export function DeleteProjectFromTeam(teamID: string, projectID: string): $Cance
  * the version it is on.
  */
 export function DiscardAll(root: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(2924004144, root, force).then(($result: any) => {
+    return $Call.ByID(2516265674, root, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -159,7 +159,7 @@ export function DiscardAll(root: string, force: boolean): $CancellablePromise<$m
  * versions of this branch.
  */
 export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(2611281035, root, resolutions, force).then(($result: any) => {
+    return $Call.ByID(802328553, root, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -168,7 +168,7 @@ export function DiscardAndUpdate(root: string, resolutions: { [_ in string]?: st
  * DiscardFile puts one file back as it is in the version the project is on.
  */
 export function DiscardFile(root: string, file: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(2822748111, root, file, force).then(($result: any) => {
+    return $Call.ByID(2981786833, root, file, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -177,7 +177,7 @@ export function DiscardFile(root: string, file: string, force: boolean): $Cancel
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(3062621418, teamID, projectID, parent).then(($result: any) => {
+    return $Call.ByID(2890946164, teamID, projectID, parent).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -187,7 +187,7 @@ export function DownloadProject(teamID: string, projectID: string, parent: strin
  * and returns its path.
  */
 export function ExportVersion(root: string, id: string, parent: string): $CancellablePromise<string> {
-    return $Call.ByID(2651241909, root, id, parent);
+    return $Call.ByID(1949909267, root, id, parent);
 }
 
 /**
@@ -195,7 +195,7 @@ export function ExportVersion(root: string, id: string, parent: string): $Cancel
  * the set was added), as diff lines.
  */
 export function FileDiff(root: string, file: string, $from: string, to: string): $CancellablePromise<string[]> {
-    return $Call.ByID(2746812856, root, file, $from, to).then(($result: any) => {
+    return $Call.ByID(3818610066, root, file, $from, to).then(($result: any) => {
         return $$createType10($result);
     });
 }
@@ -204,7 +204,7 @@ export function FileDiff(root: string, file: string, $from: string, to: string):
  * FileHistory lists the versions of the current branch that changed path.
  */
 export function FileHistory(root: string, file: string): $CancellablePromise<$models.FileVersion[]> {
-    return $Call.ByID(2582398293, root, file).then(($result: any) => {
+    return $Call.ByID(2793313367, root, file).then(($result: any) => {
         return $$createType12($result);
     });
 }
@@ -213,7 +213,7 @@ export function FileHistory(root: string, file: string): $CancellablePromise<$mo
  * ForgetProject removes a project from the list (the folder is untouched).
  */
 export function ForgetProject(root: string): $CancellablePromise<void> {
-    return $Call.ByID(1105048745, root);
+    return $Call.ByID(4020472883, root);
 }
 
 /**
@@ -222,7 +222,7 @@ export function ForgetProject(root: string): $CancellablePromise<void> {
  * ahead while Live is running.
  */
 export function GoToVersion(root: string, id: string, discard: boolean, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3139605490, root, id, discard, force).then(($result: any) => {
+    return $Call.ByID(835698212, root, id, discard, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -233,7 +233,7 @@ export function GoToVersion(root: string, id: string, discard: boolean, force: b
  * of a team (teamID), to offer downloading them when leaving the team.
  */
 export function HistoryDownloadSize(root: string, teamID: string): $CancellablePromise<number> {
-    return $Call.ByID(4063073506, root, teamID);
+    return $Call.ByID(3122221168, root, teamID);
 }
 
 /**
@@ -241,7 +241,7 @@ export function HistoryDownloadSize(root: string, teamID: string): $CancellableP
  * becomes a new version on top of the latest (shared with the team).
  */
 export function KeepThisVersion(root: string, message: string, resolutions: { [_ in string]?: string }): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(2867236424, root, message, resolutions).then(($result: any) => {
+    return $Call.ByID(1075527342, root, message, resolutions).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -250,13 +250,13 @@ export function KeepThisVersion(root: string, message: string, resolutions: { [_
  * LocateProject points a team project at a folder that was moved.
  */
 export function LocateProject(teamID: string, projectID: string, folder: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(4181359348, teamID, projectID, folder).then(($result: any) => {
+    return $Call.ByID(1199576390, teamID, projectID, folder).then(($result: any) => {
         return $$createType0($result);
     });
 }
 
 export function MergeBranch(root: string, name: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3631821023, root, name, message, resolutions, force).then(($result: any) => {
+    return $Call.ByID(2689824969, root, name, message, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -266,7 +266,7 @@ export function MergeBranch(root: string, name: string, message: string, resolut
  * the merge version ("" for the default, see Preview.Message).
  */
 export function MergeVersion(root: string, id: string, message: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(3024291569, root, id, message, resolutions, force).then(($result: any) => {
+    return $Call.ByID(26777131, root, id, message, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -277,7 +277,7 @@ export function MergeVersion(root: string, id: string, message: string, resoluti
  * Local (with fullHistory, also the files of older versions).
  */
 export function MoveProjectToLocal(root: string, fullHistory: boolean): $CancellablePromise<void> {
-    return $Call.ByID(2125136491, root, fullHistory);
+    return $Call.ByID(695723853, root, fullHistory);
 }
 
 /**
@@ -286,7 +286,7 @@ export function MoveProjectToLocal(root: string, fullHistory: boolean): $Cancell
  * team keeps its copy.
  */
 export function MoveProjectToTeam(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(3128473321, root, teamID).then(($result: any) => {
+    return $Call.ByID(3698731567, root, teamID).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -295,7 +295,7 @@ export function MoveProjectToTeam(root: string, teamID: string): $CancellablePro
  * OpenInLive opens a set with its default application (Ableton Live).
  */
 export function OpenInLive(root: string, $set: string): $CancellablePromise<void> {
-    return $Call.ByID(200971096, root, $set);
+    return $Call.ByID(2452513246, root, $set);
 }
 
 /**
@@ -303,7 +303,7 @@ export function OpenInLive(root: string, $set: string): $CancellablePromise<void
  * from a commented template first.
  */
 export function OpenRules(root: string): $CancellablePromise<void> {
-    return $Call.ByID(2219275516, root);
+    return $Call.ByID(1176482710, root);
 }
 
 /**
@@ -311,20 +311,20 @@ export function OpenRules(root: string): $CancellablePromise<void> {
  * browser. Other addresses are refused.
  */
 export function OpenURL(url: string): $CancellablePromise<void> {
-    return $Call.ByID(3584934946, url);
+    return $Call.ByID(3541157752, url);
 }
 
 /**
  * Overview is everything the sidebar and onboarding need.
  */
 export function Overview(): $CancellablePromise<$models.Overview | null> {
-    return $Call.ByID(20653634).then(($result: any) => {
+    return $Call.ByID(3267730092).then(($result: any) => {
         return $$createType14($result);
     });
 }
 
 export function PreviewMerge(root: string, name: string): $CancellablePromise<$models.Preview | null> {
-    return $Call.ByID(1135981589, root, name).then(($result: any) => {
+    return $Call.ByID(667514631, root, name).then(($result: any) => {
         return $$createType16($result);
     });
 }
@@ -334,13 +334,13 @@ export function PreviewMerge(root: string, name: string): $CancellablePromise<$m
  * of another branch) into the current branch.
  */
 export function PreviewMergeVersion(root: string, id: string): $CancellablePromise<$models.Preview | null> {
-    return $Call.ByID(730100359, root, id).then(($result: any) => {
+    return $Call.ByID(1189396329, root, id).then(($result: any) => {
         return $$createType16($result);
     });
 }
 
 export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview | null> {
-    return $Call.ByID(3558658446, root).then(($result: any) => {
+    return $Call.ByID(1687188180, root).then(($result: any) => {
         return $$createType16($result);
     });
 }
@@ -350,7 +350,7 @@ export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview
  * folder (files DAWGit leaves out are "ignored").
  */
 export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$models.ProjectFile[]> {
-    return $Call.ByID(445585849, root, all).then(($result: any) => {
+    return $Call.ByID(523169647, root, all).then(($result: any) => {
         return $$createType18($result);
     });
 }
@@ -360,7 +360,7 @@ export function ProjectFiles(root: string, all: boolean): $CancellablePromise<$m
  * TeamProjectsHere).
  */
 export function ReconnectProjects(teamID: string, roots: string[]): $CancellablePromise<void> {
-    return $Call.ByID(2596944436, teamID, roots);
+    return $Call.ByID(2614388322, teamID, roots);
 }
 
 /**
@@ -371,11 +371,11 @@ export function ReconnectProjects(teamID: string, roots: string[]): $Cancellable
  * team's storage are downloaded first. Project folders always stay on disk.
  */
 export function RemoveTeam(id: string, keepProjects: boolean, fullHistory: boolean): $CancellablePromise<void> {
-    return $Call.ByID(3754118508, id, keepProjects, fullHistory);
+    return $Call.ByID(215940926, id, keepProjects, fullHistory);
 }
 
 export function RenameTeam(id: string, name: string): $CancellablePromise<void> {
-    return $Call.ByID(478452658, id, name);
+    return $Call.ByID(720593496, id, name);
 }
 
 /**
@@ -383,7 +383,7 @@ export function RenameTeam(id: string, name: string): $CancellablePromise<void> 
  * storage; every member's DAWGit follows it.
  */
 export function RenameTeamForEveryone(id: string, name: string): $CancellablePromise<void> {
-    return $Call.ByID(280692036, id, name);
+    return $Call.ByID(3831182530, id, name);
 }
 
 /**
@@ -391,7 +391,7 @@ export function RenameTeamForEveryone(id: string, name: string): $CancellablePro
  * the project stays. The result is an uncommitted change.
  */
 export function RestoreFileVersion(root: string, file: string, version: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(341144577, root, file, version, force).then(($result: any) => {
+    return $Call.ByID(3800490991, root, file, version, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -405,33 +405,33 @@ export function RestoreFileVersion(root: string, file: string, version: string, 
  * branch, or discard) with a preview.
  */
 export function Save(root: string, message: string, combine: boolean, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(1993570256, root, message, combine, resolutions, force).then(($result: any) => {
+    return $Call.ByID(1492565294, root, message, combine, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
 
 export function SelectTeam(id: string): $CancellablePromise<void> {
-    return $Call.ByID(2252928460, id);
+    return $Call.ByID(3795090602, id);
 }
 
 /**
  * ServerProjects lists a team's projects before connecting (onboarding).
  */
 export function ServerProjects(address: string, token: string): $CancellablePromise<remote$0.Project[]> {
-    return $Call.ByID(898254696, address, token).then(($result: any) => {
+    return $Call.ByID(2541020658, address, token).then(($result: any) => {
         return $$createType20($result);
     });
 }
 
 export function SetAuthor(name: string): $CancellablePromise<void> {
-    return $Call.ByID(2727723748, name);
+    return $Call.ByID(3939896394, name);
 }
 
 /**
  * SetAutostart turns starting DAWGit at sign-in on or off.
  */
 export function SetAutostart(on: boolean): $CancellablePromise<void> {
-    return $Call.ByID(1324798748, on);
+    return $Call.ByID(2616989090, on);
 }
 
 /**
@@ -441,7 +441,7 @@ export function SetAutostart(on: boolean): $CancellablePromise<void> {
  * it on all of that member's versions, old ones included.
  */
 export function SetIdentity(teamID: string, memberID: string, name: string): $CancellablePromise<$models.TeamSummary> {
-    return $Call.ByID(1822841893, teamID, memberID, name).then(($result: any) => {
+    return $Call.ByID(2096508959, teamID, memberID, name).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -450,7 +450,7 @@ export function SetIdentity(teamID: string, memberID: string, name: string): $Ca
  * ShareProject moves a local-only project into a team (see AddProjectToTeam).
  */
 export function ShareProject(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(1658918021, root, teamID).then(($result: any) => {
+    return $Call.ByID(3903611547, root, teamID).then(($result: any) => {
         return $$createType0($result);
     });
 }
@@ -459,11 +459,11 @@ export function ShareProject(root: string, teamID: string): $CancellablePromise<
  * ShowFile opens Explorer with the file selected.
  */
 export function ShowFile(root: string, file: string): $CancellablePromise<void> {
-    return $Call.ByID(3695986834, root, file);
+    return $Call.ByID(3009707520, root, file);
 }
 
 export function ShowFolder(root: string): $CancellablePromise<void> {
-    return $Call.ByID(2097789072, root);
+    return $Call.ByID(4249010486, root);
 }
 
 /**
@@ -472,17 +472,17 @@ export function ShowFolder(root: string): $CancellablePromise<void> {
  * lock, so the frontend polls it to notice Ctrl+S in Live right away.
  */
 export function Signature(root: string): $CancellablePromise<string> {
-    return $Call.ByID(1626727493, root);
+    return $Call.ByID(3806741111, root);
 }
 
 export function State(root: string): $CancellablePromise<$models.State | null> {
-    return $Call.ByID(1946832782, root).then(($result: any) => {
+    return $Call.ByID(3201444836, root).then(($result: any) => {
         return $$createType22($result);
     });
 }
 
 export function SwitchBranch(root: string, name: string, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(4167079521, root, name, force).then(($result: any) => {
+    return $Call.ByID(2633693627, root, name, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -491,7 +491,7 @@ export function SwitchBranch(root: string, name: string, force: boolean): $Cance
  * TeamConnectionCode is the code teammates paste to join a storage team.
  */
 export function TeamConnectionCode(teamID: string): $CancellablePromise<string> {
-    return $Call.ByID(2317490817, teamID);
+    return $Call.ByID(2098401059, teamID);
 }
 
 /**
@@ -499,7 +499,7 @@ export function TeamConnectionCode(teamID: string): $CancellablePromise<string> 
  * included (they are this user's own, shown in their settings).
  */
 export function TeamConnectionSettings(teamID: string): $CancellablePromise<$models.TeamConnection> {
-    return $Call.ByID(1372692665, teamID).then(($result: any) => {
+    return $Call.ByID(3760281451, teamID).then(($result: any) => {
         return $$createType23($result);
     });
 }
@@ -508,7 +508,7 @@ export function TeamConnectionSettings(teamID: string): $CancellablePromise<$mod
  * TeamMembers lists a team's members (to pick yourself on a new computer).
  */
 export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member[]> {
-    return $Call.ByID(2113787423, teamID).then(($result: any) => {
+    return $Call.ByID(462026725, teamID).then(($result: any) => {
         return $$createType25($result);
     });
 }
@@ -518,7 +518,7 @@ export function TeamMembers(teamID: string): $CancellablePromise<remote$0.Member
  * this computer disconnected from it), to offer reconnecting them.
  */
 export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.FoundProject[]> {
-    return $Call.ByID(3983712896, teamID).then(($result: any) => {
+    return $Call.ByID(2946582454, teamID).then(($result: any) => {
         return $$createType27($result);
     });
 }
@@ -528,7 +528,7 @@ export function TeamProjectsHere(teamID: string): $CancellablePromise<$models.Fo
  * without the project lock, so the page shows State at once and fills this in.
  */
 export function TeamState(root: string): $CancellablePromise<$models.TeamPart | null> {
-    return $Call.ByID(3957505369, root).then(($result: any) => {
+    return $Call.ByID(2508473999, root).then(($result: any) => {
         return $$createType29($result);
     });
 }
@@ -537,14 +537,14 @@ export function TeamState(root: string): $CancellablePromise<$models.TeamPart | 
  * UnwatchFiles ends a WatchFiles.
  */
 export function UnwatchFiles(root: string): $CancellablePromise<void> {
-    return $Call.ByID(2951355492, root);
+    return $Call.ByID(1375367742, root);
 }
 
 /**
  * Update brings in the team's latest versions.
  */
 export function Update(root: string, resolutions: { [_ in string]?: string }, force: boolean): $CancellablePromise<$models.Result | null> {
-    return $Call.ByID(4141298428, root, resolutions, force).then(($result: any) => {
+    return $Call.ByID(2226037650, root, resolutions, force).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -555,7 +555,7 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
  * changes, the team's downloaded projects are pointed at it.
  */
 export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection): $CancellablePromise<$models.TeamSummary> {
-    return $Call.ByID(4088282913, teamID, c).then(($result: any) => {
+    return $Call.ByID(2361674675, teamID, c).then(($result: any) => {
         return $$createType3($result);
     });
 }
@@ -564,7 +564,7 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
  * Version is the DAWGit release number.
  */
 export function Version(): $CancellablePromise<string> {
-    return $Call.ByID(2431199839);
+    return $Call.ByID(171832045);
 }
 
 /**
@@ -572,7 +572,7 @@ export function Version(): $CancellablePromise<string> {
  * it (for a merge: what it brought into its branch), for the History tab.
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
-    return $Call.ByID(2214711800, root, id).then(($result: any) => {
+    return $Call.ByID(3008736322, root, id).then(($result: any) => {
         return $$createType31($result);
     });
 }
@@ -584,7 +584,7 @@ export function VersionChanges(root: string, id: string): $CancellablePromise<$m
  * this system has no watcher; each call wants an UnwatchFiles.
  */
 export function WatchFiles(root: string): $CancellablePromise<boolean> {
-    return $Call.ByID(1427111503, root);
+    return $Call.ByID(1285277733, root);
 }
 
 // Private type creation functions

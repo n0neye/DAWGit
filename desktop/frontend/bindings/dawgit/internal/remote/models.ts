@@ -6,6 +6,42 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Capabilities are features a backend offers beyond versions; the app shows
+ * what goes with them only when the team's backend has them.
+ */
+export class Capabilities {
+    /**
+     * files can be locked for editing
+     */
+    "locks": boolean;
+
+    /**
+     * who is working on what, live
+     */
+    "presence": boolean;
+
+    /** Creates a new Capabilities instance. */
+    constructor($$source: Partial<Capabilities> = {}) {
+        if (!("locks" in $$source)) {
+            this["locks"] = false;
+        }
+        if (!("presence" in $$source)) {
+            this["presence"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Capabilities instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Capabilities {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Capabilities($$parsedSource as Partial<Capabilities>);
+    }
+}
+
+/**
  * Member is a person in the team. Versions record the member's id, so a new
  * display name applies to everything they did.
  */

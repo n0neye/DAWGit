@@ -104,9 +104,42 @@ func (c Config) PollInterval() time.Duration {
 // Display is the address without credentials, for showing to users.
 func (c Config) Display() string { return c.URL }
 
+// Opener opens a backend for a configuration (see Register).
+type Opener func(cfg Config) (Backend, error)
+
+var openers = map[string]Opener{}
+
+// Register adds a kind of backend: addresses starting with prefix (e.g.
+// "rtdb+https://") are opened by open. Registered prefixes are tried before
+// the built-in server and storage backends.
+func Register(prefix string, open Opener) { openers[strings.ToLower(prefix)] = open }
+
+// Capabilities are features a backend offers beyond versions; the app shows
+// what goes with them only when the team's backend has them.
+type Capabilities struct {
+	Locks    bool `json:"locks"`    // files can be locked for editing
+	Presence bool `json:"presence"` // who is working on what, live
+}
+
+// Capable is implemented by backends with capabilities.
+type Capable interface{ Capabilities() Capabilities }
+
+// CapabilitiesOf a backend (none for the built-in ones).
+func CapabilitiesOf(b Backend) Capabilities {
+	if c, ok := b.(Capable); ok {
+		return c.Capabilities()
+	}
+	return Capabilities{}
+}
+
 // Open returns the backend for a configuration.
 func Open(cfg Config) (Backend, error) {
 	u := strings.ToLower(cfg.URL)
+	for prefix, open := range openers {
+		if strings.HasPrefix(u, prefix) {
+			return open(cfg)
+		}
+	}
 	switch {
 	case strings.HasPrefix(u, "http://"), strings.HasPrefix(u, "https://"):
 		return New(cfg.URL, cfg.Token), nil

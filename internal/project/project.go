@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"dawgit/internal/remote"
 	"dawgit/internal/profile"
+	"dawgit/internal/remote"
 	"dawgit/internal/store"
 	"dawgit/internal/teams"
 )
@@ -67,7 +67,8 @@ func Init(root, author string) (*Repo, error) {
 		return nil, fmt.Errorf("%s is already a dawgit project", root)
 	}
 	if !looksLikeProject(root) {
-		return nil, fmt.Errorf("%s does not look like an Ableton project (no .als file or \"Ableton Project Info\")", root)
+		return nil, fmt.Errorf("%s does not look like a project DAWGit knows (for Ableton Live: a .als file or "+
+			"\"Ableton Project Info\"; or add a %s)", root, profile.FileName)
 	}
 	id := make([]byte, 16)
 	rand.Read(id)
@@ -135,12 +136,12 @@ func Open(dir string) (*Repo, error) {
 	return r, err
 }
 
+// looksLikeProject: a preset recognizes the folder, or it has its own rules.
 func looksLikeProject(root string) bool {
-	if _, err := os.Stat(filepath.Join(root, "Ableton Project Info")); err == nil {
+	if _, err := os.Stat(filepath.Join(root, profile.FileName)); err == nil {
 		return true
 	}
-	sets, _ := filepath.Glob(filepath.Join(root, "*.als"))
-	return len(sets) > 0
+	return len(profile.Detect(root).Applied()) > 0
 }
 
 // Identity is who commits here: in a team, the member chosen on this computer

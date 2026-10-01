@@ -756,6 +756,12 @@ export class TeamPart {
     "history": Version[];
     "olderVersion": Version | null;
 
+    /**
+     * Capabilities of the team's backend (locks, presence…): the app shows
+     * what goes with them only when it has them.
+     */
+    "capabilities": remote$0.Capabilities;
+
     /** Creates a new TeamPart instance. */
     constructor($$source: Partial<TeamPart> = {}) {
         if (!("online" in $$source)) {
@@ -776,6 +782,9 @@ export class TeamPart {
         if (!("olderVersion" in $$source)) {
             this["olderVersion"] = null;
         }
+        if (!("capabilities" in $$source)) {
+            this["capabilities"] = (new remote$0.Capabilities());
+        }
 
         Object.assign(this, $$source);
     }
@@ -788,6 +797,7 @@ export class TeamPart {
         const $$createField3_0 = $$createType8;
         const $$createField4_0 = $$createType8;
         const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -800,6 +810,9 @@ export class TeamPart {
         }
         if ("olderVersion" in $$parsedSource) {
             $$parsedSource["olderVersion"] = $$createField5_0($$parsedSource["olderVersion"]);
+        }
+        if ("capabilities" in $$parsedSource) {
+            $$parsedSource["capabilities"] = $$createField6_0($$parsedSource["capabilities"]);
         }
         return new TeamPart($$parsedSource as Partial<TeamPart>);
     }
@@ -1044,3 +1057,4 @@ const $$createType17 = $Create.Array($$createType16);
 const $$createType18 = Branch.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = remote$0.Storage.createFrom;
+const $$createType21 = remote$0.Capabilities.createFrom;
