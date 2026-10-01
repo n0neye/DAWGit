@@ -14,6 +14,9 @@ import * as project$0 from "../internal/project/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as remote$0 from "../internal/remote/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as textdiff$0 from "../internal/textdiff/models.js";
 
 export class Branch {
     "name": string;
@@ -915,6 +918,77 @@ export class TeamSummary {
 }
 
 /**
+ * TextChanges is how a text file changed, line by line.
+ */
+export class TextChanges {
+    /**
+     * false: not text, or too big to compare
+     */
+    "text": boolean;
+
+    /**
+     * over maxTextDiff
+     */
+    "tooBig": boolean;
+
+    /**
+     * lines
+     */
+    "added": number;
+
+    /**
+     * lines
+     */
+    "removed": number;
+
+    /**
+     * the changes with lines around them
+     */
+    "hunks": textdiff$0.Hunk[];
+
+    /**
+     * more changes than shown
+     */
+    "truncated": boolean;
+
+    /** Creates a new TextChanges instance. */
+    constructor($$source: Partial<TextChanges> = {}) {
+        if (!("text" in $$source)) {
+            this["text"] = false;
+        }
+        if (!("tooBig" in $$source)) {
+            this["tooBig"] = false;
+        }
+        if (!("added" in $$source)) {
+            this["added"] = 0;
+        }
+        if (!("removed" in $$source)) {
+            this["removed"] = 0;
+        }
+        if (!("hunks" in $$source)) {
+            this["hunks"] = [];
+        }
+        if (!("truncated" in $$source)) {
+            this["truncated"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TextChanges instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TextChanges {
+        const $$createField4_0 = $$createType23;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("hunks" in $$parsedSource) {
+            $$parsedSource["hunks"] = $$createField4_0($$parsedSource["hunks"]);
+        }
+        return new TextChanges($$parsedSource as Partial<TextChanges>);
+    }
+}
+
+/**
  * UpdateInfo describes a newer release than the one running.
  */
 export class UpdateInfo {
@@ -1064,3 +1138,5 @@ const $$createType18 = Branch.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = remote$0.Storage.createFrom;
 const $$createType21 = remote$0.Capabilities.createFrom;
+const $$createType22 = textdiff$0.Hunk.createFrom;
+const $$createType23 = $Create.Array($$createType22);

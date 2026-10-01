@@ -23,6 +23,7 @@ export {
     TeamPart,
     TeamProject,
     TeamSummary,
+    TextChanges,
     UpdateInfo,
     Version
 } from "./models.js";

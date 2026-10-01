@@ -168,7 +168,7 @@ func (r *Repo) OpenFile(path, version string) (io.ReadSeekCloser, error) {
 	}
 	f, ok := m.FileMap()[path]
 	if !ok {
-		return nil, fmt.Errorf("%s is not in that version", path)
+		return nil, fmt.Errorf("%s is not in that version: %w", path, fs.ErrNotExist)
 	}
 	if err := r.fetchFile(f); err != nil {
 		return nil, err
