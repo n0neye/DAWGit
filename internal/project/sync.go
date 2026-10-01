@@ -202,8 +202,8 @@ func (r *Repo) fetchSnapshots(c remote.Backend, id string) error {
 func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	var need []string
 	var total int64
-	for _, h := range hashes {
-		if !r.Store.Has(h) {
+	for _, h := range dedupe(hashes) {
+		if !r.available(h) {
 			need = append(need, h)
 			total += r.sizes[h] // 0 when not known
 		}
@@ -302,7 +302,7 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	sizes := map[string]int64{}
 	var total int64
 	for _, h := range missing {
-		if fi, err := os.Stat(r.Store.Path(h)); err == nil {
+		if fi, err := os.Stat(r.localCopy(h)); err == nil {
 			sizes[h] = fi.Size()
 			total += fi.Size()
 		}
@@ -311,9 +311,9 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	for i, h := range missing {
 		t.done = i
 		t.report()
-		f, err := r.Store.Open(h)
+		f, err := r.openObject(h)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w (needed to upload this project's versions)", err)
 		}
 		size, ok := sizes[h]
 		if !ok {
@@ -619,13 +619,9 @@ func (r *Repo) mergeWith(c remote.Backend, ours, theirs string, opts MergeOption
 			return nil, nil, err
 		}
 	}
-	// Merging needs theirs' blobs and base's sets.
-	need := t.Objects()
-	for _, f := range b.Files {
-		if isSet(f.Path) {
-			need = append(need, f.Hash)
-		}
-	}
+	// Merging reads the sets; the other files are taken by reference and
+	// downloaded when the result is checked out.
+	need := setHashes(t, b)
 	r.knowSizes(t, b)
 	if err := r.fetchObjects(c, need); err != nil {
 		return nil, nil, err

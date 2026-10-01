@@ -228,6 +228,15 @@ export function GoToVersion(root: string, id: string, discard: boolean, force: b
 }
 
 /**
+ * HistoryDownloadSize is how much the files of older versions that are only
+ * in the team's storage weigh, for one project (root) or for every project
+ * of a team (teamID), to offer downloading them when leaving the team.
+ */
+export function HistoryDownloadSize(root: string, teamID: string): $CancellablePromise<number> {
+    return $Call.ByID(4063073506, root, teamID);
+}
+
+/**
  * KeepThisVersion continues from the older version the project is on: it
  * becomes a new version on top of the latest (shared with the team).
  */
@@ -265,10 +274,10 @@ export function MergeVersion(root: string, id: string, message: string, resoluti
 /**
  * MoveProjectToLocal takes a project out of its team, on this computer only:
  * it stays in the team for everyone else, and here keeps its versions under
- * Local.
+ * Local (with fullHistory, also the files of older versions).
  */
-export function MoveProjectToLocal(root: string): $CancellablePromise<void> {
-    return $Call.ByID(2125136491, root);
+export function MoveProjectToLocal(root: string, fullHistory: boolean): $CancellablePromise<void> {
+    return $Call.ByID(2125136491, root, fullHistory);
 }
 
 /**
@@ -350,10 +359,11 @@ export function ReconnectProjects(teamID: string, roots: string[]): $Cancellable
  * RemoveTeam disconnects this computer from a team. With keepProjects its
  * downloaded projects move to Local (their versions stay, and they can be
  * committed to here or reconnected later); otherwise they are no longer
- * listed. Project folders always stay on disk.
+ * listed. With fullHistory the files of older versions that are only in the
+ * team's storage are downloaded first. Project folders always stay on disk.
  */
-export function RemoveTeam(id: string, keepProjects: boolean): $CancellablePromise<void> {
-    return $Call.ByID(3754118508, id, keepProjects);
+export function RemoveTeam(id: string, keepProjects: boolean, fullHistory: boolean): $CancellablePromise<void> {
+    return $Call.ByID(3754118508, id, keepProjects, fullHistory);
 }
 
 export function RenameTeam(id: string, name: string): $CancellablePromise<void> {

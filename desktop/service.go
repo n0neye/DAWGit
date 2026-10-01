@@ -162,6 +162,7 @@ func (a *App) startAgent(root string) {
 	a.agents[root] = cancel
 	a.mu.Unlock()
 
+	a.tidyLater(root) // e.g. a project from before files were kept in the team's storage
 	go func() {
 		w := agent.New(root)
 		for {
@@ -384,6 +385,11 @@ func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool)
 		return nil, err
 	}
 	part.History = toVersions(all, tips)
+	if notHere := r.MissingHere(all); len(notHere) > 0 {
+		for i := range part.History {
+			part.History[i].NotHere = notHere[part.History[i].ID]
+		}
+	}
 	if r.OnOlderVersion() {
 		if m, err := r.Load(r.Head()); err == nil {
 			v := toVersion(m, nil)
@@ -500,6 +506,7 @@ func opts(resolutions map[string]string) project.MergeOptions {
 // nothing and returns action "behind", so the user decides (combine, new
 // branch, or discard) with a preview.
 func (a *App) Save(root, message string, combine bool, resolutions map[string]string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -574,6 +581,7 @@ func (a *App) PreviewUpdate(root string) (*Preview, error) {
 
 // Update brings in the team's latest versions.
 func (a *App) Update(root string, resolutions map[string]string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -593,6 +601,7 @@ func (a *App) Update(root string, resolutions map[string]string, force bool) (*R
 // goes back to the newest). discard drops uncommitted changes; force goes
 // ahead while Live is running.
 func (a *App) GoToVersion(root, id string, discard, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -703,6 +712,7 @@ func (a *App) CreateBranch(root, name string) error {
 }
 
 func (a *App) SwitchBranch(root, name string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -771,6 +781,7 @@ func (a *App) VersionChanges(root, id string) ([]Change, error) {
 // MergeVersion merges a version into the current branch; message describes
 // the merge version ("" for the default, see Preview.Message).
 func (a *App) MergeVersion(root, id, message string, resolutions map[string]string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
@@ -787,6 +798,7 @@ func (a *App) MergeVersion(root, id, message string, resolutions map[string]stri
 }
 
 func (a *App) MergeBranch(root, name, message string, resolutions map[string]string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err

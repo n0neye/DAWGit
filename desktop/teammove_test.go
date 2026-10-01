@@ -8,6 +8,7 @@ import (
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 	"dawgit/internal/remote/s3test"
+	"dawgit/internal/store"
 	"dawgit/internal/teams"
 )
 
@@ -20,6 +21,8 @@ func newSong(t *testing.T) string {
 		t.Fatal(err)
 	}
 	os.WriteFile(filepath.Join(root, "Song.als"), data, 0o644)
+	os.MkdirAll(filepath.Join(root, "Samples"), 0o755)
+	os.WriteFile(filepath.Join(root, "Samples", "kick.wav"), []byte("RIFF-kick"), 0o644)
 	return root
 }
 
@@ -27,6 +30,7 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 	t.Setenv("DAWGIT_CONFIG_DIR", t.TempDir())
 	fake := s3test.New("one", "two")
 	defer fake.Close()
+	t.Cleanup(waitTidy)
 	a := NewApp()
 	one, _ := a.CreateStorageTeam(remote.Storage{Endpoint: fake.URL, Bucket: "one", AccessKey: "k", SecretKey: "s"}, "One")
 	root := newSong(t)
@@ -39,7 +43,15 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 
 	// Disconnect, keeping the project: it is under Local with its versions.
 	code, _ := a.TeamConnectionCode(one.ID)
-	if err := a.RemoveTeam(one.ID, true); err != nil {
+	waitTidy()
+	kick, _, _ := store.HashFile(filepath.Join(root, "Samples", "kick.wav"))
+	if r, _ := project.Open(root); r.Store.Has(kick) {
+		t.Fatal("the sample is still copied in .dawgit after the team has it")
+	}
+	if size, err := a.HistoryDownloadSize("", one.ID); err != nil || size != 0 {
+		t.Fatalf("one version, all of it here: %d %v", size, err)
+	}
+	if err := a.RemoveTeam(one.ID, true, false); err != nil {
 		t.Fatal(err)
 	}
 	store, _ := teams.Load()
@@ -89,8 +101,21 @@ func TestDisconnectReconnectAndMove(t *testing.T) {
 			t.Errorf("team %s projects: %+v", store.Find(id).Name, ps)
 		}
 	}
+	// The new team has every file of every version, though this computer
+	// kept only the sets after the first team had them.
+	waitTidy()
+	moved, _ := project.Open(root)
+	all, _ := moved.LogAll(nil)
+	var hashes []string
+	for _, m := range all {
+		hashes = append(hashes, m.Objects()...)
+	}
+	b2, _ := remote.Open(store.Find(two.ID).Remote)
+	if missing, err := b2.MissingObjects(hashes); err != nil || len(missing) != 0 {
+		t.Fatalf("new team lacks %d files: %v", len(missing), err)
+	}
 	// Move to Local only.
-	if err := a.MoveProjectToLocal(root); err != nil {
+	if err := a.MoveProjectToLocal(root, true); err != nil {
 		t.Fatal(err)
 	}
 	store, _ = teams.Load()

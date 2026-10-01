@@ -21,6 +21,9 @@ type Version struct {
 	// InBranch: the current branch already contains this version (only set
 	// in State.History); other versions can be merged in.
 	InBranch bool `json:"inBranch"`
+	// NotHere: some of its files are only in the storage of a team the
+	// project is no longer in (going to it needs that team).
+	NotHere bool `json:"notHere"`
 }
 
 type Change struct {

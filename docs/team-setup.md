@@ -48,6 +48,8 @@ The **Team** menu at the top of the sidebar switches between teams and joins or 
 
 Keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
+**Disk space.** A team project's history lives in the team's storage. On your computer, the project's `.dawgit` folder keeps its Live Sets (small) but not copies of samples the team's storage already has: the project folder has the current ones, and older ones are downloaded when you go to an older version, listen to one, or restore a file. A project kept on this computer only (Local) keeps everything, so its `.dawgit` folder grows to about the size of the project. When you disconnect from a team, you can download the files of older versions too, so its projects work fully under Local.
+
 ## 4. Share a project (the person who has it)
 
 In the sidebar, click **+ Add project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.

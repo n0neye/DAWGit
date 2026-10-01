@@ -129,11 +129,10 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 				// as project-relative): keep it external under its original key.
 				// Samples with the same content share one cached copy: keep
 				// every original that maps to it.
-				for _, orig := range r.originalExternalPaths(hash, ref.Path) {
-					if !seenExt[orig] {
-						seenExt[orig] = true
-						fi, _ := os.Stat(r.Store.Path(hash))
-						external = append(external, FileEntry{Path: orig, Hash: hash, Size: fi.Size()})
+				for _, orig := range r.originalExternals(hash, ref.Path) {
+					if !seenExt[orig.Path] {
+						seenExt[orig.Path] = true
+						external = append(external, orig)
 					}
 				}
 				continue
@@ -176,21 +175,26 @@ func (r *Repo) sampleRefs(files []FileEntry) (external []FileEntry, packs, missi
 	return external, packs, missing, nil
 }
 
-// originalExternalPath finds the original location of an external sample
-// by hash in HEAD's manifest, falling back to fallback.
-func (r *Repo) originalExternalPaths(hash, fallback string) []string {
-	var out []string
+// originalExternals finds the original entries of an external sample by hash
+// in HEAD's manifest (all of them: samples with the same content share one
+// cached copy), falling back to fallback.
+func (r *Repo) originalExternals(hash, fallback string) []FileEntry {
+	var out []FileEntry
 	if head := r.Head(); head != "" {
 		if m, err := r.Load(head); err == nil {
 			for _, e := range m.External {
 				if e.Hash == hash {
-					out = append(out, e.Path)
+					out = append(out, e)
 				}
 			}
 		}
 	}
 	if len(out) == 0 {
-		out = []string{fallback}
+		e := FileEntry{Path: fallback, Hash: hash}
+		if fi, err := os.Stat(r.localCopy(hash)); err == nil {
+			e.Size = fi.Size()
+		}
+		out = []FileEntry{e}
 	}
 	return out
 }
@@ -218,7 +222,7 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	}
 	var toStore []FileEntry
 	for _, f := range files {
-		if !r.Store.Has(f.Hash) {
+		if !r.Store.Has(f.Hash) && !r.remoteOnly()[f.Hash] {
 			toStore = append(toStore, f)
 		}
 	}

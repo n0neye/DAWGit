@@ -29,6 +29,10 @@
   let connError = $state("");
   let confirmDisconnect = $state(false);
   let keepProjects = $state(true); // move the team's projects to Local
+  let fullHistory = $state(false); // and download older versions' files
+  let historySize = $state(0); // bytes those weigh
+  let leaving = $state(false);
+  const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
   let editingMe = $state(false);
 
   async function identitySaved(t: TeamSummary) {
@@ -91,13 +95,16 @@
 
   async function disconnect() {
     try {
-      await api.RemoveTeam(team.id, keepProjects);
+      leaving = true;
+      await api.RemoveTeam(team.id, keepProjects, keepProjects && fullHistory);
       await reload();
       toast(keepProjects ? `Disconnected from ${team.name}. Its projects are under Local now.`
         : `Disconnected from ${team.name}. Project folders were left on disk.`, "info", 7000);
       onclose();
     } catch (e) {
-      toast(errorText(e), "error");
+      toast(errorText(e), "error", 9000);
+    } finally {
+      leaving = false;
     }
   }
 </script>
@@ -188,7 +195,10 @@
   </section>
 
   {#snippet footer()}
-    <button class="ghost danger-text" onclick={() => { keepProjects = true; confirmDisconnect = true; }}>Disconnect…</button>
+    <button class="ghost danger-text" onclick={() => {
+      keepProjects = true; fullHistory = false; historySize = 0; confirmDisconnect = true;
+      api.HistoryDownloadSize("", team.id).then((n) => (historySize = n)).catch(() => {});
+    }}>Disconnect…</button>
     <span class="spacer"></span>
     <button onclick={onclose}>Close</button>
   {/snippet}
@@ -204,9 +214,18 @@
         <span class="faint small">Their versions stay and you can keep committing on this computer. Join the team again
           later to reconnect them.</span></span>
     </label>
+    {#if keepProjects && historySize > 0}
+      <label class="keep sub">
+        <input type="checkbox" bind:checked={fullHistory} />
+        <span>Also download the files of older versions ({mb(historySize)})
+          <span class="faint small">Without them, older versions that use other samples than today's need the team
+            again to open.</span></span>
+      </label>
+    {/if}
     {#snippet footer()}
-      <button onclick={() => (confirmDisconnect = false)}>Cancel</button>
-      <button class="danger" onclick={disconnect}>Disconnect</button>
+      <button onclick={() => (confirmDisconnect = false)} disabled={leaving}>Cancel</button>
+      <button class="danger" onclick={disconnect} disabled={leaving}>
+        {leaving ? (fullHistory ? "Downloading…" : "Disconnecting…") : "Disconnect"}</button>
     {/snippet}
   </Modal>
 {/if}
@@ -230,4 +249,5 @@
   .keep { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
   .keep input { width: auto; margin-top: 3px; }
   .keep .faint { display: block; margin-top: 2px; }
+  .keep.sub { margin-left: 24px; }
 </style>

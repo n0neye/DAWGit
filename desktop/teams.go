@@ -274,8 +274,9 @@ func (a *App) RenameTeamForEveryone(id, name string) error {
 // RemoveTeam disconnects this computer from a team. With keepProjects its
 // downloaded projects move to Local (their versions stay, and they can be
 // committed to here or reconnected later); otherwise they are no longer
-// listed. Project folders always stay on disk.
-func (a *App) RemoveTeam(id string, keepProjects bool) error {
+// listed. With fullHistory the files of older versions that are only in the
+// team's storage are downloaded first. Project folders always stay on disk.
+func (a *App) RemoveTeam(id string, keepProjects, fullHistory bool) error {
 	store, err := teams.Load()
 	if err != nil {
 		return err
@@ -286,7 +287,7 @@ func (a *App) RemoveTeam(id string, keepProjects bool) error {
 		}
 		a.stopAgent(root)
 		if keepProjects {
-			if err := a.detach(store, root); err != nil {
+			if err := a.detach(store, root, fullHistory); err != nil {
 				return err
 			}
 		}
@@ -297,19 +298,30 @@ func (a *App) RemoveTeam(id string, keepProjects bool) error {
 
 // detach makes a downloaded team project one kept on this computer only:
 // the project forgets the team's address (keeping its id, so it can be
-// reconnected) and is listed under Local. The caller saves the store.
-func (a *App) detach(store *teams.Store, root string) error {
+// reconnected) and is listed under Local. Its current version is made
+// complete here first, and with fullHistory every older one too (else those
+// keep needing the team's storage). The caller saves the store.
+func (a *App) detach(store *teams.Store, root string, fullHistory bool) error {
 	a.stopAgent(root)
-	for key, r := range store.Projects {
-		if r == root {
-			delete(store.Projects, key)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		for key, p := range store.Projects {
+			if p == root {
+				delete(store.Projects, key)
+			}
+		}
+		return nil // the folder is gone: nothing to keep
+	}
+	defer unlock()
+	if r.Config.Remote != nil {
+		if err := r.PrepareDetach(fullHistory); err != nil {
+			return fmt.Errorf("%s: %w", filepath.Base(root), err)
 		}
 	}
-	unlock := a.lock(root)
-	defer unlock()
-	r, err := project.Open(root)
-	if err != nil {
-		return nil // the folder is gone: nothing to keep
+	for key, p := range store.Projects {
+		if p == root {
+			delete(store.Projects, key)
+		}
 	}
 	r.Config.Remote = nil
 	if err := r.SaveConfig(); err != nil {
@@ -321,13 +333,13 @@ func (a *App) detach(store *teams.Store, root string) error {
 
 // MoveProjectToLocal takes a project out of its team, on this computer only:
 // it stays in the team for everyone else, and here keeps its versions under
-// Local.
-func (a *App) MoveProjectToLocal(root string) error {
+// Local (with fullHistory, also the files of older versions).
+func (a *App) MoveProjectToLocal(root string, fullHistory bool) error {
 	store, err := teams.Load()
 	if err != nil {
 		return err
 	}
-	if err := a.detach(store, root); err != nil {
+	if err := a.detach(store, root, fullHistory); err != nil {
 		return err
 	}
 	return store.Save()
@@ -344,7 +356,14 @@ func (a *App) MoveProjectToTeam(root, teamID string) (TeamProject, error) {
 	if store.Find(teamID) == nil {
 		return TeamProject{}, errors.New("unknown team")
 	}
-	if err := a.detach(store, root); err != nil {
+	// The new team gets the whole history, so all of it must be here.
+	if r, err := project.Open(root); err == nil && r.Config.Remote == nil {
+		if n, _, _ := r.HistoryNotHere(); n > 0 {
+			return TeamProject{}, errors.New("some files of older versions are only in the storage of the team this " +
+				"project was in: join that team again, then move the project from there")
+		}
+	}
+	if err := a.detach(store, root, true); err != nil {
 		return TeamProject{}, err
 	}
 	if err := store.Save(); err != nil {
@@ -563,13 +582,18 @@ func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
 	if err != nil {
 		return err
 	}
-	if err := b.DeleteProject(projectID); err != nil {
-		return err
-	}
+	// Deleted for everyone: first bring what isn't here yet (the copy here is
+	// kept under Local with its whole history).
 	if root := store.ProjectRoot(teamID, projectID); root != "" {
-		if err := a.detach(store, root); err != nil {
+		if err := a.detach(store, root, true); err != nil {
 			return err
 		}
+		if err := store.Save(); err != nil {
+			return err
+		}
+	}
+	if err := b.DeleteProject(projectID); err != nil {
+		return err
 	}
 	store.ForgetProject(teamID, projectID)
 	return store.Save()
@@ -625,4 +649,31 @@ func (a *App) migrateLegacyConfig() {
 	if store.Save() == nil {
 		os.Rename(configPath(), configPath()+".migrated")
 	}
+}
+
+// HistoryDownloadSize is how much the files of older versions that are only
+// in the team's storage weigh, for one project (root) or for every project
+// of a team (teamID), to offer downloading them when leaving the team.
+func (a *App) HistoryDownloadSize(root, teamID string) (int64, error) {
+	roots := []string{root}
+	if teamID != "" {
+		store, err := teams.Load()
+		if err != nil {
+			return 0, err
+		}
+		roots = nil
+		for key, r := range store.Projects {
+			if strings.HasPrefix(key, teamID+"/") {
+				roots = append(roots, r)
+			}
+		}
+	}
+	var total int64
+	for _, rt := range roots {
+		if r, err := project.Open(rt); err == nil {
+			_, size, _ := r.HistoryNotHere()
+			total += size
+		}
+	}
+	return total, nil
 }

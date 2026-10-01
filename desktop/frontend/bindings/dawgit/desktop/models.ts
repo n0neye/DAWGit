@@ -905,6 +905,12 @@ export class Version {
      */
     "inBranch": boolean;
 
+    /**
+     * NotHere: some of its files are only in the storage of a team the
+     * project is no longer in (going to it needs that team).
+     */
+    "notHere": boolean;
+
     /** Creates a new Version instance. */
     constructor($$source: Partial<Version> = {}) {
         if (!("id" in $$source)) {
@@ -933,6 +939,9 @@ export class Version {
         }
         if (!("inBranch" in $$source)) {
             this["inBranch"] = false;
+        }
+        if (!("notHere" in $$source)) {
+            this["notHere"] = false;
         }
 
         Object.assign(this, $$source);
