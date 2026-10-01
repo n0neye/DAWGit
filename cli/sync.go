@@ -75,8 +75,8 @@ func cmdServe(args []string) error {
 		hosts = lanIPs()
 	}
 	abs, _ := filepath.Abs(*data)
-	fmt.Printf("DAWGit server %s for team %q\n  data:  %s\n  token: %s\n\nteam members connect with:\n",
-		version.Version, st.Name(), abs, *token)
+	fmt.Printf("%s server %s for team %q\n  data:  %s\n  token: %s\n\nteam members connect with:\n",
+		version.Name(), version.Version, st.Name(), abs, *token)
 	for _, h := range hosts {
 		fmt.Printf("  dawgit remote http://%s:%s --token %s\n", h, port, *token)
 	}

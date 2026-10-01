@@ -46,6 +46,9 @@ func (a *App) ServiceName() string { return "App" }
 // Version is the DAWGit release number.
 func (a *App) Version() string { return version.Version }
 
+// Edition names a build with extensions ("" for the public app).
+func (a *App) Edition() string { return version.Edition }
+
 // ServiceStartup starts an agent for every downloaded team project (in all
 // teams, so notices keep coming whichever team is selected).
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {

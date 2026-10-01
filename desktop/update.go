@@ -28,7 +28,9 @@ var updateCache struct {
 // returns it, or nil when this is the newest. DAWGIT_NO_UPDATE_CHECK=1 turns
 // it off; DAWGIT_DEV_VERSION pretends to be another version (testing).
 func (a *App) CheckUpdate() (*UpdateInfo, error) {
-	if os.Getenv("DAWGIT_NO_UPDATE_CHECK") != "" {
+	// A build with extensions is updated with its own installer: the public
+	// release would replace it.
+	if os.Getenv("DAWGIT_NO_UPDATE_CHECK") != "" || version.Edition != "" {
 		return nil, nil
 	}
 	updateCache.Lock()

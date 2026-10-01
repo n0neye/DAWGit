@@ -183,6 +183,13 @@ export function DownloadProject(teamID: string, projectID: string, parent: strin
 }
 
 /**
+ * Edition names a build with extensions ("" for the public app).
+ */
+export function Edition(): $CancellablePromise<string> {
+    return $Call.ByID(1298692491);
+}
+
+/**
  * ExportVersion writes a version as a separate project folder inside parent
  * and returns its path.
  */

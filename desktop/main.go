@@ -5,6 +5,7 @@
 package desktop
 
 import (
+	"dawgit/internal/version"
 	"embed"
 	"log"
 	"os"
@@ -78,7 +79,7 @@ func Run() {
 
 	window = app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:             "main",
-		Title:            "DAWGit",
+		Title:            version.Name(),
 		Width:            1180,
 		Height:           760,
 		MinWidth:         900,
@@ -111,7 +112,7 @@ func Run() {
 
 	tray := app.SystemTray.New()
 	tray.SetIcon(trayIcon)
-	tray.SetTooltip("DAWGit")
+	tray.SetTooltip(version.Name())
 	tray.SetMenu(menu)
 	tray.OnClick(showWindow)
 

@@ -19,7 +19,13 @@ import (
 	"dawgit/internal/handlers"
 	"dawgit/internal/profile"
 	"dawgit/internal/remote"
+	"dawgit/internal/version"
 )
+
+// SetEdition names this build (e.g. "Pro"): the app shows it next to its
+// name and version, and doesn't offer the public app's updates (they would
+// replace this build). Call it before the app starts.
+func SetEdition(name string) { version.Edition = name }
 
 // --- presets and handlers ---
 
