@@ -476,6 +476,7 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 // team. It returns quickly; the frontend then commits and uploads the first
 // version with Save, showing its progress.
 func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
+	folder = projectFolder(folder)
 	store, err := teams.Load()
 	if err != nil {
 		return TeamProject{}, err
@@ -515,8 +516,23 @@ func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
 	return folderProject(r.Root, "downloaded"), nil
 }
 
+// projectFolder is the project a chosen folder means: picking the hidden
+// .dawgit folder (the folder dialog opens where it was last, and lists it
+// first) or a folder inside it means its project.
+func projectFolder(folder string) string {
+	clean := filepath.Clean(folder)
+	parts := strings.Split(clean, string(filepath.Separator))
+	for i, p := range parts {
+		if strings.EqualFold(p, ".dawgit") && i > 0 {
+			return strings.Join(parts[:i], string(filepath.Separator))
+		}
+	}
+	return clean
+}
+
 // AddLocalProject tracks a folder on this computer only (no team).
 func (a *App) AddLocalProject(folder string) (TeamProject, error) {
+	folder = projectFolder(folder)
 	store, err := teams.Load()
 	if err != nil {
 		return TeamProject{}, err
@@ -546,6 +562,7 @@ func (a *App) ShareProject(root, teamID string) (TeamProject, error) {
 
 // LocateProject points a team project at a folder that was moved.
 func (a *App) LocateProject(teamID, projectID, folder string) (TeamProject, error) {
+	folder = projectFolder(folder)
 	r, err := project.Open(folder)
 	if err != nil {
 		return TeamProject{}, err
