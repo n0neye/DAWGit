@@ -19,6 +19,8 @@ export {
     ProjectFile,
     Result,
     RulesInfo,
+    SetTrackChange,
+    SetView,
     State,
     StorageCleanup,
     TeamConnection,

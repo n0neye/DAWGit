@@ -11,7 +11,8 @@
   import FileIcon from "./FileIcon.svelte";
   import ConvertDialog from "./ConvertDialog.svelte";
   import TextView from "./TextView.svelte";
-  import { setCompare, view } from "./compare.svelte";
+  import { setCompare, setLook, setSetText, view } from "./compare.svelte";
+  import SetView from "./SetView.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
   // tracks, the sample to listen to now and before, a text file's lines). "All files" lists
@@ -355,7 +356,13 @@
           <div class="faint small mono">{selected}</div>
           {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
         </div>
-        {#if current.kind !== "set" && current.kind !== "audio" && current.status !== "ignored"}
+        {#if current.kind === "set" && current.status !== "ignored"}
+          <div class="modes" title="The set drawn as Live shows it, or its changes as text">
+            <button class:on={!setLook.text} onclick={() => setSetText(false)}>Tracks</button>
+            <button class:on={setLook.text} onclick={() => setSetText(true)}>Text</button>
+          </div>
+        {/if}
+        {#if current.kind !== "audio" && current.status !== "ignored" && (current.kind !== "set" || !setLook.text)}
           <div class="modes" title="One version, or what changed from the one before">
             <button class:on={!view.compare} onclick={() => setCompare(false)}>Preview</button>
             <button class:on={view.compare} onclick={() => setCompare(true)}>Compare</button>
@@ -403,6 +410,10 @@
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: `${previewURL(root, selected)}&t=${loadedAt}` } : null}
             b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
               ? { label: "In the version you're on", src: previewURL(root, before_, st.head) } : null} />
+        {:else if current.kind === "set" && current.status !== "ignored" && !setLook.text}
+          <SetView {root} file={selected} fromFile={before_} stamp={loadedAt} compare={view.compare}
+            version={current.status === "deleted" ? "none" : ""}
+            fromVersion={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed") ? st.head : "none"} />
         {:else if change?.details.length}
           <div class="lines mono">
             {#each change.details as line}
@@ -464,6 +475,10 @@
                 <ImageCompare
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: previewURL(root, hp, h.version.id) } : null}
                   b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: previewURL(root, pp, prev.version.id) } : null} />
+              {:else if current.kind === "set" && !setLook.text}
+                <SetView {root} file={hp} fromFile={pp} compare={view.compare}
+                  version={h.status === "deleted" ? "none" : h.version.id}
+                  fromVersion={prev && prev.status !== "deleted" ? prev.version.id : "none"} />
               {:else if current.kind === "set"}
                 {#if pickedDiff === null}
                   <p class="muted">Comparing…</p>
@@ -604,8 +619,8 @@
   li:hover .more { visibility: visible; }
 
   .detail { overflow: auto; min-height: 0; padding: 12px 4px 16px 20px; }
-  .detail-h { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-  .title { flex: 1; min-width: 0; }
+  .detail-h { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; margin-bottom: 10px; }
+  .title { flex: 1 1 180px; min-width: 0; }
   .dname { display: flex; align-items: center; gap: 6px; font-weight: 650; font-size: 15px; }
   .small { font-size: 12px; }
   .modes { display: flex; }

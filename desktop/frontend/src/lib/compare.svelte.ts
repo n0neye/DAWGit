@@ -14,6 +14,22 @@ export function setCompare(on: boolean) {
   write(COMPARE, on ? "1" : "0");
 }
 
+// Live Sets: drawn as Live shows them, or the changes as text; and which of
+// Live's views.
+const SETLOOK = "dawgit.setLook", SETPANE = "dawgit.setPane";
+export const setLook = $state({
+  text: read(SETLOOK) === "text",
+  pane: (read(SETPANE) === "session" ? "session" : "arrangement") as "arrangement" | "session",
+});
+export function setSetText(on: boolean) {
+  setLook.text = on;
+  write(SETLOOK, on ? "text" : "tracks");
+}
+export function setSetPane(p: "arrangement" | "session") {
+  setLook.pane = p;
+  write(SETPANE, p);
+}
+
 export function setImageMode(m: "side" | "slider") {
   view.imageMode = m;
   write(MODE, m);
