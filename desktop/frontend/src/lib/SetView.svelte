@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr, tn } from "./i18n.svelte"; // t is a track here
   import { api, errorText, lineKind } from "./api";
   import type { SetView } from "../../bindings/dawgit/desktop/models";
   import type { ClipSummary, Overview, TrackSummary } from "../../bindings/dawgit/internal/als/models";
@@ -184,17 +185,21 @@
 
   // ---- bits ----
   const db = (v: number) => (v <= -999 ? "-inf" : `${v > 0 ? "+" : ""}${v.toFixed(1)}`);
-  const kindName: Record<string, string> = { midi: "MIDI track", audio: "Audio track", group: "Group track", return: "Return track", main: "Main" };
-  const statusName: Record<Status, string> = { added: "New", removed: "Deleted", modified: "Changed" };
+  const kindNames = () => ({ midi: tr("MIDI track"), audio: tr("Audio track"), group: tr("Group track"), return: tr("Return track"),
+    main: tr("Main") } as Record<string, string>);
+  const kindName = new Proxy({} as Record<string, string>, { get: (_, k: string) => kindNames()[k] });
+  const statusName = new Proxy({} as Record<Status, string>, {
+    get: (_, k: string) => ({ added: tr("New"), removed: tr("Deleted"), modified: tr("Changed") } as Record<string, string>)[k] });
   const markOf: Record<Status, string> = { added: "+", removed: "−", modified: "~" };
   const clipCount = (t: TrackSummary) => {
     const a = t.clips.filter((c) => c.slot < 0).length, s = t.clips.length - a;
-    return [a ? `${a} in arrangement` : "", s ? `${s} in session` : ""].filter(Boolean).join(", ") || "no clips";
+    return [a ? tn(a, "{n} clip in arrangement", "{n} clips in arrangement") : "", s ? tn(s, "{n} clip in session", "{n} clips in session") : ""]
+      .filter(Boolean).join(", ") || tr("no clips");
   };
   let counts = $derived.by(() => {
     if (!shown) return "";
     const n = shown.tracks.filter((t) => t.kind !== "return").length, r = shown.tracks.length - n;
-    return [`${n} track${n === 1 ? "" : "s"}`, r ? `${r} return${r === 1 ? "" : "s"}` : "", `${shown.scenes.length} scene${shown.scenes.length === 1 ? "" : "s"}`]
+    return [tn(n, "{n} track", "{n} tracks"), r ? tn(r, "{n} return", "{n} returns") : "", tn(shown.scenes.length, "{n} scene", "{n} scenes")]
       .filter(Boolean).join(" · ");
   });
   // Compare: the text of what changed, per track (click its name) or all.
@@ -207,20 +212,20 @@
   // How a clip changed, said briefly ([] when it didn't).
   function clipChanges(o: ClipSummary, c: ClipSummary): string[] {
     const out: string[] = [];
-    if (o.disabled !== c.disabled) out.push(c.disabled ? "Deactivated" : "Activated");
-    if (o.name !== c.name) out.push(`Renamed, was “${o.name}”`);
-    if (o.start !== c.start || o.end !== c.end) out.push("Moved or resized");
-    if (o.notes !== c.notes) out.push("Notes changed");
-    if (o.sample !== c.sample) out.push(`Sample was ${o.sample}`);
-    if (o.gain !== c.gain) out.push(`Gain ${db(o.gain)} → ${db(c.gain)} dB`);
-    if (o.warp !== c.warp) out.push(c.warp ? "Warp on" : "Warp off");
-    else if (o.warpMode !== c.warpMode) out.push(`Warp mode ${o.warpMode} → ${c.warpMode}`);
-    if (o.markers !== c.markers) out.push("Warp markers changed");
-    if (o.transpose !== c.transpose) out.push(`Transpose ${o.transpose} → ${c.transpose} st`);
-    if (o.loop !== c.loop) out.push("Loop changed");
-    if (o.fades !== c.fades) out.push("Fades changed");
-    if (o.envelopes !== c.envelopes) out.push("Clip automation changed");
-    if (o.color !== c.color) out.push("Color changed");
+    if (o.disabled !== c.disabled) out.push(c.disabled ? tr("Deactivated") : tr("Activated"));
+    if (o.name !== c.name) out.push(tr("Renamed, was “{name}”", { name: o.name }));
+    if (o.start !== c.start || o.end !== c.end) out.push(tr("Moved or resized"));
+    if (o.notes !== c.notes) out.push(tr("Notes changed"));
+    if (o.sample !== c.sample) out.push(tr("Sample was {sample}", { sample: o.sample }));
+    if (o.gain !== c.gain) out.push(tr("Gain {from} → {to} dB", { from: db(o.gain), to: db(c.gain) }));
+    if (o.warp !== c.warp) out.push(c.warp ? tr("Warp on") : tr("Warp off"));
+    else if (o.warpMode !== c.warpMode) out.push(tr("Warp mode {from} → {to}", { from: o.warpMode, to: c.warpMode }));
+    if (o.markers !== c.markers) out.push(tr("Warp markers changed"));
+    if (o.transpose !== c.transpose) out.push(tr("Transpose {from} → {to} st", { from: o.transpose, to: c.transpose }));
+    if (o.loop !== c.loop) out.push(tr("Loop changed"));
+    if (o.fades !== c.fades) out.push(tr("Fades changed"));
+    if (o.envelopes !== c.envelopes) out.push(tr("Clip automation changed"));
+    if (o.color !== c.color) out.push(tr("Color changed"));
     return out;
   }
 
@@ -233,7 +238,7 @@
     const mine = (t: TrackSummary | undefined) => (t?.clips ?? []).filter((c) => (c.slot >= 0) === session);
     if (!compare || !r.status) return { marks, gone };
     if (r.status !== "modified") {
-      for (const c of mine(r.t)) marks.set(c, r.status === "added" ? { kind: "add", tip: "New clip" } : { kind: "del", tip: "Deleted with the track" });
+      for (const c of mine(r.t)) marks.set(c, r.status === "added" ? { kind: "add", tip: tr("New clip") } : { kind: "del", tip: tr("Deleted with the track") });
       return { marks, gone };
     }
     const place = (c: ClipSummary) => (session ? `s${c.slot}` : `a${c.start}`);
@@ -241,7 +246,7 @@
     for (const c of mine(r.old)) before.set(place(c), [...(before.get(place(c)) ?? []), c]);
     for (const c of mine(r.t)) {
       const o = before.get(place(c))?.shift();
-      if (!o) { marks.set(c, { kind: "add", tip: "New clip" }); continue; }
+      if (!o) { marks.set(c, { kind: "add", tip: tr("New clip") }); continue; }
       const ch = clipChanges(o, c);
       if (ch.length) marks.set(c, { kind: "mod", tip: ch.join(" · ") });
     }
@@ -296,47 +301,47 @@
 {/snippet}
 
 {#snippet mixer(t: TrackSummary, label: string, w: Was = {})}
-  <span class="vol pin" title={w.volume !== undefined ? `Volume, was ${db(w.volume)} dB` : "Volume"}>
-    {db(t.volume)}{#if w.volume !== undefined}{@render dot(`Volume was ${db(w.volume)} dB`)}{/if}</span>
+  <span class="vol pin" title={w.volume !== undefined ? tr("Volume, was {db} dB", { db: db(w.volume) }) : tr("Volume")}>
+    {db(t.volume)}{#if w.volume !== undefined}{@render dot(tr("Volume was {db} dB", { db: db(w.volume) }))}{/if}</span>
   {#if t.kind !== "main"}
     <span class="ctl">
-      <span class="act" class:off={t.muted} title={t.muted ? "Track off (muted)" : "Track on"}>{label}</span>
-      {#if w.muted !== undefined}{@render dot(w.muted ? "Was off (muted)" : "Was on")}{/if}
+      <span class="act" class:off={t.muted} title={t.muted ? tr("Track off (muted)") : tr("Track on")}>{label}</span>
+      {#if w.muted !== undefined}{@render dot(w.muted ? tr("Was off (muted)") : tr("Was on"))}{/if}
     </span>
     <span class="ctl">
-      <span class="solo" class:on={t.solo} title={t.solo ? "Soloed" : "Solo"}>S</span>
-      {#if w.solo !== undefined}{@render dot(w.solo ? "Was soloed" : "Wasn't soloed")}{/if}
+      <span class="solo" class:on={t.solo} title={t.solo ? tr("Soloed") : tr("Solo")}>S</span>
+      {#if w.solo !== undefined}{@render dot(w.solo ? tr("Was soloed") : tr("Wasn't soloed"))}{/if}
     </span>
   {/if}
 {/snippet}
 
 {#snippet trackName(r: Row, w: Was)}
   <span class="nm pin"><span class="tname">{r.t.name}</span>
-    {#if w.name !== undefined}{@render dot(`Renamed, was “${w.name}”`)}{/if}</span>
+    {#if w.name !== undefined}{@render dot(tr("Renamed, was “{name}”", { name: w.name }))}{/if}</span>
   {#if r.t.instrument || w.instrument !== undefined}
     <span class="instw pin">
-      {#if r.t.instrument}<span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>{:else}<span class="inst none">no instrument</span>{/if}
-      {#if w.instrument !== undefined}{@render dot(`Instrument was ${w.instrument}`)}
-      {:else if w.instrumentSettings}{@render dot(`${r.t.instrument}'s settings changed`)}{/if}
+      {#if r.t.instrument}<span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>{:else}<span class="inst none">{tr("no instrument")}</span>{/if}
+      {#if w.instrument !== undefined}{@render dot(tr("Instrument was {name}", { name: w.instrument }))}
+      {:else if w.instrumentSettings}{@render dot(tr("{name}'s settings changed", { name: r.t.instrument }))}{/if}
     </span>
   {/if}
 {/snippet}
 
 <div class="setview">
   <div class="bar">
-    <div class="modes" title="Live's two views, or the changes as text">
-      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
-      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
-      <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>Text</button>
+    <div class="modes" title={tr("Live's two views, or the changes as text")}>
+      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>{tr("Arrangement")}</button>
+      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>{tr("Session")}</button>
+      <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>{tr("Text")}</button>
     </div>
     {#if compare && setLook.pane !== "text" && data?.now && data?.before}
-      <label class="faint small toggle" title="Every track, the changed ones marked (else only the changed ones)">
-        <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> All tracks
+      <label class="faint small toggle" title={tr("Every track, the changed ones marked (else only the changed ones)")}>
+        <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> {tr("All tracks")}
       </label>
     {/if}
     {#if compare && setLook.pane !== "text" && rows.some((r) => r.details.length)}
-      <label class="faint small toggle" title="What changed in each track, as text (or click a track's name)">
-        <input type="checkbox" bind:checked={allDetails} /> Details
+      <label class="faint small toggle" title={tr("What changed in each track, as text (or click a track's name)")}>
+        <input type="checkbox" bind:checked={allDetails} /> {tr("Details")}
       </label>
     {/if}
     {#if shown}
@@ -348,7 +353,7 @@
     {@const lines = !compare ? listing : data.before && data.now ? data.text
       : (data.now ?? data.before) ? [`${data.now ? "+ a new set" : "- the set was deleted"}`, ...listing] : []}
     {#if !lines.length}
-      <p class="muted">No changes in the set's tracks.</p>
+      <p class="muted">{tr("No changes in the set's tracks.")}</p>
     {:else}
       <div class="lines mono">
         {#each lines as line}
@@ -357,22 +362,22 @@
       </div>
     {/if}
   {:else if err}
-    <p class="muted">Couldn't read the set: {err}</p>
+    <p class="muted">{tr("Couldn't read the set:")} {err}</p>
   {:else if !data}
-    <p class="muted">Reading the set…</p>
+    <p class="muted">{tr("Reading the set…")}</p>
   {:else if !shown}
-    <p class="muted">No set to show.</p>
+    <p class="muted">{tr("No set to show.")}</p>
   {:else}
     {#if compare}
       {#if !data.before && data.now}
-        <p class="muted small">A new set: every track is new.</p>
+        <p class="muted small">{tr("A new set: every track is new.")}</p>
       {:else if data.before && !data.now}
-        <p class="muted small">The set was deleted: these were its tracks.</p>
+        <p class="muted small">{tr("The set was deleted: these were its tracks.")}</p>
       {:else if data.before && data.now}
         {#if data.global.length || data.order}
           <ul class="global">
-            {#each data.global as g}<li><span class="badge modified">Set</span> {g}</li>{/each}
-            {#if data.order}<li><span class="badge modified">Set</span> track order changed</li>{/if}
+            {#each data.global as g}<li><span class="badge modified">{tr("Set")}</span> {g}</li>{/each}
+            {#if data.order}<li><span class="badge modified">{tr("Set")}</span> {tr("track order changed")}</li>{/if}
           </ul>
         {/if}
         {#if !changedCount}
@@ -401,7 +406,7 @@
             {@const w = wasOf(r)}
             <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
-                {#if r.status === "removed"}<span class="gone-label">Deleted</span>{/if}
+                {#if r.status === "removed"}<span class="gone-label">{tr("Deleted")}</span>{/if}
                 {#if t.kind === "group"}
                   {#each inside(setOf(r), t.id) as child}
                     {#each arrClips(child) as c}
@@ -411,20 +416,20 @@
                 {/if}
                 {#each cm.gone as c}
                   <div class="clip ghost" style:left={pct(c.start)} style:width={pct(c.end - c.start)} style:border-color={liveColor(c.color)}
-                    title={`Deleted: ${c.name || "clip"}`}>{@render clipDot({ kind: "del", tip: `Deleted: ${c.name || "clip"}` })}</div>
+                    title={tr("Deleted: {name}", { name: c.name || tr("clip") })}>{@render clipDot({ kind: "del", tip: tr("Deleted: {name}", { name: c.name || tr("clip") }) })}</div>
                 {/each}
                 {#each arrClips(t) as c}
                   {@const m = cm.marks.get(c)}
                   <div class="clip" class:off={c.disabled}
                     style:left={pct(c.start)} style:width={pct(c.end - c.start)}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"} · bar ${Math.floor(c.start / beatsPerBar) + 1}${c.disabled ? " · deactivated" : ""}${m ? ` · ${m.tip}` : ""}`}>
+                    title={`${c.name || tr("clip")} · ${tr("bar {n}", { n: Math.floor(c.start / beatsPerBar) + 1 })}${c.disabled ? ` · ${tr("deactivated")}` : ""}${m ? ` · ${m.tip}` : ""}`}>
                     <span>{c.name}</span>{@render clipDot(m)}
                   </div>
                 {/each}
               </div>
               <div class="head" style:padding-left="{r.depth * 10}px"
-                title={`${kindName[t.kind]} · ${clipCount(t)}${t.devices.length ? ` · ${t.devices.join(", ")}` : ""}${compare && r.details.length ? " · click for what changed" : ""}`}>
+                title={`${kindName[t.kind]} · ${clipCount(t)}${t.devices.length ? ` · ${t.devices.join(", ")}` : ""}${compare && r.details.length ? ` · ${tr("click for what changed")}` : ""}`}>
                 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
                 <div class="hname" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
                   style:background={liveColor(t.color)} style:color={inkOn(t.color)}>
@@ -451,7 +456,7 @@
               <div class="lane"></div>
               <div class="head">
                 <div class="hname" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>
-                  {@render icon("main")}<span class="tname">Main</span>
+                  {@render icon("main")}<span class="tname">{tr("Main")}</span>
                 </div>
                 {@render mixer(shown.main, "")}
               </div>
@@ -474,12 +479,12 @@
                 {@render trackName(r, wasOf(r))}
                 {#if r.t.kind === "group" && !compare}
                   <button class="fold gfold" onclick={(e) => { e.stopPropagation(); folds[r.t.id] = !folded(r.t); }}
-                    title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "▸" : "▾"}</button>
+                    title={folded(r.t) ? tr("Show its tracks") : tr("Hide its tracks")}>{folded(r.t) ? "▸" : "▾"}</button>
                 {/if}
               </div>
             </div>
           {/each}
-          <div class="ctitle"><div class="tt" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div></div>
+          <div class="ctitle"><div class="tt" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>{tr("Main")}</div></div>
           {#if compare}
             {#each rows as r}<div class="cbadge">{@render badge(r.status)}</div>{/each}
             <div></div>
@@ -490,17 +495,17 @@
               {@const m = c ? sessionMarks[ri].marks.get(c) : undefined}
               {@const old = sessionMarks[ri].gone.find((g) => g.slot === i)}
               <div class="slot {r.status ?? ''}" class:muted={r.t.muted}>
-                {#if r.status === "removed" && i === Math.floor((scenes - 1) / 2)}<span class="gone-label">Deleted</span>{/if}
+                {#if r.status === "removed" && i === Math.floor((scenes - 1) / 2)}<span class="gone-label">{tr("Deleted")}</span>{/if}
                 {#if c}
                   <div class="sclip" class:off={c.disabled}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"}${c.disabled ? " · deactivated" : ""}${m ? ` · ${m.tip}` : ""}`}>
+                    title={`${c.name || tr("clip")}${c.disabled ? ` · ${tr("deactivated")}` : ""}${m ? ` · ${m.tip}` : ""}`}>
                     ▶ {c.name}{@render clipDot(m)}</div>
                 {:else if old}
                   <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Deleted: ${old.name || "clip"}`}>{old.name}{@render clipDot({ kind: "del", tip: `Deleted: ${old.name || "clip"}` })}</div>
                 {:else if r.t.kind === "group" && groupHasSlot(setOf(r), r.t, i)}
                   <!-- as Live: the scene's play button for the group, and its tracks' clips in small -->
-                  <div class="gslot" title="Its tracks have clips in this scene">
+                  <div class="gslot" title={tr("Its tracks have clips in this scene")}>
                     <span class="gplay">▶</span>
                     <span class="gmini">{#each groupClips(setOf(r), r.t, i).slice(0, 4) as gc}<i style:background={liveColor(gc.color)}></i>{/each}</span>
                   </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   // A small icon per kind of file, so sets, samples, MIDI and the rest are
   // told apart at a glance.
   let { kind, open = false, faint = false }: {
@@ -7,15 +8,15 @@
     faint?: boolean;
   } = $props();
 
-  const titles: Record<string, string> = {
-    set: "Live Set", live: "Live clip, preset or rack", audio: "Audio", midi: "MIDI", other: "File", folder: "Folder",
-    scene: "Scene", level: "Level", prefab: "Prefab", asset: "Asset", script: "Code", image: "Image", model: "3D model",
+  const titles = (): Record<string, string> => ({
+    set: t("Live Set"), live: t("Live clip, preset or rack"), audio: t("Audio"), midi: "MIDI", other: t("File"), folder: t("Folder"),
+    scene: t("Scene"), level: t("Level"), prefab: "Prefab", asset: t("Asset"), script: t("Code"), image: t("Image"), model: t("3D model"),
     meta: "Unity .meta",
-  };
+  });
 </script>
 
 <svg class="icon {kind}" class:faint viewBox="0 0 16 16" aria-hidden="true">
-  <title>{titles[kind] ?? "File"}</title>
+  <title>{titles()[kind] ?? t("File")}</title>
   {#if kind === "set"}
     <!-- a set: arrangement lanes -->
     <rect x="1.5" y="2" width="13" height="12" rx="2.5" class="fill" />

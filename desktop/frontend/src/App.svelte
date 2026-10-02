@@ -12,6 +12,8 @@
   import Modal from "./lib/Modal.svelte";
   import Toasts from "./lib/Toasts.svelte";
   import ProjectSettings from "./lib/ProjectSettings.svelte";
+  import AppSettings from "./lib/AppSettings.svelte";
+  import { t, tn } from "./lib/i18n.svelte";
 
   let overview = $state<Overview | null>(null);
   let onboarding = $state(false);
@@ -60,7 +62,7 @@
       api.ProjectInfo(p.root).then((i) => { if (rowMenu === key) menuInfo = i; }).catch(() => {});
     }
   }
-  const toolName = (tool: string) => (tool === "Ableton Live" ? "Live" : tool || "its program");
+  const toolName = (tool: string) => (tool === "Ableton Live" ? "Live" : tool ? t(tool) : t("its program"));
   function openIn(p: TeamProject, rel: string) {
     rowMenu = "";
     api.OpenInTool(p.root, rel).catch((e) => toast(errorText(e), "error"));
@@ -170,6 +172,22 @@
     }
   }
   const pct = (st: UpdateState) => (st.total > 0 ? Math.round((st.done / st.total) * 100) : 0);
+  // The settings' "Check for updates": now, and say when there's none.
+  let appSettings = $state(false);
+  let checkingNow = $state(false);
+  async function checkUpdateNow() {
+    checkingNow = true;
+    try {
+      const u = await api.CheckUpdateNow();
+      update = u;
+      updState = await api.UpdateStatus();
+      if (!u) toast(t("You have the newest version"), "ok");
+    } catch (e) {
+      toast(errorText(e), "error");
+    } finally {
+      checkingNow = false;
+    }
+  }
   async function setAutoUpdate(on: boolean) {
     try {
       await api.SetAutoUpdate(on);
@@ -227,7 +245,7 @@
   async function download(p: TeamProject) {
     let parent = downloadDir;
     if (!parent) {
-      parent = await api.ChooseFolder("Where should downloaded projects go?");
+      parent = await api.ChooseFolder(t("Where should downloaded projects go?"));
       if (!parent) return;
       remember(DOWNLOAD_DIR_KEY, parent);
       downloadDir = parent;
@@ -236,7 +254,7 @@
     lastProgress = null;
     try {
       const got = await api.DownloadProject(overview!.currentTeam, p.id, parent);
-      toast(`Downloaded “${got.name}” to ${got.root}`, "ok", 7000);
+      toast(t("Downloaded “{name}” to {folder}", { name: got.name, folder: got.root }), "ok", 7000);
       await reload();
       select(got);
     } catch (e) {
@@ -247,7 +265,7 @@
   }
 
   async function changeDownloadDir() {
-    const d = await api.ChooseFolder("Where should downloaded projects go?");
+    const d = await api.ChooseFolder(t("Where should downloaded projects go?"));
     if (d) {
       remember(DOWNLOAD_DIR_KEY, d);
       downloadDir = d;
@@ -255,7 +273,7 @@
   }
 
   async function locate(p: TeamProject) {
-    const folder = await api.ChooseFolder(`Where is “${p.name}” now?`);
+    const folder = await api.ChooseFolder(t("Where is “{name}” now?", { name: p.name }));
     if (!folder) return;
     try {
       const got = await api.LocateProject(overview!.currentTeam, p.id, folder);
@@ -268,7 +286,7 @@
 
   async function forget(p: TeamProject) {
     await api.ForgetProject(p.root);
-    toast(`Unlinked “${p.name}”: the folder and its versions are untouched`, "info");
+    toast(t("Unlinked “{name}”: the folder and its versions are untouched", { name: p.name }), "info");
     selected = {};
     await reload();
   }
@@ -278,8 +296,8 @@
     busy = "delete";
     try {
       await api.DeleteProjectFromTeam(overview!.currentTeam, p.id);
-      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy stays in its folder.`
-        : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
+      toast(t(p.root ? "Deleted “{name}” from {team}. Your copy stays in its folder." : "Deleted “{name}” from {team}",
+        { name: p.name, team: current?.name ?? "" }), "info", 8000);
       if (!p.root) selected = {};
       await reload();
     } catch (e) {
@@ -291,7 +309,7 @@
 
   async function addToTeam() {
     // No confirmation here: the project asks before sharing anything.
-    const folder = await api.ChooseFolder(`Choose a project folder to add to ${current?.name ?? "the team"}`);
+    const folder = await api.ChooseFolder(t("Choose a project folder to add to {team}", { team: current?.name ?? t("the team") }));
     if (folder) share(folder);
   }
 
@@ -336,7 +354,7 @@
       const name = entries.find((p) => p.root === e.root)?.name ?? "";
       switch (e.kind) {
         case "new-versions":
-          toast(`${name}: ${e.versions.map((v) => `${v.author} saved “${v.message}”`).join("\n")}`, "info", 8000);
+          toast(`${name}: ${e.versions.map((v) => t("{author} saved “{message}”", { author: v.author, message: v.message })).join("\n")}`, "info", 8000);
           break;
       }
       if (e.root === selected.root) refreshKey++;
@@ -348,7 +366,7 @@
     };
   });
 
-  const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found" };
+  const statusText = (status: string) => ({ remote: t("not downloaded"), missing: t("folder not found") } as Record<string, string>)[status];
   const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪" };
 </script>
 
@@ -356,7 +374,10 @@
   onclick={(e) => { if (rowMenu && !(e.target as HTMLElement).closest(".row-menu, .more")) rowMenu = ""; }} />
 
 {#if !overview}
-  <div class="loading faint">Loading…</div>
+  <div class="splash" role="status" aria-label={t("Loading")}>
+    <div class="splash-logo"><img src="/icon.png" alt="" />DAWGit</div>
+    <div class="splash-band"></div>
+  </div>
 {:else if onboarding}
   <Onboarding {overview} {reload} onfinish={async (root, share) => {
     onboarding = false;
@@ -367,18 +388,18 @@
 {:else}
   <div class="shell">
     <aside>
-      <div class="brand">
+      <button class="brand" onclick={() => (appSettings = true)} title={t("DAWGit settings")}>
         <img src="/icon.png" alt="" /> DAWGit
-        {#if edition}<span class="edition" title="A DAWGit build with extensions">{edition}</span>{/if}
-        {#if appVersion}<span class="version faint" title="DAWGit version">v{appVersion}</span>{/if}
-      </div>
+        {#if edition}<span class="edition" title={t("A DAWGit build with extensions")}>{edition}</span>{/if}
+        {#if appVersion}<span class="version faint">v{appVersion}</span>{/if}
+      </button>
       {#if update}
         {@const u = update}
         <div class="update">
           <div class="update-h">
-            <span>DAWGit{edition ? ` ${edition}` : ""} {u.version} is available</span>
+            <span>{t("{app} {version} is available", { app: `DAWGit${edition ? ` ${edition}` : ""}`, version: u.version })}</span>
             {#if !u.required}
-              <button class="ghost x" title="Hide until the next version"
+              <button class="ghost x" title={t("Hide until the next version")}
                 onclick={() => { remember(DISMISSED_KEY, u.version); update = null; }}>✕</button>
             {/if}
           </div>
@@ -387,43 +408,32 @@
       {/if}
       <TeamMenu {overview} {reload} />
       {#if current?.keysUnreadable}
-        <p class="keys-warn">This computer can't read the keys of “{current.name}” (DAWGit's settings came from
-          another computer or Windows user). Enter them again in the team's settings (⚙).</p>
+        <p class="keys-warn">{t("This computer can't read the keys of “{team}” (DAWGit's settings came from another computer or Windows user). Enter them again in the team's settings (⚙).", { team: current.name })}</p>
       {/if}
 
       <div class="list">
         <div class="section row-h">
-          <span>Projects</span>
+          <span>{t("Projects")}</span>
           {#if current}
-            <button class="ghost tiny" class:spin={reloading} onclick={reload} title="Check the team for new projects">↻</button>
+            <button class="ghost tiny" class:spin={reloading} onclick={reload} title={t("Check the team for new projects")}>↻</button>
           {/if}
         </div>
         {#if current && overview.teamError}
-          <div class="offline" title={overview.teamError}>● {current.isStorage ? "Storage" : "Server"} not reachable</div>
+          <div class="offline" title={overview.teamError}>● {current.isStorage ? t("Storage not reachable") : t("Server not reachable")}</div>
         {/if}
         <ul>
           {#each entries as p (p.root || p.id)}
             {@render row(p)}
           {:else}
-            <li class="empty faint">No projects in this team yet.</li>
+            <li class="empty faint">{t("No projects in this team yet.")}</li>
           {/each}
         </ul>
         <button class="add" onclick={addToTeam} disabled={busy === "add" || !current}>
-          <span>+ Add project</span>
-          <span class="hint">Select project folder</span>
+          <span>+ {t("Add project")}</span>
+          <span class="hint">{t("Select project folder")}</span>
         </button>
       </div>
 
-      <div class="bottom">
-        <label class="autostart" title="Keeps DAWGit in the tray so you hear about new versions from your team">
-          <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
-          Start with Windows
-        </label>
-        <label class="autostart" title="Updates install by themselves when DAWGit is in the tray, or when it quits">
-          <input type="checkbox" checked={updState.auto} onchange={(e) => setAutoUpdate(e.currentTarget.checked)} />
-          Install updates automatically
-        </label>
-      </div>
     </aside>
 
     <section class="content">
@@ -438,38 +448,38 @@
         <div class="placeholder">
           <div class="big" aria-hidden="true">☁</div>
           <h1>{p.name}</h1>
-          <p class="muted">This project is on {current?.name} but not on this computer yet.</p>
+          <p class="muted">{t("This project is on {team} but not on this computer yet.", { team: current?.name ?? "" })}</p>
           {#if dlSize?.id === p.id && dlSize.size}
             {@const z = dlSize.size}
-            <p class="size">{formatBytes(z.bytes)} · {z.files.toLocaleString()} file{z.files === 1 ? "" : "s"}</p>
+            <p class="size">{formatBytes(z.bytes)} · {tn(z.files, "{count} file", "{count} files", { count: z.files.toLocaleString() })}</p>
           {:else if dlSize?.id === p.id && !dlSize.error}
-            <p class="size faint">Checking the size…</p>
+            <p class="size faint">{t("Checking the size…")}</p>
           {/if}
           <button class="primary" onclick={() => download(p)} disabled={!!busy}>
-            {busy === p.id ? "Downloading…" : "↓ Download"}
+            {busy === p.id ? t("Downloading…") : `↓ ${t("Download")}`}
           </button>
           {#if busy === p.id && lastProgress}
             <div class="dl-progress"><ProgressBar p={lastProgress} /></div>
           {/if}
-          <p class="faint small">Into {downloadDir || "a folder you choose"} ·
-            <button class="link" onclick={changeDownloadDir}>change</button></p>
+          <p class="faint small">{t("Into {folder}", { folder: downloadDir || t("a folder you choose") })} ·
+            <button class="link" onclick={changeDownloadDir}>{t("change")}</button></p>
         </div>
       {:else if selectedEntry && selectedEntry.status === "missing"}
         {@const p = selectedEntry}
         <div class="placeholder">
           <div class="big" aria-hidden="true">⚠</div>
           <h1>{p.name}</h1>
-          <p class="muted">The project folder was moved or deleted:<br /><span class="mono">{p.root}</span></p>
+          <p class="muted">{t("The project folder was moved or deleted:")}<br /><span class="mono">{p.root}</span></p>
           <div class="row center">
-            <button class="primary" onclick={() => locate(p)}>Locate folder…</button>
-            <button onclick={() => download(p)} disabled={!!busy}>Download again</button>
-            <button class="ghost" onclick={() => forget(p)} title="DAWGit stops listing it; nothing is deleted">Unlink folder</button>
+            <button class="primary" onclick={() => locate(p)}>{t("Locate folder…")}</button>
+            <button onclick={() => download(p)} disabled={!!busy}>{t("Download again")}</button>
+            <button class="ghost" onclick={() => forget(p)} title={t("DAWGit stops listing it; nothing is deleted")}>{t("Unlink folder")}</button>
           </div>
         </div>
       {:else}
         <div class="placeholder">
           <h1>{current?.name ?? ""}</h1>
-          <p class="muted">Pick a project on the left, or add one to share it with the team.</p>
+          <p class="muted">{t("Pick a project on the left, or add one to share it with the team.")}</p>
         </div>
       {/if}
     </section>
@@ -481,50 +491,50 @@
     {#if !u.installable}
       {#if u.downloadUrl}
         <button class="primary" onclick={() => openLink(u.downloadUrl)}
-          title="Download the installer; run it to update (your projects and teams are kept)">Download</button>
+          title={t("Download the installer; run it to update (your projects and teams are kept)")}>{t("Download")}</button>
       {/if}
     {:else if updState.stage === "downloading" || (installWhenReady && updState.stage !== "failed")}
       <span class="upd-progress"><span style:width="{pct(updState)}%"></span></span>
-      <span class="faint small">{updState.stage === "ready" ? "Installing…" : `Downloading ${pct(updState)}%`}</span>
+      <span class="faint small">{updState.stage === "ready" ? t("Installing…") : t("Downloading {percent}%", { percent: pct(updState) })}</span>
     {:else if updState.stage === "ready"}
       <button class="primary" onclick={updateNow} disabled={anyBusy}
-        title={anyBusy ? "After the project's current upload or download" : "DAWGit closes, updates and opens again (your projects and teams are kept)"}>
-        Restart to update</button>
+        title={anyBusy ? t("After the project's current upload or download") : t("DAWGit closes, updates and opens again (your projects and teams are kept)")}>
+        {t("Restart to update")}</button>
     {:else}
       <button class="primary" onclick={updateNow} disabled={anyBusy}
-        title="Downloads it, then DAWGit closes, updates and opens again">Update now</button>
+        title={t("Downloads it, then DAWGit closes, updates and opens again")}>{t("Update now")}</button>
     {/if}
-    <button class="ghost" onclick={() => openLink(u.pageUrl)}>What's new</button>
+    <button class="ghost" onclick={() => openLink(u.pageUrl)}>{t("What's new")}</button>
   </div>
   {#if updState.stage === "failed"}<p class="upd-error">{updState.error}</p>{/if}
   {#if u.installable && updState.stage === "ready" && updState.auto && !u.required}
-    <p class="faint small upd-note">Or it installs by itself when DAWGit is in the tray.</p>
+    <p class="faint small upd-note">{t("Or it installs by itself when DAWGit is in the tray.")}</p>
   {/if}
 {/snippet}
 
 {#snippet row(p: TeamProject)}
   <li>
     <button class="proj {p.status}" class:on={selectedEntry === p} onclick={() => select(p)}
-      title={p.status === "remote" ? "On the team, not on this computer yet" : p.root}>
+      title={p.status === "remote" ? t("On the team, not on this computer yet") : p.root}>
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
-        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Pinned"><title>Pinned</title><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>{/if}</span>
+        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label={t("Pinned")}><title>{t("Pinned")}</title><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>{/if}</span>
         <span class="meta" class:busy={p.root && activity[p.root]}>
-          {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText[p.status] ?? `⑂ ${p.branch}`}
+          {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText(p.status) ?? `⑂ ${p.branch}`}
         </span>
       </span>
     </button>
-    <button class="ghost more" class:open={rowMenu === rowKey(p)} title="More"
+    <button class="ghost more" class:open={rowMenu === rowKey(p)} title={t("More")}
       onclick={() => toggleMenu(p)}>⋯</button>
     {#if rowMenu === rowKey(p)}
       <div class="row-menu" role="menu">
-        <button class="item" onclick={() => { rowMenu = ""; togglePin(p); }}>{pinned.includes(rowKey(p)) ? "Unpin" : "Pin to top"}</button>
+        <button class="item" onclick={() => { rowMenu = ""; togglePin(p); }}>{pinned.includes(rowKey(p)) ? t("Unpin") : t("Pin to top")}</button>
         {#if menuInfo && menuInfo.openable.length === 1}
-          <button class="item" onclick={() => openIn(p, menuInfo!.openable[0])}>Open in {toolName(menuInfo.tool)}</button>
+          <button class="item" onclick={() => openIn(p, menuInfo!.openable[0])}>{t("Open in {tool}", { tool: toolName(menuInfo.tool) })}</button>
         {:else if menuInfo && menuInfo.openable.length > 1}
           <div class="sub" role="none" onmouseenter={showSub} onmouseleave={hideSub}>
             <button class="item has-sub" aria-expanded={openSub}>
-              Open in {toolName(menuInfo.tool)}<span class="arrow">›</span>
+              {t("Open in {tool}", { tool: toolName(menuInfo.tool) })}<span class="arrow">›</span>
             </button>
             {#if openSub}
               <div class="row-menu submenu" role="menu" tabindex="-1" style:left="{subAt.left}px" style:top="{subAt.top}px"
@@ -537,15 +547,21 @@
           </div>
         {/if}
         {#if p.root && p.status !== "missing"}
-          <button class="item" onclick={() => { rowMenu = ""; api.ShowFolder(p.root); }}>Open folder</button>
+          <button class="item" onclick={() => { rowMenu = ""; api.ShowFolder(p.root); }}>{t("Open folder")}</button>
         {/if}
         <div class="sep"></div>
-        <button class="item" onclick={() => { rowMenu = ""; settingsFor = p; }}>Settings…</button>
+        <button class="item" onclick={() => { rowMenu = ""; settingsFor = p; }}>{t("Settings…")}</button>
       </div>
     {/if}
   </li>
 {/snippet}
 
+
+{#if appSettings}
+  <AppSettings version={appVersion} {edition} {autostart} autoUpdate={updState.auto} {downloadDir} {update}
+    checking={checkingNow} onautostart={toggleAutostart} onautoupdate={setAutoUpdate} oncheck={checkUpdateNow}
+    ondownloaddir={changeDownloadDir} onclose={() => (appSettings = false)} />
+{/if}
 
 {#if settingsFor}
   {@const p = settingsFor}
@@ -565,26 +581,25 @@
 
 {#if confirmDelete}
   {@const p = confirmDelete}
-  <Modal title="Delete “{p.name}” from the server?" onclose={() => (confirmDelete = null)}>
-    <p>This removes the project and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
-      Copies already on someone's computer are not touched{p.root ? " — yours stays in its folder" : ""}.</p>
-    <label for="delete-word">Type <strong>{p.name}</strong> to confirm</label>
+  <Modal title={t("Delete “{name}” from the team?", { name: p.name })} onclose={() => (confirmDelete = null)}>
+    <p>{t(p.root ? "This removes the project and all its versions from {team}, for everyone in the team. Copies already on someone's computer are not touched — yours stays in its folder."
+      : "This removes the project and all its versions from {team}, for everyone in the team. Copies already on someone's computer are not touched.", { team: current?.name ?? "" })}</p>
+    <label for="delete-word">{t("Type {name} to confirm", { name: p.name })}</label>
     <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
       onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) deleteFromTeam(p); }} />
     {#snippet footer()}
-      <button onclick={() => (confirmDelete = null)}>Cancel</button>
-      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => deleteFromTeam(p)}>Delete</button>
+      <button onclick={() => (confirmDelete = null)}>{t("Cancel")}</button>
+      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => deleteFromTeam(p)}>{t("Delete")}</button>
     {/snippet}
   </Modal>
 {/if}
 
 {#if update?.required}
   {@const u = update}
-  <div class="must-update" role="dialog" aria-modal="true" aria-label="Update DAWGit">
+  <div class="must-update" role="dialog" aria-modal="true" aria-label={t("Update DAWGit")}>
     <div class="must-card">
-      <h2>Update DAWGit to keep going</h2>
-      <p class="muted">This version of DAWGit can no longer work with your team's projects: they need DAWGit
-        {u.version}. Updating takes a minute, and keeps your projects and teams.</p>
+      <h2>{t("Update DAWGit to keep going")}</h2>
+      <p class="muted">{t("This version of DAWGit can no longer work with your team's projects: they need DAWGit {version}. Updating takes a minute, and keeps your projects and teams.", { version: u.version })}</p>
       {@render updateActions(u)}
     </div>
   </div>
@@ -593,10 +608,11 @@
 <Toasts />
 
 <style>
-  .loading { padding: 40px; }
   .shell { display: grid; grid-template-columns: 250px 1fr; height: 100%; }
   aside { background: #141518; border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 12px 10px; min-height: 0; }
-  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; padding: 2px 8px 10px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; padding: 4px 8px; margin: -2px 0 8px;
+    background: none; border: 0; border-radius: 6px; color: var(--text); text-align: left; cursor: pointer; width: 100%; }
+  .brand:hover { background: var(--panel-2); }
   .brand img { width: 20px; height: 20px; }
   .list { flex: 1; overflow: auto; min-height: 0; }
   .section { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 8px 8px 4px; }
@@ -651,7 +667,6 @@
   .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 10px; line-height: 1.3; }
   .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; }
   .pad { padding: 0 8px; }
-  .bottom { padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
   .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12.5px; text-align: left; }
   .version { margin-left: auto; font-size: 11px; font-weight: 400; }
   .edition { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px;
@@ -673,8 +688,6 @@
   .must-card h2 { margin: 0 0 8px; font-size: 18px; }
   .must-card .update-a button { padding: 6px 14px; font-size: 13.5px; }
   .x { padding: 0 5px; line-height: 16px; color: var(--muted); }
-  .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
-  .autostart input { width: auto; }
   .small { font-size: 12.5px; }
   .content { min-width: 0; overflow: hidden; }
   .placeholder { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }

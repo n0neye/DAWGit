@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { api, ago, errorText, type Change, type Version } from "./api";
   import { layout } from "./graph";
   import ChangeList from "./ChangeList.svelte";
@@ -54,7 +55,7 @@
 </script>
 
 {#if versions.length === 0}
-  <p class="muted">No versions yet. Commit your first version from the Changes tab.</p>
+  <p class="muted">{t("No versions yet. Commit your first version from the Changes tab.")}</p>
 {:else}
   <div class="history">
     <svg width={graphWidth} height={tops[versions.length]} class="graph">
@@ -81,15 +82,15 @@
     <ul style:padding-left="{graphWidth}px">
       {#each versions as v (v.id)}
         <li class:incoming={incoming.has(v.id)} class:open={open[v.id]}>
-          <div class="row" style:height="{ROW}px" role="button" tabindex="0" title="Show what this version changed"
+          <div class="row" style:height="{ROW}px" role="button" tabindex="0" title={t("Show what this version changed")}
             onclick={() => toggle(v)} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(v); } }}>
             <span class="msg">
-              {v.message || "(no description)"}
+              {v.message || t("(no description)")}
               {#each v.branches as b}<span class="tag">{b}</span>{/each}
-              {#if v.id === head}<span class="tag here">you are here</span>{/if}
-              {#if v.id === latest && latest !== head}<span class="tag">latest</span>{/if}
-              {#if incoming.has(v.id)}<span class="tag new">new</span>{/if}
-              {#if v.notHere}<span class="tag away" title="Some of its files are only in the storage of the team this project was in">files in team storage</span>{/if}
+              {#if v.id === head}<span class="tag here">{t("you are here")}</span>{/if}
+              {#if v.id === latest && latest !== head}<span class="tag">{t("latest")}</span>{/if}
+              {#if incoming.has(v.id)}<span class="tag new">{t("new")}</span>{/if}
+              {#if v.notHere}<span class="tag away" title={t("Some of its files are only in the storage of the team this project was in")}>{t("files in team storage")}</span>{/if}
             </span>
             <span class="who">{v.author}</span>
             <span class="when faint">{ago(v.time)}</span>
@@ -98,13 +99,13 @@
               <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
               <span class="acts" onclick={(e) => e.stopPropagation()}>
                 {#if onmerge && !v.inBranch && !incoming.has(v.id)}
-                  <button onclick={() => onmerge(v)} title="Merge this version into the branch you are on">Merge</button>
+                  <button onclick={() => onmerge(v)} title={t("Merge this version into the branch you are on")}>{t("Merge")}</button>
                 {/if}
                 {#if ongoto && v.id !== head && !incoming.has(v.id) && !v.notHere}
-                  <button onclick={() => ongoto(v)} title="Put the project in the state of this version">Go to</button>
+                  <button onclick={() => ongoto(v)} title={t("Put the project in the state of this version")}>{t("Go to")}</button>
                 {/if}
                 {#if onexport && !v.notHere}
-                  <button onclick={() => onexport(v)} title="Save this version as a separate project folder">Export…</button>
+                  <button onclick={() => onexport(v)} title={t("Save this version as a separate project folder")}>{t("Export…")}</button>
                 {/if}
               </span>
             {/if}
@@ -114,14 +115,14 @@
               {#if v.message}<p class="full">{v.message}</p>{/if}
               <div class="meta faint">
                 {v.author} · {new Date(v.time).toLocaleString()} · <span class="mono">{v.short}</span>
-                {#if v.parents.length > 1} · merge{/if}
+                {#if v.parents.length > 1} · {t("merge")}{/if}
               </div>
               {#if changes[v.id] === undefined}
-                <p class="faint">Reading…</p>
+                <p class="faint">{t("Reading…")}</p>
               {:else if typeof changes[v.id] === "string"}
                 <p class="error">{changes[v.id]}</p>
               {:else}
-                <ChangeList changes={changes[v.id] as Change[]} empty="No file changes." />
+                <ChangeList changes={changes[v.id] as Change[]} empty={t("No file changes.")} />
               {/if}
             </div>
           {/if}

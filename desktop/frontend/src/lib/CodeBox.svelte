@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   // A connection code with a copy button.
   let { code }: { code: string } = $props();
   let copied = $state(false);
@@ -15,8 +16,8 @@
 </script>
 
 <div class="code">
-  <input class="mono" readonly value={code} aria-label="Connection code" onfocus={(e) => e.currentTarget.select()} />
-  <button class:primary={!copied} onclick={copy}>{copied ? "✓ Copied" : "Copy"}</button>
+  <input class="mono" readonly value={code} aria-label={t("Connection code")} onfocus={(e) => e.currentTarget.select()} />
+  <button class:primary={!copied} onclick={copy}>{copied ? `✓ ${t("Copied")}` : t("Copy")}</button>
 </div>
 
 <style>

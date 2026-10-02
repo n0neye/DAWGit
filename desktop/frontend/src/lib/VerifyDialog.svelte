@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { Events } from "@wailsio/runtime";
   import Modal from "./Modal.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -37,19 +38,19 @@
   $effect(() => { check(false); });
 
   let open = $derived(result?.problems.filter((p) => !p.fixed).length ?? 0);
-  const kindName: Record<string, string> = { version: "Version", "folder-list": "Folder list", file: "File" };
+  const kindName = (k: string) => ({ version: t("Version"), "folder-list": t("Folder list"), file: t("File") } as Record<string, string>)[k];
 </script>
 
-<Modal title={`Check “${name}”`} {onclose} backdropCloses={!busy} width={620}>
+<Modal title={t("Check “{name}”", { name })} {onclose} backdropCloses={!busy} width={620}>
   {#if busy}
-    <p class="muted">{repaired || result ? "Repairing…" : "Reading every version and stored file again…"}</p>
-    <ProgressBar p={progress} waiting="Reading versions…" />
+    <p class="muted">{repaired || result ? t("Repairing…") : t("Reading every version and stored file again…")}</p>
+    <ProgressBar p={progress} waiting={t("Reading versions…")} />
   {:else if error}
     <p class="error">{error}</p>
   {:else if result}
     <p class:ok={result.problems.length === 0}>{result.summary}</p>
     {#if result.inTeam && !result.teamChecked}
-      <p class="muted small">The team's storage couldn't be reached: files only it keeps weren't checked.</p>
+      <p class="muted small">{t("The team's storage couldn't be reached: files only it keeps weren't checked.")}</p>
     {/if}
     {#if result.problems.length}
       <ul class="problems">
@@ -57,26 +58,24 @@
           <li class:fixed={p.fixed}>
             <span class="mark">{p.fixed ? "✓" : "!"}</span>
             <div>
-              <div><span class="kind">{kindName[p.kind] ?? p.kind}</span> <span class="mono">{p.what}</span></div>
-              <div class="muted small">{p.detail}{p.how ? ` — ${p.fixed ? "repaired: " : ""}${p.how}` : ""}</div>
+              <div><span class="kind">{kindName(p.kind) ?? p.kind}</span> <span class="mono">{p.what}</span></div>
+              <div class="muted small">{p.detail}{p.how ? ` — ${p.fixed ? t("repaired:") + " " : ""}${p.how}` : ""}</div>
             </div>
           </li>
         {/each}
       </ul>
     {/if}
     {#if open && !repaired}
-      <p class="muted small">Repair brings back what it can: from files in the project folder with the same content, or
-        from the team's storage.</p>
+      <p class="muted small">{t("Repair brings back what it can: from files in the project folder with the same content, or from the team's storage.")}</p>
     {:else if open}
-      <p class="muted small">What couldn't be repaired is lost from those versions; other versions are fine. Your
-        project folder isn't changed.</p>
+      <p class="muted small">{t("What couldn't be repaired is lost from those versions; other versions are fine. Your project folder isn't changed.")}</p>
     {/if}
   {/if}
   {#snippet footer()}
     {#if result && open && !repaired && !busy}
-      <button class="primary" onclick={() => check(true)}>Repair</button>
+      <button class="primary" onclick={() => check(true)}>{t("Repair")}</button>
     {/if}
-    <button onclick={onclose} disabled={busy}>{result && !busy ? "Done" : "Cancel"}</button>
+    <button onclick={onclose} disabled={busy}>{result && !busy ? t("Done") : t("Cancel")}</button>
   {/snippet}
 </Modal>
 

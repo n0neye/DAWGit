@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { Events } from "@wailsio/runtime";
   import Modal from "./Modal.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -31,7 +32,7 @@
   let current = $derived(formats.find((f) => f.id === format));
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
   const khz = (hz: number) => `${hz % 1000 ? (hz / 1000).toFixed(1) : hz / 1000} kHz`;
-  const chName = (n: number) => (n === 1 ? "mono" : n === 2 ? "stereo" : `${n} channels`);
+  const chName = (n: number) => (n === 1 ? t("mono") : n === 2 ? t("stereo") : t("{n} channels", { n }));
   // Lossy output shows its bitrate in place of the bit depth.
   const describe = (x: { rate: number; channels: number; bits: number; bitrate?: number }) =>
     [x.bitrate && `${x.bitrate} kbps`, x.rate && khz(x.rate), !x.bitrate && x.bits && `${x.bits}-bit`, x.channels && chName(x.channels)]
@@ -73,40 +74,40 @@
   }
 </script>
 
-<Modal title="Convert {name(file)}" onclose={() => { if (!busy) onclose(); }}>
-  {#if info}<p class="faint small orig">Original: {describe(info)}{info.seconds ? ` · ${info.seconds.toFixed(1)} s` : ""}</p>{/if}
+<Modal title={t("Convert {file}", { file: name(file) })} onclose={() => { if (!busy) onclose(); }}>
+  {#if info}<p class="faint small orig">{t("Original:")} {describe(info)}{info.seconds ? ` · ${info.seconds.toFixed(1)} s` : ""}</p>{/if}
 
   <div class="grid">
-    <label for="cf">Format</label>
+    <label for="cf">{t("Format")}</label>
     <select id="cf" bind:value={format} disabled={busy}>
       {#each formats as f (f.id)}<option value={f.id}>{f.name}</option>{/each}
     </select>
 
     {#if current?.bitrates.length}
-      <label for="cb">Quality</label>
+      <label for="cb">{t("Quality")}</label>
       <select id="cb" bind:value={kbps} disabled={busy}>
-        {#each current.bitrates as b}<option value={b}>{b} kbps{b === current.bitrates[0] ? " (best)" : ""}</option>{/each}
+        {#each current.bitrates as b}<option value={b}>{b} kbps{b === current.bitrates[0] ? ` (${t("best")})` : ""}</option>{/each}
       </select>
     {/if}
 
     {#if current}
-      <label for="cr">Sample rate</label>
+      <label for="cr">{t("Sample rate")}</label>
       <select id="cr" bind:value={rate} disabled={busy}>
-        <option value={0}>Same as original{info?.rate ? ` (${khz(info.rate)})` : ""}</option>
+        <option value={0}>{t("Same as original")}{info?.rate ? ` (${khz(info.rate)})` : ""}</option>
         {#each current.rates as r}<option value={r}>{khz(r)}</option>{/each}
       </select>
 
-      <label for="cc">Channels</label>
+      <label for="cc">{t("Channels")}</label>
       <select id="cc" bind:value={channels} disabled={busy}>
-        <option value={0}>Same as original{info?.channels ? ` (${chName(info.channels)})` : ""}</option>
-        <option value={2}>Stereo</option>
-        <option value={1}>Mono (channels mixed)</option>
+        <option value={0}>{t("Same as original")}{info?.channels ? ` (${chName(info.channels)})` : ""}</option>
+        <option value={2}>{t("Stereo")}</option>
+        <option value={1}>{t("Mono (channels mixed)")}</option>
       </select>
 
       {#if current.bits.length}
-        <label for="cd">Bit depth</label>
+        <label for="cd">{t("Bit depth")}</label>
         <select id="cd" bind:value={bits} disabled={busy}>
-          <option value={0}>Same as original{info?.bits ? ` (${info.bits}-bit)` : ""}</option>
+          <option value={0}>{t("Same as original")}{info?.bits ? ` (${info.bits}-bit)` : ""}</option>
           {#each current.bits as b}<option value={b}>{b}-bit</option>{/each}
         </select>
       {/if}
@@ -114,14 +115,15 @@
   </div>
 
   {#if plan}
-    <p class="small result">Writes {describe(plan)}{target ? ` as ${name(target)}` : ""} next to the original. The original stays.</p>
+    <p class="small result">{target ? t("Writes {what} as {file} next to the original. The original stays.", { what: describe(plan), file: name(target) })
+      : t("Writes {what} next to the original. The original stays.", { what: describe(plan) })}</p>
     {#each plan.notes as n}<p class="small note">{n}</p>{/each}
   {/if}
-  {#if busy}<ProgressBar p={progress} waiting="Starting…" />{/if}
+  {#if busy}<ProgressBar p={progress} waiting={t("Starting…")} />{/if}
   {#if error}<p class="error small">{error}</p>{/if}
 
   {#snippet footer()}
-    <button onclick={onclose} disabled={busy}>Cancel</button>
+    <button onclick={onclose} disabled={busy}>{t("Cancel")}</button>
     <button class="primary" onclick={run} disabled={busy || !current || !plan}>{busy ? "Converting…" : "Convert"}</button>
   {/snippet}
 </Modal>

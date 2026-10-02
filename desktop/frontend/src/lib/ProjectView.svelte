@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t, tn } from "./i18n.svelte";
+  import Tx from "./Tx.svelte";
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
   import { api, ago, errorText, formatBytes, type State, type Result, type Preview, type Conflict, type TeamSummary,
@@ -47,7 +49,7 @@
 
   // dialogs
   let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
-  const UNSAVED = "You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.";
+  const UNSAVED = () => t("You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.");
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string>; set: string } | null>(null);
   let branchMenu = $state(false);
@@ -129,7 +131,7 @@
     else if (st.remoteUrl) shareAsk = true; // versions already: share them now or later
   });
   function askFirstVersion() {
-    if (!message.trim()) message = "First version";
+    if (!message.trim()) message = t("First version");
     firstAsk = true;
   }
 
@@ -226,7 +228,7 @@
         conflicts = { items: r.conflicts, run: a, force }; // keep a "Live is closed" confirmation
       } else {
         a.done(r);
-        if (r.relinked.length) toast(`Relinked ${r.relinked.length} sample path(s) for this computer`, "info");
+        if (r.relinked.length) toast(tn(r.relinked.length, "Relinked {n} sample path for this computer", "Relinked {n} sample paths for this computer"), "info");
       }
     } catch (e) {
       toast(errorText(e), "error", 9000);
@@ -240,13 +242,13 @@
 
   const saveDone = (r: Result) => {
       const text: Record<string, string> = {
-        "published": "Version committed and shared with the team",
-        "saved-locally": "Version committed on this computer (not shared with a team)",
-        "fast-forward": "You had nothing new; updated to the team's latest version",
-        "nothing": "Nothing changed since your last version",
+        "published": t("Version committed and shared with the team"),
+        "saved-locally": t("Version committed on this computer (not shared with a team)"),
+        "fast-forward": t("You had nothing new; updated to the team's latest version"),
+        "nothing": t("Nothing changed since your last version"),
       };
-      toast(text[r.action] ?? "Version committed", r.action === "nothing" ? "info" : "ok");
-      if (r.log.length && r.action === "published") toast("The team's changes were merged into your files" + reopen(), "warn", 9000);
+      toast(text[r.action] ?? t("Version committed"), r.action === "nothing" ? "info" : "ok");
+      if (r.log.length && r.action === "published") toast(t("The team's changes were merged into your files") + reopen(), "warn", 9000);
       if (r.action !== "nothing") message = "";
   };
 
@@ -297,21 +299,19 @@
   // The tool the project is made with: Live gets its own words.
   let isLive = $derived(st?.tool === "Ableton Live");
   // What to do after DAWGit changed the project's files.
-  const reopen = () => (st?.tool === "Ableton Live" ? " — reopen the set in Live"
-    : st?.tool ? ` — switch back to ${st.tool} to load the changes` : "");
-  const label = (rel: string) => (rel === "." ? st?.name ?? "the project" : rel);
+  const reopen = () => (st?.tool === "Ableton Live" ? " — " + t("reopen the set in Live")
+    : st?.tool ? " — " + t("switch back to {tool} to load the changes", { tool: t(st.tool) }) : "");
+  const label = (rel: string) => (rel === "." ? st?.name ?? t("the project") : rel);
 
   // Projects of tools found in folders the rules don't name yet: their
   // preset is suggested, and asked about before committing (or their
   // caches would go up with the version).
-  const presetNames: Record<string, string> = { ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
-    design: "design", code: "code" };
-  const presetName = (p: string) => presetNames[p] ?? p;
-  const aName = (name: string) => (/^(a|e|i|o|un[^i])/i.test(name) ? "an " : "a ") + name;
+  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
+    design: t("design"), code: t("code") } as Record<string, string>)[p] ?? p;
   // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
   const leftOutText = (pats: string[]) => {
     const names = [...new Set(pats.map((p) => p.replace(/^\/|\/$/g, "")))];
-    return names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", ");
+    return names.length > 4 ? t("{names} and {n} more", { names: names.slice(0, 4).join(", "), n: names.length - 4 }) : names.join(", ");
   };
   let rulesAsk = $state(false);
   async function setPreset(s: RuleSuggestion, preset: string) {
@@ -333,7 +333,7 @@
   async function openRules() {
     try {
       await api.OpenRules(root);
-      toast("Save the file, then DAWGit follows the new rules", "info");
+      toast(t("Save the file, then DAWGit follows the new rules"), "info");
     } catch (e) {
       toast(errorText(e), "error");
     }
@@ -370,7 +370,7 @@
     run({
       name: "discard",
       call: (_res, force) => api.DiscardAll(root, force),
-      done: () => toast("Discarded all your uncommitted changes" + reopen(), "ok"),
+      done: () => toast(t("Discarded all your uncommitted changes") + reopen(), "ok"),
     });
   }
 
@@ -380,7 +380,7 @@
     run({
       name: "discard",
       call: (_res, force) => api.DiscardFiles(root, paths, force),
-      done: () => toast(`Discarded your changes to ${paths.length} file${paths.length === 1 ? "" : "s"}` + reopen(), "ok"),
+      done: () => toast(tn(paths.length, "Discarded your changes to {n} file", "Discarded your changes to {n} files") + reopen(), "ok"),
     });
   }
 
@@ -390,7 +390,7 @@
     run({
       name: "restore",
       call: (_res, force) => api.RestoreFileVersion(root, r.path, r.version, r.source, force),
-      done: () => toast(`Restored ${r.path.slice(r.path.lastIndexOf("/") + 1)} from “${r.label}” — commit it to keep it`, "ok", 8000),
+      done: () => toast(t("Restored {file} from “{version}” — commit it to keep it", { file: r.path.slice(r.path.lastIndexOf("/") + 1), version: r.label }), "ok", 8000),
     });
   }
 
@@ -400,7 +400,7 @@
     run({
       name: "discard",
       call: (_res, force) => api.DiscardFile(root, path, st?.changes.find((c) => c.path === path)?.from ?? "", force),
-      done: () => toast(`Discarded your changes to ${path.slice(path.lastIndexOf("/") + 1)}`, "ok"),
+      done: () => toast(t("Discarded your changes to {file}", { file: path.slice(path.lastIndexOf("/") + 1) }), "ok"),
     });
   }
 
@@ -409,7 +409,7 @@
     run({
       name: "update",
       call: (res, force) => api.DiscardAndUpdate(root, res, force),
-      done: () => toast("Your changes were discarded and you have the team's latest versions" + reopen(), "ok", 8000),
+      done: () => toast(t("Your changes were discarded and you have the team's latest versions") + reopen(), "ok", 8000),
     });
   }
 
@@ -418,9 +418,9 @@
     call: (res, force) => api.Update(root, res, force),
     done: (r) => {
       if (r.action === "fast-forward" || r.action === "merged") {
-        toast("You're up to date" + reopen(), "ok", 8000);
-        if (r.action === "merged") toast("Your versions and the team's were combined. Commit a version to share the result.", "info", 9000);
-      } else toast("Already up to date", "info");
+        toast(t("You're up to date") + reopen(), "ok", 8000);
+        if (r.action === "merged") toast(t("Your versions and the team's were combined. Commit a version to share the result."), "info", 9000);
+      } else toast(t("Already up to date"), "info");
     },
   };
 
@@ -429,8 +429,8 @@
     try {
       const data = await api.PreviewUpdate(root);
       mergeMessage = null;
-      if (data) preview = { title: "Updates from the team", label: "Get updates", data, run: updateAction,
-        blocked: st?.changes.length ? UNSAVED : "" };
+      if (data) preview = { title: t("Updates from the team"), label: t("Get updates"), data, run: updateAction,
+        blocked: st?.changes.length ? UNSAVED() : "" };
     } catch (e) {
       toast(errorText(e), "error");
     } finally {
@@ -449,13 +449,13 @@
       if (!data) return;
       mergeMessage = data.message;
       preview = {
-        title: `Merge “${name}” into “${st?.branch}”`, label: "Merge and share", data,
-        blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
+        title: t("Merge “{from}” into “{into}”", { from: name, into: st?.branch ?? "" }), label: t("Merge and share"), data,
+        blocked: st?.changes.length ? t("You have uncommitted changes. Commit a version first, then merge.") : "",
         run: {
           name: "merge",
           call: (res, force) => api.MergeBranch(root, name, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
-            ? `Nothing to merge from ${name}` : `Merged ${name} into ${st?.branch} and shared it${reopen()}`, "ok", 8000),
+            ? t("Nothing to merge from {from}", { from: name }) : t("Merged {from} into {into} and shared it", { from: name, into: st?.branch ?? "" }) + reopen(), "ok", 8000),
         },
       };
     } catch (e) {
@@ -475,13 +475,13 @@
       if (!data) return;
       mergeMessage = data.message;
       preview = {
-        title: `Merge ${label} into “${st?.branch}”`, label: "Merge and share", data,
-        blocked: st?.changes.length ? "You have uncommitted changes. Commit a version first, then merge." : "",
+        title: t("Merge {from} into “{into}”", { from: label, into: st?.branch ?? "" }), label: t("Merge and share"), data,
+        blocked: st?.changes.length ? t("You have uncommitted changes. Commit a version first, then merge.") : "",
         run: {
           name: "merge",
           call: (res, force) => api.MergeVersion(root, v.id, mergeMessage ?? "", res, force),
           done: (r) => toast(r.action === "up-to-date" || r.action === "ahead"
-            ? `“${st?.branch}” already has ${label}` : `Merged ${label} into ${st?.branch} and shared it${reopen()}`, "ok", 8000),
+            ? t("“{into}” already has {from}", { into: st?.branch ?? "", from: label }) : t("Merged {from} into {into} and shared it", { from: label, into: st?.branch ?? "" }) + reopen(), "ok", 8000),
         },
       };
     } catch (e) {
@@ -496,7 +496,7 @@
     run({
       name: "switch",
       call: (_res, force) => api.SwitchBranch(root, name, force),
-      done: () => toast(`Now working on “${name}”${reopen()}`, "ok", 8000),
+      done: () => toast(t("Now working on “{branch}”", { branch: name }) + reopen(), "ok", 8000),
     });
   }
 
@@ -505,8 +505,7 @@
   const goAction = (id: string, discard: boolean, label: string): Action => ({
     name: "goto",
     call: (_res, force) => api.GoToVersion(root, id, discard, force),
-    done: () => toast(id === "latest" ? "Back to the latest version" + reopen()
-      : `Now on “${label}”${reopen()}`, "ok", 8000),
+    done: () => toast((id === "latest" ? t("Back to the latest version") : t("Now on “{version}”", { version: label })) + reopen(), "ok", 8000),
   });
 
   // Go to a version (null: back to the latest), asking first about
@@ -544,17 +543,17 @@
     run({
       name: "keep",
       call: (res) => api.KeepThisVersion(root, msg, res),
-      done: () => toast("This version is now the latest", "ok"),
+      done: () => toast(t("This version is now the latest"), "ok"),
     });
   }
 
   async function exportVersion(v: Version) {
-    const parent = await api.ChooseFolder("Where should the copy of this version go?");
+    const parent = await api.ChooseFolder(t("Where should the copy of this version go?"));
     if (!parent) return;
     busy = "export";
     try {
       const dir = await api.ExportVersion(root, v.id, parent);
-      toast(`Saved a copy of “${v.message || v.short}” as ${dir}`, "ok", 9000);
+      toast(t("Saved a copy of “{version}” as {folder}", { version: v.message || v.short, folder: dir }), "ok", 9000);
       api.ShowFolder(dir);
     } catch (e) {
       toast(errorText(e), "error", 9000);
@@ -576,10 +575,10 @@
       if (msg) {
         busy = "";
         await run({ ...saveAction(msg), done: (r) => { saveDone(r);
-          toast(`Your work is on the new branch “${name}”; “${st?.branch}” is unchanged. Merge it when you're ready.`, "info", 9000); } });
+          toast(t("Your work is on the new branch “{branch}”; “{base}” is unchanged. Merge it when you're ready.", { branch: name, base: st?.branch ?? "" }), "info", 9000); } });
         return;
       }
-      toast(`Created “${name}”. Versions you save now go there.`, "ok");
+      toast(t("Created “{branch}”. Versions you save now go there.", { branch: name }), "ok");
       await load();
       onchanged();
     } catch (e) {
@@ -597,7 +596,7 @@
       name: "first-share",
       call: () => api.ShareVersions(root),
       done: () => {
-        toast(`“${st?.name ?? folderName}” is shared with ${st?.teamName || "the team"}`, "ok");
+        toast(t("“{name}” is shared with {team}", { name: st?.name ?? folderName, team: st?.teamName || t("the team") }), "ok");
       },
     });
   }
@@ -617,10 +616,10 @@
   <div class="preparing">
     <h1>{folderName}</h1>
     {#if busy === "first-share"}
-      <p class="muted">Sharing with the team: DAWGit commits a first version and uploads it{isLive ? ", samples included" : ""}.
-        Large projects can take a few minutes — you can keep using DAWGit meanwhile.</p>
+      <p class="muted">{isLive ? t("Sharing with the team: DAWGit commits a first version and uploads it, samples included. Large projects can take a few minutes — you can keep using DAWGit meanwhile.")
+        : t("Sharing with the team: DAWGit commits a first version and uploads it. Large projects can take a few minutes — you can keep using DAWGit meanwhile.")}</p>
     {:else}
-      <p class="muted">Reading the project…</p>
+      <p class="muted">{t("Reading the project…")}</p>
     {/if}
     {#if progress}<ProgressBar p={progress} />{/if}
   </div>
@@ -632,48 +631,48 @@
         <div class="sub">
           <div class="branch-wrap">
             <button class="branch" onclick={() => (branchMenu = !branchMenu)} disabled={!st.remoteUrl}
-              title={st.remoteUrl ? "Branches" : "Share the project with a team to use branches"}>
+              title={st.remoteUrl ? t("Branches") : t("Share the project with a team to use branches")}>
               ⑂ {st.branch} ▾
             </button>
             {#if branchMenu}
               <div class="menu" role="menu">
-                <div class="menu-h">Switch to</div>
+                <div class="menu-h">{t("Switch to")}</div>
                 {#each st.branches as b (b.name)}
                   <button class="item" disabled={b.current} onclick={() => switchTo(b.name)}>
                     <span>{b.name}</span>
-                    <span class="faint">{b.current ? "current" : b.latest ? `${b.latest.author} · ${ago(b.latest.time)}` : ""}</span>
+                    <span class="faint">{b.current ? t("current") : b.latest ? `${b.latest.author} · ${ago(b.latest.time)}` : ""}</span>
                   </button>
                 {/each}
                 <div class="sep"></div>
-                <div class="menu-h">Merge into {st.branch}</div>
+                <div class="menu-h">{t("Merge into {branch}", { branch: st.branch })}</div>
                 {#each st.branches.filter((b) => !b.current) as b (b.name)}
                   <button class="item" onclick={() => openMergePreview(b.name)}>{b.name}</button>
                 {:else}
-                  <div class="item faint">no other branches</div>
+                  <div class="item faint">{t("no other branches")}</div>
                 {/each}
                 <div class="sep"></div>
-                <button class="item" onclick={() => { branchMenu = false; newBranch = ""; }}>New branch from here…</button>
+                <button class="item" onclick={() => { branchMenu = false; newBranch = ""; }}>{t("New branch from here…")}</button>
               </div>
             {/if}
           </div>
           {#if st.remoteUrl}
             <span class="dot" class:on={st.online} class:checking={!st.teamChecked}></span>
             <span class="faint" title={st.online ? st.remoteUrl : st.offline}>
-              {st.teamName || st.remoteUrl}{!st.teamChecked ? " · checking…" : st.online ? "" : " · not reachable"}
+              {st.teamName || st.remoteUrl}{!st.teamChecked ? ` · ${t("checking…")}` : st.online ? "" : ` · ${t("not reachable")}`}
             </span>
           {/if}
           <button class="ghost gear" class:bad={!!st.rules.error} onclick={onsettings}
-            title={st.rules.error ? `Project settings — ⚠ ${st.rules.error}` : "Project settings: name, rules, …"}
-            aria-label="Project settings">{st.rules.error ? "⚠" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+            title={st.rules.error ? `${t("Project settings")} — ⚠ ${st.rules.error}` : t("Project settings: name, rules, …")}
+            aria-label={t("Project settings")}>{st.rules.error ? "⚠" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
       <div class="actions">
         {#if st.openable.length === 1}
           <button onclick={() => api.OpenInTool(st!.root, st!.openable[0]).catch((e) => toast(errorText(e), "error"))}
-            title="Open {label(st.openable[0])} in {st.tool || "its program"}">▶ Open in {isLive ? "Live" : st.tool || "app"}</button>
+            title={t("Open {file} in {tool}", { file: label(st.openable[0]), tool: (st.tool ? t(st.tool) : t("its program")) })}>▶ {t("Open in {tool}", { tool: isLive ? "Live" : st.tool ? t(st.tool) : t("app") })}</button>
         {:else if st.openable.length > 1}
           <div class="open-wrap">
-            <button onclick={() => (setMenu = !setMenu)} title="Open in {st.tool || "its program"}">▶ Open in {isLive ? "Live" : st.tool || "app"} ▾</button>
+            <button onclick={() => (setMenu = !setMenu)} title={t("Open in {tool}", { tool: (st.tool ? t(st.tool) : t("its program")) })}>▶ {t("Open in {tool}", { tool: isLive ? "Live" : st.tool ? t(st.tool) : t("app") })} ▾</button>
             {#if setMenu}
               <div class="menu right" role="menu">
                 {#each st.openable as s}
@@ -683,51 +682,47 @@
             {/if}
           </div>
         {/if}
-        <button class="ghost refresh" class:spin={refreshing} onclick={refresh} title="Refresh">↻</button>
-        <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title="Show folder">📁</button>
+        <button class="ghost refresh" class:spin={refreshing} onclick={refresh} title={t("Refresh")}>↻</button>
+        <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title={t("Show folder")}>📁</button>
       </div>
     </header>
 
     {#if progress}
       <div class="banner info"><ProgressBar p={progress} team={st.teamName || undefined} /></div>
     {:else if busy === "first-share"}
-      <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
+      <div class="banner info"><div>{t("Sharing “{name}” with the team…", { name: st.name })}</div></div>
     {/if}
 
     {#if st.remoteUrl && !st.head && !busy && !progress}
       <div class="banner info">
-        <div>Not shared with {st.teamName || "the team"} yet. Look through the files and ignore the folders or files
-          you don't need (right-click › Ignore), then commit a first version to share it.</div>
+        <div>{t("Not shared with {team} yet. Look through the files and ignore the folders or files you don't need (right-click › Ignore), then commit a first version to share it.", { team: st.teamName || t("the team") })}</div>
       </div>
     {:else if st.remoteUrl && st.unshared && !busy && !progress}
       <div class="banner info">
-        <div>Not shared with {st.teamName || "the team"} yet: its versions are on this computer only.</div>
-        <button class="primary" onclick={shareVersions}>Share now</button>
+        <div>{t("Not shared with {team} yet: its versions are on this computer only.", { team: st.teamName || t("the team") })}</div>
+        <button class="primary" onclick={shareVersions}>{t("Share now")}</button>
       </div>
     {/if}
 
     {#if st.cloudFolder && !cloudOk[root]}
       <div class="banner warn">
         <div>
-          This project is in your <strong>{st.cloudFolder}</strong> folder.
-          <span class="muted">{st.cloudFolder} also syncs DAWGit's history (the hidden .dawgit folder): used from two
-            computers it can damage it, and files kept online-only aren't really here. Best keep projects in a folder
-            {st.cloudFolder} doesn't sync: DAWGit and your team storage already keep them safe.</span>
+          <Tx text={t("This project is in your {cloud} folder.")} strong={{ cloud: st.cloudFolder }} />
+          <span class="muted">{t("{cloud} also syncs DAWGit's history (the hidden .dawgit folder): used from two computers it can damage it, and files kept online-only aren't really here. Best keep projects in a folder {cloud} doesn't sync: DAWGit and your team storage already keep them safe.", { cloud: st.cloudFolder })}</span>
         </div>
-        <button onclick={() => okCloud(root)}>I understand</button>
+        <button onclick={() => okCloud(root)}>{t("I understand")}</button>
       </div>
     {/if}
     {#if st.unfinished}
       {@const v = st.unfinished}
       <div class="banner warn">
         <div>
-          Switching to <strong>“{v.message || v.short}”</strong> didn't finish
-          <span class="muted">— DAWGit was closed or a file was in use. Some files are from that version, some aren't.
-            Put them back as they were, then try again.</span>
+          <Tx text={t("Switching to {version} didn't finish")} strong={{ version: `“${v.message || v.short}”` }} />
+          <span class="muted">{t("— DAWGit was closed or a file was in use. Some files are from that version, some aren't. Put them back as they were, then try again.")}</span>
         </div>
         <button class="primary" disabled={!!busy} onclick={() => run({ name: "goto", message: "",
           call: (_res, force) => api.RecoverSwitch(root, force),
-          done: () => toast("Files put back as they were", "ok") })}>Put files back</button>
+          done: () => toast(t("Files put back as they were"), "ok") })}>{t("Put files back")}</button>
       </div>
     {/if}
     {#each st.rules.suggestions as s (s.folder + s.preset)}
@@ -740,46 +735,48 @@
       {@const v = st.olderVersion}
       <div class="banner older">
         <div>
-          You're on an older version: <strong>“{v.message || v.short}”</strong>
-          <span class="muted">— {v.author}, {ago(v.time)}. Newer versions are kept.</span>
+          <Tx text={t("You're on an older version: {version}")} strong={{ version: `“${v.message || v.short}”` }} />
+          <span class="muted">— {v.author}, {ago(v.time)}. {t("Newer versions are kept.")}</span>
         </div>
         {#if st.remoteUrl && st.changes.length}
           <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
-            title="Commit your changes on a branch of your own, starting from this version">New branch from here…</button>
-          <button onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+            title={t("Commit your changes on a branch of your own, starting from this version")}>{t("New branch from here…")}</button>
+          <button onclick={() => goTo(null)} disabled={!!busy}>{t("Back to latest")}</button>
           <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
-            title="Commit your changes after this version and combine them with the latest">Preview & combine</button>
+            title={t("Commit your changes after this version and combine them with the latest")}>{t("Preview & combine")}</button>
         {:else if st.remoteUrl}
           <button onclick={() => (newBranch = "")} disabled={!!busy}
-            title="Continue from this version on a branch of your own">New branch from here…</button>
+            title={t("Continue from this version on a branch of your own")}>{t("New branch from here…")}</button>
         {:else}
-          <button onclick={() => (keepOpen = `Back to “${v.message || v.short}”`)} disabled={!!busy}
-            title="Continue from this version: it becomes a new, latest version">Make this the latest…</button>
+          <button onclick={() => (keepOpen = t("Back to “{version}”", { version: v.message || v.short }))} disabled={!!busy}
+            title={t("Continue from this version: it becomes a new, latest version")}>{t("Make this the latest…")}</button>
         {/if}
         {#if !(st.remoteUrl && st.changes.length)}
-          <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>Back to latest</button>
+          <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>{t("Back to latest")}</button>
         {/if}
       </div>
     {/if}
     {#if st.incoming.length}
       <div class="banner info">
         <div>
-          <strong>{[...new Set(news.map((v) => v.author))].join(", ")}</strong>
-          {st.changes.length && !st.olderVersion ? "committed" : "saved"} {news.length} new version{news.length === 1 ? "" : "s"}{st.changes.length && !st.olderVersion ? " while you were working" : ""}:
+          <Tx text={st.changes.length && !st.olderVersion
+            ? tn(news.length, "{who} committed {n} new version while you were working:", "{who} committed {n} new versions while you were working:")
+            : tn(news.length, "{who} saved {n} new version:", "{who} saved {n} new versions:")}
+            strong={{ who: [...new Set(news.map((v) => v.author))].join(", ") }} />
           <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
         </div>
         {#if st.olderVersion}
           <!-- back to the latest version first -->
         {:else if st.changes.length}
           <button class="ghost" onclick={() => (discardOpen = true)} disabled={!!busy}
-            title="Drop your uncommitted changes and take the team's versions">Discard my changes…</button>
+            title={t("Drop your uncommitted changes and take the team's versions")}>{t("Discard my changes…")}</button>
           <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
-            title="Commit your work on a new branch; this branch stays as the team left it">Put my work on a new branch…</button>
+            title={t("Commit your work on a new branch; this branch stays as the team left it")}>{t("Put my work on a new branch…")}</button>
           <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
-            title="See what they changed, then combine it with your work">Preview & combine</button>
+            title={t("See what they changed, then combine it with your work")}>{t("Preview & combine")}</button>
         {:else}
-          <button onclick={openUpdatePreview} disabled={!!busy}>Preview</button>
-          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>Get updates</button>
+          <button onclick={openUpdatePreview} disabled={!!busy}>{t("Preview")}</button>
+          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>{t("Get updates")}</button>
         {/if}
       </div>
     {/if}
@@ -787,15 +784,15 @@
     {#if st.rules.error}
       <div class="banner warn">
         <div>⚠ {st.rules.error}</div>
-        <button onclick={openRules}>Open {".dawgit.yaml"}</button>
+        <button onclick={openRules}>{t("Open {file}", { file: ".dawgit.yaml" })}</button>
       </div>
     {/if}
 
     <nav>
       <button class:on={tab === "changes"} onclick={() => (tab = "changes")}>
-        Changes {#if st.changes.length}<span class="count">{st.changes.length}</span>{/if}
+        {t("Changes")} {#if st.changes.length}<span class="count">{st.changes.length}</span>{/if}
       </button>
-      <button class:on={tab === "history"} onclick={() => (tab = "history")}>History</button>
+      <button class:on={tab === "history"} onclick={() => (tab = "history")}>{t("History")}</button>
     </nav>
 
     <main class:flush={tab === "changes"}>
@@ -803,7 +800,7 @@
         {#snippet summary()}
           <section>
             {#if st!.myEdits.length}
-              <h3>Tracks you changed</h3>
+              <h3>{t("Tracks you changed")}</h3>
               <ul class="tracks">
                 {#each st!.myEdits as e}
                   <li>
@@ -814,27 +811,27 @@
                 {/each}
               </ul>
             {:else}
-              <p class="muted">{st!.changes.length ? "Pick a file on the left to see what changed." : `No uncommitted changes. Work in ${isLive ? "Live" : st!.tool || "your app"} and save (Ctrl+S) — your changes show up here.`}</p>
+              <p class="muted">{st!.changes.length ? t("Pick a file on the left to see what changed.") : t("No uncommitted changes. Work in {tool} and save (Ctrl+S) — your changes show up here.", { tool: isLive ? "Live" : st!.tool ? t(st!.tool) : t("your app") })}</p>
             {/if}
-            {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
+            {#if st!.myEdits.length}<p class="faint small">{t("Pick a file on the left for its details, history and, for samples, to listen.")}</p>{/if}
           </section>
         {/snippet}
         {#snippet commitBox()}
-          <textarea rows="3" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
+          <textarea rows="3" bind:value={message} placeholder={t("What did you change? e.g. “New bassline in the chorus”")}
             onkeydown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commit(); }}></textarea>
           {#if st!.olderVersion}
             <p class="faint small older">{st!.remoteUrl
-              ? `You're on an older version. Committing combines your changes with the latest version of “${st!.branch}” (you'll see a preview first) — or start a new branch from here.`
-              : "You're on an older version. Make it the latest version to commit changes, or go back to the latest version."}</p>
+              ? t("You're on an older version. Committing combines your changes with the latest version of “{branch}” (you'll see a preview first) — or start a new branch from here.", { branch: st!.branch })
+              : t("You're on an older version. Make it the latest version to commit changes, or go back to the latest version.")}</p>
           {/if}
           <button class="primary commit-btn" disabled={!message.trim() || !!busy || (!!st!.olderVersion && !st!.remoteUrl)
             || (st!.changes.length > 0 && leftOut === st!.changes.length)} onclick={() => commit()}
             title={st!.remoteUrl
-              ? `Commits the project folder and shares it with the team on “${st!.branch}”. If others committed in the meantime, you'll see what they changed and choose how to combine first.${leftOut ? " Unticked files stay uncommitted." : ""}`
-              : `Commits on this computer. Share the project with a team to work on it together.${leftOut ? " Unticked files stay uncommitted." : ""}`}>
-            <span>{busy === "save" || busy === "first-share" ? "Committing…"
-              : leftOut ? `Commit ${st!.changes.length - leftOut} of ${st!.changes.length}${st!.remoteUrl ? " & Share" : ""}`
-              : st!.remoteUrl ? "Commit & Share" : "Commit"}</span>
+              ? t("Commits the project folder and shares it with the team on “{branch}”. If others committed in the meantime, you'll see what they changed and choose how to combine first.", { branch: st!.branch }) + (leftOut ? " " + t("Unticked files stay uncommitted.") : "")
+              : t("Commits on this computer. Share the project with a team to work on it together.") + (leftOut ? " " + t("Unticked files stay uncommitted.") : "")}>
+            <span>{busy === "save" || busy === "first-share" ? t("Committing…")
+              : leftOut ? t(st!.remoteUrl ? "Commit {done} of {total} & Share" : "Commit {done} of {total}", { done: st!.changes.length - leftOut, total: st!.changes.length })
+              : st!.remoteUrl ? t("Commit & Share") : t("Commit")}</span>
             <kbd>{isMac ? "⌘" : "Ctrl"} ↵</kbd>
           </button>
         {/snippet}
@@ -851,31 +848,31 @@
   </div>
 
   {#if shareAsk}
-    <Modal title="Share “{st.name}” with {st.teamName || "the team"}?" onclose={() => (shareAsk = false)}>
-      <p>Upload its {st.history.length} version{st.history.length === 1 ? "" : "s"} now{isLive ? ", samples included" : ""}?</p>
-      <p class="muted">Or later: first look through the files and ignore the folders or files you don't need
-        (right-click › Ignore), then share from the banner at the top. Your team sees the project once it's shared.{st.changes.length
-          ? ` The ${st.changes.length} uncommitted change${st.changes.length === 1 ? "" : "s"} stay in Changes either way.` : ""}</p>
+    <Modal title={t("Share “{name}” with {team}?", { name: st.name, team: st.teamName || t("the team") })} onclose={() => (shareAsk = false)}>
+      <p>{isLive ? tn(st.history.length, "Upload its {n} version now, samples included?", "Upload its {n} versions now, samples included?")
+        : tn(st.history.length, "Upload its {n} version now?", "Upload its {n} versions now?")}</p>
+      <p class="muted">{t("Or later: first look through the files and ignore the folders or files you don't need (right-click › Ignore), then share from the banner at the top. Your team sees the project once it's shared.")}{st.changes.length
+          ? " " + tn(st.changes.length, "The {n} uncommitted change stays in Changes either way.", "The {n} uncommitted changes stay in Changes either way.") : ""}</p>
       {#snippet footer()}
-        <button onclick={() => (shareAsk = false)}>Later</button>
-        <button class="primary" onclick={shareVersions}>Share now</button>
+        <button onclick={() => (shareAsk = false)}>{t("Later")}</button>
+        <button class="primary" onclick={shareVersions}>{t("Share now")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if firstAsk}
-    <Modal title="“{st.name}” is added" onclose={() => (firstAsk = false)}>
+    <Modal title={t("“{name}” is added", { name: st.name })} onclose={() => (firstAsk = false)}>
       <p>{st.remoteUrl
-        ? `Commit a first version now and share it with ${st.teamName || "the team"}${isLive ? ", samples included" : ""}?`
-        : "Commit a first version now?"}</p>
-      <p class="muted">Or later: first look through the {st.changes.length} file{st.changes.length === 1 ? "" : "s"} and
-        ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.{st.remoteUrl ? " Your team sees the project once it's committed." : ""}</p>
-      <label for="first-msg">Message</label>
+        ? t(isLive ? "Commit a first version now and share it with {team}, samples included?" : "Commit a first version now and share it with {team}?", { team: st.teamName || t("the team") })
+        : t("Commit a first version now?")}</p>
+      <p class="muted">{tn(st.changes.length, "Or later: first look through the {n} file and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.",
+        "Or later: first look through the {n} files and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.")}{st.remoteUrl ? " " + t("Your team sees the project once it's committed.") : ""}</p>
+      <label for="first-msg">{t("Message")}</label>
       <input id="first-msg" bind:value={message} onkeydown={(e) => { if (e.key === "Enter" && message.trim()) { firstAsk = false; commit(); } }} />
       {#snippet footer()}
-        <button onclick={() => (firstAsk = false)}>Later</button>
+        <button onclick={() => (firstAsk = false)}>{t("Later")}</button>
         <button class="primary" disabled={!message.trim()} onclick={() => { firstAsk = false; commit(); }}>
-          {st?.remoteUrl ? "Commit & Share now" : "Commit now"}</button>
+          {st?.remoteUrl ? t("Commit & Share now") : t("Commit now")}</button>
       {/snippet}
     </Modal>
   {/if}
@@ -886,24 +883,24 @@
   {/if}
 
   {#if discardAllOpen}
-    <Modal title="Discard all your changes?" onclose={() => (discardAllOpen = false)}>
-      <p>All {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"} will be lost: the project folder
-        goes back to the version you're on. This can't be undone.</p>
+    <Modal title={t("Discard all your changes?")} onclose={() => (discardAllOpen = false)}>
+      <p>{tn(st.changes.length, "Your {n} uncommitted change will be lost: the project folder goes back to the version you're on. This can't be undone.",
+        "All {n} uncommitted changes will be lost: the project folder goes back to the version you're on. This can't be undone.")}</p>
       {#snippet footer()}
-        <button onclick={() => (discardAllOpen = false)}>Cancel</button>
-        <button class="danger" onclick={discardEverything}>Discard all</button>
+        <button onclick={() => (discardAllOpen = false)}>{t("Cancel")}</button>
+        <button class="danger" onclick={discardEverything}>{t("Discard all")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if discardSome}
     {@const n = discardSome.length}
-    <Modal title="Discard {n} ticked change{n === 1 ? "" : "s"}?" onclose={() => (discardSome = null)}>
-      <p>{n === 1 ? "The file goes" : `These ${n} files go`} back to how {n === 1 ? "it is" : "they are"} in the version you're on.
-        The unticked changes stay. This can't be undone.</p>
+    <Modal title={tn(n, "Discard {n} ticked change?", "Discard {n} ticked changes?")} onclose={() => (discardSome = null)}>
+      <p>{tn(n, "The file goes back to how it is in the version you're on. The unticked changes stay. This can't be undone.",
+        "These {n} files go back to how they are in the version you're on. The unticked changes stay. This can't be undone.")}</p>
       {#snippet footer()}
-        <button onclick={() => (discardSome = null)}>Cancel</button>
-        <button class="danger" onclick={discardTicked}>Discard</button>
+        <button onclick={() => (discardSome = null)}>{t("Cancel")}</button>
+        <button class="danger" onclick={discardTicked}>{t("Discard")}</button>
       {/snippet}
     </Modal>
   {/if}
@@ -911,55 +908,57 @@
   {#if restoreFile}
     {@const r = restoreFile}
     {@const pending = st.changes.some((c) => c.path === r.path)}
-    <Modal title="Restore {r.path.slice(r.path.lastIndexOf('/') + 1)} from “{r.label}”?" onclose={() => (restoreFile = null)}>
-      <p>The file goes back to how it was in that version. The rest of the project stays as it is; commit when you're
-        happy with it.</p>
-      {#if pending}<p class="warn-text">This file has uncommitted changes — they'll be replaced.</p>{/if}
+    <Modal title={t("Restore {file} from “{version}”?", { file: r.path.slice(r.path.lastIndexOf("/") + 1), version: r.label })} onclose={() => (restoreFile = null)}>
+      <p>{t("The file goes back to how it was in that version. The rest of the project stays as it is; commit when you're happy with it.")}</p>
+      {#if pending}<p class="warn-text">{t("This file has uncommitted changes — they'll be replaced.")}</p>{/if}
       {#snippet footer()}
-        <button onclick={() => (restoreFile = null)}>Cancel</button>
-        <button class="primary" onclick={restoreOneFile}>Restore</button>
+        <button onclick={() => (restoreFile = null)}>{t("Cancel")}</button>
+        <button class="primary" onclick={restoreOneFile}>{t("Restore")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if discardFile}
-    <Modal title="Discard your changes to {discardFile.slice(discardFile.lastIndexOf('/') + 1)}?" onclose={() => (discardFile = "")}>
+    <Modal title={t("Discard your changes to {file}?", { file: discardFile.slice(discardFile.lastIndexOf("/") + 1) })} onclose={() => (discardFile = "")}>
       {@const movedFrom = st?.changes.find((c) => c.path === discardFile)?.from}
-      <p>The file goes back {movedFrom ? `to ${movedFrom}, ` : ""}as it is in the version you're on. This can't be undone.</p>
+      <p>{movedFrom ? t("The file goes back to {path}, as it is in the version you're on. This can't be undone.", { path: movedFrom })
+        : t("The file goes back as it is in the version you're on. This can't be undone.")}</p>
       {#snippet footer()}
-        <button onclick={() => (discardFile = "")}>Cancel</button>
-        <button class="danger" onclick={discardOneFile}>Discard changes</button>
+        <button onclick={() => (discardFile = "")}>{t("Cancel")}</button>
+        <button class="danger" onclick={discardOneFile}>{t("Discard changes")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if discardOpen}
-    <Modal title="Discard your changes?" onclose={() => (discardOpen = false)}>
-      <p>Your {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"} will be lost, and the project
-        gets the team's latest versions of “{st.branch}”.</p>
-      <p class="muted">To keep them instead, combine them with the team's work or put them on a new branch.</p>
+    <Modal title={t("Discard your changes?")} onclose={() => (discardOpen = false)}>
+      <p>{tn(st.changes.length, "Your {n} uncommitted change will be lost, and the project gets the team's latest versions of “{branch}”.",
+        "Your {n} uncommitted changes will be lost, and the project gets the team's latest versions of “{branch}”.", { branch: st.branch })}</p>
+      <p class="muted">{t("To keep them instead, combine them with the team's work or put them on a new branch.")}</p>
       {#snippet footer()}
-        <button onclick={() => (discardOpen = false)}>Cancel</button>
-        <button class="danger" onclick={discardAndUpdate}>Discard and update</button>
+        <button onclick={() => (discardOpen = false)}>{t("Cancel")}</button>
+        <button class="danger" onclick={discardAndUpdate}>{t("Discard and update")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#snippet suggestionText(s: RuleSuggestion)}
-    <strong>{s.folder ? `${s.folder}/` : "This project"}</strong> looks like {aName(presetName(s.preset))} project.
-    <span class="muted" title={s.leftOut.join("  ")}>Its rules leave out {leftOutText(s.leftOut)}{#if s.leftOutBytes > 0}{" "}({formatBytes(s.leftOutBytes)} here){/if}.</span>
+    <Tx text={t(s.folder ? "{tool} project found in {folder}." : "{tool} project found in the project folder.")}
+      strong={{ folder: `${s.folder}/`, tool: presetName(s.preset) }} />
+    <span class="muted" title={s.leftOut.join("  ")}>{s.leftOutBytes > 0
+      ? t("Its rules leave out {what} ({size} here).", { what: leftOutText(s.leftOut), size: formatBytes(s.leftOutBytes) })
+      : t("Its rules leave out {what}.", { what: leftOutText(s.leftOut) })}</span>
   {/snippet}
   {#snippet suggestionButtons(s: RuleSuggestion)}
     <div class="row">
-      <button class="primary" onclick={() => setPreset(s, s.preset)}>Use {presetName(s.preset)} rules</button>
-      <button class="ghost" onclick={() => setPreset(s, "none")} title="DAWGit won't ask about this folder again">Not a project</button>
+      <button class="primary" onclick={() => setPreset(s, s.preset)}>{t("Use {tool} rules", { tool: presetName(s.preset) })}</button>
+      <button class="ghost" onclick={() => setPreset(s, "none")} title={t("DAWGit won't ask about this folder again")}>{t("Not a project")}</button>
     </div>
   {/snippet}
   {#if rulesAsk && st?.rules.suggestions.length}
-    <Modal title="Before you commit" onclose={() => (rulesAsk = false)}>
-      <p>DAWGit found {st.rules.suggestions.length === 1 ? "a project of another tool" : "projects of other tools"} in
-        this one. A tool's rules leave out what it makes again by itself (caches, backups), so that doesn't go up with
-        the version.</p>
+    <Modal title={t("Before you commit")} onclose={() => (rulesAsk = false)}>
+      <p>{st.rules.suggestions.length === 1 ? t("DAWGit found a project of another tool in this one.") : t("DAWGit found projects of other tools in this one.")}
+        {t("A tool's rules leave out what it makes again by itself (caches, backups), so that doesn't go up with the version.")}</p>
       {#each st.rules.suggestions as s (s.folder + s.preset)}
         <div class="suggestion">
           <div>{@render suggestionText(s)}</div>
@@ -967,33 +966,33 @@
         </div>
       {/each}
       {#snippet footer()}
-        <button onclick={() => (rulesAsk = false)}>Cancel</button>
-        <button onclick={() => { rulesAsk = false; commit(false, true); }}>Commit without these rules</button>
+        <button onclick={() => (rulesAsk = false)}>{t("Cancel")}</button>
+        <button onclick={() => { rulesAsk = false; commit(false, true); }}>{t("Commit without these rules")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if untrackedConfirm}
     {@const files = untrackedConfirm}
-    <Modal title={commitWarnings.length ? "Before you commit" : "No longer tracked"} onclose={() => (untrackedConfirm = null)}>
+    <Modal title={commitWarnings.length ? t("Before you commit") : t("No longer tracked")} onclose={() => (untrackedConfirm = null)}>
       {#if commitWarnings.length}
         <ul class="warnings">
           {#each commitWarnings.slice(0, 12) as w}<li>⚠ {w}</li>{/each}
-          {#if commitWarnings.length > 12}<li class="faint">… and {commitWarnings.length - 12} more</li>{/if}
+          {#if commitWarnings.length > 12}<li class="faint">… {t("and {n} more", { n: commitWarnings.length - 12 })}</li>{/if}
         </ul>
       {/if}
       {#if files.length}
-        <p>The project's rules now leave {files.length === 1 ? "this file" : `these ${files.length} files`} out of versions.
-          {files.length === 1 ? "It stays" : "They stay"} on this computer, and on your teammates' computers too.</p>
+        <p>{tn(files.length, "The project's rules now leave this file out of versions. It stays on this computer, and on your teammates' computers too.",
+          "The project's rules now leave these {n} files out of versions. They stay on this computer, and on your teammates' computers too.")}</p>
         <ul class="untracked mono">
           {#each files.slice(0, 12) as f}<li>{f}</li>{/each}
-          {#if files.length > 12}<li class="faint">… and {files.length - 12} more</li>{/if}
+          {#if files.length > 12}<li class="faint">… {t("and {n} more", { n: files.length - 12 })}</li>{/if}
         </ul>
       {/if}
       {#snippet footer()}
-        <button onclick={() => (untrackedConfirm = null)}>Cancel</button>
+        <button onclick={() => (untrackedConfirm = null)}>{t("Cancel")}</button>
         <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>
-          {commitWarnings.length ? "Commit anyway" : "Commit"}</button>
+          {commitWarnings.length ? t("Commit anyway") : t("Commit")}</button>
       {/snippet}
     </Modal>
   {/if}
@@ -1013,23 +1012,21 @@
 
   {#if liveBlocked}
     {@const b = liveBlocked}
-    <Modal title={isLive || !st?.tool ? (b.set ? `“${b.set}” is open in Live` : "Ableton Live is running")
-      : `${st.tool} has this project open`} onclose={() => (liveBlocked = null)}>
+    <Modal title={isLive || !st?.tool ? (b.set ? t("“{set}” is open in Live", { set: b.set }) : t("Ableton Live is running"))
+      : t("{tool} has this project open", { tool: t(st.tool) })} onclose={() => (liveBlocked = null)}>
       {#if isLive || !st?.tool}
-        <p>DAWGit is about to change files in this project. Live keeps the open set in memory and would
-          overwrite the changes the next time you save it.</p>
-        <p class="muted">Save and close the set in Live first — you can leave Live open with another set.
-          {#if b.set}Live only shows the set's name, so a set with the same name from another project counts too.
-          {:else}DAWGit cannot tell which set Live has open: close Live to go on.{/if}</p>
+        <p>{t("DAWGit is about to change files in this project. Live keeps the open set in memory and would overwrite the changes the next time you save it.")}</p>
+        <p class="muted">{t("Save and close the set in Live first — you can leave Live open with another set.")}
+          {b.set ? t("Live only shows the set's name, so a set with the same name from another project counts too.")
+            : t("DAWGit cannot tell which set Live has open: close Live to go on.")}</p>
       {:else}
-        <p>DAWGit is about to change files in this project. {st.tool} may hold some of them open, or write over
-          the changes.</p>
-        <p class="muted">Save your work and close the project in {st.tool} first.</p>
+        <p>{t("DAWGit is about to change files in this project. {tool} may hold some of them open, or write over the changes.", { tool: t(st.tool) })}</p>
+        <p class="muted">{t("Save your work and close the project in {tool} first.", { tool: t(st.tool) })}</p>
       {/if}
       {#snippet footer()}
-        <button onclick={() => (liveBlocked = null)}>Cancel</button>
+        <button onclick={() => (liveBlocked = null)}>{t("Cancel")}</button>
         <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }}>
-          I closed it — continue
+          {t("I closed it — continue")}
         </button>
       {/snippet}
     </Modal>
@@ -1037,22 +1034,22 @@
 
   {#if leaving}
     {@const l = leaving}
-    <Modal title={l.target ? "Go to an older version" : "Back to the latest version"} onclose={() => (leaving = null)}>
-      <p>You have {st.changes.length} uncommitted change{st.changes.length === 1 ? "" : "s"}.
-        {l.target ? "Going to another version" : "Going back"} replaces the files in the project folder.</p>
+    <Modal title={l.target ? t("Go to an older version") : t("Back to the latest version")} onclose={() => (leaving = null)}>
+      <p>{tn(st.changes.length, "You have {n} uncommitted change.", "You have {n} uncommitted changes.")}
+        {l.target ? t("Going to another version replaces the files in the project folder.") : t("Going back replaces the files in the project folder.")}</p>
       {#if !st.olderVersion}
-        <label for="lm">Commit them first as</label>
-        <input id="lm" bind:value={l.message} placeholder="What did you change?" />
+        <label for="lm">{t("Commit them first as")}</label>
+        <input id="lm" bind:value={l.message} placeholder={t("What did you change?")} />
       {:else}
-        <p class="muted">Changes made on an older version can be kept by starting a new branch from here
-          {st.remoteUrl ? "" : "or making it the latest version"} first.</p>
+        <p class="muted">{st.remoteUrl ? t("Changes made on an older version can be kept by starting a new branch from here first.")
+          : t("Changes made on an older version can be kept by starting a new branch from here or making it the latest version first.")}</p>
       {/if}
       {#snippet footer()}
-        <button onclick={() => (leaving = null)}>Cancel</button>
-        <button class="danger" onclick={discardThenGo}>Discard changes</button>
+        <button onclick={() => (leaving = null)}>{t("Cancel")}</button>
+        <button class="danger" onclick={discardThenGo}>{t("Discard changes")}</button>
         {#if !st!.olderVersion}
           <button class="primary" disabled={!l.message.trim()} onclick={commitThenGo}>
-            {st!.remoteUrl ? "Commit & share, then go" : "Commit, then go"}
+            {st!.remoteUrl ? t("Commit & share, then go") : t("Commit, then go")}
           </button>
         {/if}
       {/snippet}
@@ -1060,27 +1057,25 @@
   {/if}
 
   {#if keepOpen !== null}
-    <Modal title="Make this the latest version" onclose={() => (keepOpen = null)}>
-      <p class="muted">The older version you are on (with any changes you made) becomes a new version on top of the
-        latest one. Nothing in the history is lost.</p>
-      <label for="km">Describe it</label>
+    <Modal title={t("Make this the latest version")} onclose={() => (keepOpen = null)}>
+      <p class="muted">{t("The older version you are on (with any changes you made) becomes a new version on top of the latest one. Nothing in the history is lost.")}</p>
+      <label for="km">{t("Describe it")}</label>
       <input id="km" bind:value={keepOpen} />
       {#snippet footer()}
-        <button onclick={() => (keepOpen = null)}>Cancel</button>
-        <button class="primary" disabled={!keepOpen?.trim() || !!busy} onclick={keepThisVersion}>Make it the latest</button>
+        <button onclick={() => (keepOpen = null)}>{t("Cancel")}</button>
+        <button class="primary" disabled={!keepOpen?.trim() || !!busy} onclick={keepThisVersion}>{t("Make it the latest")}</button>
       {/snippet}
     </Modal>
   {/if}
 
   {#if newBranch !== null}
-    <Modal title="New branch" onclose={() => (newBranch = null)}>
-      <p class="muted">A branch is your own line of versions (e.g. to try an idea). The team keeps working on
-        “{st.branch}”; merge back when you're happy.</p>
-      <label for="bn">Branch name</label>
+    <Modal title={t("New branch")} onclose={() => (newBranch = null)}>
+      <p class="muted">{t("A branch is your own line of versions (e.g. to try an idea). The team keeps working on “{branch}”; merge back when you're happy.", { branch: st.branch })}</p>
+      <label for="bn">{t("Branch name")}</label>
       <input id="bn" bind:value={newBranch} placeholder="yi-chorus-idea" />
       {#snippet footer()}
-        <button onclick={() => (newBranch = null)}>Cancel</button>
-        <button class="primary" disabled={!newBranch?.trim() || busy === "branch"} onclick={createBranch}>Create</button>
+        <button onclick={() => (newBranch = null)}>{t("Cancel")}</button>
+        <button class="primary" disabled={!newBranch?.trim() || busy === "branch"} onclick={createBranch}>{t("Create")}</button>
       {/snippet}
     </Modal>
   {/if}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr } from "./i18n.svelte"; // t is a track or take here
 
   // A video to watch; comparing, both side by side, played together with one
   // set of controls.
@@ -51,8 +52,8 @@
 
 {#snippet player(t: Take, cls: string, bind?: "a" | "b")}
   {#if failed[t.src]}
-    <div class="none {cls}">This video's format can't be played here
-      {#if onopen && cls !== "small"}<button class="link" onclick={onopen}>Open in your video player</button>{/if}</div>
+    <div class="none {cls}">{tr("This video's format can't be played here")}
+      {#if onopen && cls !== "small"}<button class="link" onclick={onopen}>{tr("Open in your video player")}</button>{/if}</div>
   {:else if bind === "a"}
     <video class={cls} src={t.src} bind:this={va} {muted} preload="metadata"
       onloadedmetadata={() => (duration = va?.duration ?? 0)} onerror={() => (failed[t.src] = true)}></video>
@@ -75,7 +76,7 @@
     <div class="controls">
       <button class="play" onclick={toggle} aria-label={playing ? "Pause" : "Play"}>{playing ? "❚❚" : "▶"}</button>
       <input type="range" min="0" max={duration || 0} step="0.01" value={time}
-        oninput={(e) => seek(+(e.currentTarget as HTMLInputElement).value)} aria-label="Position" />
+        oninput={(e) => seek(+(e.currentTarget as HTMLInputElement).value)} aria-label={tr("Position")} />
       <span class="faint time">{clock(time)} / {clock(duration)}</span>
       <button class="ghost" onclick={() => (muted = !muted)}>{muted ? "Sound off" : "Sound on"}</button>
     </div>

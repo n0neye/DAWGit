@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
   import type { Conflict } from "./api";
 
@@ -18,15 +19,15 @@
   }
 </script>
 
-<Modal title="You and the team changed the same things" {onclose} width={680}>
+<Modal title={t("You and the team changed the same things")} {onclose} width={680}>
   <p class="muted">
-    Everything else was combined automatically. Choose what to keep for each of these:
+    {t("Everything else was combined automatically. Choose what to keep for each of these:")}
   </p>
   <div class="bulk row">
-    <span class="faint">All:</span>
-    <button class="ghost" onclick={() => all("ours")}>Keep mine</button>
-    <button class="ghost" onclick={() => all("theirs")}>Take theirs</button>
-    <button class="ghost" onclick={() => all("both")}>Keep both</button>
+    <span class="faint">{t("All:")}</span>
+    <button class="ghost" onclick={() => all("ours")}>{t("Keep mine")}</button>
+    <button class="ghost" onclick={() => all("theirs")}>{t("Take theirs")}</button>
+    <button class="ghost" onclick={() => all("both")}>{t("Keep both")}</button>
   </div>
   <ul>
     {#each conflicts as c (c.key)}
@@ -36,19 +37,19 @@
           <div class="faint">{c.unit === c.file ? "" : c.file + " · "}{c.description}</div>
         </div>
         <div class="seg" role="radiogroup" aria-label={c.unit}>
-          <button class:on={choices[c.key] === "ours"} onclick={() => (choices[c.key] = "ours")}>Keep mine</button>
-          <button class:on={choices[c.key] === "theirs"} onclick={() => (choices[c.key] = "theirs")}>Take theirs</button>
+          <button class:on={choices[c.key] === "ours"} onclick={() => (choices[c.key] = "ours")}>{t("Keep mine")}</button>
+          <button class:on={choices[c.key] === "theirs"} onclick={() => (choices[c.key] = "theirs")}>{t("Take theirs")}</button>
           {#if c.canKeepBoth}
             <button class:on={choices[c.key] === "both"} onclick={() => (choices[c.key] = "both")}
-              title="Keeps your version and adds theirs as a copy">Keep both</button>
+              title={t("Keeps your version and adds theirs as a copy")}>{t("Keep both")}</button>
           {/if}
         </div>
       </li>
     {/each}
   </ul>
   {#snippet footer()}
-    <button onclick={onclose}>Cancel</button>
-    <button class="primary" disabled={!complete} onclick={() => onresolve({ ...choices })}>Continue</button>
+    <button onclick={onclose}>{t("Cancel")}</button>
+    <button class="primary" disabled={!complete} onclick={() => onresolve({ ...choices })}>{t("Continue")}</button>
   {/snippet}
 </Modal>
 

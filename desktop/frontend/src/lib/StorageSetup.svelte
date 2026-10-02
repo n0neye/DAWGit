@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t, tn } from "./i18n.svelte";
+  import Tx from "./Tx.svelte";
   import { api, errorText, type TeamSummary } from "./api";
   import CodeBox from "./CodeBox.svelte";
 
@@ -42,45 +44,42 @@
 </script>
 
 {#snippet keys(hint: string)}
-  <label for="s-ak">Access Key ID</label>
+  <label for="s-ak">{t("Access Key ID")}</label>
   <input id="s-ak" bind:value={accessKey} autocomplete="off" spellcheck="false" />
-  <label for="s-sk">Secret Access Key</label>
+  <label for="s-sk">{t("Secret Access Key")}</label>
   <input id="s-sk" type="password" bind:value={secretKey} autocomplete="off" />
-  <label for="s-ep">Endpoint {#if hint}<span class="faint">{hint}</span>{/if}</label>
+  <label for="s-ep">{t("Endpoint")} {#if hint}<span class="faint">{hint}</span>{/if}</label>
   <input id="s-ep" bind:value={endpoint} autocomplete="off" spellcheck="false"
     placeholder={provider === "r2" ? "https://<account id>.r2.cloudflarestorage.com" : "https://s3.<region>.amazonaws.com"} />
 {/snippet}
 
 {#snippet teamName()}
-  <label for="s-name">Team name <span class="faint">(everyone sees it)</span></label>
-  <input id="s-name" bind:value={name} placeholder="e.g. Night Shift" />
+  <label for="s-name">{t("Team name")} <span class="faint">{t("(everyone sees it)")}</span></label>
+  <input id="s-name" bind:value={name} placeholder={t("e.g. Night Shift")} />
 {/snippet}
 
 {#if created}
   <div class="done">
-    <p class="ok">✓ Storage checked — “{created.team.name}” is ready.</p>
+    <p class="ok">✓ {t("Storage checked — “{team}” is ready.", { team: created.team.name })}</p>
     {#if created.team.name !== name.trim()}
-      <p class="faint small">This bucket already holds the team “{created.team.name}”, so you joined it.</p>
+      <p class="faint small">{t("This bucket already holds the team “{team}”, so you joined it.", { team: created.team.name })}</p>
     {/if}
-    <p>Send this <strong>connection code</strong> to each teammate. They choose <em>Join a team</em> and paste it.</p>
+    <p><Tx text={t("Send this {code} to each teammate. They choose {join} and paste it.")} strong={{ code: t("connection code") }} em={{ join: t("Join a team") }} /></p>
     <CodeBox code={created.code} />
-    <p class="faint small">The code contains the storage key: send it privately (a direct message, not a public
-      channel). You can copy it again later from the ⚙ next to the team in the Team menu.</p>
+    <p class="faint small">{t("The code contains the storage key: send it privately (a direct message, not a public channel). You can copy it again later from the ⚙ next to the team in the Team menu.")}</p>
     <div class="row actions">
       <span class="spacer"></span>
-      <button class="primary" onclick={() => onconnected(created!.team)}>Continue</button>
+      <button class="primary" onclick={() => onconnected(created!.team)}>{t("Continue")}</button>
     </div>
   </div>
 {:else}
-  <p class="muted intro">Your team's songs live in a storage bucket of your own, so nobody has to keep a computer
-    running. Any S3-compatible storage works; Cloudflare R2 is the easiest start (no download fees, and a small
-    team usually stays within its free allowance).</p>
+  <p class="muted intro">{t("Your team's songs live in a storage bucket of your own, so nobody has to keep a computer running. Any S3-compatible storage works; Cloudflare R2 is the easiest start (no download fees, and a small team usually stays within its free allowance).")}</p>
 
-  <div class="provider" role="radiogroup" aria-label="Storage">
+  <div class="provider" role="radiogroup" aria-label={t("Storage")}>
     <label class:on={provider === "r2"}><input type="radio" bind:group={provider} value="r2" /> Cloudflare R2
-      <span class="faint">guided, about 5 minutes</span></label>
-    <label class:on={provider === "s3"}><input type="radio" bind:group={provider} value="s3" /> Other S3-compatible
-      <span class="faint">Amazon S3, MinIO, …</span></label>
+      <span class="faint">{t("guided, about 5 minutes")}</span></label>
+    <label class:on={provider === "s3"}><input type="radio" bind:group={provider} value="s3" /> {t("Other S3-compatible")}
+      <span class="faint">{t("Amazon S3, MinIO, …")}</span></label>
   </div>
 
   {#if provider === "r2"}
@@ -88,59 +87,56 @@
       <li>
         <div class="n">1</div>
         <div class="body">
-          <h3>Open R2 in Cloudflare</h3>
-          <p>Sign up or log in, then in the sidebar open <strong>Storage &amp; databases → R2 Object Storage</strong>.
-            The first time, Cloudflare asks you to activate R2 (it may ask for a payment method even for the free
-            allowance).</p>
-          <button onclick={() => api.OpenURL(DASHBOARD)}>Open the Cloudflare dashboard ↗</button>
+          <h3>{t("Open R2 in Cloudflare")}</h3>
+          <p><Tx text={t("Sign up or log in, then in the sidebar open {menu}. The first time, Cloudflare asks you to activate R2 (it may ask for a payment method even for the free allowance).")}
+            strong={{ menu: "Storage & databases → R2 Object Storage" }} /></p>
+          <button onclick={() => api.OpenURL(DASHBOARD)}>{t("Open the Cloudflare dashboard ↗")}</button>
         </div>
       </li>
       <li>
         <div class="n">2</div>
         <div class="body">
-          <h3>Create a bucket</h3>
-          <p><strong>Create bucket</strong> → a name (e.g. <span class="mono">night-shift-dawgit</span>) → keep
-            Location <em>Automatic</em> and Storage Class <em>Standard</em> → <strong>Create bucket</strong>.
-            Use a bucket just for DAWGit.</p>
-          <label for="s-bucket">Bucket name</label>
+          <h3>{t("Create a bucket")}</h3>
+          <p><Tx text={t("{create} → a name (e.g. {example}) → keep Location {auto} and Storage Class {std} → {create}. Use a bucket just for DAWGit.")}
+            strong={{ create: "Create bucket" }} code={{ example: "night-shift-dawgit" }} em={{ auto: "Automatic", std: "Standard" }} /></p>
+          <label for="s-bucket">{t("Bucket name")}</label>
           <input id="s-bucket" bind:value={bucket} placeholder="night-shift-dawgit" autocomplete="off" spellcheck="false" />
         </div>
       </li>
       <li>
         <div class="n">3</div>
         <div class="body">
-          <h3>Create a key for the bucket</h3>
-          <p>Back on the R2 page, under <em>Account Details</em>: <strong>Manage API Tokens</strong> →
-            <strong>Create Account API token</strong>. Permissions: <em>Object Read &amp; Write</em>. Specify
-            bucket(s): <em>Apply to specific buckets only</em> → your bucket. Then <strong>Create</strong>.</p>
-          <p>The next page is shown only once. Copy the values under <em>“Use the following credentials for S3
-            clients”</em>, not the Token value at the top.</p>
-          {@render keys("(“Default” under jurisdiction-specific endpoints, or S3 API on the R2 page)")}
+          <h3>{t("Create a key for the bucket")}</h3>
+          <p><Tx text={t("Back on the R2 page, under {details}: {manage} → {token}. Permissions: {rw}. Specify bucket(s): {only} → your bucket. Then {create}.")}
+            em={{ details: "Account Details", rw: "Object Read & Write", only: "Apply to specific buckets only" }}
+            strong={{ manage: "Manage API Tokens", token: "Create Account API token", create: "Create" }} /></p>
+          <p><Tx text={t("The next page is shown only once. Copy the values under {s3}, not the Token value at the top.")}
+            em={{ s3: "“Use the following credentials for S3 clients”" }} /></p>
+          {@render keys(t("(“Default” under jurisdiction-specific endpoints, or S3 API on the R2 page)"))}
         </div>
       </li>
       <li>
         <div class="n">4</div>
         <div class="body">
-          <h3>Name your team</h3>
+          <h3>{t("Name your team")}</h3>
           {@render teamName()}
         </div>
       </li>
     </ol>
   {:else}
     <div class="plain">
-      <p class="small muted">Create a bucket for DAWGit and a key that may read, write and delete objects in it. The
-        storage must support conditional writes (<span class="mono">If-None-Match</span>), which keeps two people
-        from overwriting each other's versions; DAWGit checks this.</p>
-      <label for="s-bucket">Bucket name</label>
+      <p class="small muted"><Tx text={t("Create a bucket for DAWGit and a key that may read, write and delete objects in it. The storage must support conditional writes ({header}), which keeps two people from overwriting each other's versions; DAWGit checks this.")}
+        code={{ header: "If-None-Match" }} /></p>
+      <label for="s-bucket">{t("Bucket name")}</label>
       <input id="s-bucket" bind:value={bucket} autocomplete="off" spellcheck="false" />
       {@render keys("")}
       <div class="two">
         <div>
-          <label for="s-region">Region</label>
+          <label for="s-region">{t("Region")}</label>
           <input id="s-region" bind:value={region} placeholder="auto" spellcheck="false" />
         </div>
         <div>
-          <label for="s-folder">Folder in the bucket</label>
+          <label for="s-folder">{t("Folder in the bucket")}</label>
           <input id="s-folder" bind:value={folder} placeholder="dawgit" spellcheck="false" />
         </div>
       </div>
@@ -150,9 +146,9 @@
 
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">
-    <span class="faint small">DAWGit tests reading and writing before it saves anything.</span>
+    <span class="faint small">{t("DAWGit tests reading and writing before it saves anything.")}</span>
     <span class="spacer"></span>
-    <button class="primary" disabled={!ready || busy} onclick={create}>{busy ? "Checking…" : "Check & create team"}</button>
+    <button class="primary" disabled={!ready || busy} onclick={create}>{busy ? t("Checking…") : t("Check & create team")}</button>
   </div>
 {/if}
 
@@ -173,7 +169,7 @@
   .body { flex: 1; min-width: 0; }
   h3 { margin: 1px 0 4px; font-size: 14px; }
   .body p { margin: 0 0 8px; font-size: 13px; color: var(--muted); user-select: text; }
-  .body p strong, .body p em { color: var(--text); }
+  .body p :global(strong), .body p :global(em) { color: var(--text); }
   label { margin-top: 8px; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .actions { margin-top: 14px; align-items: center; }

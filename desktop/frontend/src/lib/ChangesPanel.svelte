@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from "./i18n.svelte";
   import { folderMoves } from "./moves";
   import type { Snippet } from "svelte";
   import { api, ago, errorText, formatBytes, type FileVersion, type ProjectFile, type State } from "./api";
@@ -200,7 +201,7 @@
     menu = null;
     try {
       await api.AddIgnoreRule(root, pattern);
-      toast(`Left out of versions: ${pattern} — a rule in .dawgit.yaml; commit it to share it with the team`, "ok", 7000);
+      toast(t("Left out of versions: {pattern} — a rule in .dawgit.yaml; commit it to share it with the team", { pattern }), "ok", 7000);
       await loadFiles(all);
       onrules?.();
     } catch (e) {
@@ -241,8 +242,8 @@
   // state looked at (a), the one it is compared with (b), and whether to
   // show the differences. History gives each version and the one before.
   function sides(mode: FileMode, f: ProjectFile): { a: Side | null; b: Side | null; compare: boolean } {
-    const now: Side = { path: f.path, version: "", label: f.status === "unchanged" ? "In the project" : "Now (not committed)" };
-    const head: Side | null = st.head ? { path: before_, version: st.head, label: "In the version you're on" } : null;
+    const now: Side = { path: f.path, version: "", label: f.status === "unchanged" ? t("In the project") : t("Now (not committed)") };
+    const head: Side | null = st.head ? { path: before_, version: st.head, label: t("In the version you're on") } : null;
     if (mode === "preview" || f.status === "unchanged") {
       // a deleted file: as it was
       return f.status === "deleted" ? { a: head, b: null, compare: false } : { a: now, b: null, compare: false };
@@ -253,8 +254,8 @@
   const versionLabel = (v: FileVersion) => `“${v.version.message || v.version.short}”`;
 
   const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "M", unchanged: "", ignored: "" };
-  const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted", renamed: "Moved",
-    untracked: "No longer tracked: the rules leave it out now" };
+  const statusName = (s: string) => ({ added: t("New"), modified: t("Changed"), deleted: t("Deleted"), renamed: t("Moved"),
+    untracked: t("No longer tracked: the rules leave it out now") } as Record<string, string>)[s];
   // Folders that moved, said once on the folder (see moves.ts).
   let moves = $derived(folderMoves(files));
   // Where a moved file was, said briefly: its old name in the same folder,
@@ -279,25 +280,25 @@
       <span class="chevbtn h-chev"></span>
       {#if changedPaths.length}
         <input type="checkbox" class="pick h-pick" checked={allState === "on"} indeterminate={allState === "some"}
-          title={allState === "on" ? "Deselect all changes" : "Select all changes"}
+          title={allState === "on" ? t("Deselect all changes") : t("Select all changes")}
           onchange={() => tick(changedPaths, allState !== "on")} />
       {/if}
-      <span class="title h-title">{all ? "All files" : "Changed files"}</span>
+      <span class="title h-title">{all ? t("All files") : t("Changed files")}</span>
       {#if changedCount}
         {@const ticked = changedPaths.filter((p) => !excluded[p])}
-        <span class="total h-total">{changedCount.toLocaleString()} change{changedCount === 1 ? "" : "s"} · {formatBytes(tree.changedSize)}</span>
+        <span class="total h-total">{tn(changedCount, "{count} change", "{count} changes", { count: changedCount.toLocaleString() })} · {formatBytes(tree.changedSize)}</span>
         <button class="ghost revert h-revert" disabled={!ticked.length}
-          title={!ticked.length ? "Tick changes to discard them" : ticked.length === changedPaths.length
-            ? "Discard all changes…" : `Discard the ${ticked.length} ticked change${ticked.length === 1 ? "" : "s"}…`}
-          aria-label="Discard the ticked changes"
+          title={!ticked.length ? t("Tick changes to discard them") : ticked.length === changedPaths.length
+            ? t("Discard all changes…") : tn(ticked.length, "Discard the {n} ticked change…", "Discard the {n} ticked changes…")}
+          aria-label={t("Discard the ticked changes")}
           onclick={() => (ticked.length === changedPaths.length ? ondiscardall() : ondiscardsome(ticked))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
       {/if}
-      <label class="all h-all" title="List every file in the project folder">
-        All files <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} />
+      <label class="all h-all" title={t("List every file in the project folder")}>
+        {t("All files")} <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} />
       </label>
     </div>
     {#if files.length === 0}
-      <p class="muted empty">{all ? "The project folder is empty." : (st.tool === "Ableton Live" ? "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." : `No uncommitted changes. Work in ${st.tool || "your app"} and save — your changes show up here.`)}</p>
+      <p class="muted empty">{all ? t("The project folder is empty.") : (st.tool === "Ableton Live" ? t("No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here.") : t("No uncommitted changes. Work in {tool} and save — your changes show up here.", { tool: st.tool ? t(st.tool) : t("your app") }))}</p>
     {:else}
       <ul bind:this={list} style:padding-top="{win.from * ROW}px" style:padding-bottom="{(rows.length - win.to) * ROW}px">
         {#each rows.slice(win.from, win.to) as row (row.file ? row.file.path : "dir:" + row.folder!.path)}
@@ -305,7 +306,7 @@
             {@const d = row.folder}
             <li>
               <span class="indent" style:width="{row.depth * 14}px"></span>
-              <button class="ghost chevbtn" onclick={() => toggleFolder(d.path)} aria-label={isOpen(d.path) ? "Close folder" : "Open folder"}>
+              <button class="ghost chevbtn" onclick={() => toggleFolder(d.path)} aria-label={isOpen(d.path) ? t("Close folder") : t("Open folder")}>
                 <svg class="chev" class:open={isOpen(d.path)} viewBox="0 0 10 10" aria-hidden="true">
                   <path d="M3 1.5 L7 5 L3 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -314,7 +315,7 @@
                 {#if d.changed}
                   {@const fs = folderState(d.path)}
                   <input type="checkbox" class="pick" checked={fs === "on"} indeterminate={fs === "some"}
-                    title={fs === "some" ? "Some changes in this folder are ticked" : "Commit the changes in this folder"}
+                    title={fs === "some" ? t("Some changes in this folder are ticked") : t("Commit the changes in this folder")}
                     onchange={() => tick(inside(d.path), fs !== "on")} />
                 {:else}<span class="pick"></span>{/if}
               {/if}
@@ -324,12 +325,12 @@
                 <span class="fname">{d.name}</span>
                 {#if d.changed}
                   {@const ff = moves.movedFrom(d.path)}
-                  {#if ff}<span class="from" title={`Moved from ${ff}/`}>← {ff}/</span>{/if}
+                  {#if ff}<span class="from" title={t("Moved from {path}", { path: `${ff}/` })}>← {ff}/</span>{/if}
                 {/if}
                 {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count"
-                  title={`${d.changed} changed file${d.changed === 1 ? "" : "s"} inside, ${formatBytes(d.changedSize)}`}>{d.changed}</span></span>{/if}
+                  title={tn(d.changed, "{n} changed file inside, {size}", "{n} changed files inside, {size}", { size: formatBytes(d.changedSize) })}>{d.changed}</span></span>{/if}
               </button>
-              <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
+              <button class="ghost more" title={t("More")} onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
           {:else}
             {@const f = row.file!}
@@ -338,7 +339,7 @@
               <span class="chevbtn"></span>
               {#if changedPaths.length}
                 {#if isChange(f)}
-                  <input type="checkbox" class="pick" checked={!excluded[f.path]} title="Commit this change"
+                  <input type="checkbox" class="pick" checked={!excluded[f.path]} title={t("Commit this change")}
                     onchange={(e) => tick([f.path], (e.currentTarget as HTMLInputElement).checked)} />
                 {:else}<span class="pick"></span>{/if}
               {/if}
@@ -347,18 +348,18 @@
                 <FileIcon kind={f.kind} faint={f.status === "ignored" || f.status === "deleted"} />
                 <span class="fname">{name(f.path)}</span>
                 {#if f.status === "renamed" && !moves.covered(f.path)}
-                  <span class="from" title={`Moved from ${f.from}${f.edited ? ", and changed" : ""}`}>← {fromLabel(f)}</span>
+                  <span class="from" title={t(f.edited ? "Moved from {path}, and changed" : "Moved from {path}", { path: f.from })}>← {fromLabel(f)}</span>
                 {/if}
                 <span class="right">
                   {#if f.live}
                     {@const v = liveShort(f.live)}
                     <span class="live" class:odd={usualLive && v !== usualLive}
-                      title={`Saved with ${f.live}${usualLive && v !== usualLive ? ` — most sets here use Live ${usualLive}` : ""}`}>{v}</span>
+                      title={t("Saved with {app}", { app: f.live }) + (usualLive && v !== usualLive ? " — " + t("most sets here use Live {version}", { version: usualLive }) : "")}>{v}</span>
                   {/if}
-                  {#if sym[f.status]}<span class="sym" title={statusName[f.status]}>{sym[f.status]}</span>{/if}
+                  {#if sym[f.status]}<span class="sym" title={statusName(f.status)}>{sym[f.status]}</span>{/if}
                 </span>
               </button>
-              <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
+              <button class="ghost more" title={t("More")} onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
             </li>
           {/if}
         {/each}
@@ -377,51 +378,49 @@
         <div class="title">
           <div class="dname"><FileIcon kind={current.kind} /> {name(selected)}</div>
           <div class="faint small mono">{selected}</div>
-          {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
+          {#if current.live}<div class="faint small">{t("Saved with {app}", { app: current.live })}</div>{/if}
         </div>
         {#if current.status !== "ignored"}
-          <div class="modes" title="The file as it is, what you changed since the version you're on, or its committed versions">
-            <button class:on={fileView.mode === "preview"} onclick={() => setFileMode("preview")}>Preview</button>
-            <button class:on={fileView.mode === "changes"} onclick={() => setFileMode("changes")}>Changes</button>
-            <button class:on={fileView.mode === "history"} onclick={() => setFileMode("history")}>History</button>
+          <div class="modes" title={t("The file as it is, what you changed since the version you're on, or its committed versions")}>
+            <button class:on={fileView.mode === "preview"} onclick={() => setFileMode("preview")}>{t("Preview")}</button>
+            <button class:on={fileView.mode === "changes"} onclick={() => setFileMode("changes")}>{t("Changes")}</button>
+            <button class:on={fileView.mode === "history"} onclick={() => setFileMode("history")}>{t("History")}</button>
           </div>
         {/if}
       </div>
 
       {#if current.status === "ignored"}
-        <p class="muted">DAWGit doesn't keep this file in versions: the project's rules leave it out (see the project's
-          settings, ⚙ at the top).</p>
+        <p class="muted">{t("DAWGit doesn't keep this file in versions: the project's rules leave it out (see the project's settings, ⚙ at the top).")}</p>
       {:else if fileView.mode !== "history"}
         {@const v = sides(fileView.mode, current)}
         {#if fileView.mode === "preview"}
           {#if current.status === "deleted"}
-            <p class="muted">Deleted since the version you're on: this is how it was.</p>
+            <p class="muted">{t("Deleted since the version you're on: this is how it was.")}</p>
           {:else if current.size}
             <p class="muted">{formatBytes(current.size)}</p>
           {/if}
         {:else if current.status === "unchanged"}
-          <p class="muted">No changes since the version you're on. {formatBytes(current.size)}</p>
+          <p class="muted">{t("No changes since the version you're on.")} {formatBytes(current.size)}</p>
         {:else}
-          <p class="muted">{current.status === "renamed" ? `Moved from ${current.from}${current.edited ? ", and changed," : ""}`
-            : current.status === "added" ? "New file" : current.status === "deleted" ? "Deleted" : "Changed"}
-            since the version you're on{current.size ? ` · ${formatBytes(current.size)}` : ""}.</p>
+          <p class="muted">{current.status === "renamed" ? t(current.edited ? "Moved from {path}, and changed, since the version you're on" : "Moved from {path} since the version you're on", { path: current.from })
+            : current.status === "added" ? t("New since the version you're on") : current.status === "deleted" ? t("Deleted since the version you're on") : t("Changed since the version you're on")}{current.size ? ` · ${formatBytes(current.size)}` : ""}.</p>
         {/if}
         {#if v.a || v.b}
           <View {root} file={current} a={v.a} b={v.b} compare={v.compare} stamp={loadedAt} />
         {/if}
       {:else}
         {#if history === null}
-          <p class="muted">Loading…</p>
+          <p class="muted">{t("Loading…")}</p>
         {:else if history.length === 0}
-          <p class="muted">No committed versions of this file yet.</p>
+          <p class="muted">{t("No committed versions of this file yet.")}</p>
         {:else}
           <ul class="versions">
             {#each history as h (h.version.id)}
               <li>
                 <button class:on={h.version.id === picked} onclick={() => pick(h.version.id)}>
                   <span class="vsym {h.status}">{sym[h.status]}</span>
-                  <span class="vmsg">{h.version.message || "(no description)"}</span>
-                  {#if h.status === "renamed"}<span class="from" title={`Moved here from ${h.from}`}>← {h.from}</span>{/if}
+                  <span class="vmsg">{h.version.message || t("(no description)")}</span>
+                  {#if h.status === "renamed"}<span class="from" title={t("Moved here from {path}", { path: h.from })}>← {h.from}</span>{/if}
                   <span class="faint">{h.version.author} · {ago(h.version.time)}</span>
                 </button>
               </li>
@@ -437,15 +436,15 @@
               {#if h.status !== "deleted"}
                 <div class="restore">
                   <button onclick={() => onrestore(selected, h.version.id, h.version.message || h.version.short, hp)}
-                    title="Put this file back as it was in this version; the rest of the project stays">Restore this version</button>
-                  <span class="faint small">Only this file changes; commit it when you're happy.</span>
+                    title={t("Put this file back as it was in this version; the rest of the project stays")}>{t("Restore this version")}</button>
+                  <span class="faint small">{t("Only this file changes; commit it when you're happy.")}</span>
                 </div>
               {/if}
-              <p class="muted">{h.status === "renamed" ? `Moved here from ${h.from}` : h.status === "added" ? "Added"
-                : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
+              <p class="muted">{h.status === "renamed" ? t("Moved here from {path} in this version.", { path: h.from }) : h.status === "added" ? t("Added in this version.")
+                : h.status === "deleted" ? t("Deleted in this version.") : t("Changed in this version.")}</p>
               <View {root} file={current} compare={true} stamp={loadedAt}
                 a={h.status === "deleted" ? null : { path: hp, version: h.version.id, label: versionLabel(h) }}
-                b={prev && prev.status !== "deleted" ? { path: pp, version: prev.version.id, label: `Before: ${versionLabel(prev)}` } : null} />
+                b={prev && prev.status !== "deleted" ? { path: pp, version: prev.version.id, label: t("Before: {version}", { version: versionLabel(prev) }) } : null} />
             </div>
           {/if}
         {/if}
@@ -459,32 +458,32 @@
   {@const f = m.dir ? undefined : files.find((x) => x.path === m.path)}
   <div class="ctx" role="menu" style:left="{Math.min(m.x, window.innerWidth - 240)}px" style:top="{Math.min(m.y, window.innerHeight - 260)}px">
     {#if !m.dir && f && f.status !== "deleted"}
-      <button class="item" onclick={() => openFile(m.path)}>{f.kind === "set" ? "Open in Live" : f.kind === "audio" ? "Open in default player" : "Open"}</button>
+      <button class="item" onclick={() => openFile(m.path)}>{f.kind === "set" ? t("Open in {tool}", { tool: "Live" }) : f.kind === "audio" ? t("Open in default player") : t("Open")}</button>
     {/if}
     {#if m.dir || (f && f.status !== "deleted")}
-      <button class="item" onclick={() => { const p = m.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
+      <button class="item" onclick={() => { const p = m.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>{t("Show in Explorer")}</button>
     {/if}
     {#if !m.dir}
-      <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>View file history</button>
+      <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>{t("View file history")}</button>
       {#if f?.kind === "audio" && f.status !== "deleted"}
-        <button class="item" onclick={() => { converting = m.path; menu = null; }}>Convert…</button>
+        <button class="item" onclick={() => { converting = m.path; menu = null; }}>{t("Convert…")}</button>
       {/if}
       {#if canDiscard(f)}
-        <button class="item danger-text" onclick={() => { const p = m.path; menu = null; ondiscard(p); }}>Discard changes…</button>
+        <button class="item danger-text" onclick={() => { const p = m.path; menu = null; ondiscard(p); }}>{t("Discard changes…")}</button>
       {/if}
     {/if}
     {#if m.ignore.length}
       <div class="sep"></div>
       <div class="sub" role="none" onmouseenter={() => (ignoreOpen = true)} onmouseleave={() => (ignoreOpen = false)}>
         <button class="item has-sub" onclick={() => (ignoreOpen = !ignoreOpen)} aria-expanded={ignoreOpen}>
-          Ignore<span class="arrow">›</span>
+          {t("Ignore")}<span class="arrow">›</span>
         </button>
         {#if ignoreOpen}
           <div class="ctx submenu" role="menu" class:left={m.x > window.innerWidth - 480}>
             {#each m.ignore as o}
               <button class="item" onclick={() => ignore(o.pattern)}>{o.label}<span class="faint pat mono">{o.pattern}</span></button>
             {/each}
-            <p class="faint note">Adds a rule to .dawgit.yaml: the files stay on disk, out of versions.</p>
+            <p class="faint note">{t("Adds a rule to .dawgit.yaml: the files stay on disk, out of versions.")}</p>
           </div>
         {/if}
       </div>
@@ -494,7 +493,7 @@
 
 {#if converting}
   <ConvertDialog {root} file={converting} onclose={() => (converting = "")}
-    ondone={(p) => { converting = ""; toast(`Converted to ${p.slice(p.lastIndexOf("/") + 1)}`, "ok"); reveal(p); }} />
+    ondone={(p) => { converting = ""; toast(t("Converted to {file}", { file: p.slice(p.lastIndexOf("/") + 1) }), "ok"); reveal(p); }} />
 {/if}
 
 <style>
@@ -511,7 +510,7 @@
     background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
     display: grid; align-items: center; row-gap: 3px;
     grid-template-columns: 22px 20px minmax(0, 1fr) auto auto;
-    grid-template-areas: "chev pick title title all" ". . total discard discard"; }
+    grid-template-areas: "chev pick title title title" ". . total discard all"; }
   @container (min-width: 380px) {
     .head { grid-template-columns: 22px 20px auto minmax(0, 1fr) auto auto;
       grid-template-areas: "chev pick title total discard all"; }

@@ -2,14 +2,15 @@
   import { folderMoves } from "./moves";
   import { lineKind, type Change } from "./api";
   import FileIcon from "./FileIcon.svelte";
+  import { t } from "./i18n.svelte";
 
   // Changes as a tree of folders (open, each can be closed), what changed at
   // the end of each file's row, a set's track changes under it.
-  let { changes, empty = "No changes" }: { changes: Change[]; empty?: string } = $props();
+  let { changes, empty = "" }: { changes: Change[]; empty?: string } = $props();
 
   const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "M" };
-  const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted",
-    untracked: "No longer tracked", renamed: "Moved" };
+  const statusName = (s: string) => ({ added: t("New"), modified: t("Changed"), deleted: t("Deleted"),
+    untracked: t("No longer tracked"), renamed: t("Moved") } as Record<string, string>)[s];
   // Folders that moved, said once on the folder (see moves.ts).
   let moves = $derived(folderMoves(changes));
   const dirOf = (p: string) => p.slice(0, p.lastIndexOf("/") + 1);
@@ -52,7 +53,7 @@
 </script>
 
 {#if changes.length === 0}
-  <p class="muted">{empty}</p>
+  <p class="muted">{empty || t("No changes")}</p>
 {:else}
   <ul class="changes">
     {#each rows as row (row.change ? row.change.path : "dir:" + row.folder!.path)}
@@ -78,7 +79,7 @@
             {#if c.status === "renamed" && !moves.covered(c.path)}
               <span class="from" title={`Moved from ${c.from}${c.edited ? ", and changed" : ""}`}>← {fromLabel(c)}</span>
             {/if}
-            <span class="right"><span class="sym" title={statusName[c.status]}>{sym[c.status] ?? "·"}</span></span>
+            <span class="right"><span class="sym" title={statusName(c.status)}>{sym[c.status] ?? "·"}</span></span>
           </div>
           {#if c.details.length}
             <div class="details mono" style:margin-left="{row.depth * 14 + 42}px">

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
+  import Tx from "./Tx.svelte";
   import { api, errorText, formatBytes } from "./api";
   import type { RulesDetail, RuleNode, RuleSuggestion } from "../../bindings/dawgit/desktop/models";
   import Modal from "./Modal.svelte";
@@ -10,22 +12,20 @@
   // left out, and why), and the rules the switches wrote.
   let { root, onclose }: { root: string; onclose: () => void } = $props();
 
-  const presetNames: Record<string, string> = { ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
-    design: "Design files", code: "Code", none: "No preset" };
-  const presetName = (p: string) => presetNames[p] ?? p;
-  const aName = (name: string) => (/^(a|e|i|o|un[^i])/i.test(name) ? "an " : "a ") + name;
+  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
+    design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[p] ?? p;
   // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
   const leftOutText = (pats: string[]) => {
     const names = [...new Set(pats.map((p) => p.replace(/^\/|\/$/g, "")))];
-    return names.length > 5 ? `${names.slice(0, 5).join(", ")} and ${names.length - 5} more` : names.join(", ");
+    return names.length > 5 ? t("{names} and {n} more", { names: names.slice(0, 5).join(", "), n: names.length - 5 }) : names.join(", ");
   };
   // Why a file is tracked or not, for people.
   function reason(by: string): string {
     let m = by.match(/^preset (\S+): ignore "(.*)"$/);
-    if (m) return `left out by the ${presetName(m[1])} preset (${m[2]})`;
+    if (m) return t("left out by the {preset} preset ({pattern})", { preset: presetName(m[1]), pattern: m[2] });
     m = by.match(/^rule (\d+): (ignore|track) "(.*)"$/);
-    if (m) return m[2] === "ignore" ? `left out by your rule ${m[1]}` : `kept by your rule ${m[1]}`;
-    if (by.includes("always tracked")) return "always tracked: it holds these rules";
+    if (m) return m[2] === "ignore" ? t("left out by your rule {n}", { n: m[1] }) : t("kept by your rule {n}", { n: m[1] });
+    if (by.includes("always tracked")) return t("always tracked: it holds these rules");
     if (by.startsWith("no rule")) return "";
     return by;
   }
@@ -82,7 +82,7 @@
   async function editText() {
     try {
       await api.OpenRules(root);
-      toast("Save the file, then DAWGit follows the new rules", "info");
+      toast(t("Save the file, then DAWGit follows the new rules"), "info");
     } catch (e) {
       toast(errorText(e), "error");
     }
@@ -92,11 +92,13 @@
 {#snippet suggestionRow(s: RuleSuggestion)}
   <div class="tool suggested">
     <div class="what">
-      <strong>{s.folder ? `${s.folder}/` : "The project folder"}</strong> looks like {aName(presetName(s.preset))} project
-      <span class="faint">· leaves out {leftOutText(s.leftOut)}{#if s.leftOutBytes > 0}{" "}({formatBytes(s.leftOutBytes)} here){/if}</span>
+      <Tx text={t(s.folder ? "{tool} project found in {folder}." : "{tool} project found in the project folder.")}
+        strong={{ folder: `${s.folder}/`, tool: presetName(s.preset) }} />
+      <span class="faint">· {s.leftOutBytes > 0 ? t("leaves out {what} ({size} here)", { what: leftOutText(s.leftOut), size: formatBytes(s.leftOutBytes) })
+        : t("leaves out {what}", { what: leftOutText(s.leftOut) })}</span>
     </div>
-    <button class="primary small" disabled={busy} onclick={() => setPreset(s.folder, s.preset)}>Use {presetName(s.preset)} rules</button>
-    <button class="ghost small" disabled={busy} onclick={() => setPreset(s.folder, "none")}>Not a project</button>
+    <button class="primary small" disabled={busy} onclick={() => setPreset(s.folder, s.preset)}>{t("Use {tool} rules", { tool: presetName(s.preset) })}</button>
+    <button class="ghost small" disabled={busy} onclick={() => setPreset(s.folder, "none")}>{t("Not a project")}</button>
   </div>
 {/snippet}
 
@@ -111,46 +113,45 @@
       {/if}
       <FileIcon kind={n.dir ? "folder" : "other"} open={!!open[n.path]} faint={n.ignored} />
       <span class="name" title={n.path}>{n.name}</span>
-      {#if n.preset}<span class="chip" title="presets: in .dawgit.yaml">{presetName(n.preset)}</span>{/if}
+      {#if n.preset}<span class="chip" title={t("presets: in .dawgit.yaml")}>{presetName(n.preset)}</span>{/if}
       <span class="why faint" title={n.by}>{why}</span>
       {#if !n.dir}<span class="size faint">{formatBytes(n.size)}</span>{/if}
       <input type="checkbox" class="switch" role="switch" checked={!n.ignored} disabled={busy || n.path === ".dawgit.yaml"}
-        title={n.ignored ? "Left out of versions: switch on to keep it" : "In versions: switch off to leave it out"}
+        title={n.ignored ? t("Left out of versions: switch on to keep it") : t("In versions: switch off to leave it out")}
         onchange={(e) => setTracked(n, (e.currentTarget as HTMLInputElement).checked)} />
     </div>
     {#if n.dir && open[n.path]}
       {#if folders[n.path]}
         {@render tree(n.path, depth + 1)}
       {:else}
-        <div class="node faint" style:padding-left="{26 + (depth + 1) * 18}px">Loading…</div>
+        <div class="node faint" style:padding-left="{26 + (depth + 1) * 18}px">{t("Loading…")}</div>
       {/if}
     {/if}
   {/each}
 {/snippet}
 
-<Modal title="Rules" {onclose} width={860}>
-  <p class="hint">Which files go into versions. Saved in the project's <span class="mono">.dawgit.yaml</span> right away;
-    commit it to share the rules with the team. Files left out stay on everyone's disk.</p>
+<Modal title={t("Rules")} {onclose} width={860}>
+  <p class="hint"><Tx text={t("Which files go into versions. Saved in the project's {file} right away; commit it to share the rules with the team. Files left out stay on everyone's disk.")} code={{ file: ".dawgit.yaml" }} /></p>
 
   {#if detail?.error}
     <div class="error-box">
       <div>⚠ {detail.error}</div>
-      <button onclick={editText}>Fix .dawgit.yaml</button>
+      <button onclick={editText}>{t("Fix .dawgit.yaml")}</button>
     </div>
   {/if}
 
   {#if detail}
     <section>
-      <h3>Tools in this project</h3>
-      <p class="hint">A tool's preset leaves out what the tool makes again by itself (caches, backups) in its folder.</p>
+      <h3>{t("Tools in this project")}</h3>
+      <p class="hint">{t("A tool's preset leaves out what the tool makes again by itself (caches, backups) in its folder.")}</p>
       {#each detail.suggestions as s (s.folder + s.preset)}{@render suggestionRow(s)}{/each}
       {#each detail.presets as e (e.folder)}
         {@const opt = detail.options.find((o) => o.name === e.preset)}
         <div class="tool">
           <div class="what">
-            <strong>{e.folder ? `${e.folder}/` : "The project folder"}</strong>
-            {#if e.found}<span class="chip found" title="DAWGit wrote this line from what it found">found by DAWGit</span>{/if}
-            {#if opt?.leftOut.length}<span class="faint">· leaves out {leftOutText(opt.leftOut)}</span>{/if}
+            <strong>{e.folder ? `${e.folder}/` : t("The project folder")}</strong>
+            {#if e.found}<span class="chip found" title={t("DAWGit wrote this line from what it found")}>{t("found by DAWGit")}</span>{/if}
+            {#if opt?.leftOut.length}<span class="faint">· {t("leaves out {what}", { what: leftOutText(opt.leftOut) })}</span>{/if}
           </div>
           <select value={e.preset} disabled={busy || !!detail.error}
             onchange={(ev) => setPreset(e.folder, (ev.currentTarget as HTMLSelectElement).value)}>
@@ -162,32 +163,32 @@
     </section>
 
     <section>
-      <h3>Files and folders</h3>
+      <h3>{t("Files and folders")}</h3>
       <div class="tree">
         {@render tree("", 0)}
       </div>
     </section>
 
     <section>
-      <h3>Your rules</h3>
+      <h3>{t("Your rules")}</h3>
       {#each detail.rules as r, i (i)}
         <div class="rule">
           <span class="kind" class:keep={r.kind === "track"}>{r.kind === "ignore" ? "Leave out" : "Keep"}</span>
           <span class="mono">{r.pattern}</span>
-          <button class="ghost small" disabled={busy} onclick={() => removeRule(i)} title="Remove this rule">✕</button>
+          <button class="ghost small" disabled={busy} onclick={() => removeRule(i)} title={t("Remove this rule")}>✕</button>
         </div>
       {:else}
-        <p class="faint">None yet: the switches above add them. Later rules win.</p>
+        <p class="faint">{t("None yet: the switches above add them. Later rules win.")}</p>
       {/each}
     </section>
   {:else}
-    <p class="faint">Reading the rules…</p>
+    <p class="faint">{t("Reading the rules…")}</p>
   {/if}
 
   {#snippet footer()}
-    <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
-    <button onclick={editText}>Edit as text</button>
-    <button class="primary" onclick={onclose}>Done</button>
+    <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>{t("Guide ↗")}</button>
+    <button onclick={editText}>{t("Edit as text")}</button>
+    <button class="primary" onclick={onclose}>{t("Done")}</button>
   {/snippet}
 </Modal>
 

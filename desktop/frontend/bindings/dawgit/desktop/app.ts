@@ -80,6 +80,16 @@ export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo | null> {
 }
 
 /**
+ * CheckUpdateNow asks for a newer release now (the settings' "Check for
+ * updates"), not waiting for the next check.
+ */
+export function CheckUpdateNow(): $CancellablePromise<$models.UpdateInfo | null> {
+    return $Call.ByID(1772224764).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * ChooseFolder asks the user for a folder ("" when cancelled).
  */
 export function ChooseFolder(title: string): $CancellablePromise<string> {

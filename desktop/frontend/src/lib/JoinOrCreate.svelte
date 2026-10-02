@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import type { TeamSummary } from "./api";
   import ConnectForm from "./ConnectForm.svelte";
   import StorageSetup from "./StorageSetup.svelte";
@@ -11,14 +12,14 @@
 
 {#if !created}
 <div class="seg" role="tablist">
-  <button role="tab" class:on={mode === "join"} aria-selected={mode === "join"} onclick={() => (mode = "join")}>Join a team</button>
-  <button role="tab" class:on={mode === "create"} aria-selected={mode === "create"} onclick={() => (mode = "create")}>Create a team</button>
+  <button role="tab" class:on={mode === "join"} aria-selected={mode === "join"} onclick={() => (mode = "join")}>{t("Join a team")}</button>
+  <button role="tab" class:on={mode === "create"} aria-selected={mode === "create"} onclick={() => (mode = "create")}>{t("Create a team")}</button>
 </div>
 {/if}
 
 {#if mode === "join"}
-  <p class="muted">Paste the connection code from whoever set up your team.
-    <button class="link" onclick={() => (mode = "create")}>Setting it up yourself?</button></p>
+  <p class="muted">{t("Paste the connection code from whoever set up your team.")}
+    <button class="link" onclick={() => (mode = "create")}>{t("Setting it up yourself?")}</button></p>
   <ConnectForm {onconnected} />
 {:else}
   <StorageSetup {onconnected} oncreated={() => (created = true)} />

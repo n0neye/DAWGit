@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import Waveform from "./Waveform.svelte";
 
   // Two versions of a sample, one above the other, on one time scale: a play
@@ -68,11 +69,11 @@
           {#if durations[k]}<span class="faint">{fmt(durations[k])}</span>{/if}
         </div>
         {#if failed[k]}
-          <p class="faint small">This file can't be played here.</p>
+          <p class="faint small">{t("This file can't be played here.")}</p>
         {:else}
           <div class="strip" role="group" onpointerdown={() => (active = k)}>
             <button class="play" class:on={playing[k]} onclick={() => toggle(k)}
-              title={playing[k] ? "Pause (Space)" : "Play (Space)"} aria-label={playing[k] ? "Pause" : "Play"}>
+              title={playing[k] ? t("Pause (Space)") : t("Play (Space)")} aria-label={playing[k] ? t("Pause") : t("Play")}>
               {#if playing[k]}
                 <svg viewBox="0 0 16 16"><rect x="3.5" y="2.5" width="3" height="11" rx="1" /><rect x="9.5" y="2.5" width="3" height="11" rx="1" /></svg>
               {:else}
@@ -94,9 +95,9 @@
     {/if}
   {/each}
   {#if a && b}
-    <p class="faint small">Space plays or pauses · start the other one to switch at the same position · click the waveform to jump</p>
+    <p class="faint small">{t("Space plays or pauses · start the other one to switch at the same position · click the waveform to jump")}</p>
   {:else if a || b}
-    <p class="faint small">Space plays or pauses · click the waveform to jump</p>
+    <p class="faint small">{t("Space plays or pauses · click the waveform to jump")}</p>
   {/if}
 </div>
 

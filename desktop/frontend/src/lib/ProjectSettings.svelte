@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { api, errorText, type ProjectInfo, type TeamProject, type TeamSummary } from "./api";
   import Modal from "./Modal.svelte";
   import RulesWindow from "./RulesWindow.svelte";
+  import Tx from "./Tx.svelte";
   import { toast } from "./notify.svelte";
 
   // A project's settings: its name, where it is, its rules, and what can be
@@ -32,7 +34,7 @@
     renaming = true;
     try {
       await api.RenameProject(team?.id ?? "", p.id, here ? p.root : "", name.trim());
-      toast(team ? `Renamed for everyone in ${team.name}` : "Renamed", "ok");
+      toast(team ? t("Renamed for everyone in {team}", { team: team.name }) : t("Renamed"), "ok");
       onrenamed();
     } catch (e) {
       toast(errorText(e), "error");
@@ -44,7 +46,7 @@
   async function openRules() {
     try {
       await api.OpenRules(p.root);
-      toast("Save the file, then DAWGit follows the new rules", "info");
+      toast(t("Save the file, then DAWGit follows the new rules"), "info");
     } catch (e) {
       toast(errorText(e), "error");
     }
@@ -52,100 +54,98 @@
 
   let rulesOpen = $state(false);
   let unlinkSure = $state(false);
-  const presetNames: Record<string, string> = { ableton: "Ableton Live project", unity: "Unity project",
-    unreal: "Unreal project", design: "Design files", code: "Code", none: "No preset" };
-  const presetName = (preset: string) => presetNames[preset] ?? preset;
+  const presetName = (preset: string) => ({ ableton: t("Ableton Live project"), unity: t("Unity project"),
+    unreal: t("Unreal project"), design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[preset] ?? preset;
 </script>
 
 {#if rulesOpen}
   <RulesWindow root={p.root} onclose={() => { rulesOpen = false; api.ProjectInfo(p.root).then((i) => (info = i)).catch(() => {}); }} />
 {:else}
-<Modal title="Project settings" {onclose} width={600}>
+<Modal title={t("Project settings")} {onclose} width={600}>
   <section>
-    <h3>Name</h3>
+    <h3>{t("Name")}</h3>
     <div class="line">
-      <input bind:value={name} maxlength="100" aria-label="Project name"
+      <input bind:value={name} maxlength="100" aria-label={t("Project name")}
         onkeydown={(e) => { if (e.key === "Enter" && name.trim() && name.trim() !== p.name) rename(); }} />
-      <button onclick={rename} disabled={renaming || !name.trim() || name.trim() === p.name}>{renaming ? "Renaming…" : "Rename"}</button>
+      <button onclick={rename} disabled={renaming || !name.trim() || name.trim() === p.name}>{renaming ? t("Renaming…") : t("Rename")}</button>
     </div>
-    <p class="hint">{team ? "Project name shared by the whole team." : "Project name in DAWGit."} Local folder keeps its name.</p>
+    <p class="hint">{team ? t("Project name shared by the whole team.") : t("Project name in DAWGit.")} {t("Local folder keeps its name.")}</p>
   </section>
 
   <section>
-    <h3>Where</h3>
+    <h3>{t("Where")}</h3>
     <dl>
-      <dt>Team</dt><dd>{team ? team.name : "This computer only"}</dd>
+      <dt>{t("Team")}</dt><dd>{team ? team.name : t("This computer only")}</dd>
       {#if p.root}
-        <dt>Folder</dt>
+        <dt>{t("Folder")}</dt>
         <dd class="folder">
           <span class="mono path" title={p.root}>{p.root}</span>
           {#if p.status === "missing"}
-            <button class="small" onclick={onlocate}>Locate…</button>
+            <button class="small" onclick={onlocate}>{t("Locate…")}</button>
           {:else}
-            <button class="small" onclick={() => api.ShowFolder(p.root)}>Open folder</button>
+            <button class="small" onclick={() => api.ShowFolder(p.root)}>{t("Open folder")}</button>
           {/if}
         </dd>
       {/if}
-      {#if info}<dt>Branch</dt><dd>{info.branch}</dd>{/if}
-      {#if p.id}<dt>Project ID</dt><dd class="mono faint">{p.id}</dd>{/if}
+      {#if info}<dt>{t("Branch")}</dt><dd>{info.branch}</dd>{/if}
+      {#if p.id}<dt>{t("Project ID")}</dt><dd class="mono faint">{p.id}</dd>{/if}
     </dl>
   </section>
 
   {#if here && info}
     <section>
-      <h3>Rules</h3>
-      <p class="hint">Which files DAWGit tracks, set in the project's <span class="mono">.dawgit.yaml</span>. The file is
-        committed with the project, so everyone uses the same rules.</p>
+      <h3>{t("Rules")}</h3>
+      <p class="hint"><Tx text={t("Which files DAWGit tracks, set in the project's {file}. The file is committed with the project, so everyone uses the same rules.")} code={{ file: ".dawgit.yaml" }} /></p>
       <ul class="applied">
         {#each info.rules.applied as a}
           <li><strong>{presetName(a.preset)}</strong>
             <span class="faint">{a.folder ? `in ${a.folder}/` : "the project folder"}{a.detected ? " · detected" : ""}</span></li>
         {:else}
-          <li class="faint">No preset: every file is tracked.</li>
+          <li class="faint">{t("No preset: every file is tracked.")}</li>
         {/each}
       </ul>
       {#if info.rules.error}<p class="error">⚠ {info.rules.error}</p>{/if}
       <div class="line">
-        <button class="primary" onclick={() => (rulesOpen = true)}>Rules…</button>
-        <button onclick={openRules}>Edit as text</button>
-        <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
+        <button class="primary" onclick={() => (rulesOpen = true)}>{t("Rules…")}</button>
+        <button onclick={openRules}>{t("Edit as text")}</button>
+        <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>{t("Guide ↗")}</button>
       </div>
     </section>
 
     <section>
-      <h3>Health</h3>
+      <h3>{t("Health")}</h3>
       <div class="action">
-        <div><strong>Check project…</strong><p class="hint">Reads its whole history again, looking for damage.</p></div>
-        <button onclick={oncheck}>Check…</button>
+        <div><strong>{t("Check project…")}</strong><p class="hint">{t("Reads its whole history again, looking for damage.")}</p></div>
+        <button onclick={oncheck}>{t("Check…")}</button>
       </div>
     </section>
   {/if}
 
   <section class="danger-zone">
-    <h3>Danger zone</h3>
+    <h3>{t("Danger zone")}</h3>
     {#if p.root}
       <div class="action">
-        <div><strong>Unlink folder</strong>
-          <p class="hint">DAWGit stops listing this folder{team ? " (the team's copy stays listed, to download)" : ""}.
-            Nothing is deleted: the folder keeps its files and versions, and can be added again.</p></div>
+        <div><strong>{t("Unlink folder")}</strong>
+          <p class="hint">{team ? t("DAWGit stops listing this folder (the team's copy stays listed, to download).") : t("DAWGit stops listing this folder.")}
+            {t("Nothing is deleted: the folder keeps its files and versions, and can be added again.")}</p></div>
         {#if unlinkSure}
-          <button class="danger" onclick={onunlink}>Unlink</button>
+          <button class="danger" onclick={onunlink}>{t("Unlink")}</button>
         {:else}
-          <button onclick={() => (unlinkSure = true)}>Unlink…</button>
+          <button onclick={() => (unlinkSure = true)}>{t("Unlink…")}</button>
         {/if}
       </div>
     {/if}
     {#if team}
       <div class="action">
-        <div><strong>Delete from {team.name}…</strong>
-          <p class="hint">Removes it and all its versions from the team, for everyone.</p></div>
-        <button class="danger" onclick={ondelete}>Delete…</button>
+        <div><strong>{t("Delete from {team}…", { team: team.name })}</strong>
+          <p class="hint">{t("Removes it and all its versions from the team, for everyone.")}</p></div>
+        <button class="danger" onclick={ondelete}>{t("Delete…")}</button>
       </div>
     {/if}
   </section>
 
   {#snippet footer()}
-    <button onclick={onclose}>Close</button>
+    <button onclick={onclose}>{t("Close")}</button>
   {/snippet}
 </Modal>
 {/if}

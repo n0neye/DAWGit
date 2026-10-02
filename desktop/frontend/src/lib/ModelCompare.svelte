@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr } from "./i18n.svelte"; // t is a track or take here
   import { onDestroy } from "svelte";
   import { createViewer, type ModelStats, type Viewer } from "./model3d";
 
@@ -51,7 +52,7 @@
 
   const fmt = (n: number) => (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
   const describe = (s: ModelStats | null | undefined) =>
-    s ? `${s.triangles.toLocaleString()} triangles · ${s.size.map(fmt).join(" × ")}` : "";
+    s ? `${tr("{n} triangles", { n: s.triangles.toLocaleString() })} · ${s.size.map(fmt).join(" × ")}` : "";
 </script>
 
 {#snippet view(slot: "a" | "b", t: Take)}
@@ -59,15 +60,15 @@
     <figcaption><span>{t.label}</span><span class="stats">{describe(stats[slot])}</span></figcaption>
     <div class="frame">
       {#if slot === "a"}<canvas bind:this={canvasA}></canvas>{:else}<canvas bind:this={canvasB}></canvas>{/if}
-      {#if errors[slot]}<div class="none">Can't show this model: {errors[slot]}</div>
-      {:else if !stats[slot]}<div class="none faint">Loading the model…</div>{/if}
+      {#if errors[slot]}<div class="none">{tr("Can't show this model:")} {errors[slot]}</div>
+      {:else if !stats[slot]}<div class="none faint">{tr("Loading the model…")}</div>{/if}
     </div>
   </figure>
 {/snippet}
 
 <div class="mc">
   {#if main}
-    <div class="bar"><span class="faint hint">Drag to turn · right-drag to move · wheel to zoom</span></div>
+    <div class="bar"><span class="faint hint">{tr("Drag to turn · right-drag to move · wheel to zoom")}</span></div>
   {/if}
   {#if both && comparing}
     <div class="pair">{@render view("a", a!)}{@render view("b", b!)}</div>

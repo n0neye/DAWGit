@@ -21,6 +21,7 @@ export type { TrackEdit } from "../../bindings/dawgit/internal/project/models";
 export type { Project as ServerProject, Member } from "../../bindings/dawgit/internal/remote/models";
 
 export const api = App;
+import { t, tn, language } from "./i18n.svelte";
 
 export function errorText(e: unknown): string {
   if (e instanceof Error) return e.message;
@@ -32,12 +33,14 @@ export function ago(iso: string): string {
   const t = Date.parse(iso);
   if (isNaN(t)) return "";
   const s = Math.max(0, (Date.now() - t) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  // In the language in use ("5 min ago", "5 分鐘前"…).
+  const rel = new Intl.RelativeTimeFormat(language(), { numeric: "auto", style: "short" });
+  if (s < 60) return rel.format(0, "second");
+  if (s < 3600) return rel.format(-Math.floor(s / 60), "minute");
+  if (s < 86400) return rel.format(-Math.floor(s / 3600), "hour");
   const d = new Date(t);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
-    " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString(language(), { month: "short", day: "numeric" }) +
+    " " + d.toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" });
 }
 
 const AUTHOR_KEY = "dawgit.author";
@@ -100,7 +103,7 @@ export function progressDetail(p: Progress): string {
   }
   if (s.points.at(-1)?.[1] !== bytes) s.points.push([now, bytes]);
   while (s.points.length > 2 && now - s.points[0][0] > 20000) s.points.shift();
-  let text = `${formatBytes(bytes)} of ${formatBytes(p.totalBytes!)}`;
+  let text = t("{done} of {total}", { done: formatBytes(bytes), total: formatBytes(p.totalBytes!) });
   const [t0, b0] = s.points[0];
   const secs = (now - t0) / 1000;
   if (secs >= 1 && bytes > b0) {
@@ -108,33 +111,37 @@ export function progressDetail(p: Progress): string {
     const [f0, fb] = s.first;
     const all = (now - f0) / 1000;
     if (all >= 5 && bytes > fb) {
-      text += ` · about ${formatDuration((p.totalBytes! - bytes) / ((bytes - fb) / all))} left`;
+      text += " · " + t("about {time} left", { time: formatDuration((p.totalBytes! - bytes) / ((bytes - fb) / all)) });
     }
   }
   return text;
 }
 
-export function progressText(p: Progress, team = "the team"): string {
-  const files = transfers(p) || p.stage === "exporting" || p.stage === "storing" ? " files" : "";
-  const n = p.total ? ` · ${Math.min(p.done + 1, p.total)} of ${p.total}${p.total === 1 ? files.replace("files", "file") : files}` : "";
+export function progressText(p: Progress, team = ""): string {
+  const files = transfers(p) || p.stage === "exporting" || p.stage === "storing";
+  const vars = { done: Math.min(p.done + 1, p.total), total: p.total };
+  const n = !p.total ? "" : " · " + (files ? tn(p.total, "{done} of {total} file", "{done} of {total} files", vars)
+    : t("{done} of {total}", vars));
   switch (p.stage) {
-    case "scanning": return p.total ? `Reading files · ${p.done} of ${p.total}` : "Looking for changed files…";
-    case "storing": return `Adding files to the history${n}`;
-    case "checking": return `Checking what's already in ${team === "the team" ? "the team's storage" : team}…`;
-    case "uploading": return `Uploading to ${team}${n}`;
-    case "downloading": return `Downloading${n}`;
-    case "exporting": return `Writing the copy${n}`;
-    case "converting": return `Converting · ${p.total ? Math.round((100 * p.done) / p.total) : 0}%`;
+    case "scanning": return p.total ? t("Reading files") + " · " + t("{done} of {total}", { done: p.done, total: p.total })
+      : t("Looking for changed files…");
+    case "storing": return t("Adding files to the history") + n;
+    case "checking": return team ? t("Checking what's already in {team}…", { team }) : t("Checking what's already in the team's storage…");
+    case "uploading": return (team ? t("Uploading to {team}", { team }) : t("Uploading to the team")) + n;
+    case "downloading": return t("Downloading") + n;
+    case "exporting": return t("Writing the copy") + n;
+    case "converting": return t("Converting") + ` · ${p.total ? Math.round((100 * p.done) / p.total) : 0}%`;
   }
-  return "Working…";
+  return t("Working…");
 }
 
 // Short form for the sidebar.
 export function progressShort(p: Progress): string {
   const n = transfers(p) ? ` ${Math.round(progressFraction(p) * 100)}%`
     : p.total ? ` ${Math.min(p.done + 1, p.total)}/${p.total}` : "…";
-  return ({ scanning: p.total ? `reading ${p.done}/${p.total}` : "reading files…", checking: "checking…", storing: "saving" + n, uploading: "uploading" + n,
-    downloading: "downloading" + n, exporting: "exporting" + n } as Record<string, string>)[p.stage] ?? "working…";
+  return ({ scanning: p.total ? `${t("reading")} ${p.done}/${p.total}` : t("reading files…"), checking: t("checking…"),
+    storing: t("saving") + n, uploading: t("uploading") + n, downloading: t("downloading") + n,
+    exporting: t("exporting") + n } as Record<string, string>)[p.stage] ?? t("working…");
 }
 
 export function isConnectionCode(s: string): boolean {
