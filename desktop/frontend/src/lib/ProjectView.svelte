@@ -1117,7 +1117,7 @@
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
   .warn-text { color: var(--warn); }
-  main.flush { padding: 0 0 0 16px; overflow: hidden; min-height: 0; }
+  main.flush { padding: 0; overflow: hidden; min-height: 0; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
   .older { margin: 6px 0 0; }
   .commit-btn { width: 100%; margin-top: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }

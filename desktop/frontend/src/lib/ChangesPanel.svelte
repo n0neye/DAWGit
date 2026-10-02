@@ -274,30 +274,27 @@
   <div class="side">
   <aside class="files" bind:this={scroller} bind:clientHeight={viewH} onscroll={onScroll}>
     <!-- the list's header, kept at the top: the box to tick all, the title, how many and how big -->
+    <!-- one line when there's room, else two: [box] title · how many, how big · revert · All files -->
     <div class="head">
-    <div class="files-h">
-      <span class="chevbtn"></span>
+      <span class="chevbtn h-chev"></span>
       {#if changedPaths.length}
-        <input type="checkbox" class="pick" checked={allState === "on"} indeterminate={allState === "some"}
+        <input type="checkbox" class="pick h-pick" checked={allState === "on"} indeterminate={allState === "some"}
           title={allState === "on" ? "Deselect all changes" : "Select all changes"}
           onchange={() => tick(changedPaths, allState !== "on")} />
       {/if}
-      <span class="title">{all ? "All files" : "Changed files"}</span>
-      <label class="all" title="List every file in the project folder">
-        <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} /> All files
-      </label>
-    </div>
-    {#if changedCount}
-      {@const ticked = changedPaths.filter((p) => !excluded[p])}
-      <div class="files-sub">
-        <span class="total">{changedCount.toLocaleString()} change{changedCount === 1 ? "" : "s"} · {formatBytes(tree.changedSize)}</span>
-        <button class="ghost revert" disabled={!ticked.length}
+      <span class="title h-title">{all ? "All files" : "Changed files"}</span>
+      {#if changedCount}
+        {@const ticked = changedPaths.filter((p) => !excluded[p])}
+        <span class="total h-total">{changedCount.toLocaleString()} change{changedCount === 1 ? "" : "s"} · {formatBytes(tree.changedSize)}</span>
+        <button class="ghost revert h-revert" disabled={!ticked.length}
           title={!ticked.length ? "Tick changes to discard them" : ticked.length === changedPaths.length
             ? "Discard all changes…" : `Discard the ${ticked.length} ticked change${ticked.length === 1 ? "" : "s"}…`}
           aria-label="Discard the ticked changes"
           onclick={() => (ticked.length === changedPaths.length ? ondiscardall() : ondiscardsome(ticked))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
-      </div>
-    {/if}
+      {/if}
+      <label class="all h-all" title="List every file in the project folder">
+        All files <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} />
+      </label>
     </div>
     {#if files.length === 0}
       <p class="muted empty">{all ? "The project folder is empty." : (st.tool === "Ableton Live" ? "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." : `No uncommitted changes. Work in ${st.tool || "your app"} and save — your changes show up here.`)}</p>
@@ -505,17 +502,26 @@
   .side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
   .files { flex: 1; overflow: auto; min-height: 0; padding: 0 8px 16px 0; }
   /* the header stays at the top, set apart from the tree */
+  /* the header stays at the top, set apart from the tree; its columns are the rows' (box, then icon) */
+  .files { container-type: inline-size; }
   .head { position: sticky; top: 0; z-index: 3; margin: 0 -8px 6px 0; padding: 8px 8px 6px 0;
-    background: var(--panel); border-bottom: 1px solid var(--line); }
-  .commit { flex: none; border-top: 1px solid var(--line); padding: 10px 12px 12px 8px; }
-  .commit :global(textarea) { width: 100%; resize: vertical; min-height: 54px; }
-  /* like a row: the box over the boxes, the title over the names */
-  .files-h { display: flex; align-items: center; padding: 0 4px 2px 0; font-size: 12px;
-    text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .files-h .title { flex: 1; min-width: 0; padding-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .files-h .all { flex: none; }
-  .files-sub { display: flex; align-items: center; gap: 8px; padding: 2px 4px 0 46px; font-size: 12px; } /* under the title */
-  .files-sub .total { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
+    display: grid; align-items: center; row-gap: 3px;
+    grid-template-columns: 22px 20px minmax(0, 1fr) auto auto;
+    grid-template-areas: "chev pick title title all" ". . total discard discard"; }
+  @container (min-width: 380px) {
+    .head { grid-template-columns: 22px 20px auto minmax(0, 1fr) auto auto;
+      grid-template-areas: "chev pick title total discard all"; }
+    .h-total { padding-left: 10px; }
+    .h-revert { margin-right: 10px; }
+  }
+  .h-chev { grid-area: chev; margin-left: 4px; }
+  .h-pick { grid-area: pick; }
+  .h-title { grid-area: title; padding-left: 4px; text-transform: uppercase; letter-spacing: .06em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-total { grid-area: total; padding-left: 4px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-revert { grid-area: discard; justify-self: end; } /* (not "revert": a CSS keyword) */
+  .h-all { grid-area: all; justify-self: end; }
   .revert { flex: none; display: inline-flex; padding: 3px; border-radius: 5px; color: var(--muted); }
   .revert svg { width: 14px; height: 14px; }
   .revert:hover:not(:disabled) { color: var(--danger); background: #33363d; }
