@@ -205,6 +205,11 @@
   }
 
   let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
+  // The team's new versions to tell about: a merge only combines the others.
+  let news = $derived.by(() => {
+    const own = st?.incoming.filter((v) => v.parents.length < 2) ?? [];
+    return own.length ? own : (st?.incoming ?? []);
+  });
 
   // Runs an action; handles conflicts (ask, retry with decisions) and a
   // running Live (ask, retry with force).
@@ -723,9 +728,9 @@
     {#if st.incoming.length}
       <div class="banner info">
         <div>
-          <strong>{[...new Set(st.incoming.map((v) => v.author))].join(", ")}</strong>
-          {st.changes.length && !st.olderVersion ? "committed" : "saved"} {st.incoming.length} new version{st.incoming.length === 1 ? "" : "s"}{st.changes.length && !st.olderVersion ? " while you were working" : ""}:
-          <span class="muted">{st.incoming.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{st.incoming.length > 3 ? "…" : ""}</span>
+          <strong>{[...new Set(news.map((v) => v.author))].join(", ")}</strong>
+          {st.changes.length && !st.olderVersion ? "committed" : "saved"} {news.length} new version{news.length === 1 ? "" : "s"}{st.changes.length && !st.olderVersion ? " while you were working" : ""}:
+          <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
         </div>
         {#if st.olderVersion}
           <!-- back to the latest version first -->

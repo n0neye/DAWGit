@@ -68,7 +68,10 @@ func (w *Watcher) Check() []Event {
 	for _, m := range incoming {
 		if !w.notified[m.ID] {
 			w.notified[m.ID] = true
-			fresh = append(fresh, m)
+			// A merge only combines versions the team is told about anyway.
+			if len(m.Parents) < 2 {
+				fresh = append(fresh, m)
+			}
 		}
 	}
 	if len(fresh) > 0 {

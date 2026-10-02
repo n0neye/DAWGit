@@ -110,3 +110,40 @@ func watchTeam(t *testing.T, address, token string) string {
 	}
 	return b.Root
 }
+
+// A teammate's merge isn't news of its own: only their own version is told.
+func TestWatcherSkipsMerges(t *testing.T) {
+	st, _ := server.OpenStorage(t.TempDir())
+	srv := httptest.NewServer(server.Handler(st, "tok"))
+	defer srv.Close()
+	rootB := watchTeam(t, srv.URL, "tok")
+	w := New(rootB)
+	w.Check()
+	// Kim and Lee commit at the same time: Lee's save merges Kim's in.
+	clone := func(dir, who string) *project.Repo {
+		r, _, err := project.Clone(srv.URL, "tok", "Song", filepath.Join(t.TempDir(), dir), who)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	kim, lee := clone("C", "kim"), clone("D", "lee")
+	copyFile(t, filepath.Join(fixtures, "SampleAbletonProject_v3.als"), filepath.Join(kim.Root, "Song.als"))
+	if _, _, err := kim.Save("kim's take", project.Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	copyFile(t, filepath.Join(fixtures, "Split-B.als"), filepath.Join(lee.Root, "Song.als"))
+	if _, _, err := lee.Save("drums", project.Strategy("both")); err != nil {
+		t.Fatal(err)
+	}
+	ev := kinds(w.Check())
+	e, ok := ev[NewVersions]
+	if !ok || len(e.Versions) != 2 {
+		t.Fatalf("expected Kim's and Lee's versions, got %+v", ev)
+	}
+	for _, v := range e.Versions {
+		if len(v.Parents) > 1 {
+			t.Errorf("merge told: %s", v.Message)
+		}
+	}
+}

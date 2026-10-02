@@ -18,8 +18,13 @@
     onclose: () => void;
   } = $props();
 
-  let authors = $derived([...new Set(preview.versions.map((v) => v.author))].join(", ") || "Your team");
-  let n = $derived(preview.versions.length);
+  // Merges only combine the other versions: not listed (unless that's all).
+  let versions = $derived.by(() => {
+    const own = preview.versions.filter((v) => v.parents.length < 2);
+    return own.length ? own : preview.versions;
+  });
+  let authors = $derived([...new Set(versions.map((v) => v.author))].join(", ") || "Your team");
+  let n = $derived(versions.length);
 </script>
 
 <Modal title={older ? `“${branch}” has ${n} newer version${n === 1 ? "" : "s"} than the one you're on`
@@ -36,7 +41,7 @@
 
   <h3>New on “{branch}”</h3>
   <ul class="versions">
-    {#each preview.versions as v (v.id)}
+    {#each versions as v (v.id)}
       <li><span class="msg">{v.message || "(no description)"}</span>
         <span class="faint">{v.author} · {ago(v.time)}</span></li>
     {/each}
