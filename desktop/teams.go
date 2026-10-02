@@ -395,6 +395,46 @@ func (a *App) ReconnectProjects(teamID string, roots []string) error {
 	return nil
 }
 
+// DownloadSize is what downloading a team project takes, shown before it.
+type DownloadSize struct {
+	Files int   `json:"files"`
+	Bytes int64 `json:"bytes"` // the latest version's files
+	// Needed: on this disk, the files and DAWGit's own copy of them.
+	Needed int64 `json:"needed"`
+	Free   int64 `json:"free"` // on the disk of parent; -1 unknown
+}
+
+// ProjectDownloadSize reads the size of a team project's latest version and
+// the free space where it would go (parent, or the nearest folder above it
+// that exists).
+func (a *App) ProjectDownloadSize(teamID, projectID, parent string) (DownloadSize, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return DownloadSize{}, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return DownloadSize{}, errors.New("unknown team")
+	}
+	s, err := project.SizeOnTeam(t, projectID)
+	if err != nil {
+		return DownloadSize{}, err
+	}
+	out := DownloadSize{Files: s.Files, Bytes: s.Bytes, Needed: 2 * s.Bytes, Free: -1}
+	for dir := parent; dir != ""; {
+		if fi, err := os.Stat(dir); err == nil && fi.IsDir() {
+			out.Free = diskFree(dir)
+			break
+		}
+		up := filepath.Dir(dir)
+		if up == dir {
+			break
+		}
+		dir = up
+	}
+	return out, nil
+}
+
 // DownloadProject downloads a team project into parent/<name> Project.
 func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, error) {
 	store, err := teams.Load()

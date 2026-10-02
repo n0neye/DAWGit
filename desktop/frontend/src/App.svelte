@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, errorText, progressShort, type Overview, type Progress, type ProjectInfo, type TeamProject } from "./lib/api";
-  import type { UpdateInfo, UpdateState } from "../bindings/dawgit/desktop/models";
+  import { api, errorText, formatBytes, progressShort, type Overview, type Progress, type ProjectInfo, type TeamProject } from "./lib/api";
+  import type { DownloadSize, UpdateInfo, UpdateState } from "../bindings/dawgit/desktop/models";
   import ProgressBar from "./lib/ProgressBar.svelte";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
@@ -210,12 +210,29 @@
     if (pick) select(pick);
   });
 
+  // Where downloads go, and what downloading the selected project takes.
+  let downloadDir = $state(recall(DOWNLOAD_DIR_KEY));
+  let dlSize = $state<{ id: string; size: DownloadSize | null; error: string } | null>(null);
+  $effect(() => {
+    const p = selectedEntry;
+    const team = overview?.currentTeam;
+    const dir = downloadDir;
+    if (!p || p.status !== "remote" || !team) return;
+    const id = p.id;
+    dlSize = { id, size: null, error: "" };
+    api.ProjectDownloadSize(team, id, dir)
+      .then((size) => { if (dlSize?.id === id) dlSize = { id, size, error: "" }; })
+      .catch((e) => { if (dlSize?.id === id) dlSize = { id, size: null, error: errorText(e) }; });
+  });
+  let tooBig = $derived(!!dlSize?.size && dlSize.size.free >= 0 && dlSize.size.needed > dlSize.size.free);
+
   async function download(p: TeamProject) {
-    let parent = recall(DOWNLOAD_DIR_KEY);
+    let parent = downloadDir;
     if (!parent) {
       parent = await api.ChooseFolder("Where should downloaded projects go?");
       if (!parent) return;
       remember(DOWNLOAD_DIR_KEY, parent);
+      downloadDir = parent;
     }
     busy = p.id;
     lastProgress = null;
@@ -233,7 +250,10 @@
 
   async function changeDownloadDir() {
     const d = await api.ChooseFolder("Where should downloaded projects go?");
-    if (d) remember(DOWNLOAD_DIR_KEY, d);
+    if (d) {
+      remember(DOWNLOAD_DIR_KEY, d);
+      downloadDir = d;
+    }
   }
 
   async function locate(p: TeamProject) {
@@ -421,13 +441,23 @@
           <div class="big" aria-hidden="true">☁</div>
           <h1>{p.name}</h1>
           <p class="muted">This project is on {current?.name} but not on this computer yet.</p>
+          {#if dlSize?.id === p.id && dlSize.size}
+            {@const z = dlSize.size}
+            <p class="size">
+              {formatBytes(z.bytes)} · {z.files.toLocaleString()} file{z.files === 1 ? "" : "s"}
+              <span class="faint">· needs about {formatBytes(z.needed)} on disk (the files and DAWGit's copy){#if z.free >= 0}, {formatBytes(z.free)} free{/if}</span>
+            </p>
+            {#if tooBig}<p class="size warn">Not enough free space there: free some up or choose another folder.</p>{/if}
+          {:else if dlSize?.id === p.id && !dlSize.error}
+            <p class="size faint">Checking the size…</p>
+          {/if}
           <button class="primary" onclick={() => download(p)} disabled={!!busy}>
             {busy === p.id ? "Downloading…" : "↓ Download"}
           </button>
           {#if busy === p.id && lastProgress}
             <div class="dl-progress"><ProgressBar p={lastProgress} /></div>
           {/if}
-          <p class="faint small">Into {recall(DOWNLOAD_DIR_KEY) || "a folder you choose"} ·
+          <p class="faint small">Into {downloadDir || "a folder you choose"} ·
             <button class="link" onclick={changeDownloadDir}>change</button></p>
         </div>
       {:else if selectedEntry && selectedEntry.status === "missing"}
@@ -582,6 +612,8 @@
   .spin { animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .meta.busy { color: var(--accent); }
+  .size { margin: 0 0 12px; font-size: 13px; }
+  .size.warn { color: var(--del, #e06c6c); margin-top: -6px; }
   .dl-progress { width: 360px; max-width: 100%; margin: 10px auto 0; display: flex; text-align: left; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; position: relative; }
