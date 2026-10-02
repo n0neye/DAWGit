@@ -190,6 +190,10 @@ func cmdClone(args []string) error {
 	if err != nil {
 		return err
 	}
+	if release, err := r.Lock(0); err == nil {
+		tidy(r)
+		release()
+	}
 	fmt.Printf("downloaded %q into %s\n", r.Config.Name, r.Root)
 	if m != nil {
 		fmt.Printf("  latest version %s  %s (%s)\n", short(m.ID), m.Message, m.Author)
@@ -269,6 +273,7 @@ func cmdSave(args []string) error {
 			return err
 		}
 	}
+	defer tidy(r)
 	m, res, err := r.Save(*msg, project.Strategy(*strategy))
 	if errors.Is(err, project.ErrNoRemote) {
 		if m != nil {
@@ -324,6 +329,7 @@ func cmdUpdate(args []string) error {
 	if err := guardLive(r, *force); err != nil {
 		return err
 	}
+	defer tidy(r)
 	res, err := r.Update(project.Strategy(*strategy))
 	if err != nil {
 		return explainConflict(err)
