@@ -171,7 +171,26 @@
     return [`${n} track${n === 1 ? "" : "s"}`, r ? `${r} return${r === 1 ? "" : "s"}` : "", `${shown.scenes.length} scene${shown.scenes.length === 1 ? "" : "s"}`]
       .filter(Boolean).join(" · ");
   });
+  // Compare: the text of what changed, per track (click its name) or all.
   let detailsOpen = $state<Record<string, boolean>>({});
+  let allDetails = $state(false);
+  const showDetails = (r: Row) => allDetails || !!detailsOpen[r.t.id];
+  const toggleDetails = (r: Row) => { if (compare && r.details.length) detailsOpen[r.t.id] = !detailsOpen[r.t.id]; };
+
+  // What a changed track had before, for the dots on what changed.
+  type Was = { name?: string; instrument?: string; muted?: boolean; solo?: boolean; volume?: number };
+  function wasOf(r: Row): Was {
+    const o = r.old, t = r.t;
+    if (r.status !== "modified" || !o) return {};
+    const w: Was = {};
+    // Live renumbers the names it makes up: only a given name is renamed
+    if ((o.named || t.named) && o.name !== t.name) w.name = o.name;
+    if (o.instrument !== t.instrument) w.instrument = o.instrument || "none";
+    if (o.muted !== t.muted) w.muted = o.muted;
+    if (o.solo !== t.solo) w.solo = o.solo;
+    if (o.volume !== t.volume) w.volume = o.volume;
+    return w;
+  }
 </script>
 
 {#snippet icon(kind: string)}
@@ -195,12 +214,32 @@
   {#if s}<span class="badge {s}">{statusName[s]}</span>{/if}
 {/snippet}
 
-{#snippet mixer(t: TrackSummary, label: string)}
-  <span class="vol" title="Volume">{db(t.volume)}</span>
+{#snippet dot(title: string, kind: string = "mod")}
+  <span class="dot {kind}" {title}></span>
+{/snippet}
+
+{#snippet mixer(t: TrackSummary, label: string, w: Was = {})}
+  <span class="vol" title={w.volume !== undefined ? `Volume, was ${db(w.volume)} dB` : "Volume"}>
+    {#if w.volume !== undefined}{@render dot(`Volume was ${db(w.volume)} dB`)}{/if}{db(t.volume)}</span>
   {#if t.kind !== "main"}
-    <span class="act" class:off={t.muted} title={t.muted ? "Track off (muted)" : "Track on"}>{label}</span>
-    <span class="solo" class:on={t.solo} title={t.solo ? "Soloed" : "Solo"}>S</span>
+    <span class="ctl">
+      <span class="act" class:off={t.muted} title={t.muted ? "Track off (muted)" : "Track on"}>{label}</span>
+      {#if w.muted !== undefined}{@render dot(w.muted ? "Was off (muted)" : "Was on")}{/if}
+    </span>
+    <span class="ctl">
+      <span class="solo" class:on={t.solo} title={t.solo ? "Soloed" : "Solo"}>S</span>
+      {#if w.solo !== undefined}{@render dot(w.solo ? "Was soloed" : "Wasn't soloed")}{/if}
+    </span>
   {/if}
+{/snippet}
+
+{#snippet trackName(r: Row, w: Was)}
+  <span class="tname">{r.t.name}</span>
+  {#if w.name !== undefined}{@render dot(`Renamed, was “${w.name}”`)}{/if}
+  {#if r.t.instrument}
+    <span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>
+  {/if}
+  {#if w.instrument !== undefined}{@render dot(`Instrument was ${w.instrument}`)}{/if}
 {/snippet}
 
 <div class="setview">
@@ -209,6 +248,11 @@
       <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
       <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
     </div>
+    {#if compare && rows.some((r) => r.details.length)}
+      <label class="faint small toggle" title="What changed in each track, as text (or click a track's name)">
+        <input type="checkbox" bind:checked={allDetails} /> Details
+      </label>
+    {/if}
     {#if shown}
       <span class="faint small">{shown.tempo} BPM · {shown.timeSig[0]}/{shown.timeSig[1]} · {counts}</span>
     {/if}
@@ -257,6 +301,7 @@
             {@const t = r.t}
             {@const was = r.status === "modified" ? keys(r.old, arrKey, false) : null}
             {@const isNow = r.status === "modified" ? keys(t, arrKey, false) : null}
+            {@const w = wasOf(r)}
             <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
                 {#if t.kind === "group"}
@@ -273,36 +318,35 @@
                   {/each}
                 {/if}
                 {#each arrClips(t) as c}
-                  <div class="clip" class:off={c.disabled} class:fresh={was && !was.has(arrKey(c))}
+                  {@const fresh = !!was && !was.has(arrKey(c))}
+                  <div class="clip" class:off={c.disabled}
                     style:left={pct(c.start)} style:width={pct(c.end - c.start)}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"} · bar ${Math.floor(c.start / beatsPerBar) + 1}${c.disabled ? " · deactivated" : ""}${was && !was.has(arrKey(c)) ? " · new or changed" : ""}`}>
-                    <span>{c.name}</span>
+                    title={`${c.name || "clip"} · bar ${Math.floor(c.start / beatsPerBar) + 1}${c.disabled ? " · deactivated" : ""}${fresh ? " · new or changed" : ""}`}>
+                    {#if fresh}{@render dot("New or changed clip", "add")}{/if}<span>{c.name}</span>
                   </div>
                 {/each}
               </div>
               <div class="head" style:padding-left="{r.depth * 10}px"
-                title={`${kindName[t.kind]} · ${clipCount(t)}${t.devices.length ? ` · ${t.devices.join(", ")}` : ""}`}>
-                <div class="hname" style:background={liveColor(t.color)} style:color={inkOn(t.color)}>
+                title={`${kindName[t.kind]} · ${clipCount(t)}${t.devices.length ? ` · ${t.devices.join(", ")}` : ""}${compare && r.details.length ? " · click for what changed" : ""}`}>
+                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                <div class="hname" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
+                  style:background={liveColor(t.color)} style:color={inkOn(t.color)}>
                   {#if t.kind === "group" && !compare}
                     <button class="fold" onclick={() => (folds[t.id] = !folded(t))} title={folded(t) ? "Show its tracks" : "Hide its tracks"}>{folded(t) ? "▸" : "▾"}</button>
                   {/if}
                   {@render icon(t.kind)}
                   {#if r.status}<span class="mark {r.status}" title={statusName[r.status]}>{markOf[r.status]}</span>{/if}
-                  <span class="tname">{t.name}</span>
+                  {@render trackName(r, w)}
                   <span class="grow"></span>
                   {#if t.clips.length && !compare}<span class="nclips" title={clipCount(t)}>{t.clips.length}</span>{/if}
                 </div>
-                {@render mixer(t, r.label)}
+                {@render mixer(t, r.label, w)}
               </div>
             </div>
-            {#if r.details.length}
-              {@const open = detailsOpen[t.id]}
+            {#if r.details.length && showDetails(r)}
               <div class="details">
-                {#each open ? r.details : r.details.slice(0, 3) as line}<div>{line.trim()}</div>{/each}
-                {#if r.details.length > 3}
-                  <button class="link" onclick={() => (detailsOpen[t.id] = !open)}>{open ? "Less" : `${r.details.length - 3} more…`}</button>
-                {/if}
+                {#each r.details as line}<div>{line.trim()}</div>{/each}
               </div>
             {/if}
           {/each}
@@ -323,12 +367,14 @@
       <div class="sess-wrap">
         <div class="sess" style:grid-template-columns="repeat({rows.length}, 108px) 116px">
           {#each rows as r (r.t.id + (r.status ?? ""))}
-            <div class="ctitle {r.status ?? ''}" style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)}
-              title={`${kindName[r.t.kind]} · ${clipCount(r.t)}`}>
+            <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+            <div class="ctitle {r.status ?? ''}" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
+              style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)}
+              title={`${kindName[r.t.kind]} · ${clipCount(r.t)}${r.t.instrumentFull ? ` · ${r.t.instrumentFull}` : ""}`}>
               {#if r.t.kind === "group" && !compare}
                 <button class="fold" onclick={() => (folds[r.t.id] = !folded(r.t))}>{folded(r.t) ? "▸" : "▾"}</button>
               {/if}
-              <span class="tname">{r.t.name}</span>
+              {@render trackName(r, wasOf(r))}
             </div>
           {/each}
           <div class="ctitle main-title" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div>
@@ -343,9 +389,10 @@
               {@const moved = r.status === "modified" && !!c && !keys(r.old, slotKey, true).has(slotKey(c))}
               <div class="slot {r.status ?? ''}" class:muted={r.t.muted}>
                 {#if c}
-                  <div class="sclip" class:off={c.disabled} class:fresh={moved}
+                  <div class="sclip" class:off={c.disabled}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"}${c.disabled ? " · deactivated" : ""}${moved ? " · new or changed" : ""}`}>▶ {c.name}</div>
+                    title={`${c.name || "clip"}${c.disabled ? " · deactivated" : ""}${moved ? " · new or changed" : ""}`}>
+                    {#if moved}{@render dot("New or changed clip", "add")}{:else}▶{/if} {c.name}</div>
                 {:else if old}
                   <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Gone: ${old.name || "clip"}`}>{old.name}</div>
                 {:else if r.t.kind === "group" && groupHasSlot(setOf(r), r.t, i)}
@@ -358,13 +405,13 @@
             <div class="scene" title={sceneNames[i] || `Scene ${i + 1}`}>▶ {sceneNames[i] || i + 1}</div>
           {/each}
           {#each rows as r}
-            <div class="cmix" class:muted={r.t.muted}>{@render mixer(r.t, r.label)}</div>
+            <div class="cmix" class:muted={r.t.muted}>{@render mixer(r.t, r.label, wasOf(r))}</div>
           {/each}
           <div class="cmix">{@render mixer(shown.main, "")}</div>
         </div>
       </div>
       {#if compare}
-        {#each rows.filter((r) => r.details.length) as r}
+        {#each rows.filter((r) => r.details.length && showDetails(r)) as r}
           <div class="details"><b>{r.t.name}</b>{#each r.details as line}<div>{line.trim()}</div>{/each}</div>
         {/each}
       {/if}
@@ -391,7 +438,7 @@
     background-image: linear-gradient(90deg, #353535 1px, transparent 1px); background-size: var(--grid) 100%; }
   .row.return .lane, .row.main .lane { background-color: #242424; }
   .row.main { border-top: 6px solid #121212; border-bottom: none; }
-  .head { flex: 0 0 clamp(200px, 45%, 300px); display: flex; align-items: center; gap: 4px; padding-right: 4px; min-width: 0;
+  .head { flex: 0 0 clamp(220px, 50%, 340px); display: flex; align-items: center; gap: 4px; padding-right: 4px; min-width: 0;
     background: #333; }
   .hname { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 5px; padding: 0 6px; margin: 2px 2px 2px 0; border-radius: 2px; }
   .row.group .hname { font-weight: 650; }
@@ -407,14 +454,25 @@
     font-size: 10.5px; line-height: 21px; padding: 0 4px; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35); }
   .clip span { opacity: .9; }
   .clip.off, .sclip.off { background: #555; color: #999; }
-  .clip.fresh, .sclip.fresh { box-shadow: 0 0 0 2px var(--add), inset 0 0 0 1px rgba(0, 0, 0, .35); z-index: 1; }
+  /* what changed: a small dot by it (amber: changed; green: a new clip) */
+  .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--mod);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .55); vertical-align: middle; }
+  .dot.add { background: var(--add); }
+  .clip .dot, .sclip .dot { margin-right: 4px; position: relative; top: -1px; }
+  .vol .dot { margin-right: 3px; }
+  .ctl { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+  .inst { flex: 0 3 auto; min-width: 22px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 10px; font-weight: 600; padding: 0 5px; line-height: 14px; border-radius: 7px; background: rgba(0, 0, 0, .28); color: #f0f0f0; }
+  .clickable { cursor: pointer; }
+  .toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .toggle input { margin: 0; }
   .clip.ghost, .sclip.ghost { background: transparent; border: 1.5px dashed; box-shadow: none; opacity: .8; }
   .sum { position: absolute; bottom: 3px; height: 5px; opacity: .55; border-radius: 1px; }
   .row.muted .lane > :not(.ghost) { filter: saturate(.25) brightness(.7); }
   .row.removed { opacity: .6; }
   .row.removed .lane { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
   .kicon { width: 12px; height: 12px; flex: none; opacity: .8; }
-  .tname { flex: 0 1 auto; min-width: 36px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tname { flex: 0 1 auto; min-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .grow { flex: 1; }
   .nclips { font-size: 10.5px; color: #9a9a9a; }
   .vol { font-size: 10.5px; color: #c8c8c8; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }

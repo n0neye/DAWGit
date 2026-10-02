@@ -169,6 +169,11 @@ export class TrackSummary {
     "name": string;
 
     /**
+     * the name was given (not one Live makes up and renumbers)
+     */
+    "named": boolean;
+
+    /**
      * midi | audio | group | return | main
      */
     "kind": string;
@@ -195,6 +200,13 @@ export class TrackSummary {
     "muted": boolean;
     "solo": boolean;
     "devices": string[];
+
+    /**
+     * Instrument: the instrument a MIDI track plays (Vital, Sampler, ...);
+     * InstrumentFull says where it is (in a rack, with its preset name).
+     */
+    "instrument": string;
+    "instrumentFull": string;
     "clips": ClipSummary[];
 
     /** Creates a new TrackSummary instance. */
@@ -204,6 +216,9 @@ export class TrackSummary {
         }
         if (!("name" in $$source)) {
             this["name"] = "";
+        }
+        if (!("named" in $$source)) {
+            this["named"] = false;
         }
         if (!("kind" in $$source)) {
             this["kind"] = "";
@@ -229,6 +244,12 @@ export class TrackSummary {
         if (!("devices" in $$source)) {
             this["devices"] = [];
         }
+        if (!("instrument" in $$source)) {
+            this["instrument"] = "";
+        }
+        if (!("instrumentFull" in $$source)) {
+            this["instrumentFull"] = "";
+        }
         if (!("clips" in $$source)) {
             this["clips"] = [];
         }
@@ -240,14 +261,14 @@ export class TrackSummary {
      * Creates a new TrackSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): TrackSummary {
-        const $$createField9_0 = $$createType0;
-        const $$createField10_0 = $$createType6;
+        const $$createField10_0 = $$createType0;
+        const $$createField13_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("devices" in $$parsedSource) {
-            $$parsedSource["devices"] = $$createField9_0($$parsedSource["devices"]);
+            $$parsedSource["devices"] = $$createField10_0($$parsedSource["devices"]);
         }
         if ("clips" in $$parsedSource) {
-            $$parsedSource["clips"] = $$createField10_0($$parsedSource["clips"]);
+            $$parsedSource["clips"] = $$createField13_0($$parsedSource["clips"]);
         }
         return new TrackSummary($$parsedSource as Partial<TrackSummary>);
     }

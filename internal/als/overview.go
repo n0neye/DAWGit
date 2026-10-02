@@ -27,17 +27,22 @@ type Locator struct {
 }
 
 type TrackSummary struct {
-	ID      string        `json:"id"`
-	Name    string        `json:"name"`
-	Kind    string        `json:"kind"`  // midi | audio | group | return | main
-	Color   int           `json:"color"` // Live's color index (0-69), -1 for none
-	Group   string        `json:"group"` // the group track's id, "" when in none
-	Folded  bool          `json:"folded"`
-	Volume  float64       `json:"volume"` // dB; -inf is -1000
-	Muted   bool          `json:"muted"`  // the track activator is off
-	Solo    bool          `json:"solo"`
-	Devices []string      `json:"devices"`
-	Clips   []ClipSummary `json:"clips"`
+	ID      string   `json:"id"`
+	Name    string   `json:"name"`
+	Named   bool     `json:"named"` // the name was given (not one Live makes up and renumbers)
+	Kind    string   `json:"kind"`  // midi | audio | group | return | main
+	Color   int      `json:"color"` // Live's color index (0-69), -1 for none
+	Group   string   `json:"group"` // the group track's id, "" when in none
+	Folded  bool     `json:"folded"`
+	Volume  float64  `json:"volume"` // dB; -inf is -1000
+	Muted   bool     `json:"muted"`  // the track activator is off
+	Solo    bool     `json:"solo"`
+	Devices []string `json:"devices"`
+	// Instrument: the instrument a MIDI track plays (Vital, Sampler, ...);
+	// InstrumentFull says where it is (in a rack, with its preset name).
+	Instrument     string        `json:"instrument"`
+	InstrumentFull string        `json:"instrumentFull"`
+	Clips          []ClipSummary `json:"clips"`
 }
 
 type ClipSummary struct {
@@ -77,10 +82,14 @@ func (s *LiveSet) Overview() *Overview {
 	for _, t := range s.Tracks() {
 		ts := summarize(t.Elem, kinds[t.Kind()], t.ID())
 		ts.Name = t.Name()
+		ts.Named = t.Elem.Val("Name/UserName", "") != ""
 		if g := t.GroupID(); g != "-1" {
 			ts.Group = g
 		}
 		ts.Devices = t.DeviceNames()
+		if t.Kind() == "MidiTrack" {
+			ts.Instrument, ts.InstrumentFull = instrument(t.Devices())
+		}
 		for _, c := range t.Clips() {
 			cs := ClipSummary{Name: c.Name, Color: color(c.Elem), Start: c.Start, End: c.End, Slot: -1,
 				Disabled: c.Elem.Val("Disabled", "false") == "true"}
@@ -132,4 +141,56 @@ func timeSignature(v int) [2]int {
 		return [2]int{4, 4}
 	}
 	return [2]int{v%99 + 1, 1 << (v / 99)}
+}
+
+// Live's instruments by element tag, as Live names them.
+var instrumentNames = map[string]string{
+	"UltraAnalog": "Analog", "OriginalSimpler": "Simpler", "MultiSampler": "Sampler", "Operator": "Operator",
+	"Collision": "Collision", "StringStudio": "Tension", "LoungeLizard": "Electric", "InstrumentVector": "Wavetable",
+	"Drift": "Drift", "InstrumentMeld": "Meld", "InstrumentImpulse": "Impulse", "DrumGroupDevice": "Drum Rack",
+	"ExternalInstrument": "External Instrument", "MxDeviceInstrument": "Max Instrument", "InstrumentGroupDevice": "Instrument Rack",
+	"Bass": "Bass", "Poli": "Poli",
+}
+
+// instrument finds the instrument in a MIDI track's devices: the first
+// device after any MIDI effects; inside an Instrument Rack, the one its
+// first chain plays.
+func instrument(devices []*xmltree.Node) (name, full string) {
+	for _, d := range devices {
+		if strings.HasPrefix(d.Tag, "Midi") || d.Tag == "MxDeviceMidiEffect" {
+			continue // a MIDI effect before the instrument
+		}
+		switch d.Tag {
+		case "PluginDevice":
+			label := DeviceLabel(d)
+			name = strings.TrimSpace(label[:strings.LastIndex(label, "(")])
+			return name, label
+		case "InstrumentGroupDevice":
+			rack := "Instrument Rack"
+			if u := d.Val("UserName", ""); u != "" {
+				rack += ` "` + u + `"`
+			}
+			for _, chain := range d.Iter("InstrumentBranch") {
+				if inner := chain.Find("DeviceChain/MidiToAudioDeviceChain/Devices"); inner != nil {
+					if n, f := instrument(inner.Children); n != "" {
+						return n, rack + ": " + f
+					}
+				}
+			}
+			return "Instrument Rack", rack
+		case "MxDeviceInstrument":
+			if u := d.Val("UserName", ""); u != "" {
+				return u, "Max for Live: " + u
+			}
+		}
+		if n, ok := instrumentNames[d.Tag]; ok {
+			full := n
+			if u := d.Val("UserName", ""); u != "" {
+				full += ` "` + u + `"`
+			}
+			return n, full
+		}
+		return "", "" // an audio effect first: no instrument
+	}
+	return "", ""
 }

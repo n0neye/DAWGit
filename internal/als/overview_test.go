@@ -27,6 +27,12 @@ func TestOverview(t *testing.T) {
 		len(bass.Clips) != 1 || bass.Clips[0].Slot != -1 || bass.Clips[0].Color != 14 {
 		t.Errorf("bass: %+v", bass)
 	}
+	if bass.Instrument != "Analog" || bass.InstrumentFull != `Instrument Rack "Basic Saturated Bass": Analog` {
+		t.Errorf("bass instrument: %q, %q", bass.Instrument, bass.InstrumentFull)
+	}
+	if v := o.Tracks[2]; v.Instrument != "Vital" || v.InstrumentFull != "Vital (Vst3)" {
+		t.Errorf("vital: %q, %q", v.Instrument, v.InstrumentFull)
+	}
 	if beat := o.Tracks[5]; beat.Kind != "audio" || beat.Volume != -5 || beat.Muted {
 		t.Errorf("bounce: %+v", beat)
 	}
