@@ -164,6 +164,10 @@ func (r *Repo) moveFile(from, to string) bool {
 	for h, p := range r.sources { // where that content is here now
 		if p == r.Abs(from) {
 			r.sources[h] = dst
+			if st, ok := r.stamps[p]; ok {
+				delete(r.stamps, p)
+				r.stamps[dst] = st
+			}
 		}
 	}
 	return true
