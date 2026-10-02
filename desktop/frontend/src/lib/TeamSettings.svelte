@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { untrack } from "svelte";
   import { api, errorText, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
@@ -131,74 +132,72 @@
 
 <Modal title="{team.name} settings" {onclose} width={620} backdropCloses={false}>
   <section>
-    <h3>Name</h3>
-    <input bind:value={name} aria-label="Team name" />
+    <h3>{t("Name")}</h3>
+    <input bind:value={name} aria-label={t("Team name")} />
     {#if name !== team.name}
       <div class="row btns">
         {#if name.trim()}
           <button class="primary" disabled={renaming} onclick={renameForEveryone}>{renaming ? "Renaming…" : "Rename for everyone"}</button>
-          <button disabled={renaming} onclick={renameHere}>Only on this computer</button>
+          <button disabled={renaming} onclick={renameHere}>{t("Only on this computer")}</button>
         {:else}
-          <button onclick={renameHere}>Use the team's name</button>
+          <button onclick={renameHere}>{t("Use the team's name")}</button>
         {/if}
-        <button class="ghost" onclick={() => (name = team.name)}>Cancel</button>
+        <button class="ghost" onclick={() => (name = team.name)}>{t("Cancel")}</button>
       </div>
     {/if}
   </section>
 
   <section>
-    <h3>Your name in this team</h3>
+    <h3>{t("Your name in this team")}</h3>
     {#if team.memberId && !editingMe}
       <div class="row me">
         <span class="myname">{team.memberName}</span>
-        <button onclick={() => (editingMe = true)}>Change…</button>
+        <button onclick={() => (editingMe = true)}>{t("Change…")}</button>
       </div>
-      <p class="faint small">Shown next to the versions you commit, for everyone in the team.</p>
+      <p class="faint small">{t("Shown next to the versions you commit, for everyone in the team.")}</p>
     {:else}
       {#key team.memberName}
         <IdentityForm {team} suggested={author} submitLabel="Save" onsaved={identitySaved} />
       {/key}
-      {#if team.memberId}<button class="ghost small" onclick={() => (editingMe = false)}>Cancel</button>{/if}
+      {#if team.memberId}<button class="ghost small" onclick={() => (editingMe = false)}>{t("Cancel")}</button>{/if}
     {/if}
   </section>
 
   {#if team.isStorage}
     <section>
-      <h3>Invite teammates</h3>
-      <p class="faint small">Send this connection code privately; they choose <em>Join a team</em> and paste it.
-        It contains the storage key.</p>
+      <h3>{t("Invite teammates")}</h3>
+      <p class="faint small">{t("Send this connection code privately; they choose")} <em>{t("Join a team")}</em> {t("and paste it. It contains the storage key.")}</p>
       {#if code}<CodeBox {code} />{/if}
     </section>
   {/if}
 
   <section>
-    <h3>Connection</h3>
+    <h3>{t("Connection")}</h3>
     {#if conn?.storage}
-      <p class="faint small">The bucket and key this computer uses. Change them after making a new key in Cloudflare
-        (then send teammates the new code).</p>
+      <p class="faint small">{t("The bucket and key this computer uses. Change them after making a new key in Cloudflare (then send teammates the new code).")}</p>
       <div class="grid">
-        <label for="t-ep">Endpoint</label>
+        <label for="t-ep">{t("Endpoint")}</label>
         <input id="t-ep" bind:value={conn.settings.endpoint} spellcheck="false" />
-        <label for="t-b">Bucket</label>
+        <label for="t-b">{t("Bucket")}</label>
         <input id="t-b" bind:value={conn.settings.bucket} spellcheck="false" />
-        <label for="t-ak">Access Key ID</label>
+        <label for="t-ak">{t("Access Key ID")}</label>
         <input id="t-ak" bind:value={conn.settings.accessKey} spellcheck="false" autocomplete="off" />
-        <label for="t-sk">Secret Access Key</label>
+        <label for="t-sk">{t("Secret Access Key")}</label>
         <div class="row secret">
           <input id="t-sk" type={showSecret ? "text" : "password"} bind:value={conn.settings.secretKey} autocomplete="off" />
           <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? "Hide" : "Show"}</button>
         </div>
-        <label for="t-f">Folder</label>
+        <label for="t-f">{t("Folder")}</label>
         <input id="t-f" bind:value={conn.settings.folder} spellcheck="false" />
-        <label for="t-r">Region</label>
+        <label for="t-r">{t("Region")}</label>
         <input id="t-r" bind:value={conn.settings.region} spellcheck="false" />
       </div>
     {:else if conn}
-      <p class="faint small">This team uses a team server.</p>
+      <p class="faint small">{t("This team uses a team server.")}</p>
       <div class="grid">
-        <label for="t-a">Server address</label>
+        <label for="t-a">{t("Server address")}</label>
         <input id="t-a" bind:value={conn.address} spellcheck="false" />
-        <label for="t-t">Access token</label>
+        <label for="t-t">{t("Access token")}</label>
         <div class="row secret">
           <input id="t-t" type={showSecret ? "text" : "password"} bind:value={conn.token} autocomplete="off" />
           <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? "Hide" : "Show"}</button>
@@ -209,17 +208,15 @@
     {#if changed}
       <div class="row btns">
         <button class="primary" disabled={saving} onclick={saveConnection}>{saving ? "Checking…" : "Check & save"}</button>
-        <button class="ghost" disabled={saving} onclick={() => { conn = structuredClone($state.snapshot(saved)) as Conn; connError = ""; }}>Cancel</button>
+        <button class="ghost" disabled={saving} onclick={() => { conn = structuredClone($state.snapshot(saved)) as Conn; connError = ""; }}>{t("Cancel")}</button>
       </div>
     {/if}
   </section>
 
   {#if team.isStorage}
     <section>
-      <h3>Storage cleanup</h3>
-      <p class="faint small">Files no version of any project uses — left by deleted projects, or by uploads that
-        stopped — still take space in the bucket. DAWGit deletes them only once they've been unused for a day and are
-        a week old, so it never takes a file a teammate is sharing right now.</p>
+      <h3>{t("Storage cleanup")}</h3>
+      <p class="faint small">{t("Files no version of any project uses — left by deleted projects, or by uploads that stopped — still take space in the bucket. DAWGit deletes them only once they've been unused for a day and are a week old, so it never takes a file a teammate is sharing right now.")}</p>
       {#if cleanup}
         {@const c = cleanup}
         {#if c.deleted}
@@ -252,32 +249,29 @@
     <button class="ghost danger-text" onclick={() => {
       keepProjects = true; fullHistory = false; historySize = 0; confirmDisconnect = true;
       api.HistoryDownloadSize("", team.id).then((n) => (historySize = n)).catch(() => {});
-    }}>Disconnect…</button>
+    }}>{t("Disconnect…")}</button>
     <span class="spacer"></span>
-    <button onclick={onclose}>Close</button>
+    <button onclick={onclose}>{t("Close")}</button>
   {/snippet}
 </Modal>
 
 {#if confirmDisconnect}
   <Modal title="Disconnect from {team.name}?" onclose={() => (confirmDisconnect = false)}>
-    <p>This computer forgets the team and its key. Nothing changes for your teammates, and project folders stay
-      on disk.</p>
+    <p>{t("This computer forgets the team and its key. Nothing changes for your teammates, and project folders stay on disk.")}</p>
     <label class="keep">
       <input type="checkbox" bind:checked={keepProjects} />
-      <span>Move this team's projects to <strong>Local</strong>
-        <span class="faint small">Their versions stay and you can keep committing on this computer. Join the team again
-          later to reconnect them.</span></span>
+      <span>{t("Move this team's projects to")} <strong>{t("Local")}</strong>
+        <span class="faint small">{t("Their versions stay and you can keep committing on this computer. Join the team again later to reconnect them.")}</span></span>
     </label>
     {#if keepProjects && historySize > 0}
       <label class="keep sub">
         <input type="checkbox" bind:checked={fullHistory} />
         <span>Also download the files of older versions ({mb(historySize)})
-          <span class="faint small">Without them, older versions that use other samples than today's need the team
-            again to open.</span></span>
+          <span class="faint small">{t("Without them, older versions that use other samples than today's need the team again to open.")}</span></span>
       </label>
     {/if}
     {#snippet footer()}
-      <button onclick={() => (confirmDisconnect = false)} disabled={leaving}>Cancel</button>
+      <button onclick={() => (confirmDisconnect = false)} disabled={leaving}>{t("Cancel")}</button>
       <button class="danger" onclick={disconnect} disabled={leaving}>
         {leaving ? (fullHistory ? "Downloading…" : "Disconnecting…") : "Disconnect"}</button>
     {/snippet}

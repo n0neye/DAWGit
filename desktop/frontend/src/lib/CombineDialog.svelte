@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
   import ChangeList from "./ChangeList.svelte";
   import { ago, type Preview } from "./api";
@@ -46,12 +47,12 @@
         <span class="faint">{v.author} · {ago(v.time)}</span></li>
     {/each}
   </ul>
-  <h3>What they changed</h3>
+  <h3>{t("What they changed")}</h3>
   <ChangeList changes={preview.changes} />
   {#if preview.conflicts.length}
     <div class="conflicts">
       <strong>{preview.conflicts.length} thing{preview.conflicts.length === 1 ? "" : "s"} you also changed in
-        committed versions</strong> — you'll choose what to keep next:
+        committed versions</strong> {t("— you'll choose what to keep next:")}
       <ul>
         {#each preview.conflicts as c (c.key)}
           <li>{c.unit === c.file ? c.file : `${c.unit} (${c.file})`}</li>
@@ -59,18 +60,17 @@
       </ul>
     </div>
   {:else}
-    <p class="note">If one of your uncommitted changes touches a track they changed too, you'll choose what to keep
-      next.</p>
+    <p class="note">{t("If one of your uncommitted changes touches a track they changed too, you'll choose what to keep next.")}</p>
   {/if}
 
-  <label for="cm">Describe your changes</label>
-  <input id="cm" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”" />
+  <label for="cm">{t("Describe your changes")}</label>
+  <input id="cm" bind:value={message} placeholder={t("What did you change? e.g. “New bassline in the chorus”")} />
 
   {#snippet footer()}
-    <button onclick={onclose}>Cancel</button>
+    <button onclick={onclose}>{t("Cancel")}</button>
     <button onclick={onbranch} disabled={busy || !message.trim()}
-      title="Commit your work on a new branch; “{branch}” stays as it is">Put my work on a new branch…</button>
-    <button class="primary" onclick={oncombine} disabled={busy || !message.trim()}>Combine and share</button>
+      title="Commit your work on a new branch; “{branch}” stays as it is">{t("Put my work on a new branch…")}</button>
+    <button class="primary" onclick={oncombine} disabled={busy || !message.trim()}>{t("Combine and share")}</button>
   {/snippet}
 </Modal>
 

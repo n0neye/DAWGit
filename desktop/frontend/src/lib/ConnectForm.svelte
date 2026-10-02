@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { api, errorText, isConnectionCode, type TeamSummary } from "./api";
 
   // Join a team with its connection code (or a team server's address and
@@ -27,11 +28,11 @@
 </script>
 
 <form onsubmit={(e) => { e.preventDefault(); connect(); }}>
-  <label for="addr">Connection code</label>
-  <input id="addr" bind:value={address} placeholder="dawgit-s3:…" autocomplete="off" spellcheck="false" />
+  <label for="addr">{t("Connection code")}</label>
+  <input id="addr" bind:value={address} placeholder={t("dawgit-s3:…")} autocomplete="off" spellcheck="false" />
   <!-- A team server's address still works (with its token). -->
   {#if address.trim() && !isConnectionCode(address)}
-    <label for="tok">Access token</label>
+    <label for="tok">{t("Access token")}</label>
     <input id="tok" bind:value={token} autocomplete="off" />
   {/if}
   {#if error}<p class="error">{error}</p>{/if}

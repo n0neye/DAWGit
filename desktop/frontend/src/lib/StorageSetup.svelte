@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t, tn } from "./i18n.svelte";
   import { api, errorText, type TeamSummary } from "./api";
   import CodeBox from "./CodeBox.svelte";
 
@@ -42,9 +43,9 @@
 </script>
 
 {#snippet keys(hint: string)}
-  <label for="s-ak">Access Key ID</label>
+  <label for="s-ak">{t("Access Key ID")}</label>
   <input id="s-ak" bind:value={accessKey} autocomplete="off" spellcheck="false" />
-  <label for="s-sk">Secret Access Key</label>
+  <label for="s-sk">{t("Secret Access Key")}</label>
   <input id="s-sk" type="password" bind:value={secretKey} autocomplete="off" />
   <label for="s-ep">Endpoint {#if hint}<span class="faint">{hint}</span>{/if}</label>
   <input id="s-ep" bind:value={endpoint} autocomplete="off" spellcheck="false"
@@ -52,8 +53,8 @@
 {/snippet}
 
 {#snippet teamName()}
-  <label for="s-name">Team name <span class="faint">(everyone sees it)</span></label>
-  <input id="s-name" bind:value={name} placeholder="e.g. Night Shift" />
+  <label for="s-name">{t("Team name")} <span class="faint">{t("(everyone sees it)")}</span></label>
+  <input id="s-name" bind:value={name} placeholder={t("e.g. Night Shift")} />
 {/snippet}
 
 {#if created}
@@ -62,25 +63,22 @@
     {#if created.team.name !== name.trim()}
       <p class="faint small">This bucket already holds the team “{created.team.name}”, so you joined it.</p>
     {/if}
-    <p>Send this <strong>connection code</strong> to each teammate. They choose <em>Join a team</em> and paste it.</p>
+    <p>{t("Send this")} <strong>{t("connection code")}</strong> {t("to each teammate. They choose")} <em>{t("Join a team")}</em> {t("and paste it.")}</p>
     <CodeBox code={created.code} />
-    <p class="faint small">The code contains the storage key: send it privately (a direct message, not a public
-      channel). You can copy it again later from the ⚙ next to the team in the Team menu.</p>
+    <p class="faint small">{t("The code contains the storage key: send it privately (a direct message, not a public channel). You can copy it again later from the ⚙ next to the team in the Team menu.")}</p>
     <div class="row actions">
       <span class="spacer"></span>
-      <button class="primary" onclick={() => onconnected(created!.team)}>Continue</button>
+      <button class="primary" onclick={() => onconnected(created!.team)}>{t("Continue")}</button>
     </div>
   </div>
 {:else}
-  <p class="muted intro">Your team's songs live in a storage bucket of your own, so nobody has to keep a computer
-    running. Any S3-compatible storage works; Cloudflare R2 is the easiest start (no download fees, and a small
-    team usually stays within its free allowance).</p>
+  <p class="muted intro">{t("Your team's songs live in a storage bucket of your own, so nobody has to keep a computer running. Any S3-compatible storage works; Cloudflare R2 is the easiest start (no download fees, and a small team usually stays within its free allowance).")}</p>
 
-  <div class="provider" role="radiogroup" aria-label="Storage">
-    <label class:on={provider === "r2"}><input type="radio" bind:group={provider} value="r2" /> Cloudflare R2
-      <span class="faint">guided, about 5 minutes</span></label>
-    <label class:on={provider === "s3"}><input type="radio" bind:group={provider} value="s3" /> Other S3-compatible
-      <span class="faint">Amazon S3, MinIO, …</span></label>
+  <div class="provider" role="radiogroup" aria-label={t("Storage")}>
+    <label class:on={provider === "r2"}><input type="radio" bind:group={provider} value="r2" /> {t("Cloudflare R2")}
+      <span class="faint">{t("guided, about 5 minutes")}</span></label>
+    <label class:on={provider === "s3"}><input type="radio" bind:group={provider} value="s3" /> {t("Other S3-compatible")}
+      <span class="faint">{t("Amazon S3, MinIO, …")}</span></label>
   </div>
 
   {#if provider === "r2"}
@@ -88,60 +86,52 @@
       <li>
         <div class="n">1</div>
         <div class="body">
-          <h3>Open R2 in Cloudflare</h3>
-          <p>Sign up or log in, then in the sidebar open <strong>Storage &amp; databases → R2 Object Storage</strong>.
-            The first time, Cloudflare asks you to activate R2 (it may ask for a payment method even for the free
-            allowance).</p>
-          <button onclick={() => api.OpenURL(DASHBOARD)}>Open the Cloudflare dashboard ↗</button>
+          <h3>{t("Open R2 in Cloudflare")}</h3>
+          <p>{t("Sign up or log in, then in the sidebar open")} <strong>{t("Storage &amp; databases → R2 Object Storage")}</strong>{t(". The first time, Cloudflare asks you to activate R2 (it may ask for a payment method even for the free allowance).")}</p>
+          <button onclick={() => api.OpenURL(DASHBOARD)}>{t("Open the Cloudflare dashboard ↗")}</button>
         </div>
       </li>
       <li>
         <div class="n">2</div>
         <div class="body">
-          <h3>Create a bucket</h3>
-          <p><strong>Create bucket</strong> → a name (e.g. <span class="mono">night-shift-dawgit</span>) → keep
-            Location <em>Automatic</em> and Storage Class <em>Standard</em> → <strong>Create bucket</strong>.
-            Use a bucket just for DAWGit.</p>
-          <label for="s-bucket">Bucket name</label>
-          <input id="s-bucket" bind:value={bucket} placeholder="night-shift-dawgit" autocomplete="off" spellcheck="false" />
+          <h3>{t("Create a bucket")}</h3>
+          <p><strong>{t("Create bucket")}</strong> {t("→ a name (e.g.")} <span class="mono">{t("night-shift-dawgit")}</span>{t(") → keep Location")} <em>{t("Automatic")}</em> {t("and Storage Class")} <em>{t("Standard")}</em> → <strong>{t("Create bucket")}</strong>{t(". Use a bucket just for DAWGit.")}</p>
+          <label for="s-bucket">{t("Bucket name")}</label>
+          <input id="s-bucket" bind:value={bucket} placeholder={t("night-shift-dawgit")} autocomplete="off" spellcheck="false" />
         </div>
       </li>
       <li>
         <div class="n">3</div>
         <div class="body">
-          <h3>Create a key for the bucket</h3>
-          <p>Back on the R2 page, under <em>Account Details</em>: <strong>Manage API Tokens</strong> →
-            <strong>Create Account API token</strong>. Permissions: <em>Object Read &amp; Write</em>. Specify
-            bucket(s): <em>Apply to specific buckets only</em> → your bucket. Then <strong>Create</strong>.</p>
-          <p>The next page is shown only once. Copy the values under <em>“Use the following credentials for S3
-            clients”</em>, not the Token value at the top.</p>
+          <h3>{t("Create a key for the bucket")}</h3>
+          <p>{t("Back on the R2 page, under")} <em>{t("Account Details")}</em>: <strong>{t("Manage API Tokens")}</strong> →
+            <strong>{t("Create Account API token")}</strong>{t(". Permissions:")} <em>{t("Object Read &amp; Write")}</em>{t(". Specify bucket(s):")} <em>{t("Apply to specific buckets only")}</em> {t("→ your bucket. Then")} <strong>{t("Create")}</strong>.</p>
+          <p>{t("The next page is shown only once. Copy the values under")} <em>{t("“Use the following credentials for S3 clients”")}</em>{t(", not the Token value at the top.")}</p>
           {@render keys("(“Default” under jurisdiction-specific endpoints, or S3 API on the R2 page)")}
         </div>
       </li>
       <li>
         <div class="n">4</div>
         <div class="body">
-          <h3>Name your team</h3>
+          <h3>{t("Name your team")}</h3>
           {@render teamName()}
         </div>
       </li>
     </ol>
   {:else}
     <div class="plain">
-      <p class="small muted">Create a bucket for DAWGit and a key that may read, write and delete objects in it. The
-        storage must support conditional writes (<span class="mono">If-None-Match</span>), which keeps two people
-        from overwriting each other's versions; DAWGit checks this.</p>
-      <label for="s-bucket">Bucket name</label>
+      <p class="small muted">{t("Create a bucket for DAWGit and a key that may read, write and delete objects in it. The storage must support conditional writes (")}<span class="mono">{t("If-None-Match")}</span>{t("), which keeps two people from overwriting each other's versions; DAWGit checks this.")}</p>
+      <label for="s-bucket">{t("Bucket name")}</label>
       <input id="s-bucket" bind:value={bucket} autocomplete="off" spellcheck="false" />
       {@render keys("")}
       <div class="two">
         <div>
-          <label for="s-region">Region</label>
-          <input id="s-region" bind:value={region} placeholder="auto" spellcheck="false" />
+          <label for="s-region">{t("Region")}</label>
+          <input id="s-region" bind:value={region} placeholder={t("auto")} spellcheck="false" />
         </div>
         <div>
-          <label for="s-folder">Folder in the bucket</label>
-          <input id="s-folder" bind:value={folder} placeholder="dawgit" spellcheck="false" />
+          <label for="s-folder">{t("Folder in the bucket")}</label>
+          <input id="s-folder" bind:value={folder} placeholder={t("dawgit")} spellcheck="false" />
         </div>
       </div>
       {@render teamName()}
@@ -150,7 +140,7 @@
 
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">
-    <span class="faint small">DAWGit tests reading and writing before it saves anything.</span>
+    <span class="faint small">{t("DAWGit tests reading and writing before it saves anything.")}</span>
     <span class="spacer"></span>
     <button class="primary" disabled={!ready || busy} onclick={create}>{busy ? "Checking…" : "Check & create team"}</button>
   </div>

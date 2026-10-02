@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   // A sample's waveform: the played part lit, a playhead, the time under the
   // pointer; click to jump there. It fills its box (the player sizes it).
   let { src, audio, onduration }: {
@@ -127,9 +128,9 @@
 
 <div class="wave" bind:this={box}>
   {#if failed}
-    <div class="note">No waveform for this file</div>
+    <div class="note">{t("No waveform for this file")}</div>
   {:else if !wave}
-    <div class="note">Reading the sample…</div>
+    <div class="note">{t("Reading the sample…")}</div>
   {:else}
     <canvas bind:this={canvas} onclick={seek} onmousemove={(e) => (hover = frac(e))}
       onmouseleave={() => (hover = null)}></canvas>

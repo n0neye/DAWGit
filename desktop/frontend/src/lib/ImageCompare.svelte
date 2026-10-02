@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr } from "./i18n.svelte"; // t is a track or take here
   import { imageLook, setImageMode } from "./viewers/settings.svelte";
 
   // A design file: one large; comparing, both large, side by side or under a
@@ -25,7 +26,7 @@
 
 {#snippet picture(t: Take, cls = "")}
   {#if failed[t.src]}
-    <div class="none {cls}">No preview for this file</div>
+    <div class="none {cls}">{tr("No preview for this file")}</div>
   {:else}
     <img class={cls} src={t.src} alt={t.label} draggable="false" onerror={() => (failed[t.src] = true)} />
   {/if}
@@ -35,8 +36,8 @@
   {#if both && comparing}
     <div class="bar">
       <div class="modes">
-        <button class:on={mode === "side"} onclick={() => setImageMode("side")}>Side by side</button>
-        <button class:on={mode === "slider"} onclick={() => setImageMode("slider")}>Slider</button>
+        <button class:on={mode === "side"} onclick={() => setImageMode("side")}>{tr("Side by side")}</button>
+        <button class:on={mode === "slider"} onclick={() => setImageMode("slider")}>{tr("Slider")}</button>
       </div>
     </div>
   {/if}

@@ -45,6 +45,15 @@ var updateCache struct {
 	path    string // the installer, when ready
 }
 
+// CheckUpdateNow asks for a newer release now (the settings' "Check for
+// updates"), not waiting for the next check.
+func (a *App) CheckUpdateNow() (*UpdateInfo, error) {
+	updateCache.Lock()
+	updateCache.checked = time.Time{}
+	updateCache.Unlock()
+	return a.CheckUpdate()
+}
+
 // CheckUpdate asks for a newer release (at most every 6 hours) and returns
 // it, or nil when this is the newest. A signed one is downloaded right away,
 // in the background. DAWGIT_NO_UPDATE_CHECK=1 turns it off;

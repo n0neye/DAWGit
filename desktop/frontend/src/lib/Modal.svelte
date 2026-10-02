@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import type { Snippet } from "svelte";
 
   let { title, onclose, width = 560, backdropCloses = true, children, footer }: {
@@ -22,7 +23,7 @@
   <div class="modal" style:width="{width}px" role="dialog" aria-modal="true" aria-label={title}>
     <header>
       <h2>{title}</h2>
-      <button class="ghost close" onclick={onclose} aria-label="Close">✕</button>
+      <button class="ghost close" onclick={onclose} aria-label={t("Close")}>✕</button>
     </header>
     <div class="body">{@render children()}</div>
     {#if footer}

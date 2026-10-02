@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr } from "./i18n.svelte"; // t is a track or take here
   import { api, errorText, lineKind } from "./api";
   import type { SetView } from "../../bindings/dawgit/desktop/models";
   import type { ClipSummary, Overview, TrackSummary } from "../../bindings/dawgit/internal/als/models";
@@ -315,7 +316,7 @@
     {#if w.name !== undefined}{@render dot(`Renamed, was “${w.name}”`)}{/if}</span>
   {#if r.t.instrument || w.instrument !== undefined}
     <span class="instw pin">
-      {#if r.t.instrument}<span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>{:else}<span class="inst none">no instrument</span>{/if}
+      {#if r.t.instrument}<span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>{:else}<span class="inst none">{tr("no instrument")}</span>{/if}
       {#if w.instrument !== undefined}{@render dot(`Instrument was ${w.instrument}`)}
       {:else if w.instrumentSettings}{@render dot(`${r.t.instrument}'s settings changed`)}{/if}
     </span>
@@ -324,19 +325,19 @@
 
 <div class="setview">
   <div class="bar">
-    <div class="modes" title="Live's two views, or the changes as text">
-      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
-      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
-      <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>Text</button>
+    <div class="modes" title={tr("Live's two views, or the changes as text")}>
+      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>{tr("Arrangement")}</button>
+      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>{tr("Session")}</button>
+      <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>{tr("Text")}</button>
     </div>
     {#if compare && setLook.pane !== "text" && data?.now && data?.before}
-      <label class="faint small toggle" title="Every track, the changed ones marked (else only the changed ones)">
-        <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> All tracks
+      <label class="faint small toggle" title={tr("Every track, the changed ones marked (else only the changed ones)")}>
+        <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> {tr("All tracks")}
       </label>
     {/if}
     {#if compare && setLook.pane !== "text" && rows.some((r) => r.details.length)}
-      <label class="faint small toggle" title="What changed in each track, as text (or click a track's name)">
-        <input type="checkbox" bind:checked={allDetails} /> Details
+      <label class="faint small toggle" title={tr("What changed in each track, as text (or click a track's name)")}>
+        <input type="checkbox" bind:checked={allDetails} /> {tr("Details")}
       </label>
     {/if}
     {#if shown}
@@ -348,7 +349,7 @@
     {@const lines = !compare ? listing : data.before && data.now ? data.text
       : (data.now ?? data.before) ? [`${data.now ? "+ a new set" : "- the set was deleted"}`, ...listing] : []}
     {#if !lines.length}
-      <p class="muted">No changes in the set's tracks.</p>
+      <p class="muted">{tr("No changes in the set's tracks.")}</p>
     {:else}
       <div class="lines mono">
         {#each lines as line}
@@ -359,20 +360,20 @@
   {:else if err}
     <p class="muted">Couldn't read the set: {err}</p>
   {:else if !data}
-    <p class="muted">Reading the set…</p>
+    <p class="muted">{tr("Reading the set…")}</p>
   {:else if !shown}
-    <p class="muted">No set to show.</p>
+    <p class="muted">{tr("No set to show.")}</p>
   {:else}
     {#if compare}
       {#if !data.before && data.now}
-        <p class="muted small">A new set: every track is new.</p>
+        <p class="muted small">{tr("A new set: every track is new.")}</p>
       {:else if data.before && !data.now}
-        <p class="muted small">The set was deleted: these were its tracks.</p>
+        <p class="muted small">{tr("The set was deleted: these were its tracks.")}</p>
       {:else if data.before && data.now}
         {#if data.global.length || data.order}
           <ul class="global">
-            {#each data.global as g}<li><span class="badge modified">Set</span> {g}</li>{/each}
-            {#if data.order}<li><span class="badge modified">Set</span> track order changed</li>{/if}
+            {#each data.global as g}<li><span class="badge modified">{tr("Set")}</span> {g}</li>{/each}
+            {#if data.order}<li><span class="badge modified">{tr("Set")}</span> {tr("track order changed")}</li>{/if}
           </ul>
         {/if}
         {#if !changedCount}
@@ -401,7 +402,7 @@
             {@const w = wasOf(r)}
             <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
-                {#if r.status === "removed"}<span class="gone-label">Deleted</span>{/if}
+                {#if r.status === "removed"}<span class="gone-label">{tr("Deleted")}</span>{/if}
                 {#if t.kind === "group"}
                   {#each inside(setOf(r), t.id) as child}
                     {#each arrClips(child) as c}
@@ -451,7 +452,7 @@
               <div class="lane"></div>
               <div class="head">
                 <div class="hname" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>
-                  {@render icon("main")}<span class="tname">Main</span>
+                  {@render icon("main")}<span class="tname">{tr("Main")}</span>
                 </div>
                 {@render mixer(shown.main, "")}
               </div>
@@ -479,7 +480,7 @@
               </div>
             </div>
           {/each}
-          <div class="ctitle"><div class="tt" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div></div>
+          <div class="ctitle"><div class="tt" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>{tr("Main")}</div></div>
           {#if compare}
             {#each rows as r}<div class="cbadge">{@render badge(r.status)}</div>{/each}
             <div></div>
@@ -490,7 +491,7 @@
               {@const m = c ? sessionMarks[ri].marks.get(c) : undefined}
               {@const old = sessionMarks[ri].gone.find((g) => g.slot === i)}
               <div class="slot {r.status ?? ''}" class:muted={r.t.muted}>
-                {#if r.status === "removed" && i === Math.floor((scenes - 1) / 2)}<span class="gone-label">Deleted</span>{/if}
+                {#if r.status === "removed" && i === Math.floor((scenes - 1) / 2)}<span class="gone-label">{tr("Deleted")}</span>{/if}
                 {#if c}
                   <div class="sclip" class:off={c.disabled}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
@@ -500,7 +501,7 @@
                   <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Deleted: ${old.name || "clip"}`}>{old.name}{@render clipDot({ kind: "del", tip: `Deleted: ${old.name || "clip"}` })}</div>
                 {:else if r.t.kind === "group" && groupHasSlot(setOf(r), r.t, i)}
                   <!-- as Live: the scene's play button for the group, and its tracks' clips in small -->
-                  <div class="gslot" title="Its tracks have clips in this scene">
+                  <div class="gslot" title={tr("Its tracks have clips in this scene")}>
                     <span class="gplay">▶</span>
                     <span class="gmini">{#each groupClips(setOf(r), r.t, i).slice(0, 4) as gc}<i style:background={liveColor(gc.color)}></i>{/each}</span>
                   </div>

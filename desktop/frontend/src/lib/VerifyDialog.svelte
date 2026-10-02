@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { Events } from "@wailsio/runtime";
   import Modal from "./Modal.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -49,7 +50,7 @@
   {:else if result}
     <p class:ok={result.problems.length === 0}>{result.summary}</p>
     {#if result.inTeam && !result.teamChecked}
-      <p class="muted small">The team's storage couldn't be reached: files only it keeps weren't checked.</p>
+      <p class="muted small">{t("The team's storage couldn't be reached: files only it keeps weren't checked.")}</p>
     {/if}
     {#if result.problems.length}
       <ul class="problems">
@@ -65,16 +66,14 @@
       </ul>
     {/if}
     {#if open && !repaired}
-      <p class="muted small">Repair brings back what it can: from files in the project folder with the same content, or
-        from the team's storage.</p>
+      <p class="muted small">{t("Repair brings back what it can: from files in the project folder with the same content, or from the team's storage.")}</p>
     {:else if open}
-      <p class="muted small">What couldn't be repaired is lost from those versions; other versions are fine. Your
-        project folder isn't changed.</p>
+      <p class="muted small">{t("What couldn't be repaired is lost from those versions; other versions are fine. Your project folder isn't changed.")}</p>
     {/if}
   {/if}
   {#snippet footer()}
     {#if result && open && !repaired && !busy}
-      <button class="primary" onclick={() => check(true)}>Repair</button>
+      <button class="primary" onclick={() => check(true)}>{t("Repair")}</button>
     {/if}
     <button onclick={onclose} disabled={busy}>{result && !busy ? "Done" : "Cancel"}</button>
   {/snippet}

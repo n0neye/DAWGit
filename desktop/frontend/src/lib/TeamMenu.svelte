@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t as tr, tn } from "./i18n.svelte"; // t is a team here
   import { api, errorText, type Overview, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
@@ -87,13 +88,13 @@
 
 <div class="team-menu">
   <button class="current" onclick={() => (open = !open)} title={current?.address ?? ""}>
-    <span class="label">Team</span>
+    <span class="label">{tr("Team")}</span>
     <span class="name">{current?.name ?? "No team"}</span>
     <span class="caret">▾</span>
   </button>
   {#if current && !current.memberId}
     <button class="who" onclick={() => (identityFor = current!)}
-      title="Versions you commit here show this name, for everyone in the team">
+      title={tr("Versions you commit here show this name, for everyone in the team")}>
       ☺ Choose your name in {current.name}
     </button>
   {/if}
@@ -106,13 +107,13 @@
             <span class="tname">{t.name}</span>
             {#if !t.isStorage && hostOf(t) !== t.name}<span class="faint small">{hostOf(t)}</span>{/if}
           </button>
-          <button class="gear" title="Team settings: names, connection code, keys"
+          <button class="gear" title={tr("Team settings: names, connection code, keys")}
             onclick={() => { open = false; settingsFor = t; }}>⚙</button>
         </div>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}
       <button class="item" onclick={() => { open = false; connecting = true; }}>
-        <span class="check">+</span>Join/Create a Team…
+        <span class="check">+</span>{tr("Join/Create a Team…")}
       </button>
     </div>
   {/if}
@@ -127,7 +128,7 @@
 {/if}
 
 {#if connecting}
-  <Modal title="Join or create a team" onclose={() => (connecting = false)} width={640} backdropCloses={false}>
+  <Modal title={tr("Join or create a team")} onclose={() => (connecting = false)} width={640} backdropCloses={false}>
     <JoinOrCreate onconnected={connected} />
   </Modal>
 {/if}
@@ -144,7 +145,7 @@
       {/each}
     </ul>
     {#snippet footer()}
-      <button onclick={() => (found = null)}>Not now</button>
+      <button onclick={() => (found = null)}>{tr("Not now")}</button>
       <button class="primary" disabled={reconnecting || !f.projects.some((p) => p.on)} onclick={reconnect}>
         {reconnecting ? "Reconnecting…" : "Reconnect selected"}</button>
     {/snippet}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { Events } from "@wailsio/runtime";
   import Modal from "./Modal.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -77,34 +78,34 @@
   {#if info}<p class="faint small orig">Original: {describe(info)}{info.seconds ? ` · ${info.seconds.toFixed(1)} s` : ""}</p>{/if}
 
   <div class="grid">
-    <label for="cf">Format</label>
+    <label for="cf">{t("Format")}</label>
     <select id="cf" bind:value={format} disabled={busy}>
       {#each formats as f (f.id)}<option value={f.id}>{f.name}</option>{/each}
     </select>
 
     {#if current?.bitrates.length}
-      <label for="cb">Quality</label>
+      <label for="cb">{t("Quality")}</label>
       <select id="cb" bind:value={kbps} disabled={busy}>
         {#each current.bitrates as b}<option value={b}>{b} kbps{b === current.bitrates[0] ? " (best)" : ""}</option>{/each}
       </select>
     {/if}
 
     {#if current}
-      <label for="cr">Sample rate</label>
+      <label for="cr">{t("Sample rate")}</label>
       <select id="cr" bind:value={rate} disabled={busy}>
         <option value={0}>Same as original{info?.rate ? ` (${khz(info.rate)})` : ""}</option>
         {#each current.rates as r}<option value={r}>{khz(r)}</option>{/each}
       </select>
 
-      <label for="cc">Channels</label>
+      <label for="cc">{t("Channels")}</label>
       <select id="cc" bind:value={channels} disabled={busy}>
         <option value={0}>Same as original{info?.channels ? ` (${chName(info.channels)})` : ""}</option>
-        <option value={2}>Stereo</option>
-        <option value={1}>Mono (channels mixed)</option>
+        <option value={2}>{t("Stereo")}</option>
+        <option value={1}>{t("Mono (channels mixed)")}</option>
       </select>
 
       {#if current.bits.length}
-        <label for="cd">Bit depth</label>
+        <label for="cd">{t("Bit depth")}</label>
         <select id="cd" bind:value={bits} disabled={busy}>
           <option value={0}>Same as original{info?.bits ? ` (${info.bits}-bit)` : ""}</option>
           {#each current.bits as b}<option value={b}>{b}-bit</option>{/each}
@@ -121,7 +122,7 @@
   {#if error}<p class="error small">{error}</p>{/if}
 
   {#snippet footer()}
-    <button onclick={onclose} disabled={busy}>Cancel</button>
+    <button onclick={onclose} disabled={busy}>{t("Cancel")}</button>
     <button class="primary" onclick={run} disabled={busy || !current || !plan}>{busy ? "Converting…" : "Convert"}</button>
   {/snippet}
 </Modal>

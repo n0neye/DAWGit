@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { untrack } from "svelte";
   import { api, errorText, type Member, type TeamSummary } from "./api";
 
@@ -53,13 +54,12 @@
         <li><label><input type="radio" name="who" checked={pick === m.id} onchange={() => choose(m.id)} /> {m.name}</label></li>
       {/each}
       <li><label><input type="radio" name="who" checked={pick === "new"} onchange={() => { pick = "new"; name = suggested; }} />
-        I'm new to this team</label></li>
+        {t("I'm new to this team")}</label></li>
     </ul>
   {/if}
   <label for="who-name">{renaming ? `Your name in ${team.name}` : "Your name"}</label>
-  <input id="who-name" bind:value={name} placeholder="e.g. Yi" autocomplete="off" />
-  <p class="faint small">Shown next to the versions you commit. If you change it later, it changes on all your versions,
-    for everyone in the team.</p>
+  <input id="who-name" bind:value={name} placeholder={t("e.g. Yi")} autocomplete="off" />
+  <p class="faint small">{t("Shown next to the versions you commit. If you change it later, it changes on all your versions, for everyone in the team.")}</p>
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">
     <span class="spacer"></span>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { api, errorText, formatBytes } from "./api";
   import type { RulesDetail, RuleNode, RuleSuggestion } from "../../bindings/dawgit/desktop/models";
   import Modal from "./Modal.svelte";
@@ -96,7 +97,7 @@
       <span class="faint">· leaves out {leftOutText(s.leftOut)}{#if s.leftOutBytes > 0}{" "}({formatBytes(s.leftOutBytes)} here){/if}</span>
     </div>
     <button class="primary small" disabled={busy} onclick={() => setPreset(s.folder, s.preset)}>Use {presetName(s.preset)} rules</button>
-    <button class="ghost small" disabled={busy} onclick={() => setPreset(s.folder, "none")}>Not a project</button>
+    <button class="ghost small" disabled={busy} onclick={() => setPreset(s.folder, "none")}>{t("Not a project")}</button>
   </div>
 {/snippet}
 
@@ -111,7 +112,7 @@
       {/if}
       <FileIcon kind={n.dir ? "folder" : "other"} open={!!open[n.path]} faint={n.ignored} />
       <span class="name" title={n.path}>{n.name}</span>
-      {#if n.preset}<span class="chip" title="presets: in .dawgit.yaml">{presetName(n.preset)}</span>{/if}
+      {#if n.preset}<span class="chip" title={t("presets: in .dawgit.yaml")}>{presetName(n.preset)}</span>{/if}
       <span class="why faint" title={n.by}>{why}</span>
       {#if !n.dir}<span class="size faint">{formatBytes(n.size)}</span>{/if}
       <input type="checkbox" class="switch" role="switch" checked={!n.ignored} disabled={busy || n.path === ".dawgit.yaml"}
@@ -122,34 +123,33 @@
       {#if folders[n.path]}
         {@render tree(n.path, depth + 1)}
       {:else}
-        <div class="node faint" style:padding-left="{26 + (depth + 1) * 18}px">Loading…</div>
+        <div class="node faint" style:padding-left="{26 + (depth + 1) * 18}px">{t("Loading…")}</div>
       {/if}
     {/if}
   {/each}
 {/snippet}
 
-<Modal title="Rules" {onclose} width={860}>
-  <p class="hint">Which files go into versions. Saved in the project's <span class="mono">.dawgit.yaml</span> right away;
-    commit it to share the rules with the team. Files left out stay on everyone's disk.</p>
+<Modal title={t("Rules")} {onclose} width={860}>
+  <p class="hint">{t("Which files go into versions. Saved in the project's")} <span class="mono">{t(".dawgit.yaml")}</span> {t("right away; commit it to share the rules with the team. Files left out stay on everyone's disk.")}</p>
 
   {#if detail?.error}
     <div class="error-box">
       <div>⚠ {detail.error}</div>
-      <button onclick={editText}>Fix .dawgit.yaml</button>
+      <button onclick={editText}>{t("Fix .dawgit.yaml")}</button>
     </div>
   {/if}
 
   {#if detail}
     <section>
-      <h3>Tools in this project</h3>
-      <p class="hint">A tool's preset leaves out what the tool makes again by itself (caches, backups) in its folder.</p>
+      <h3>{t("Tools in this project")}</h3>
+      <p class="hint">{t("A tool's preset leaves out what the tool makes again by itself (caches, backups) in its folder.")}</p>
       {#each detail.suggestions as s (s.folder + s.preset)}{@render suggestionRow(s)}{/each}
       {#each detail.presets as e (e.folder)}
         {@const opt = detail.options.find((o) => o.name === e.preset)}
         <div class="tool">
           <div class="what">
             <strong>{e.folder ? `${e.folder}/` : "The project folder"}</strong>
-            {#if e.found}<span class="chip found" title="DAWGit wrote this line from what it found">found by DAWGit</span>{/if}
+            {#if e.found}<span class="chip found" title={t("DAWGit wrote this line from what it found")}>{t("found by DAWGit")}</span>{/if}
             {#if opt?.leftOut.length}<span class="faint">· leaves out {leftOutText(opt.leftOut)}</span>{/if}
           </div>
           <select value={e.preset} disabled={busy || !!detail.error}
@@ -162,32 +162,32 @@
     </section>
 
     <section>
-      <h3>Files and folders</h3>
+      <h3>{t("Files and folders")}</h3>
       <div class="tree">
         {@render tree("", 0)}
       </div>
     </section>
 
     <section>
-      <h3>Your rules</h3>
+      <h3>{t("Your rules")}</h3>
       {#each detail.rules as r, i (i)}
         <div class="rule">
           <span class="kind" class:keep={r.kind === "track"}>{r.kind === "ignore" ? "Leave out" : "Keep"}</span>
           <span class="mono">{r.pattern}</span>
-          <button class="ghost small" disabled={busy} onclick={() => removeRule(i)} title="Remove this rule">✕</button>
+          <button class="ghost small" disabled={busy} onclick={() => removeRule(i)} title={t("Remove this rule")}>✕</button>
         </div>
       {:else}
-        <p class="faint">None yet: the switches above add them. Later rules win.</p>
+        <p class="faint">{t("None yet: the switches above add them. Later rules win.")}</p>
       {/each}
     </section>
   {:else}
-    <p class="faint">Reading the rules…</p>
+    <p class="faint">{t("Reading the rules…")}</p>
   {/if}
 
   {#snippet footer()}
-    <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
-    <button onclick={editText}>Edit as text</button>
-    <button class="primary" onclick={onclose}>Done</button>
+    <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>{t("Guide ↗")}</button>
+    <button onclick={editText}>{t("Edit as text")}</button>
+    <button class="primary" onclick={onclose}>{t("Done")}</button>
   {/snippet}
 </Modal>
 

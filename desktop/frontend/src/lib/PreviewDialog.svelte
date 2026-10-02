@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
   import ChangeList from "./ChangeList.svelte";
   import { ago, type Preview } from "./api";
@@ -22,7 +23,7 @@
 
 <Modal {title} {onclose} width={720}>
   {#if nothing}
-    <p class="muted">Nothing new — you already have everything.</p>
+    <p class="muted">{t("Nothing new — you already have everything.")}</p>
   {:else}
     <h3>{preview.versions.length} new version{preview.versions.length === 1 ? "" : "s"}</h3>
     <ul class="versions">
@@ -31,12 +32,12 @@
           <span class="faint">{v.author} · {ago(v.time)}</span></li>
       {/each}
     </ul>
-    <h3>What changes</h3>
+    <h3>{t("What changes")}</h3>
     <ChangeList changes={preview.changes} />
     {#if preview.conflicts.length}
       <div class="conflicts">
         <strong>{preview.conflicts.length} thing{preview.conflicts.length === 1 ? "" : "s"} you also changed</strong>
-        — you'll choose what to keep next:
+        {t("— you'll choose what to keep next:")}
         <ul>
           {#each preview.conflicts as c (c.key)}
             <li>{c.unit === c.file ? c.file : `${c.unit} (${c.file})`}</li>
@@ -44,10 +45,10 @@
         </ul>
       </div>
     {:else if preview.action === "merge" && !blocked}
-      <p class="ok">No conflicts — your work and theirs combine automatically.</p>
+      <p class="ok">{t("No conflicts — your work and theirs combine automatically.")}</p>
     {/if}
     {#if asksMessage}
-      <label for="merge-msg">Description of the merge version</label>
+      <label for="merge-msg">{t("Description of the merge version")}</label>
       <textarea id="merge-msg" rows="2" bind:value={message}></textarea>
     {/if}
     {#if blocked}<p class="blocked">{blocked}</p>{/if}

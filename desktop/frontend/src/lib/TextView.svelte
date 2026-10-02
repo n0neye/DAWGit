@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { api, errorText } from "./api";
   import { highlightLines, languageOf } from "./highlight";
   import type { TextChanges, TextContent } from "../../bindings/dawgit/desktop/models";
@@ -77,7 +78,7 @@
 
 {#snippet lines(c: TextContent)}
   {#if c.lines.length === 0}
-    <p class="muted small">An empty file.</p>
+    <p class="muted small">{t("An empty file.")}</p>
   {:else}
     <div class="code mono">
       {#each c.lines as l, i}
@@ -92,21 +93,21 @@
   <p class="muted small">Couldn't read it: {failed}</p>
 {:else if comparing}
   {#if diff === null}
-    <p class="muted small">Comparing…</p>
+    <p class="muted small">{t("Comparing…")}</p>
   {:else if diff.tooBig}
-    <p class="muted small">Too big to compare line by line.</p>
+    <p class="muted small">{t("Too big to compare line by line.")}</p>
   {:else if !diff.text}
-    <p class="muted small">Not a text file: there are no lines to compare.</p>
+    <p class="muted small">{t("Not a text file: there are no lines to compare.")}</p>
   {:else}
     <div class="bar small">
       {#if diff.hunks.length}
         <span class="add">+{diff.added}</span> <span class="del">−{diff.removed}</span>
         <span class="faint">line{diff.added + diff.removed === 1 ? "" : "s"}</span>
       {:else}
-        <span class="faint">No line changes.</span>
+        <span class="faint">{t("No line changes.")}</span>
       {/if}
       <label class="whole"><input type="checkbox" checked={whole}
-        onchange={(e) => setWhole((e.currentTarget as HTMLInputElement).checked)} /> Whole file</label>
+        onchange={(e) => setWhole((e.currentTarget as HTMLInputElement).checked)} /> {t("Whole file")}</label>
     </div>
     {#if diff.hunks.length}
       <div class="code mono">
@@ -121,17 +122,17 @@
           {/each}
         {/each}
       </div>
-      {#if diff.truncated}<p class="faint small">More changes than shown here.</p>{/if}
+      {#if diff.truncated}<p class="faint small">{t("More changes than shown here.")}</p>{/if}
     {:else if content}
       {@render lines(content)}
     {/if}
   {/if}
 {:else if content === null}
-  <p class="muted small">Reading…</p>
+  <p class="muted small">{t("Reading…")}</p>
 {:else if content.tooBig}
-  <p class="muted small">Too big to show here.</p>
+  <p class="muted small">{t("Too big to show here.")}</p>
 {:else if !content.text}
-  <p class="muted small">No preview for this kind of file.</p>
+  <p class="muted small">{t("No preview for this kind of file.")}</p>
 {:else}
   {@render lines(content)}
 {/if}

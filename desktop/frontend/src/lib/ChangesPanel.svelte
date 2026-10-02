@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from "./i18n.svelte";
   import { folderMoves } from "./moves";
   import type { Snippet } from "svelte";
   import { api, ago, errorText, formatBytes, type FileVersion, type ProjectFile, type State } from "./api";
@@ -289,11 +290,11 @@
         <button class="ghost revert h-revert" disabled={!ticked.length}
           title={!ticked.length ? "Tick changes to discard them" : ticked.length === changedPaths.length
             ? "Discard all changes…" : `Discard the ${ticked.length} ticked change${ticked.length === 1 ? "" : "s"}…`}
-          aria-label="Discard the ticked changes"
+          aria-label={t("Discard the ticked changes")}
           onclick={() => (ticked.length === changedPaths.length ? ondiscardall() : ondiscardsome(ticked))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
       {/if}
-      <label class="all h-all" title="List every file in the project folder">
-        All files <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} />
+      <label class="all h-all" title={t("List every file in the project folder")}>
+        {t("All files")} <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} />
       </label>
     </div>
     {#if files.length === 0}
@@ -329,7 +330,7 @@
                 {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count"
                   title={`${d.changed} changed file${d.changed === 1 ? "" : "s"} inside, ${formatBytes(d.changedSize)}`}>{d.changed}</span></span>{/if}
               </button>
-              <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
+              <button class="ghost more" title={t("More")} onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
           {:else}
             {@const f = row.file!}
@@ -338,7 +339,7 @@
               <span class="chevbtn"></span>
               {#if changedPaths.length}
                 {#if isChange(f)}
-                  <input type="checkbox" class="pick" checked={!excluded[f.path]} title="Commit this change"
+                  <input type="checkbox" class="pick" checked={!excluded[f.path]} title={t("Commit this change")}
                     onchange={(e) => tick([f.path], (e.currentTarget as HTMLInputElement).checked)} />
                 {:else}<span class="pick"></span>{/if}
               {/if}
@@ -358,7 +359,7 @@
                   {#if sym[f.status]}<span class="sym" title={statusName[f.status]}>{sym[f.status]}</span>{/if}
                 </span>
               </button>
-              <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
+              <button class="ghost more" title={t("More")} onclick={(e) => { e.stopPropagation(); openMenu(e, f.path); }}>⋯</button>
             </li>
           {/if}
         {/each}
@@ -380,22 +381,21 @@
           {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
         </div>
         {#if current.status !== "ignored"}
-          <div class="modes" title="The file as it is, what you changed since the version you're on, or its committed versions">
-            <button class:on={fileView.mode === "preview"} onclick={() => setFileMode("preview")}>Preview</button>
-            <button class:on={fileView.mode === "changes"} onclick={() => setFileMode("changes")}>Changes</button>
-            <button class:on={fileView.mode === "history"} onclick={() => setFileMode("history")}>History</button>
+          <div class="modes" title={t("The file as it is, what you changed since the version you're on, or its committed versions")}>
+            <button class:on={fileView.mode === "preview"} onclick={() => setFileMode("preview")}>{t("Preview")}</button>
+            <button class:on={fileView.mode === "changes"} onclick={() => setFileMode("changes")}>{t("Changes")}</button>
+            <button class:on={fileView.mode === "history"} onclick={() => setFileMode("history")}>{t("History")}</button>
           </div>
         {/if}
       </div>
 
       {#if current.status === "ignored"}
-        <p class="muted">DAWGit doesn't keep this file in versions: the project's rules leave it out (see the project's
-          settings, ⚙ at the top).</p>
+        <p class="muted">{t("DAWGit doesn't keep this file in versions: the project's rules leave it out (see the project's settings, ⚙ at the top).")}</p>
       {:else if fileView.mode !== "history"}
         {@const v = sides(fileView.mode, current)}
         {#if fileView.mode === "preview"}
           {#if current.status === "deleted"}
-            <p class="muted">Deleted since the version you're on: this is how it was.</p>
+            <p class="muted">{t("Deleted since the version you're on: this is how it was.")}</p>
           {:else if current.size}
             <p class="muted">{formatBytes(current.size)}</p>
           {/if}
@@ -411,9 +411,9 @@
         {/if}
       {:else}
         {#if history === null}
-          <p class="muted">Loading…</p>
+          <p class="muted">{t("Loading…")}</p>
         {:else if history.length === 0}
-          <p class="muted">No committed versions of this file yet.</p>
+          <p class="muted">{t("No committed versions of this file yet.")}</p>
         {:else}
           <ul class="versions">
             {#each history as h (h.version.id)}
@@ -437,8 +437,8 @@
               {#if h.status !== "deleted"}
                 <div class="restore">
                   <button onclick={() => onrestore(selected, h.version.id, h.version.message || h.version.short, hp)}
-                    title="Put this file back as it was in this version; the rest of the project stays">Restore this version</button>
-                  <span class="faint small">Only this file changes; commit it when you're happy.</span>
+                    title={t("Put this file back as it was in this version; the rest of the project stays")}>{t("Restore this version")}</button>
+                  <span class="faint small">{t("Only this file changes; commit it when you're happy.")}</span>
                 </div>
               {/if}
               <p class="muted">{h.status === "renamed" ? `Moved here from ${h.from}` : h.status === "added" ? "Added"
@@ -462,29 +462,29 @@
       <button class="item" onclick={() => openFile(m.path)}>{f.kind === "set" ? "Open in Live" : f.kind === "audio" ? "Open in default player" : "Open"}</button>
     {/if}
     {#if m.dir || (f && f.status !== "deleted")}
-      <button class="item" onclick={() => { const p = m.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>Show in Explorer</button>
+      <button class="item" onclick={() => { const p = m.path; menu = null; api.ShowFile(root, p).catch((e) => toast(errorText(e), "error")); }}>{t("Show in Explorer")}</button>
     {/if}
     {#if !m.dir}
-      <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>View file history</button>
+      <button class="item" disabled={f?.status === "ignored"} onclick={() => showHistory(m.path)}>{t("View file history")}</button>
       {#if f?.kind === "audio" && f.status !== "deleted"}
-        <button class="item" onclick={() => { converting = m.path; menu = null; }}>Convert…</button>
+        <button class="item" onclick={() => { converting = m.path; menu = null; }}>{t("Convert…")}</button>
       {/if}
       {#if canDiscard(f)}
-        <button class="item danger-text" onclick={() => { const p = m.path; menu = null; ondiscard(p); }}>Discard changes…</button>
+        <button class="item danger-text" onclick={() => { const p = m.path; menu = null; ondiscard(p); }}>{t("Discard changes…")}</button>
       {/if}
     {/if}
     {#if m.ignore.length}
       <div class="sep"></div>
       <div class="sub" role="none" onmouseenter={() => (ignoreOpen = true)} onmouseleave={() => (ignoreOpen = false)}>
         <button class="item has-sub" onclick={() => (ignoreOpen = !ignoreOpen)} aria-expanded={ignoreOpen}>
-          Ignore<span class="arrow">›</span>
+          {t("Ignore")}<span class="arrow">›</span>
         </button>
         {#if ignoreOpen}
           <div class="ctx submenu" role="menu" class:left={m.x > window.innerWidth - 480}>
             {#each m.ignore as o}
               <button class="item" onclick={() => ignore(o.pattern)}>{o.label}<span class="faint pat mono">{o.pattern}</span></button>
             {/each}
-            <p class="faint note">Adds a rule to .dawgit.yaml: the files stay on disk, out of versions.</p>
+            <p class="faint note">{t("Adds a rule to .dawgit.yaml: the files stay on disk, out of versions.")}</p>
           </div>
         {/if}
       </div>

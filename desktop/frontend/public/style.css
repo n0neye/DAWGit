@@ -83,3 +83,16 @@ label { display: block; color: var(--muted); font-size: 12px; margin: 10px 0 4px
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: #33363d; border-radius: 5px; border: 2px solid var(--bg); }
+
+/* The splash while DAWGit starts (index.html, then App until the first
+   overview): the logo, and a band of colour running under it. */
+.splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; background: var(--bg); }
+.splash-logo { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; letter-spacing: .01em; }
+.splash-logo img { width: 48px; height: 48px; }
+.splash-band { width: 220px; height: 4px; border-radius: 2px; overflow: hidden; background: var(--line); position: relative; }
+.splash-band::after { content: ""; position: absolute; inset: 0; width: 200%;
+  background: linear-gradient(90deg, transparent 0%, var(--lane-1) 15%, var(--accent) 30%, var(--lane-2) 45%, transparent 60%);
+  animation: splash-run 1.4s ease-in-out infinite; }
+@keyframes splash-run { from { transform: translateX(-60%); } to { transform: translateX(10%); } }
+@media (prefers-reduced-motion: reduce) { .splash-band::after { animation: none; transform: translateX(-25%); } }
