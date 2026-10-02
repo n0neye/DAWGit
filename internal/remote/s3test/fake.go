@@ -39,6 +39,10 @@ type Server struct {
 	IgnoreConditions bool
 	// FailPart makes uploading that part number of a multipart upload fail.
 	FailPart int
+	// Flaky: every Flaky-th request fails with 500 InternalError, as storage
+	// does now and then (0: never).
+	Flaky int
+	flaky int
 	// Clock is when objects are written (time.Now when nil): tests set it
 	// to make objects old.
 	Clock func() time.Time
@@ -78,6 +82,13 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Requests[r.Method]++
+	if s.Flaky > 0 {
+		if s.flaky++; s.flaky%s.Flaky == 0 {
+			io.Copy(io.Discard, r.Body)
+			xmlError(w, http.StatusInternalServerError, "InternalError")
+			return
+		}
+	}
 	if r.Method == "GET" && r.URL.Query().Get("list-type") != "" {
 		s.Requests["LIST"]++ // billed apart from reads
 	}

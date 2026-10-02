@@ -115,23 +115,38 @@ func (b *S3Backend) do(method, key string, q url.Values, body io.Reader, size in
 }
 
 // call runs a request and reads the whole response.
+// A storage error that may pass (5xx, too many requests) is tried again.
 func (b *S3Backend) call(method, key string, q url.Values, body []byte, header http.Header) (*s3Response, error) {
-	var r io.Reader
 	hash := emptySHA256
 	if body != nil {
-		r = bytes.NewReader(body)
 		hash = sha256Hex(body)
 	}
-	resp, err := b.do(method, key, q, r, int64(len(body)), hash, header)
-	if err != nil {
-		return nil, err
+	var out *s3Response
+	err := Retry(RetryAttempts, func() error {
+		var r io.Reader
+		if body != nil {
+			r = bytes.NewReader(body)
+		}
+		resp, err := b.do(method, key, q, r, int64(len(body)), hash, header)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		out = &s3Response{status: resp.StatusCode, etag: resp.Header.Get("ETag"), body: data}
+		if out.status >= 500 || out.status == http.StatusTooManyRequests {
+			return s3Error(out) // transient: tried again, then returned as it is
+		}
+		return nil
+	})
+	var s3 *errS3
+	if errors.As(err, &s3) && out != nil {
+		return out, nil // the caller reads the status
 	}
-	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	return &s3Response{status: resp.StatusCode, etag: resp.Header.Get("ETag"), body: data}, nil
+	return out, err
 }
 
 func s3Error(r *s3Response) error {

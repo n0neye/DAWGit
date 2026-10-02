@@ -222,17 +222,26 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	t := r.newTransfer(StageDownloading, len(need), total)
 	t.report()
 	return transferAll(need, func(h string) int64 { return r.sizes[h] }, func(h string) error {
-		body, err := c.GetObject(h)
+		// Storage failing for a moment (or the connection dropping): again.
+		err := remote.Retry(remote.RetryAttempts, func() error {
+			body, err := c.GetObject(h)
+			if err != nil {
+				return err
+			}
+			cr := t.reader(body, -1)
+			got, _, err := r.Store.Put(cr)
+			body.Close()
+			if err != nil {
+				cr.undo()
+				return err
+			}
+			if got != h {
+				return fmt.Errorf("content hash mismatch")
+			}
+			return nil
+		})
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
-		}
-		got, _, err := r.Store.Put(t.reader(body, -1))
-		body.Close()
-		if err != nil {
-			return err
-		}
-		if got != h {
-			return fmt.Errorf("download %s: content hash mismatch", short(h))
 		}
 		t.fileDone()
 		return nil
@@ -426,16 +435,25 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 	t := r.newTransfer(StageUploading, len(missing), total)
 	t.report()
 	return transferAll(missing, func(h string) int64 { return sizes[h] }, func(h string) error {
-		f, err := r.openObject(h)
-		if err != nil {
-			return fmt.Errorf("%w (needed to upload this project's versions)", err)
-		}
 		size, ok := sizes[h]
 		if !ok {
 			size = -1
 		}
-		err = c.PutObject(h, t.reader(f, size))
-		f.Close()
+		// Storage failing for a moment (or the connection dropping): again,
+		// from the file's start.
+		err := remote.Retry(remote.RetryAttempts, func() error {
+			f, err := r.openObject(h)
+			if err != nil {
+				return fmt.Errorf("%w (needed to upload this project's versions)", err)
+			}
+			defer f.Close()
+			cr := t.reader(f, size)
+			if err := c.PutObject(h, cr); err != nil {
+				cr.undo()
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			return fmt.Errorf("upload %s: %w", short(h), err)
 		}
