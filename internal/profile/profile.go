@@ -404,6 +404,9 @@ func core(rel string, isDir bool) string {
 		if strings.HasPrefix(base, ".dawgit-") {
 			return "DAWGit's temporary file"
 		}
+		if strings.HasSuffix(base, "~lock~") {
+			return "an app's lock file (Affinity)" // there only while the file is open
+		}
 	}
 	return ""
 }

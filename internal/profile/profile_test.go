@@ -36,6 +36,8 @@ func TestDetectedAbleton(t *testing.T) {
 		{"Samples/.git", true, true},
 		{"Samples/desktop.ini", false, true},
 		{"Samples/Thumbs.db", false, true},
+		{"Art/cover.af~lock~", false, true}, // Affinity has the file open
+		{"Art/cover.af", false, false},
 		{".dawgit-tmp123", false, true},
 		{"Song.als", false, false},
 		{"Samples/kick.wav", false, false},

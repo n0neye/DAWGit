@@ -65,6 +65,7 @@ var decoders = map[string]func([]byte) (image.Image, error){
 	".tif":      decodeTIFF,
 	".tiff":     decodeTIFF,
 	".tga":      decodeTGA,
+	".af":       embeddedPNG, // Affinity's one format (from Affinity 3)
 	".afphoto":  embeddedPNG,
 	".afdesign": embeddedPNG,
 	".afpub":    embeddedPNG,
