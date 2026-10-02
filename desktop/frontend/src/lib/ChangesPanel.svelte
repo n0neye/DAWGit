@@ -81,7 +81,7 @@
   // The folder tree: at each level folders first, then files. Folders start
   // closed; a folder shows how many changed files it holds.
   type Folder = { path: string; name: string; folders: Map<string, Folder>; files: ProjectFile[];
-    changed: number; tracked: boolean };
+    changed: number; changedSize: number; tracked: boolean };
   // Folders start open in the list of changes (a tree of them), closed in
   // All files; either way they remember being opened or closed.
   let open = $state<Record<string, boolean>>({});
@@ -90,7 +90,7 @@
 
   let tree = $derived.by(() => {
     const mk = (path: string, name: string): Folder =>
-      ({ path, name, folders: new Map(), files: [], changed: 0, tracked: false });
+      ({ path, name, folders: new Map(), files: [], changed: 0, changedSize: 0, tracked: false });
     const top = mk("", "");
     for (const f of files) {
       const parts = f.path.split("/");
@@ -104,7 +104,7 @@
       }
       node.files.push(f);
       for (const n of chain) {
-        if (f.status !== "unchanged" && f.status !== "ignored") n.changed++;
+        if (f.status !== "unchanged" && f.status !== "ignored") { n.changed++; n.changedSize += f.size; }
         if (f.status !== "ignored") n.tracked = true;
       }
     }
@@ -224,6 +224,11 @@
     }
     excluded = next;
   }
+  // The box over the list: every change ticked, none, or some.
+  let allState = $derived.by((): "on" | "off" | "some" => {
+    const out = changedPaths.filter((p) => excluded[p]).length;
+    return out === 0 ? "on" : out === changedPaths.length ? "off" : "some";
+  });
   // A folder's box: ticked, unticked, or some (indeterminate).
   function folderState(dir: string): "on" | "off" | "some" {
     const ps = inside(dir);
@@ -268,14 +273,24 @@
   <div class="side">
   <aside class="files" bind:this={scroller} bind:clientHeight={viewH} onscroll={onScroll}>
     <div class="files-h">
-      <span>{all ? "All files" : `Changed files${changedCount ? ` (${changedCount})` : ""}`}</span>
-      {#if changedCount}
-        <button class="ghost discard-all" onclick={ondiscardall} title="Drop all uncommitted changes">Discard all…</button>
+      <span class="chevbtn"></span>
+      {#if changedPaths.length}
+        <input type="checkbox" class="pick" checked={allState === "on"} indeterminate={allState === "some"}
+          title={allState === "on" ? "Deselect all changes" : "Select all changes"}
+          onchange={() => tick(changedPaths, allState !== "on")} />
       {/if}
+      <span class="title">{all ? "All files" : "Changed files"}</span>
       <label class="all" title="List every file in the project folder">
         <input type="checkbox" class="switch" role="switch" bind:checked={all} onchange={rememberAll} /> All files
       </label>
     </div>
+    {#if changedCount}
+      <!-- under the title: how many changes and how big, and dropping them all -->
+      <div class="files-sub">
+        <span class="total">{changedCount.toLocaleString()} change{changedCount === 1 ? "" : "s"} · {formatBytes(tree.changedSize)}</span>
+        <button class="ghost discard-all" onclick={ondiscardall} title="Drop all uncommitted changes">Discard all…</button>
+      </div>
+    {/if}
     {#if files.length === 0}
       <p class="muted empty">{all ? "The project folder is empty." : (st.tool === "Ableton Live" ? "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." : `No uncommitted changes. Work in ${st.tool || "your app"} and save — your changes show up here.`)}</p>
     {:else}
@@ -306,7 +321,8 @@
                   {@const ff = moves.movedFrom(d.path)}
                   {#if ff}<span class="from" title={`Moved from ${ff}/`}>← {ff}/</span>{/if}
                 {/if}
-                {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count" title="Changed files inside">{d.changed}</span></span>{/if}
+                {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count"
+                  title={`${d.changed} changed file${d.changed === 1 ? "" : "s"} inside, ${formatBytes(d.changedSize)}`}>{d.changed} · {formatBytes(d.changedSize)}</span></span>{/if}
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
@@ -482,9 +498,14 @@
   .files { flex: 1; overflow: auto; min-height: 0; padding: 10px 8px 16px 0; }
   .commit { flex: none; border-top: 1px solid var(--line); padding: 10px 12px 12px 8px; }
   .commit :global(textarea) { width: 100%; resize: vertical; min-height: 54px; }
-  .files-h { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px 8px; font-size: 12px;
+  /* like a row: the box over the boxes, the title over the names */
+  .files-h { display: flex; align-items: center; padding: 0 4px 2px 0; font-size: 12px;
     text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .files-h span { flex: 1; }
+  .files-h .title { flex: 1; min-width: 0; padding-left: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .files-h .all { flex: none; }
+  .files-sub { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px 68px; font-size: 12px; } /* under the title */
+  .files-sub .total { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .files-sub .discard-all { flex: none; padding: 1px 6px; font-size: 12px; }
   .all { display: flex; align-items: center; gap: 5px; margin: 0; text-transform: none; letter-spacing: 0; cursor: pointer; }
   /* iOS-style switch */
   .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
