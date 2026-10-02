@@ -408,6 +408,9 @@ type TeamPart struct {
 	Incoming     []Version `json:"incoming"`
 	History      []Version `json:"history"` // all branches, with the team's
 	OlderVersion *Version  `json:"olderVersion"`
+	// Unshared: this branch has versions here and none on the team yet (the
+	// project was added and not shared).
+	Unshared bool `json:"unshared"`
 	// Capabilities of the team's backend (locks, presence…): the app shows
 	// what goes with them only when it has them.
 	Capabilities remote.Capabilities `json:"capabilities"`
@@ -450,6 +453,7 @@ func (a *App) TeamState(root string) (*TeamPart, error) {
 // no network except, when fetchNames, the member list (cached a minute).
 func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool) (*TeamPart, error) {
 	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}}
+	part.Unshared = view != nil && view.Heads[r.BranchName()] == "" && r.Head() != ""
 	tips := map[string][]string{}
 	if view != nil {
 		for _, b := range r.BranchesFrom(view.Heads) {
@@ -667,6 +671,22 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 		out.Action = "nothing"
 	}
 	return out, nil
+}
+
+// ShareVersions shares the versions committed here with the project's team
+// without committing the files (a project added to a team, shared later).
+func (a *App) ShareVersions(root string) (*Result, error) {
+	defer a.tidyLater(root)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	res, err := r.Share(opts(nil))
+	if err != nil {
+		return conflictResult(err)
+	}
+	return syncResult(res), nil
 }
 
 func toPreview(p *project.Preview, names map[string]string) *Preview {

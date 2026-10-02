@@ -579,43 +579,51 @@ func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, 
 	if err != nil && !errors.Is(err, ErrNothingToSnapshot) {
 		return nil, nil, err
 	}
+	res, err := r.Share(opts)
+	return m, res, err
+}
+
+// Share shares the versions committed here that the team hasn't got (none
+// is made of the files): versions saved by others in the meantime are
+// merged in first.
+func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 	c, err := r.Client()
 	if err != nil {
-		return m, nil, err
+		return nil, err
 	}
 	res := &SyncResult{}
 	for attempt := 0; attempt < 5; attempt++ {
 		branches, err := c.Branches(r.Config.ProjectID)
 		if err != nil && !errors.Is(err, remote.ErrNotFound) {
-			return m, nil, err
+			return nil, err
 		}
 		remoteHead := branches[r.BranchName()]
 		if remoteHead == r.Head() {
 			if res.Action == "" {
 				res.Action = "up-to-date"
 			}
-			return m, res, nil
+			return res, nil
 		}
 		ahead := remoteHead == ""
 		if !ahead {
 			if err := r.fetchSnapshots(c, remoteHead); err != nil {
-				return m, nil, err
+				return nil, err
 			}
 			if ahead, err = r.isAncestor(remoteHead, r.Head()); err != nil {
-				return m, nil, err
+				return nil, err
 			}
 		}
 		if !ahead {
 			up, err := r.Update(opts)
 			if err != nil {
-				return m, nil, err
+				return nil, err
 			}
 			res.MergeLog = append(res.MergeLog, up.MergeLog...)
 			res.Relinked = append(res.Relinked, up.Relinked...)
 			if up.Action == "fast-forward" {
 				// Nothing of ours to share (e.g. an empty save).
 				res.Action = "fast-forward"
-				return m, res, nil
+				return res, nil
 			}
 			continue // publish the merge
 		}
@@ -625,12 +633,12 @@ func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, 
 			continue // someone saved at the same moment; merge and retry
 		}
 		if err != nil {
-			return m, nil, err
+			return nil, err
 		}
 		res.Action, res.To = "published", r.Head()
-		return m, res, nil
+		return res, nil
 	}
-	return m, nil, errors.New("the server branch keeps changing; try again")
+	return nil, errors.New("the server branch keeps changing; try again")
 }
 
 // Clone connects to a team (address + token, or a connection code) and

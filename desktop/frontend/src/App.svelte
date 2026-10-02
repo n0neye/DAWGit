@@ -508,13 +508,14 @@
 
 {#if confirmShare}
   {@const folder = confirmShare}
-  <Modal title="Share with {current?.name}?" onclose={() => (confirmShare = null)}>
+  <Modal title="Add to {current?.name}?" onclose={() => (confirmShare = null)}>
     <p class="mono">{folder}</p>
-    <p class="muted">DAWGit saves a first version of this project and uploads it, including its samples, so your
-      teammates can download it.</p>
+    <p class="muted">DAWGit adds the project to {current?.name}. Then you choose: commit and share it now, or first
+      look through its files (leave some out, tidy the folder) and share it later. Teammates can download it once
+      it's shared.</p>
     {#snippet footer()}
       <button onclick={() => (confirmShare = null)}>Cancel</button>
-      <button class="primary" onclick={() => share(folder)}>Share</button>
+      <button class="primary" onclick={() => share(folder)}>Add</button>
     {/snippet}
   </Modal>
 {/if}

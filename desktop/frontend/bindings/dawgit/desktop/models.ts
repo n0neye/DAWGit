@@ -841,6 +841,11 @@ export class State {
      * until one ran for this project since DAWGit started).
      */
     "teamChecked": boolean;
+
+    /**
+     * from TeamState: versions here, none on the team yet
+     */
+    "unshared": boolean;
     "online": boolean;
 
     /**
@@ -916,6 +921,9 @@ export class State {
         if (!("teamChecked" in $$source)) {
             this["teamChecked"] = false;
         }
+        if (!("unshared" in $$source)) {
+            this["unshared"] = false;
+        }
         if (!("online" in $$source)) {
             this["online"] = false;
         }
@@ -970,41 +978,41 @@ export class State {
      */
     static createFrom($$source: any = {}): State {
         const $$createField0_0 = $$createType13;
-        const $$createField14_0 = $$createType2;
-        const $$createField15_0 = $$createType1;
-        const $$createField17_0 = $$createType1;
-        const $$createField19_0 = $$createType10;
-        const $$createField20_0 = $$createType21;
-        const $$createField21_0 = $$createType8;
+        const $$createField15_0 = $$createType2;
+        const $$createField16_0 = $$createType1;
+        const $$createField18_0 = $$createType1;
+        const $$createField20_0 = $$createType10;
+        const $$createField21_0 = $$createType21;
         const $$createField22_0 = $$createType8;
-        const $$createField23_0 = $$createType23;
+        const $$createField23_0 = $$createType8;
+        const $$createField24_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
         }
         if ("openable" in $$parsedSource) {
-            $$parsedSource["openable"] = $$createField14_0($$parsedSource["openable"]);
+            $$parsedSource["openable"] = $$createField15_0($$parsedSource["openable"]);
         }
         if ("olderVersion" in $$parsedSource) {
-            $$parsedSource["olderVersion"] = $$createField15_0($$parsedSource["olderVersion"]);
+            $$parsedSource["olderVersion"] = $$createField16_0($$parsedSource["olderVersion"]);
         }
         if ("unfinished" in $$parsedSource) {
-            $$parsedSource["unfinished"] = $$createField17_0($$parsedSource["unfinished"]);
+            $$parsedSource["unfinished"] = $$createField18_0($$parsedSource["unfinished"]);
         }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField19_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField20_0($$parsedSource["changes"]);
         }
         if ("myEdits" in $$parsedSource) {
-            $$parsedSource["myEdits"] = $$createField20_0($$parsedSource["myEdits"]);
+            $$parsedSource["myEdits"] = $$createField21_0($$parsedSource["myEdits"]);
         }
         if ("incoming" in $$parsedSource) {
-            $$parsedSource["incoming"] = $$createField21_0($$parsedSource["incoming"]);
+            $$parsedSource["incoming"] = $$createField22_0($$parsedSource["incoming"]);
         }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField22_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField23_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField23_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField24_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }
@@ -1139,6 +1147,12 @@ export class TeamPart {
     "olderVersion": Version | null;
 
     /**
+     * Unshared: this branch has versions here and none on the team yet (the
+     * project was added and not shared).
+     */
+    "unshared": boolean;
+
+    /**
      * Capabilities of the team's backend (locks, presence…): the app shows
      * what goes with them only when it has them.
      */
@@ -1164,6 +1178,9 @@ export class TeamPart {
         if (!("olderVersion" in $$source)) {
             this["olderVersion"] = null;
         }
+        if (!("unshared" in $$source)) {
+            this["unshared"] = false;
+        }
         if (!("capabilities" in $$source)) {
             this["capabilities"] = (new remote$0.Capabilities());
         }
@@ -1179,7 +1196,7 @@ export class TeamPart {
         const $$createField3_0 = $$createType8;
         const $$createField4_0 = $$createType8;
         const $$createField5_0 = $$createType1;
-        const $$createField6_0 = $$createType25;
+        const $$createField7_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -1194,7 +1211,7 @@ export class TeamPart {
             $$parsedSource["olderVersion"] = $$createField5_0($$parsedSource["olderVersion"]);
         }
         if ("capabilities" in $$parsedSource) {
-            $$parsedSource["capabilities"] = $$createField6_0($$parsedSource["capabilities"]);
+            $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
         }
         return new TeamPart($$parsedSource as Partial<TeamPart>);
     }

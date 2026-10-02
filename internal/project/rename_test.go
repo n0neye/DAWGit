@@ -45,3 +45,30 @@ func TestRenameStaysForTheTeam(t *testing.T) {
 		t.Fatalf("team's name after another save: %+v %v", ps, err)
 	}
 }
+
+// A project with versions here joins a team: Share uploads them without
+// committing the files.
+func TestShareVersionsLater(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+	a, _ := Init(newProject(t), "yi")
+	write(t, a.Root, "Notes/lyrics.txt", lyrics)
+	first := mustSnapshot(t, a, "here only")
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "Notes/lyrics.txt", lyrics+"not committed\n")
+	res, err := a.Share(Strategy("fail"))
+	if err != nil || res.Action != "published" || a.Head() != first.ID {
+		t.Fatalf("share: %+v %v (head %s)", res, err, a.Head())
+	}
+	c, _ := a.Client()
+	if bs, _ := c.Branches(a.Config.ProjectID); bs["main"] != first.ID {
+		t.Fatalf("team's main: %v", bs)
+	}
+	if changes, _ := a.Status(); len(changes) != 1 {
+		t.Fatalf("the uncommitted change stays: %+v", changes)
+	}
+}

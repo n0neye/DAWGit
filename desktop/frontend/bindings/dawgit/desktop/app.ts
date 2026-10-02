@@ -555,6 +555,16 @@ export function ShareProject(root: string, teamID: string): $CancellablePromise<
 }
 
 /**
+ * ShareVersions shares the versions committed here with the project's team
+ * without committing the files (a project added to a team, shared later).
+ */
+export function ShareVersions(root: string): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(199245823, root).then(($result: any) => {
+        return $$createType12($result);
+    });
+}
+
+/**
  * ShowFile opens Explorer with the file selected.
  */
 export function ShowFile(root: string, file: string): $CancellablePromise<void> {

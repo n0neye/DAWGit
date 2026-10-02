@@ -68,6 +68,7 @@ type State struct {
 	// TeamChecked: the team fields below come from a TeamState call (false
 	// until one ran for this project since DAWGit started).
 	TeamChecked bool   `json:"teamChecked"`
+	Unshared    bool   `json:"unshared"` // from TeamState: versions here, none on the team yet
 	Online      bool   `json:"online"`
 	Offline     string `json:"offline"`     // why the server is unreachable
 	LiveRunning bool   `json:"liveRunning"` // a set of this project is open in Live

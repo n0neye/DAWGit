@@ -120,13 +120,14 @@
 
   // Just added: ask about the first version once the project is read.
   let firstAsk = $state(false);
+  let shareAsk = $state(false);
   let firstShareStarted = false;
   $effect(() => {
     if (!st || firstShareStarted || !untrack(() => firstShare)) return;
     firstShareStarted = true;
     onfirstshared?.();
     if (!st.head) askFirstVersion();
-    else if (st.remoteUrl) shareFirstVersion();
+    else if (st.remoteUrl) shareAsk = true; // versions already: share them now or later
   });
   function askFirstVersion() {
     if (!message.trim()) message = "First version";
@@ -563,18 +564,18 @@
     if (!st?.head) {
       await load();
       askFirstVersion();
-    } else shareFirstVersion(teams.find((t) => t.id === teamId)?.name);
+    } else shareAsk = true;
   }
 
-  // Commits and uploads the first version of a project that just joined a
-  // team.
-  function shareFirstVersion(team?: string) {
-    onfirstshared?.(); // started: don't start again if this view is reopened
+  // Shares the versions of a project that joined a team (the files aren't
+  // committed: what isn't yet stays in Changes).
+  function shareVersions() {
+    shareAsk = false;
     run({
       name: "first-share",
-      call: (res, force) => api.Save(root, "First version", true, res, force, []),
+      call: () => api.ShareVersions(root),
       done: () => {
-        toast(`“${st?.name ?? folderName}” is shared with ${team || st?.teamName || "the team"}`, "ok");
+        toast(`“${st?.name ?? folderName}” is shared with ${st?.teamName || "the team"}`, "ok");
       },
     });
   }
@@ -679,6 +680,11 @@
       <div class="banner info">
         <div>Not shared with {st.teamName || "the team"} yet: look through the files (right-click › Ignore leaves
           one out), then commit a first version to share it.</div>
+      </div>
+    {:else if st.remoteUrl && st.unshared && !busy && !progress}
+      <div class="banner info">
+        <div>Not shared with {st.teamName || "the team"} yet: its versions are on this computer only.</div>
+        <button class="primary" onclick={shareVersions}>Share now</button>
       </div>
     {/if}
 
@@ -819,6 +825,19 @@
     </main>
 
   </div>
+
+  {#if shareAsk}
+    <Modal title="Share “{st.name}” with {st.teamName || "the team"}?" onclose={() => (shareAsk = false)}>
+      <p>Upload its {st.history.length} version{st.history.length === 1 ? "" : "s"} now, samples included?</p>
+      <p class="muted">Or later: look through the files first (right-click › Ignore, or the project's settings), and
+        share from the banner at the top. Your team sees the project once it's shared.{st.changes.length
+          ? ` The ${st.changes.length} uncommitted change${st.changes.length === 1 ? "" : "s"} stay in Changes either way.` : ""}</p>
+      {#snippet footer()}
+        <button onclick={() => (shareAsk = false)}>Later</button>
+        <button class="primary" onclick={shareVersions}>Share now</button>
+      {/snippet}
+    </Modal>
+  {/if}
 
   {#if firstAsk}
     <Modal title="“{st.name}” is added" onclose={() => (firstAsk = false)}>
