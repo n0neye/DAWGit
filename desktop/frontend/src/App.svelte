@@ -35,6 +35,21 @@
   // The ⋯ menu's "Open in" (read when the menu opens).
   let menuInfo = $state<ProjectInfo | null>(null);
   let openSub = $state(false);
+  // The list of sets beside the menu: placed on the window (the sidebar's
+  // list scrolls, and would cut it off), kept open while the pointer
+  // crosses over to it.
+  let subAt = $state({ left: 0, top: 0 });
+  let subTimer: ReturnType<typeof setTimeout> | undefined;
+  function showSub(e: MouseEvent) {
+    clearTimeout(subTimer);
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    subAt = { left: r.right - 2, top: r.top - 6 };
+    openSub = true;
+  }
+  function hideSub() {
+    clearTimeout(subTimer);
+    subTimer = setTimeout(() => (openSub = false), 180);
+  }
   function toggleMenu(p: TeamProject) {
     const key = rowKey(p);
     rowMenu = rowMenu === key ? "" : key;
@@ -452,7 +467,7 @@
       title={p.status === "remote" ? "On the team, not on this computer yet" : p.root}>
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
-        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<span class="pin" title="Pinned">📌</span>{/if}</span>
+        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Pinned"><title>Pinned</title><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>{/if}</span>
         <span class="meta" class:busy={p.root && activity[p.root]}>
           {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText[p.status] ?? `⑂ ${p.branch}`}
         </span>
@@ -466,12 +481,13 @@
         {#if menuInfo && menuInfo.openable.length === 1}
           <button class="item" onclick={() => openIn(p, menuInfo!.openable[0])}>Open in {toolName(menuInfo.tool)}</button>
         {:else if menuInfo && menuInfo.openable.length > 1}
-          <div class="sub" role="none">
-            <button class="item has-sub" onclick={() => (openSub = !openSub)} aria-expanded={openSub}>
+          <div class="sub" role="none" onmouseenter={showSub} onmouseleave={hideSub}>
+            <button class="item has-sub" aria-expanded={openSub}>
               Open in {toolName(menuInfo.tool)}<span class="arrow">›</span>
             </button>
             {#if openSub}
-              <div class="row-menu submenu" role="menu">
+              <div class="row-menu submenu" role="menu" tabindex="-1" style:left="{subAt.left}px" style:top="{subAt.top}px"
+                onmouseenter={() => clearTimeout(subTimer)} onmouseleave={hideSub}>
                 {#each menuInfo.openable as rel}
                   <button class="item" onclick={() => openIn(p, rel)}>{openLabel(p, rel)}</button>
                 {/each}
@@ -624,13 +640,10 @@
   .row-menu .sub { position: relative; }
   .row-menu .has-sub { flex-direction: row; justify-content: space-between; align-items: center; }
   .row-menu .arrow { color: var(--faint); }
-  /* the sets to open, under "Open in" (the list scrolls: a menu beside it would be cut off) */
-  .row-menu.submenu { position: static; min-width: 0; padding: 0 0 2px 10px; background: transparent; border: none; box-shadow: none; }
-  .row-menu.submenu .item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-size: 13px; color: var(--muted); }
-  .row-menu.submenu .item:hover { color: var(--text); }
-  .row-menu .has-sub[aria-expanded="true"] .arrow { transform: rotate(90deg); }
-  .row-menu .arrow { transition: transform .12s; }
-  .pin { font-size: 10px; margin-left: 5px; opacity: .8; }
+  .row-menu.submenu { position: fixed; right: auto; min-width: 200px; max-width: 340px; z-index: 40; }
+  .row-menu.submenu .item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  .row-menu .has-sub[aria-expanded="true"] { background: #33363d; }
+  .pin { width: 11px; height: 11px; margin-left: 5px; color: var(--faint); vertical-align: -1px; flex: none; }
   .full { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
   .full input { width: auto; margin-top: 3px; }
   .full .faint { display: block; font-size: 12px; margin-top: 2px; }

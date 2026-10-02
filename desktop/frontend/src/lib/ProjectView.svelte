@@ -629,8 +629,7 @@
           {/if}
           <button class="ghost gear" class:bad={!!st.rules.error} onclick={onsettings}
             title={st.rules.error ? `Project settings — ⚠ ${st.rules.error}` : "Project settings: name, rules, …"}
-            aria-label="Project settings">{st.rules.error ? "⚠" : ""}<svg viewBox="0 0 16 16" aria-hidden="true"><path
-              fill="currentColor" d="M9.4 1.2l.3 1.7c.5.2.9.4 1.3.7l1.6-.6 1.4 2.4-1.3 1.1c.1.5.1 1 0 1.5l1.3 1.1-1.4 2.4-1.6-.6c-.4.3-.8.5-1.3.7l-.3 1.7H6.6l-.3-1.7c-.5-.2-.9-.4-1.3-.7l-1.6.6L2 11.1l1.3-1.1c-.1-.5-.1-1 0-1.5L2 7.4l1.4-2.4 1.6.6c.4-.3.8-.5 1.3-.7l.3-1.7h2.8zM8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" /></svg></button>
+            aria-label="Project settings">{st.rules.error ? "⚠" : ""}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
         </div>
       </div>
       <div class="actions">

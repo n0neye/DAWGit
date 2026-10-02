@@ -65,8 +65,7 @@
         onkeydown={(e) => { if (e.key === "Enter" && name.trim() && name.trim() !== p.name) rename(); }} />
       <button onclick={rename} disabled={renaming || !name.trim() || name.trim() === p.name}>{renaming ? "Renaming…" : "Rename"}</button>
     </div>
-    <p class="hint">{team ? `How the project is called in DAWGit, for everyone in ${team.name}.` : "How the project is called in DAWGit."}
-      The folder keeps its name.</p>
+    <p class="hint">{team ? "Project name shared by the whole team." : "Project name in DAWGit."} Local folder keeps its name.</p>
   </section>
 
   <section>
