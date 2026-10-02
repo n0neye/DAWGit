@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api, errorText, type ProjectInfo, type TeamProject, type TeamSummary } from "./api";
   import Modal from "./Modal.svelte";
+  import RulesWindow from "./RulesWindow.svelte";
   import { toast } from "./notify.svelte";
 
   // A project's settings: its name, where it is, its rules, and what can be
@@ -49,11 +50,16 @@
     }
   }
 
+  let rulesOpen = $state(false);
   let unlinkSure = $state(false);
-  const presetName = (preset: string) => (preset === "none" ? "No preset" : preset === "ableton" ? "Ableton Live project"
-    : info?.tool ? `${info.tool} project (${preset})` : preset);
+  const presetNames: Record<string, string> = { ableton: "Ableton Live project", unity: "Unity project",
+    unreal: "Unreal project", design: "Design files", code: "Code", none: "No preset" };
+  const presetName = (preset: string) => presetNames[preset] ?? preset;
 </script>
 
+{#if rulesOpen}
+  <RulesWindow root={p.root} onclose={() => { rulesOpen = false; api.ProjectInfo(p.root).then((i) => (info = i)).catch(() => {}); }} />
+{:else}
 <Modal title="Project settings" {onclose} width={600}>
   <section>
     <h3>Name</h3>
@@ -100,7 +106,8 @@
       </ul>
       {#if info.rules.error}<p class="error">⚠ {info.rules.error}</p>{/if}
       <div class="line">
-        <button onclick={openRules}>{info.rules.fromFile ? "Open .dawgit.yaml" : "Create .dawgit.yaml"}</button>
+        <button class="primary" onclick={() => (rulesOpen = true)}>Rules…</button>
+        <button onclick={openRules}>Edit as text</button>
         <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
       </div>
     </section>
@@ -141,6 +148,7 @@
     <button onclick={onclose}>Close</button>
   {/snippet}
 </Modal>
+{/if}
 
 <style>
   section { padding: 12px 0; border-top: 1px solid var(--line); }
