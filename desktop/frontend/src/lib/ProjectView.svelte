@@ -595,7 +595,7 @@
   <div class="preparing">
     <h1>{folderName}</h1>
     {#if busy === "first-share"}
-      <p class="muted">Sharing with the team: DAWGit commits a first version and uploads it, samples included.
+      <p class="muted">Sharing with the team: DAWGit commits a first version and uploads it{isLive ? ", samples included" : ""}.
         Large projects can take a few minutes — you can keep using DAWGit meanwhile.</p>
     {:else}
       <p class="muted">Reading the project…</p>
@@ -828,7 +828,7 @@
 
   {#if shareAsk}
     <Modal title="Share “{st.name}” with {st.teamName || "the team"}?" onclose={() => (shareAsk = false)}>
-      <p>Upload its {st.history.length} version{st.history.length === 1 ? "" : "s"} now, samples included?</p>
+      <p>Upload its {st.history.length} version{st.history.length === 1 ? "" : "s"} now{isLive ? ", samples included" : ""}?</p>
       <p class="muted">Or later: look through the files first (right-click › Ignore, or the project's settings), and
         share from the banner at the top. Your team sees the project once it's shared.{st.changes.length
           ? ` The ${st.changes.length} uncommitted change${st.changes.length === 1 ? "" : "s"} stay in Changes either way.` : ""}</p>
@@ -842,7 +842,7 @@
   {#if firstAsk}
     <Modal title="“{st.name}” is added" onclose={() => (firstAsk = false)}>
       <p>{st.remoteUrl
-        ? `Commit a first version now and share it with ${st.teamName || "the team"}, samples included?`
+        ? `Commit a first version now and share it with ${st.teamName || "the team"}${isLive ? ", samples included" : ""}?`
         : "Commit a first version now?"}</p>
       <p class="muted">Or look through the {st.changes.length} file{st.changes.length === 1 ? "" : "s"} first: leave out
         what shouldn't be versioned (right-click › Ignore, or the project's settings), tidy the folder, then commit

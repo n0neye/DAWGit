@@ -19,7 +19,6 @@
   let refreshKey = $state(0);
   let busy = $state("");
   let autostart = $state(false);
-  let confirmShare = $state<string | null>(null);
   let rowMenu = $state(""); // key of the project whose ⋯ menu is open
   let confirmDelete = $state<TeamProject | null>(null);
   // Moving a project out of its team (to Local) or into another team.
@@ -270,12 +269,12 @@
   }
 
   async function addToTeam() {
-    const folder = await api.ChooseFolder(`Choose an Ableton project folder to share with ${current?.name ?? "the team"}`);
-    if (folder) confirmShare = folder;
+    // No confirmation here: the project asks before sharing anything.
+    const folder = await api.ChooseFolder(`Choose a project folder to add to ${current?.name ?? "the team"}`);
+    if (folder) share(folder);
   }
 
   async function share(folder: string) {
-    confirmShare = null;
     busy = "add";
     try {
       const got = await api.AddProjectToTeam(overview!.currentTeam, folder);
@@ -290,7 +289,7 @@
   }
 
   async function addLocal() {
-    const folder = await api.ChooseFolder("Choose an Ableton project folder (kept on this computer only)");
+    const folder = await api.ChooseFolder("Choose a project folder (kept on this computer only)");
     if (!folder) return;
     try {
       const p = await api.AddLocalProject(folder);
@@ -506,19 +505,6 @@
   </li>
 {/snippet}
 
-{#if confirmShare}
-  {@const folder = confirmShare}
-  <Modal title="Add to {current?.name}?" onclose={() => (confirmShare = null)}>
-    <p class="mono">{folder}</p>
-    <p class="muted">DAWGit adds the project to {current?.name}. Then you choose: commit and share it now, or first
-      look through its files (leave some out, tidy the folder) and share it later. Teammates can download it once
-      it's shared.</p>
-    {#snippet footer()}
-      <button onclick={() => (confirmShare = null)}>Cancel</button>
-      <button class="primary" onclick={() => share(folder)}>Add</button>
-    {/snippet}
-  </Modal>
-{/if}
 
 {#if settingsFor}
   {@const p = settingsFor}
