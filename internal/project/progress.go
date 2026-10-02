@@ -80,12 +80,23 @@ type countingReader struct {
 	rd   io.Reader
 	size int64
 	t    *transfer
+	read int64
+}
+
+// undo takes back what was counted: the transfer is tried again.
+func (c *countingReader) undo() {
+	c.t.mu.Lock()
+	c.t.bytes -= c.read
+	c.read = 0
+	c.t.reportLocked()
+	c.t.mu.Unlock()
 }
 
 func (c *countingReader) Read(p []byte) (int, error) {
 	n, err := c.rd.Read(p)
 	if n > 0 {
 		c.t.mu.Lock()
+		c.read += int64(n)
 		c.t.bytes += int64(n)
 		c.t.reportLocked()
 		c.t.mu.Unlock()

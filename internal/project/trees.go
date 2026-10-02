@@ -181,7 +181,7 @@ func (r *Repo) uploadTrees(c remote.Backend, roots []string) error {
 		if err != nil {
 			return err
 		}
-		return c.PutObject(h, bytes.NewReader(data))
+		return remote.Retry(remote.RetryAttempts, func() error { return c.PutObject(h, bytes.NewReader(data)) })
 	})
 }
 
@@ -198,14 +198,18 @@ func (r *Repo) fetchTrees(c remote.Backend, root string) error {
 			}
 		}
 		if err := inParallel(need, func(h string) error {
-			body, err := c.GetObject(h)
+			var data []byte
+			err := remote.Retry(remote.RetryAttempts, func() error {
+				body, err := c.GetObject(h)
+				if err != nil {
+					return err
+				}
+				defer body.Close()
+				data, err = io.ReadAll(body)
+				return err
+			})
 			if err != nil {
 				return fmt.Errorf("download folder list %s: %w", short(h), err)
-			}
-			data, err := io.ReadAll(body)
-			body.Close()
-			if err != nil {
-				return err
 			}
 			t, err := manifest.ParseTree(h, data)
 			if err != nil {
