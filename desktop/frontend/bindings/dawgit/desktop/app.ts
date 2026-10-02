@@ -33,15 +33,6 @@ export function AddIgnoreRule(root: string, pattern: string): $CancellablePromis
 }
 
 /**
- * AddLocalProject tracks a folder on this computer only (no team).
- */
-export function AddLocalProject(folder: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(777528550, folder).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
  * AddProjectToTeam starts tracking an Ableton project folder as part of a
  * team. It returns quickly; the frontend then commits and uploads the first
  * version with Save, showing its progress.
@@ -330,26 +321,6 @@ export function MergeVersion(root: string, id: string, message: string, resoluti
 }
 
 /**
- * MoveProjectToLocal takes a project out of its team, on this computer only:
- * it stays in the team for everyone else, and here keeps its versions under
- * Local (with fullHistory, also the files of older versions).
- */
-export function MoveProjectToLocal(root: string, fullHistory: boolean): $CancellablePromise<void> {
-    return $Call.ByID(695723853, root, fullHistory);
-}
-
-/**
- * MoveProjectToTeam puts a project (from Local or another team) in a team;
- * the page then shares its versions there (as for a first share). The old
- * team keeps its copy.
- */
-export function MoveProjectToTeam(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(3698731567, root, teamID).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
  * OpenInLive opens a set with its default application (Ableton Live).
  */
 export function OpenInLive(root: string, $set: string): $CancellablePromise<void> {
@@ -552,15 +523,6 @@ export function SetIdentity(teamID: string, memberID: string, name: string): $Ca
 export function SetOverview(root: string, file: string, version: string, fromFile: string, fromVersion: string): $CancellablePromise<$models.SetView | null> {
     return $Call.ByID(1307357046, root, file, version, fromFile, fromVersion).then(($result: any) => {
         return $$createType28($result);
-    });
-}
-
-/**
- * ShareProject moves a local-only project into a team (see AddProjectToTeam).
- */
-export function ShareProject(root: string, teamID: string): $CancellablePromise<$models.TeamProject> {
-    return $Call.ByID(3903611547, root, teamID).then(($result: any) => {
-        return $$createType0($result);
     });
 }
 

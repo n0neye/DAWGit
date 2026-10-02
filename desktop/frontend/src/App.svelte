@@ -21,13 +21,7 @@
   let autostart = $state(false);
   let rowMenu = $state(""); // key of the project whose ⋯ menu is open
   let confirmDelete = $state<TeamProject | null>(null);
-  // Moving a project out of its team (to Local) or into another team.
-  let confirmLocal = $state<TeamProject | null>(null);
   let checking = $state<TeamProject | null>(null); // Check project…
-  let localFull = $state(false); // also download older versions' files
-  let localSize = $state(0);
-  const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
-  let moving = $state<{ p: TeamProject; team: string } | null>(null);
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
   let settingsFor = $state<TeamProject | null>(null); // Project settings
@@ -61,7 +55,7 @@
     rowMenu = rowMenu === key ? "" : key;
     menuInfo = null;
     openSub = false;
-    if (rowMenu && p.root && (p.status === "downloaded" || p.status === "local")) {
+    if (rowMenu && p.root && p.status === "downloaded") {
       api.ProjectInfo(p.root).then((i) => { if (rowMenu === key) menuInfo = i; }).catch(() => {});
     }
   }
@@ -151,10 +145,9 @@
   }
 
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
-  // Local (this computer only) is picked in the team menu like a team.
-  let isLocal = $derived(!current);
+  // Every project is a team's (0.9: no projects kept on this computer only).
   let entries = $derived.by(() => {
-    const list = (isLocal ? overview?.local : overview?.projects) ?? [];
+    const list = overview?.projects ?? [];
     const pin = (p: TeamProject) => (pinned.includes(rowKey(p)) ? 0 : 1);
     return [...list].sort((a, b) => pin(a) - pin(b)); // stable: pinned first, the rest as they come
   });
@@ -171,7 +164,7 @@
     if (!overview || selectedEntry) return;
     const last = recall(SELECTED_KEY);
     const pick = entries.find((p) => p.root && p.root === last) ??
-      entries.find((p) => p.status === "downloaded" || p.status === "local") ?? entries[0];
+      entries.find((p) => p.status === "downloaded") ?? entries[0];
     if (pick) select(pick);
   });
 
@@ -225,49 +218,10 @@
     busy = "delete";
     try {
       await api.DeleteProjectFromTeam(overview!.currentTeam, p.id);
-      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy is kept under Local.`
+      toast(p.root ? `Deleted “${p.name}” from ${current?.name}. Your copy stays in its folder.`
         : `Deleted “${p.name}” from ${current?.name}`, "info", 8000);
       if (!p.root) selected = {};
       await reload();
-    } catch (e) {
-      toast(errorText(e), "error", 9000);
-    } finally {
-      busy = "";
-    }
-  }
-
-  async function moveToLocal(p: TeamProject) {
-    confirmLocal = null;
-    busy = "move";
-    try {
-      await api.MoveProjectToLocal(p.root, localFull);
-      toast(`“${p.name}” is under Local now; ${current?.name ?? "the team"} keeps its copy`, "info", 7000);
-      selected = {};
-      await reload();
-    } catch (e) {
-      toast(errorText(e), "error", 9000);
-    } finally {
-      busy = "";
-    }
-  }
-
-  const canMoveTeam = (p: TeamProject) =>
-    !!p.root && (p.status === "local" ? (overview?.teams.length ?? 0) > 0 : (overview?.teams.length ?? 0) > 1);
-
-  // Candidate teams for a move: all but the project's own.
-  let moveTargets = $derived(moving
-    ? (overview?.teams ?? []).filter((t) => moving!.p.status === "local" || t.id !== overview?.currentTeam) : []);
-
-  async function moveToTeam() {
-    if (!moving) return;
-    const { p, team } = moving;
-    moving = null;
-    busy = "add";
-    try {
-      const got = await api.MoveProjectToTeam(p.root, team);
-      firstShare = got.root; // share its versions with the new team
-      await reload();
-      select(got);
     } catch (e) {
       toast(errorText(e), "error", 9000);
     } finally {
@@ -295,18 +249,6 @@
     }
   }
 
-  async function addLocal() {
-    const folder = await api.ChooseFolder("Choose a project folder (kept on this computer only)");
-    if (!folder) return;
-    try {
-      const p = await api.AddLocalProject(folder);
-      firstShare = p.root; // asks about a first version
-      await reload();
-      select(p);
-    } catch (e) {
-      toast(errorText(e), "error");
-    }
-  }
 
   async function toggleAutostart(on: boolean) {
     try {
@@ -321,7 +263,7 @@
 
   onMount(() => {
     reload().then(() => {
-      if (overview && overview.teams.length === 0 && overview.local.length === 0) onboarding = true;
+      if (overview && overview.teams.length === 0) onboarding = true;
     });
     api.Autostart().then((on) => (autostart = on)).catch(() => {});
     api.Version().then((v) => (appVersion = v)).catch(() => {});
@@ -330,8 +272,7 @@
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
-      const all = [...entries, ...(overview?.local ?? [])];
-      const name = all.find((p) => p.root === e.root)?.name ?? "";
+      const name = entries.find((p) => p.root === e.root)?.name ?? "";
       switch (e.kind) {
         case "new-versions":
           toast(`${name}: ${e.versions.map((v) => `${v.author} saved “${v.message}”`).join("\n")}`, "info", 8000);
@@ -346,7 +287,7 @@
   });
 
   const statusText: Record<string, string> = { remote: "not downloaded", missing: "folder not found" };
-  const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪", local: "♪" };
+  const statusIcon: Record<string, string> = { remote: "☁", missing: "⚠", downloaded: "♪" };
 </script>
 
 <svelte:window onfocus={reloadIfStale}
@@ -406,10 +347,10 @@
           {#each entries as p (p.root || p.id)}
             {@render row(p)}
           {:else}
-            <li class="empty faint">{current ? "No projects in this team yet." : "No projects on this computer yet."}</li>
+            <li class="empty faint">No projects in this team yet.</li>
           {/each}
         </ul>
-        <button class="add" onclick={current ? addToTeam : addLocal} disabled={busy === "add"}>
+        <button class="add" onclick={addToTeam} disabled={busy === "add" || !current}>
           <span>+ Add project</span>
           <span class="hint">Select project folder</span>
         </button>
@@ -424,7 +365,7 @@
     </aside>
 
     <section class="content">
-      {#if selectedEntry && (selectedEntry.status === "downloaded" || selectedEntry.status === "local")}
+      {#if selectedEntry && selectedEntry.status === "downloaded"}
         {#key selectedEntry.root}
           <ProjectView root={selectedEntry.root} {refreshKey} teams={overview.teams} onchanged={reload}
             onsettings={() => (settingsFor = selectedEntry ?? null)}
@@ -459,9 +400,8 @@
         </div>
       {:else}
         <div class="placeholder">
-          <h1>{current ? current.name : "Local"}</h1>
-          <p class="muted">{current ? "Pick a project on the left, or add one to share it with the team."
-            : "Projects here keep their versions on this computer only. Pick one on the left, or add one."}</p>
+          <h1>{current?.name ?? ""}</h1>
+          <p class="muted">Pick a project on the left, or add one to share it with the team.</p>
         </div>
       {/if}
     </section>
@@ -515,16 +455,10 @@
 
 {#if settingsFor}
   {@const p = settingsFor}
-  <ProjectSettings {p} team={p.status === "local" ? undefined : current} canMoveTeam={canMoveTeam(p)}
+  <ProjectSettings {p} team={current}
     onclose={() => (settingsFor = null)}
     onrenamed={async () => { const key = rowKey(p); await reload(); refreshKey++; settingsFor = entries.find((e) => rowKey(e) === key) ?? null; }}
     oncheck={() => { checking = closeSettings(); }}
-    onmovelocal={() => {
-      const q = closeSettings();
-      localFull = false; localSize = 0; confirmLocal = q;
-      api.HistoryDownloadSize(q.root, "").then((n) => (localSize = n)).catch(() => {});
-    }}
-    onmoveteam={() => { moving = { p: closeSettings(), team: "" }; }}
     ondelete={() => { const q = closeSettings(); deleteWord = ""; confirmDelete = q; }}
     onunlink={() => forget(closeSettings())}
     onlocate={() => locate(closeSettings())} />
@@ -534,49 +468,12 @@
   <VerifyDialog root={checking.root} name={checking.name} onclose={() => (checking = null)} />
 {/if}
 
-{#if confirmLocal}
-  {@const p = confirmLocal}
-  <Modal title="Move “{p.name}” to Local?" onclose={() => (confirmLocal = null)}>
-    <p>The project leaves <strong>{current?.name}</strong> on this computer only: you keep its versions and can go
-      on committing here. The team keeps its copy, and your teammates are not affected.</p>
-    <p class="muted">To share it again, join the team (or move it to a team) later.</p>
-    {#if localSize > 0}
-      <label class="full">
-        <input type="checkbox" bind:checked={localFull} />
-        <span>Also download the files of older versions ({mb(localSize)})
-          <span class="faint">Without them, older versions that use other samples than today's need the team again
-            to open.</span></span>
-      </label>
-    {/if}
-    {#snippet footer()}
-      <button onclick={() => (confirmLocal = null)}>Cancel</button>
-      <button class="primary" onclick={() => moveToLocal(p)}>Move to Local</button>
-    {/snippet}
-  </Modal>
-{/if}
-
-{#if moving}
-  {@const m = moving}
-  <Modal title="Move “{m.p.name}” to a team" onclose={() => (moving = null)}>
-    <p class="muted">DAWGit shares the project's versions with the team you pick{m.p.status === "local" ? "" :
-      `; ${current?.name} keeps its copy, but you'll no longer get its changes here`}.</p>
-    <div class="teams-pick">
-      {#each moveTargets as t (t.id)}
-        <label><input type="radio" bind:group={m.team} value={t.id} /> {t.name}</label>
-      {/each}
-    </div>
-    {#snippet footer()}
-      <button onclick={() => (moving = null)}>Cancel</button>
-      <button class="primary" disabled={!m.team} onclick={moveToTeam}>Move</button>
-    {/snippet}
-  </Modal>
-{/if}
 
 {#if confirmDelete}
   {@const p = confirmDelete}
   <Modal title="Delete “{p.name}” from the server?" onclose={() => (confirmDelete = null)}>
     <p>This removes the project and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
-      Copies already on someone's computer are not touched{p.root ? " — yours stays here as a project on this computer only" : ""}.</p>
+      Copies already on someone's computer are not touched{p.root ? " — yours stays in its folder" : ""}.</p>
     <label for="delete-word">Type <strong>{p.name}</strong> to confirm</label>
     <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
       onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) deleteFromTeam(p); }} />
@@ -640,12 +537,6 @@
   .row-menu.submenu .item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
   .row-menu .has-sub[aria-expanded="true"] { background: #33363d; }
   .pin { width: 11px; height: 11px; margin-left: 5px; color: var(--faint); vertical-align: -1px; flex: none; }
-  .full { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
-  .full input { width: auto; margin-top: 3px; }
-  .full .faint { display: block; font-size: 12px; margin-top: 2px; }
-  .teams-pick { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-  .teams-pick label { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
-  .teams-pick input { width: auto; }
   .danger-text { color: var(--danger); }
   .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }

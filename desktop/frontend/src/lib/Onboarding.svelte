@@ -87,19 +87,6 @@
     }
   }
 
-  async function localOnly() {
-    const folder = await api.ChooseFolder("Choose an Ableton project folder");
-    if (!folder) return;
-    try {
-      const p = await api.AddLocalProject(folder);
-      await reload();
-      step = 2;
-      downloaded = [p.root];
-    } catch (e) {
-      error = errorText(e);
-    }
-  }
-
   let remote = $derived(overview.projects.filter((p) => p.status === "remote"));
   let mine = $derived(overview.projects.filter((p) => p.status === "downloaded"));
 </script>
@@ -115,12 +102,10 @@
 
     {#if step === 1}
       <h1>Your team</h1>
-      <p class="muted">A team shares its songs through storage of its own. One person creates the team; everyone
-        else joins with the connection code they send.</p>
+      <p class="muted">DAWGit keeps your projects' versions in your team's storage, safe if a drive fails. One person
+        creates the team; everyone else joins with the connection code they send. Working alone? Create a team of
+        one.</p>
       <JoinOrCreate onconnected={connected} />
-      <p class="local">
-        <button class="link" onclick={localOnly}>Just keep versions on this computer</button>
-      </p>
     {:else if step === 2 && team}
       <h1>Who are you in {team.name}?</h1>
       <IdentityForm {team} suggested={name} onsaved={async (t) => {
@@ -201,8 +186,6 @@
   h1 { font-size: 20px; margin: 0 0 6px; }
   .actions { margin-top: 18px; }
   .error { color: var(--danger); }
-  .local { margin: 18px 0 0; text-align: center; }
-  .link { border: none; background: none; color: var(--muted); text-decoration: underline; padding: 0; font-size: 13px; }
   .parent { margin: 12px 0 8px; }
   .path { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .projects { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow: auto; }

@@ -50,8 +50,6 @@
   const UNSAVED = "You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.";
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string>; set: string } | null>(null);
-  let shareOpen = $state(false);
-  let shareTeam = $state("");
   let branchMenu = $state(false);
   let setMenu = $state(false);
   let newBranch = $state<string | null>(null);
@@ -556,28 +554,6 @@
     }
   }
 
-  // A project kept on this computer only can be moved into a team.
-  function openShare() {
-    shareTeam = teams[0]?.id ?? "";
-    shareOpen = true;
-  }
-
-  async function shareWithTeam() {
-    const teamId = shareTeam;
-    shareOpen = false;
-    try {
-      await api.ShareProject(root, teamId);
-    } catch (e) {
-      toast(errorText(e), "error", 9000);
-      return;
-    }
-    onchanged(); // the project moves to the team's list
-    if (!st?.head) {
-      await load();
-      askFirstVersion();
-    } else shareAsk = true;
-  }
-
   // Shares the versions of a project that joined a team (the files aren't
   // committed: what isn't yet stays in Changes).
   function shareVersions() {
@@ -650,10 +626,6 @@
             <span class="faint" title={st.online ? st.remoteUrl : st.offline}>
               {st.teamName || st.remoteUrl}{!st.teamChecked ? " · checking…" : st.online ? "" : " · not reachable"}
             </span>
-          {:else if teams.length}
-            <button class="ghost" onclick={openShare}>Share with a team…</button>
-          {:else}
-            <span class="faint">on this computer only</span>
           {/if}
           <button class="ghost gear" class:bad={!!st.rules.error} onclick={onsettings}
             title={st.rules.error ? `Project settings — ⚠ ${st.rules.error}` : "Project settings: name, rules, …"}
@@ -994,23 +966,6 @@
     </Modal>
   {/if}
 
-  {#if shareOpen}
-    <Modal title="Share “{st.name}” with a team" onclose={() => (shareOpen = false)}>
-      <p class="muted">DAWGit commits a first version and uploads it, including its samples, so your teammates
-        can download it.</p>
-      <div class="teams">
-        {#each teams as t (t.id)}
-          <label class="team"><input type="radio" bind:group={shareTeam} value={t.id} /> {t.name}
-            <span class="faint">{t.address}</span></label>
-        {/each}
-      </div>
-      {#snippet footer()}
-        <button onclick={() => (shareOpen = false)}>Cancel</button>
-        <button class="primary" disabled={!shareTeam || !!busy} onclick={shareWithTeam}>Share</button>
-      {/snippet}
-    </Modal>
-  {/if}
-
   {#if leaving}
     {@const l = leaving}
     <Modal title={l.target ? "Go to an older version" : "Back to the latest version"} onclose={() => (leaving = null)}>
@@ -1064,9 +1019,6 @@
 
 <style>
   .view { display: flex; flex-direction: column; height: 100%; }
-  .teams { display: flex; flex-direction: column; gap: 6px; }
-  .team { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 14px; }
-  .team input { width: auto; }
   .pad { padding: 24px; }
   /* Same place as the loaded header's title, so nothing jumps. */
   .preparing { padding: 18px 24px; max-width: 600px; }

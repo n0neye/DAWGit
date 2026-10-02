@@ -27,7 +27,7 @@ Version control and collaboration for Ableton Live, made for musicians.
 
 Download `DAWGit-<version>-setup.exe` from the [Releases](../../releases) page and run it (Windows 10 21H2 or later, or Windows 11; no administrator rights needed). The installer is not code-signed yet: if Windows shows "Windows protected your PC", click **More info → Run anyway**.
 
-**On your own:** choose **Just keep versions on this computer**, pick your Ableton project folder, and commit versions as you work. You can share the project with a team later.
+Every project lives in a team's storage, so its versions are safe if a drive fails. **On your own?** Create a team of one.
 
 **Start a team (one person):** choose **Create a team** and follow the steps to create a Cloudflare R2 bucket and key (about 5 minutes), or enter any other S3-compatible storage. DAWGit checks it and gives you a **connection code** to send to your teammates.
 

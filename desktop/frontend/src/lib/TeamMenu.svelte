@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, errorText, LOCAL, type Overview, type TeamSummary } from "./api";
+  import { api, errorText, type Overview, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
   import JoinOrCreate from "./JoinOrCreate.svelte";
@@ -13,13 +13,9 @@
   let settingsFor = $state<TeamSummary | null>(null); // the ⚙ of a team
   // Who you are in a team (after connecting, or to rename yourself).
   let identityFor = $state<TeamSummary | null>(null);
-  // Your name for projects kept on this computer only.
-  let localName = $state<string | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
   const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
-  // "Local" (projects kept on this computer only) sits in the menu like a team.
-  let isLocal = $derived(!current);
 
   async function select(id: string) {
     open = false;
@@ -54,8 +50,8 @@
     }
   }
 
-  // Projects of the team already on this computer (e.g. moved to Local when
-  // it disconnected): offered for reconnecting, ticked by default.
+  // Projects of the team already on this computer (e.g. from before it
+  // disconnected): offered for reconnecting, ticked by default.
   let offerAfterName: TeamSummary | null = null;
   let found = $state<{ team: TeamSummary; projects: { root: string; name: string; on: boolean }[] } | null>(null);
   let reconnecting = $state(false);
@@ -85,25 +81,14 @@
       reconnecting = false;
     }
   }
-
-  async function saveLocalName() {
-    const n = (localName ?? "").trim();
-    localName = null;
-    try {
-      await api.SetAuthor(n);
-      await reload();
-    } catch (e) {
-      toast(errorText(e), "error");
-    }
-  }
 </script>
 
 <svelte:window onclick={(e) => { if (open && !(e.target as HTMLElement).closest(".team-menu")) open = false; }} />
 
 <div class="team-menu">
-  <button class="current" onclick={() => (open = !open)} title={current?.address ?? "Projects kept on this computer only"}>
-    <span class="label">{isLocal ? "Local" : "Team"}</span>
-    <span class="name">{current?.name ?? "This computer"}</span>
+  <button class="current" onclick={() => (open = !open)} title={current?.address ?? ""}>
+    <span class="label">Team</span>
+    <span class="name">{current?.name ?? "No team"}</span>
     <span class="caret">▾</span>
   </button>
   {#if current && !current.memberId}
@@ -126,17 +111,6 @@
         </div>
       {/each}
       {#if overview.teams.length}<div class="sep"></div>{/if}
-      <button class="item" onclick={() => select(LOCAL)}>
-        <span class="check">{isLocal ? "✓" : ""}</span>
-        <span class="tname">Local</span>
-        <span class="faint small">this computer only</span>
-      </button>
-      <div class="sep"></div>
-      {#if !current}
-        <button class="item" onclick={() => { open = false; localName = overview.author; }}>
-          <span class="check">☺</span>Your name on this computer{overview.author ? `: ${overview.author}` : "…"}
-        </button>
-      {/if}
       <button class="item" onclick={() => { open = false; connecting = true; }}>
         <span class="check">+</span>Join/Create a Team…
       </button>
@@ -152,17 +126,6 @@
   </Modal>
 {/if}
 
-{#if localName !== null}
-  <Modal title="Your name on this computer" onclose={() => (localName = null)}>
-    <p class="muted">Used for projects kept on this computer only, and suggested when you join a team.</p>
-    <input bind:value={localName} placeholder="e.g. Yi" />
-    {#snippet footer()}
-      <button onclick={() => (localName = null)}>Cancel</button>
-      <button class="primary" disabled={!localName?.trim()} onclick={saveLocalName}>Save</button>
-    {/snippet}
-  </Modal>
-{/if}
-
 {#if connecting}
   <Modal title="Join or create a team" onclose={() => (connecting = false)} width={640} backdropCloses={false}>
     <JoinOrCreate onconnected={connected} />
@@ -172,8 +135,8 @@
 {#if found}
   {@const f = found}
   <Modal title="Projects of {f.team.name} on this computer" onclose={() => (found = null)} backdropCloses={false}>
-    <p class="muted">These projects under Local belong to {f.team.name}. Reconnect them to share versions with the
-      team again; their history is kept.</p>
+    <p class="muted">These projects on this computer belong to {f.team.name}. Reconnect them to share versions with
+      the team again; their history is kept.</p>
     <ul class="found">
       {#each f.projects as p (p.root)}
         <li><label><input type="checkbox" bind:checked={p.on} />
