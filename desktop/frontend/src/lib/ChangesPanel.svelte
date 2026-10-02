@@ -248,7 +248,7 @@
     return { label, src, resolve: (rel: string) => fileURL(root, dir + rel, version) };
   }
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "R", unchanged: "", ignored: "" };
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "M", unchanged: "", ignored: "" };
   const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted", renamed: "Moved",
     untracked: "No longer tracked: the rules leave it out now" };
   // Folders that moved, said once on the folder (see moves.ts).

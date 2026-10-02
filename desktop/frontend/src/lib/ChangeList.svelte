@@ -7,7 +7,7 @@
   // the end of each file's row, a set's track changes under it.
   let { changes, empty = "No changes" }: { changes: Change[]; empty?: string } = $props();
 
-  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "R" };
+  const sym: Record<string, string> = { added: "+", modified: "~", deleted: "−", untracked: "○", renamed: "M" };
   const statusName: Record<string, string> = { added: "New", modified: "Changed", deleted: "Deleted",
     untracked: "No longer tracked", renamed: "Moved" };
   // Folders that moved, said once on the folder (see moves.ts).
