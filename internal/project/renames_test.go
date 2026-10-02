@@ -135,6 +135,9 @@ func TestChangesFollowAMove(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(b.Root, "Notes", "lyrics.txt")); !os.IsNotExist(err) {
 		t.Fatal("the old place should be gone")
 	}
+	if _, err := os.Stat(filepath.Join(b.Root, "Notes")); !os.IsNotExist(err) {
+		t.Fatal("the emptied folder should be gone too")
+	}
 	found := false
 	for _, l := range res.MergeLog {
 		found = found || strings.Contains(l, "follow")
