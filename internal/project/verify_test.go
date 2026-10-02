@@ -97,6 +97,43 @@ func TestVerifyTeamProject(t *testing.T) {
 	}
 }
 
+// A teammate's version whose files were never downloaded here (replaced
+// since) is fine: the team has them.
+func TestVerifyTeammatesUndownloadedFiles(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "notes.txt", "one")
+	if _, _, err := a.Save("first", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	b, _, err := Clone(code, "", "Song", filepath.Join(t.TempDir(), "B", "Song Project"), "alex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{"two", "three"} {
+		write(t, b.Root, "notes.txt", s)
+		if _, _, err := b.Save(s, Strategy("fail")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := a.Update(Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := a.Verify(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Problems) != 0 || !rep.TeamChecked {
+		t.Fatalf("problems: %+v", rep.Problems)
+	}
+}
+
 func mustTree(t *testing.T, r *Repo, h string) []manifest.TreeEntry {
 	t.Helper()
 	es, err := r.readTreeFromDisk(h)

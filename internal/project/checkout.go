@@ -81,6 +81,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 			if err := store.Remove(r.Abs(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, nil, err
 			}
+			r.removeEmptyFolders(p)
 			delete(ix.entries, p)
 			ix.dirty = true
 		}
@@ -110,6 +111,16 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	}
 	os.Remove(filepath.Join(r.Dir, switchingFile))
 	return m, notes, nil
+}
+
+// removeEmptyFolders removes the folders a removed file leaves empty (a
+// folder moved away by a teammate), up to the project's.
+func (r *Repo) removeEmptyFolders(path string) {
+	for dir := filepath.Dir(r.Abs(path)); dir != r.Root && strings.HasPrefix(dir, r.Root); dir = filepath.Dir(dir) {
+		if os.Remove(dir) != nil { // not empty
+			return
+		}
+	}
 }
 
 // switchingFile names the version a checkout is putting in place.

@@ -288,6 +288,7 @@ func (r *Repo) RestoreFileFrom(path, source, version string) error {
 		if err := store.Remove(r.Abs(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
+		r.removeEmptyFolders(path)
 		return nil
 	}
 	f.Path = path

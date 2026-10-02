@@ -193,6 +193,9 @@ func (r *Repo) Verify(repair bool) (*VerifyReport, error) {
 			onTeam = append(onTeam, h)
 		case r.localCopy(h) != "":
 			// in the project folder only (e.g. a sample used as it is)
+		case c != nil:
+			// never downloaded (a teammate's version): fine when the team has it
+			onTeam = append(onTeam, h)
 		default:
 			lost = append(lost, h)
 		}
