@@ -34,6 +34,11 @@ var NoiseAttrs = map[string]bool{
 	"SelectedToolPanel": true, "SelectedTransformationName": true, "SelectedGeneratorName": true,
 }
 
+// fileLocation: where a sample is on this computer (FileRef children). DAWGit
+// relinks samples on each computer; a sample is the same while its size and
+// CRC (OriginalFileSize, OriginalCrc) are.
+var fileLocation = map[string]bool{"Path": true, "RelativePath": true, "RelativePathType": true}
+
 // Only track ids carry identity we care about; every other Id is a positional
 // index, a serialization counter, or a pointee id (identity without meaning).
 func keepID(tag string) bool { return TrackTags[tag] }
@@ -59,6 +64,9 @@ func feed(e *xmltree.Node, h hash.Hash, skip map[string]bool) {
 		h.Write([]byte(text))
 	}
 	for _, c := range e.Children {
+		if e.Tag == "FileRef" && fileLocation[c.Tag] {
+			continue
+		}
 		feed(c, h, skip)
 	}
 	h.Write([]byte("</>"))
