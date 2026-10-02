@@ -401,6 +401,7 @@
             {@const w = wasOf(r)}
             <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
+                {#if r.status === "removed"}<span class="gone-label">Deleted</span>{/if}
                 {#if t.kind === "group"}
                   {#each inside(setOf(r), t.id) as child}
                     {#each arrClips(child) as c}
@@ -489,6 +490,7 @@
               {@const m = c ? sessionMarks[ri].marks.get(c) : undefined}
               {@const old = sessionMarks[ri].gone.find((g) => g.slot === i)}
               <div class="slot {r.status ?? ''}" class:muted={r.t.muted}>
+                {#if r.status === "removed" && i === Math.floor((scenes - 1) / 2)}<span class="gone-label">Deleted</span>{/if}
                 {#if c}
                   <div class="sclip" class:off={c.disabled}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
@@ -583,8 +585,12 @@
   .clip.ghost, .sclip.ghost { background: transparent; border: 1.5px dashed; box-shadow: none; opacity: .8; }
   .sum { position: absolute; bottom: 3px; height: 5px; opacity: .55; border-radius: 1px; }
   .row.muted .lane > :not(.ghost) { filter: saturate(.25) brightness(.7); }
-  .row.removed { opacity: .6; }
-  .row.removed .lane { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
+  /* a deleted track: dark, with a "Deleted" label over it (not dimmed) */
+  .row.removed .lane > :not(.gone-label), .row.removed .head { opacity: .35; }
+  .gone-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; pointer-events: none;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 8px; border-radius: 8px;
+    color: var(--del); background: rgba(20, 20, 20, .85); border: 1px solid color-mix(in srgb, var(--del) 55%, transparent); }
+  .row.removed .lane { background-color: #1d1d1d; background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
   .kicon { width: 12px; height: 12px; flex: none; opacity: .8; }
   .tname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .grow { flex: 1; }
@@ -614,10 +620,11 @@
   .sess { display: grid; gap: 1px; background: #121212; font-size: 11px; color: #d8d8d8; width: max-content; }
   .ctitle { display: flex; flex-direction: column; height: 26px; font-weight: 600; min-width: 0; }
   .ctitle .tt { flex: 1; display: flex; align-items: center; gap: 3px; padding: 0 6px; overflow: hidden; min-width: 0; }
-  .ctitle.removed { opacity: .6; }
+  .ctitle.removed { opacity: .35; }
   .cbadge { background: #1c1c1c; padding: 2px 4px; text-align: center; }
   .slot { height: 20px; background: #2a2a2a; display: flex; align-items: center; padding: 0 2px; min-width: 0; }
-  .slot.removed { opacity: .6; }
+  .slot.removed { position: relative; background: #1f1f1f; }
+  .slot.removed > :not(.gone-label) { opacity: .35; }
   .slot.muted .sclip:not(.ghost) { filter: saturate(.25) brightness(.7); }
   .sclip { flex: 1; min-width: 0; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 2px; overflow: hidden;
     white-space: nowrap; text-overflow: ellipsis; font-size: 10.5px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35); }
