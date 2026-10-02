@@ -1,13 +1,12 @@
 <script lang="ts">
-  import { setCompare, setImageMode, view } from "./compare.svelte";
+  import { imageLook, setImageMode } from "./viewers/settings.svelte";
 
-  // A design file now and before: the one you look at large, the other as a
-  // small thumbnail. Compare (view.compare, shared) shows both large, side by
-  // side or under a slider.
+  // A design file: one large; comparing, both large, side by side or under a
+  // slider (remembered).
   type Take = { label: string; src: string };
-  let { a, b }: { a: Take | null; b: Take | null } = $props();
-  let comparing = $derived(view.compare);
-  let mode = $derived(view.imageMode);
+  let { a, b, compare }: { a: Take | null; b: Take | null; compare: boolean } = $props();
+  let comparing = $derived(compare);
+  let mode = $derived(imageLook.mode);
 
   let failed = $state<Record<string, boolean>>({});
   let split = $state(50); // slider position, %
@@ -33,19 +32,12 @@
 {/snippet}
 
 <div class="ic">
-  {#if both}
+  {#if both && comparing}
     <div class="bar">
-      {#if comparing}
-        <div class="modes">
-          <button class:on={mode === "side"} onclick={() => setImageMode("side")}>Side by side</button>
-          <button class:on={mode === "slider"} onclick={() => setImageMode("slider")}>Slider</button>
-        </div>
-      {:else}
-        <button class="thumb" onclick={() => setCompare(true)} title="Compare with this">
-          {@render picture(b!, "small")}
-          <span>{b!.label}</span>
-        </button>
-      {/if}
+      <div class="modes">
+        <button class:on={mode === "side"} onclick={() => setImageMode("side")}>Side by side</button>
+        <button class:on={mode === "slider"} onclick={() => setImageMode("slider")}>Slider</button>
+      </div>
     </div>
   {/if}
 
@@ -93,11 +85,6 @@
 
   .handle { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff;
     box-shadow: 0 0 6px rgba(0, 0, 0, .6); pointer-events: none; }
-  .thumb { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px;
-    border-radius: 8px; background: var(--panel); text-align: left; }
-  .thumb :global(.small) { width: 48px; height: 32px; object-fit: contain; border-radius: 4px; display: block;
-    background: repeating-conic-gradient(#2a2c31 0% 25%, #222428 0% 50%) 50% / 10px 10px; }
-  .thumb span { font-size: 12px; color: var(--muted); }
   .none { padding: 30px; text-align: center; color: var(--faint); font-size: 13px; line-height: 1.4; }
   .none.small { width: 48px; height: 32px; padding: 2px; font-size: 8px; }
 </style>

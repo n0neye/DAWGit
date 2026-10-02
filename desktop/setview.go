@@ -18,6 +18,7 @@ type SetView struct {
 	Global  []string         `json:"global"` // tempo, main track, ...
 	Order   bool             `json:"order"`  // the tracks' order changed
 	Changes []SetTrackChange `json:"changes"`
+	Text    []string         `json:"text"` // the changes as text lines
 }
 
 type SetTrackChange struct {
@@ -46,7 +47,7 @@ func (a *App) SetOverview(root, file, version, fromFile, fromVersion string) (*S
 	if err != nil {
 		return nil, err
 	}
-	out := &SetView{Global: []string{}, Changes: []SetTrackChange{}}
+	out := &SetView{Global: []string{}, Changes: []SetTrackChange{}, Text: []string{}}
 	if now != nil {
 		out.Now = now.Overview()
 	}
@@ -57,6 +58,7 @@ func (a *App) SetOverview(root, file, version, fromFile, fromVersion string) (*S
 		d := diff.Diff(before, now)
 		out.Global = nonNil(d.GlobalChanges)
 		out.Order = d.OrderChanged
+		out.Text = diffLines(d)
 		for _, tc := range d.TrackChanges {
 			out.Changes = append(out.Changes, SetTrackChange{ID: tc.TrackID, Status: tc.Status, Details: nonNil(tc.Details)})
 		}

@@ -1,15 +1,14 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import { createViewer, type ModelStats, type Viewer } from "./model3d";
-  import { setCompare, view as shared } from "./compare.svelte";
 
   // A 3D model now and before: the one you look at in a viewer, the other a
   // small label. Compare (remembered, shared with pictures) shows both,
   // their cameras moving together.
   type Take = { label: string; src: string; resolve: (rel: string) => string };
-  let { a, b, ext }: { a: Take | null; b: Take | null; ext: string } = $props();
+  let { a, b, ext, compare }: { a: Take | null; b: Take | null; ext: string; compare: boolean } = $props();
 
-  let comparing = $derived(shared.compare);
+  let comparing = $derived(compare);
   let both = $derived(!!a && !!b);
   let main = $derived(a ?? b);
 
@@ -67,14 +66,7 @@
 {/snippet}
 
 <div class="mc">
-  {#if both}
-    <div class="bar">
-      {#if !comparing}
-        <button class="chip" onclick={() => setCompare(true)} title="Compare with this">{b!.label}</button>
-      {/if}
-      <span class="faint hint">Drag to turn · right-drag to move · wheel to zoom</span>
-    </div>
-  {:else if main}
+  {#if main}
     <div class="bar"><span class="faint hint">Drag to turn · right-drag to move · wheel to zoom</span></div>
   {/if}
   {#if both && comparing}
@@ -88,7 +80,6 @@
   .mc { display: flex; flex-direction: column; gap: 10px; }
   .bar { display: flex; align-items: center; gap: 12px; }
   .hint { margin-left: auto; font-size: 11.5px; }
-  .chip { padding: 3px 10px; font-size: 12px; color: var(--muted); background: var(--panel); border-radius: 8px; }
   figure { margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   figcaption { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; text-transform: uppercase;
     letter-spacing: .06em; color: var(--muted); }

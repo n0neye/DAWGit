@@ -1,16 +1,15 @@
 <script lang="ts">
   import { api, errorText } from "./api";
-  import { view } from "./compare.svelte";
   import { highlightLines, languageOf } from "./highlight";
   import type { TextChanges, TextContent } from "../../bindings/dawgit/desktop/models";
 
-  // A text file: the whole of one version (preview), or, when comparing
-  // (view.compare), its changes line by line from the version before —
+  // A text file: the whole of one version, or, when comparing, its changes
+  // line by line from the version before —
   // around the changes, or the whole file. A version is a version id, "" for
   // the file on disk now, "none" for no file (added or deleted). `stamp`
   // refetches "now". Files that aren't text show a short note.
-  let { root, file, from, to, stamp = 0, fromFile = "" }: {
-    root: string; file: string; from: string; to: string; stamp?: number;
+  let { root, file, from, to, compare, stamp = 0, fromFile = "" }: {
+    root: string; file: string; from: string; to: string; compare: boolean; stamp?: number;
     fromFile?: string; // the file's path in `from`, when it was elsewhere
   } = $props();
 
@@ -23,7 +22,7 @@
 
   // Comparing needs a version before; the one shown alone is the newer one.
   let canCompare = $derived(from !== to && !(from === "none" && to === "none"));
-  let comparing = $derived(view.compare && canCompare);
+  let comparing = $derived(compare && canCompare);
   let shown = $derived(to === "none" ? from : to);
   let shownFile = $derived(to === "none" && fromFile ? fromFile : file);
 
