@@ -13,7 +13,7 @@
   // (Preview), against the version you're on (Changes) or through its
   // versions (History), shown by its kind's viewer (viewers/). "All files"
   // lists the whole project folder. Each file has a menu (⋯ or right click).
-  let { root, st, summary, commitBox, excluded = $bindable({}), ondiscard, ondiscardall, onrestore, onrules }: {
+  let { root, st, summary, commitBox, excluded = $bindable({}), ondiscard, ondiscardall, ondiscardsome, onrestore, onrules }: {
     root: string;
     st: State;
     excluded?: Record<string, boolean>; // changes unticked: left out of the next commit
@@ -21,6 +21,7 @@
     commitBox?: Snippet; // under the files: the message and the Commit button
     ondiscard: (path: string) => void;
     ondiscardall: () => void;
+    ondiscardsome: (paths: string[]) => void; // the ticked changes (not all of them)
     onrestore: (path: string, version: string, label: string, source: string) => void; // one file from a version (source: its path then)
     onrules?: () => void; // .dawgit.yaml changed (a file or folder left out)
   } = $props();
@@ -272,6 +273,8 @@
 <div class="panel">
   <div class="side">
   <aside class="files" bind:this={scroller} bind:clientHeight={viewH} onscroll={onScroll}>
+    <!-- the list's header, kept at the top: the box to tick all, the title, how many and how big -->
+    <div class="head">
     <div class="files-h">
       <span class="chevbtn"></span>
       {#if changedPaths.length}
@@ -285,12 +288,17 @@
       </label>
     </div>
     {#if changedCount}
-      <!-- under the title: how many changes and how big, and dropping them all -->
+      {@const ticked = changedPaths.filter((p) => !excluded[p])}
       <div class="files-sub">
         <span class="total">{changedCount.toLocaleString()} change{changedCount === 1 ? "" : "s"} · {formatBytes(tree.changedSize)}</span>
-        <button class="ghost discard-all" onclick={ondiscardall} title="Drop all uncommitted changes">Discard all…</button>
+        <button class="ghost revert" disabled={!ticked.length}
+          title={!ticked.length ? "Tick changes to discard them" : ticked.length === changedPaths.length
+            ? "Discard all changes…" : `Discard the ${ticked.length} ticked change${ticked.length === 1 ? "" : "s"}…`}
+          aria-label="Discard the ticked changes"
+          onclick={() => (ticked.length === changedPaths.length ? ondiscardall() : ondiscardsome(ticked))}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
       </div>
     {/if}
+    </div>
     {#if files.length === 0}
       <p class="muted empty">{all ? "The project folder is empty." : (st.tool === "Ableton Live" ? "No uncommitted changes. Work in Live and press Ctrl+S — your changes show up here." : `No uncommitted changes. Work in ${st.tool || "your app"} and save — your changes show up here.`)}</p>
     {:else}
@@ -495,17 +503,23 @@
 <style>
   .panel { display: grid; grid-template-columns: minmax(240px, 34%) 1fr; height: 100%; min-height: 0; }
   .side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
-  .files { flex: 1; overflow: auto; min-height: 0; padding: 10px 8px 16px 0; }
+  .files { flex: 1; overflow: auto; min-height: 0; padding: 0 8px 16px 0; }
+  /* the header stays at the top, set apart from the tree */
+  .head { position: sticky; top: 0; z-index: 3; margin: 0 -8px 6px 0; padding: 8px 8px 6px 0;
+    background: var(--panel); border-bottom: 1px solid var(--line); }
   .commit { flex: none; border-top: 1px solid var(--line); padding: 10px 12px 12px 8px; }
   .commit :global(textarea) { width: 100%; resize: vertical; min-height: 54px; }
   /* like a row: the box over the boxes, the title over the names */
   .files-h { display: flex; align-items: center; padding: 0 4px 2px 0; font-size: 12px;
     text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .files-h .title { flex: 1; min-width: 0; padding-left: 26px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .files-h .title { flex: 1; min-width: 0; padding-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .files-h .all { flex: none; }
-  .files-sub { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px 68px; font-size: 12px; } /* under the title */
+  .files-sub { display: flex; align-items: center; gap: 8px; padding: 2px 4px 0 46px; font-size: 12px; } /* under the title */
   .files-sub .total { flex: 1; min-width: 0; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .files-sub .discard-all { flex: none; padding: 1px 6px; font-size: 12px; }
+  .revert { flex: none; display: inline-flex; padding: 3px; border-radius: 5px; color: var(--muted); }
+  .revert svg { width: 14px; height: 14px; }
+  .revert:hover:not(:disabled) { color: var(--danger); background: #33363d; }
+  .revert:disabled { opacity: .35; }
   .all { display: flex; align-items: center; gap: 5px; margin: 0; text-transform: none; letter-spacing: 0; cursor: pointer; }
   /* iOS-style switch */
   .switch { appearance: none; position: relative; width: 26px; height: 15px; margin: 0; flex: none; cursor: pointer;
@@ -597,7 +611,6 @@
   .picked { border-top: 1px solid var(--line); padding-top: 14px; }
   .restore { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
   .restore button { padding: 5px 12px; font-size: 13px; }
-  .discard-all { padding: 0 6px; font-size: 11.5px; text-transform: none; letter-spacing: 0; color: var(--muted); }
 
   .ctx { position: fixed; z-index: 40; min-width: 210px; padding: 6px; background: var(--panel-2);
     border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }

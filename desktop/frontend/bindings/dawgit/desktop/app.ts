@@ -205,6 +205,16 @@ export function DiscardFile(root: string, file: string, $from: string, force: bo
 }
 
 /**
+ * DiscardFiles puts some changed files back as they are in the version the
+ * project is on (a moved file goes back where it was too).
+ */
+export function DiscardFiles(root: string, files: string[], force: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(1787140870, root, files, force).then(($result: any) => {
+        return $$createType12($result);
+    });
+}
+
+/**
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {

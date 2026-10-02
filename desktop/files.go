@@ -289,6 +289,42 @@ func (a *App) DiscardFile(root, file, from string, force bool) (*Result, error) 
 	return &Result{Action: "discarded", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
 }
 
+// DiscardFiles puts some changed files back as they are in the version the
+// project is on (a moved file goes back where it was too).
+func (a *App) DiscardFiles(root string, files []string, force bool) (*Result, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	changes, err := r.Status()
+	if err != nil {
+		return nil, err
+	}
+	from := map[string]string{}
+	for _, c := range changes {
+		from[c.Path] = c.From
+	}
+	for _, f := range files {
+		if fileKind(r, f) == "set" {
+			if set := liveGuard(r, force); set != "" {
+				return blocked(set), nil
+			}
+		}
+	}
+	for _, f := range files {
+		if err := r.RestoreFile(f, ""); err != nil {
+			return nil, err
+		}
+		if from[f] != "" {
+			if err := r.RestoreFile(from[f], ""); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return &Result{Action: "discarded", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
+}
+
 // RestoreFileVersion puts one file back as it was in a version; the rest of
 // the project stays. The result is an uncommitted change. source: the file's
 // path in that version, when it had another ("" for file).

@@ -81,6 +81,7 @@
   let discardOpen = $state(false);
   let discardFile = $state(""); // one file's changes, after confirming
   let discardAllOpen = $state(false);
+  let discardSome = $state<string[] | null>(null); // the ticked changes, after confirming
   let restoreFile = $state<{ path: string; version: string; label: string; source: string } | null>(null);
 
   // Two steps: the project folder (fast), then the team's side (network),
@@ -337,6 +338,16 @@
       name: "discard",
       call: (_res, force) => api.DiscardAll(root, force),
       done: () => toast("Discarded all your uncommitted changes" + reopen(), "ok"),
+    });
+  }
+
+  function discardTicked() {
+    const paths = discardSome!;
+    discardSome = null;
+    run({
+      name: "discard",
+      call: (_res, force) => api.DiscardFiles(root, paths, force),
+      done: () => toast(`Discarded your changes to ${paths.length} file${paths.length === 1 ? "" : "s"}` + reopen(), "ok"),
     });
   }
 
@@ -815,7 +826,7 @@
           </button>
         {/snippet}
         <ChangesPanel {root} st={st} {summary} {commitBox} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
-          ondiscardall={() => (discardAllOpen = true)}
+          ondiscardall={() => (discardAllOpen = true)} ondiscardsome={(paths) => (discardSome = paths)}
           onrestore={(path, version, label, source) => (restoreFile = { path, version, label, source })} />
       {:else if tab === "history"}
         <History {root} versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
@@ -868,6 +879,18 @@
       {#snippet footer()}
         <button onclick={() => (discardAllOpen = false)}>Cancel</button>
         <button class="danger" onclick={discardEverything}>Discard all</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
+  {#if discardSome}
+    {@const n = discardSome.length}
+    <Modal title="Discard {n} ticked change{n === 1 ? "" : "s"}?" onclose={() => (discardSome = null)}>
+      <p>{n === 1 ? "The file goes" : `These ${n} files go`} back to how {n === 1 ? "it is" : "they are"} in the version you're on.
+        The unticked changes stay. This can't be undone.</p>
+      {#snippet footer()}
+        <button onclick={() => (discardSome = null)}>Cancel</button>
+        <button class="danger" onclick={discardTicked}>Discard</button>
       {/snippet}
     </Modal>
   {/if}
