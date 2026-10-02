@@ -504,6 +504,9 @@
   /* the header stays at the top, set apart from the tree */
   /* the header stays at the top, set apart from the tree; its columns are the rows' (box, then icon) */
   .files { container-type: inline-size; }
+  /* under the files: the message and the button, apart from the list */
+  .commit { flex: none; border-top: 1px solid var(--line); background: var(--panel); padding: 12px 14px 14px; }
+  .commit :global(textarea) { width: 100%; resize: vertical; min-height: 54px; }
   .head { position: sticky; top: 0; z-index: 3; margin: 0 -8px 6px 0; padding: 8px 8px 6px 0;
     background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
     display: grid; align-items: center; row-gap: 3px;
