@@ -217,6 +217,54 @@ export class ConvertFormat {
 }
 
 /**
+ * DownloadSize is what downloading a team project takes, shown before it.
+ */
+export class DownloadSize {
+    "files": number;
+
+    /**
+     * the latest version's files
+     */
+    "bytes": number;
+
+    /**
+     * Needed: on this disk, the files and DAWGit's own copy of them.
+     */
+    "needed": number;
+
+    /**
+     * on the disk of parent; -1 unknown
+     */
+    "free": number;
+
+    /** Creates a new DownloadSize instance. */
+    constructor($$source: Partial<DownloadSize> = {}) {
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("needed" in $$source)) {
+            this["needed"] = 0;
+        }
+        if (!("free" in $$source)) {
+            this["free"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DownloadSize instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DownloadSize {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DownloadSize($$parsedSource as Partial<DownloadSize>);
+    }
+}
+
+/**
  * FileVersion is a version that changed a file.
  */
 export class FileVersion {

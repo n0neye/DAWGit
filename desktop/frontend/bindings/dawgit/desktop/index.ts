@@ -11,6 +11,7 @@ export {
     Change,
     Conflict,
     ConvertFormat,
+    DownloadSize,
     FileVersion,
     FoundProject,
     IgnoreOption,
@@ -31,6 +32,7 @@ export {
     TextChanges,
     TextContent,
     UpdateInfo,
+    UpdateState,
     VerifyProblem,
     VerifyResult,
     Version
