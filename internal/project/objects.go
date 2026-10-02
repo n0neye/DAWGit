@@ -80,6 +80,7 @@ func (r *Repo) sourcesByHash() map[string]string {
 		return r.sources
 	}
 	r.sources = map[string]string{}
+	r.stamps = map[string]stamp{}
 	ix := r.loadIndex()
 	for rel, e := range ix.entries {
 		if isSet(rel) || (e.ObjSize != 0 && e.ObjSize != e.Size) {
@@ -88,6 +89,7 @@ func (r *Repo) sourcesByHash() map[string]string {
 		abs := r.Abs(rel)
 		if fi, err := os.Stat(abs); err == nil && fi.Size() == e.Size && fi.ModTime().UnixNano() == e.Mtime {
 			r.sources[e.Hash] = abs
+			r.stamps[abs] = stamp{e.Size, e.Mtime}
 		}
 	}
 	if dirs, err := os.ReadDir(filepath.Join(r.Dir, externalDir)); err == nil {
@@ -104,26 +106,58 @@ func (r *Repo) sourcesByHash() map[string]string {
 	return r.sources
 }
 
-// localCopy is a file on this computer with the content h ("" if none).
+// stamp is a project file's size and modification time when it was hashed:
+// while they are the same, so is its content.
+type stamp struct{ size, mtime int64 }
+
+// localCopy is a file on this computer with the content h ("" if none). A
+// project file counts only while it is as it was hashed: one changed since
+// (overwritten, edited) never stands in for the content it had.
 func (r *Repo) localCopy(h string) string {
 	if r.Store.Has(h) {
 		return r.Store.Path(h)
 	}
-	if p := r.sourcesByHash()[h]; p != "" {
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
+	p := r.sourcesByHash()[h]
+	if p == "" {
+		return ""
 	}
-	return ""
+	fi, err := os.Stat(p)
+	if err != nil {
+		delete(r.sources, h)
+		return ""
+	}
+	if st, ok := r.stamps[p]; ok && (fi.Size() != st.size || fi.ModTime().UnixNano() != st.mtime) {
+		delete(r.sources, h)
+		return ""
+	}
+	return p
+}
+
+// copyHere is a local copy of h, downloading it from the team when there is
+// none (any more): a project file may have been the only one here.
+func (r *Repo) copyHere(h string) (string, error) {
+	if p := r.localCopy(h); p != "" {
+		return p, nil
+	}
+	if r.Config.Remote == nil {
+		return "", fmt.Errorf("object %s is not on this computer", short(h))
+	}
+	if err := r.ensureHashes([]string{h}); err != nil {
+		return "", fmt.Errorf("object %s: %w", short(h), err)
+	}
+	if p := r.localCopy(h); p != "" {
+		return p, nil
+	}
+	return "", fmt.Errorf("object %s is not on this computer", short(h))
 }
 
 // available: the content h can be had without downloading it.
 func (r *Repo) available(h string) bool { return r.localCopy(h) != "" }
 
 func (r *Repo) openObject(h string) (*os.File, error) {
-	p := r.localCopy(h)
-	if p == "" {
-		return nil, fmt.Errorf("object %s is not on this computer", short(h))
+	p, err := r.copyHere(h)
+	if err != nil {
+		return nil, err
 	}
 	return os.Open(p)
 }
@@ -134,9 +168,12 @@ func (r *Repo) exportObject(h, dst string) error {
 	if r.Store.Has(h) {
 		return r.Store.Export(h, dst)
 	}
-	src := r.localCopy(h)
-	if src == "" {
-		return fmt.Errorf("object %s is not on this computer", short(h))
+	src, err := r.copyHere(h)
+	if err != nil {
+		return err
+	}
+	if r.Store.Has(h) { // downloaded just now
+		return r.Store.Export(h, dst)
 	}
 	if same, _ := filepath.Abs(dst); strings.EqualFold(same, src) {
 		return nil

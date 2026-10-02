@@ -54,6 +54,7 @@ type Repo struct {
 	sizes   map[string]int64  // object sizes known from manifests (knowSizes)
 	remote  map[string]bool   // objects only in the team's storage (remoteOnly)
 	sources map[string]string // contents found outside the store (sourcesByHash)
+	stamps  map[string]stamp  // the project files among them: as they were hashed
 	prof    *profile.Profile  // the project's rules (Profile)
 	profErr error
 }
