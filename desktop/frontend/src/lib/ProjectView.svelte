@@ -678,8 +678,8 @@
 
     {#if st.remoteUrl && !st.head && !busy && !progress}
       <div class="banner info">
-        <div>Not shared with {st.teamName || "the team"} yet: look through the files (right-click › Ignore leaves
-          one out), then commit a first version to share it.</div>
+        <div>Not shared with {st.teamName || "the team"} yet. Look through the files and ignore the folders or files
+          you don't need (right-click › Ignore), then commit a first version to share it.</div>
       </div>
     {:else if st.remoteUrl && st.unshared && !busy && !progress}
       <div class="banner info">
@@ -829,8 +829,8 @@
   {#if shareAsk}
     <Modal title="Share “{st.name}” with {st.teamName || "the team"}?" onclose={() => (shareAsk = false)}>
       <p>Upload its {st.history.length} version{st.history.length === 1 ? "" : "s"} now{isLive ? ", samples included" : ""}?</p>
-      <p class="muted">Or later: look through the files first (right-click › Ignore, or the project's settings), and
-        share from the banner at the top. Your team sees the project once it's shared.{st.changes.length
+      <p class="muted">Or later: first look through the files and ignore the folders or files you don't need
+        (right-click › Ignore), then share from the banner at the top. Your team sees the project once it's shared.{st.changes.length
           ? ` The ${st.changes.length} uncommitted change${st.changes.length === 1 ? "" : "s"} stay in Changes either way.` : ""}</p>
       {#snippet footer()}
         <button onclick={() => (shareAsk = false)}>Later</button>
@@ -844,9 +844,8 @@
       <p>{st.remoteUrl
         ? `Commit a first version now and share it with ${st.teamName || "the team"}${isLive ? ", samples included" : ""}?`
         : "Commit a first version now?"}</p>
-      <p class="muted">Or look through the {st.changes.length} file{st.changes.length === 1 ? "" : "s"} first: leave out
-        what shouldn't be versioned (right-click › Ignore, or the project's settings), tidy the folder, then commit
-        from the Changes tab.{st.remoteUrl ? " Your team sees the project once it's committed." : ""}</p>
+      <p class="muted">Or later: first look through the {st.changes.length} file{st.changes.length === 1 ? "" : "s"} and
+        ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.{st.remoteUrl ? " Your team sees the project once it's committed." : ""}</p>
       <label for="first-msg">Message</label>
       <input id="first-msg" bind:value={message} onkeydown={(e) => { if (e.key === "Enter" && message.trim()) { firstAsk = false; commit(); } }} />
       {#snippet footer()}
