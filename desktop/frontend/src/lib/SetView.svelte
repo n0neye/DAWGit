@@ -2,22 +2,20 @@
   import { api, errorText, lineKind } from "./api";
   import type { SetView } from "../../bindings/dawgit/desktop/models";
   import type { ClipSummary, Overview, TrackSummary } from "../../bindings/dawgit/internal/als/models";
-  import { setLook, setSetPane } from "./compare.svelte";
+  import { setAllTracks, setLook, setSetPane } from "./viewers/settings.svelte";
   import { inkOn, liveColor } from "./livecolors";
 
   // A Live Set drawn the way Live shows it, simplified: its tracks with their
-  // colors, clips and mixer state, in Arrangement or Session view. Compare
-  // shows only the tracks that changed: new, deleted, or changed (with the
-  // clips that went away as outlines, the new ones ringed).
-  let { root, file, version, fromFile = "", fromVersion, compare, stamp = 0, text = [], textEmpty = "No changes in the set's tracks." }: {
+  // colors, clips and mixer state, in Arrangement or Session view, or as
+  // text. Comparing marks what changed (new, deleted, changed, with dots on
+  // what), on the tracks that changed or on all of them.
+  let { root, file, version, fromFile = "", fromVersion, compare, stamp = 0 }: {
     root: string; file: string;
     version: string;     // "" the project folder now, a version id, "none": no set
     fromFile?: string;   // the set's path in fromVersion, when it was elsewhere
     fromVersion: string; // the version to compare with, "none": nothing
     compare: boolean;
     stamp?: number;      // reload
-    text?: string[] | null; // the changes as text (Text view; null: still comparing)
-    textEmpty?: string;     // ... when there are none
   } = $props();
 
   let data = $state<SetView | null>(null);
@@ -94,11 +92,13 @@
       return s.tracks.map((t) => ({ t, depth: 0, status: (now ? "added" : "removed") as Status, details: [], label: lab.get(t.id) ?? "" }));
     }
     const change = new Map(data.changes.map((c) => [c.id, c]));
-    const old = byID(before), labNow = labels(now), labOld = labels(before);
+    const old = byID(before), labNow = labels(now), labOld = labels(before), ids = byID(now);
+    const depth = (t: TrackSummary): number => (t.group && ids.has(t.group) ? depth(ids.get(t.group)!) + 1 : 0);
     const rows: Row[] = [];
     for (const t of now.tracks) {
       const c = change.get(t.id);
-      if (c) rows.push({ t, depth: 0, status: c.status as Status, old: old.get(t.id), details: c.status === "added" ? [] : c.details, label: labNow.get(t.id) ?? "" });
+      rows.push({ t, depth: depth(t), status: c?.status as Status | undefined, old: old.get(t.id),
+        details: !c || c.status === "added" ? [] : c.details, label: labNow.get(t.id) ?? "" });
     }
     // a deleted track goes after the changed track it followed, if any
     const nowIDs = new Set(now.tracks.map((t) => t.id));
@@ -115,7 +115,25 @@
     return rows;
   });
 
-  let rows = $derived(compare ? compareRows : previewRows);
+  // Comparing: the tracks that changed, or all with those marked.
+  let rows = $derived(compare ? (setLook.allTracks ? compareRows : compareRows.filter((r) => r.status)) : previewRows);
+  let changedCount = $derived(compareRows.filter((r) => r.status).length);
+
+  // Text: comparing, the changes; else the set, track by track.
+  let listing = $derived.by(() => {
+    if (!shown) return [];
+    const out: string[] = [];
+    const ids = byID(shown);
+    const depth = (t: TrackSummary): number => (t.group && ids.has(t.group) ? depth(ids.get(t.group)!) + 1 : 0);
+    for (const t of [...shown.tracks, shown.main]) {
+      const pad = "    ".repeat(t.kind === "main" ? 0 : depth(t));
+      const state = [t.muted ? "off" : "", t.solo ? "soloed" : ""].filter(Boolean).join(", ");
+      out.push(`${pad}${kindName[t.kind]} "${t.name}"${t.instrument ? ` · ${t.instrument}` : ""}${state ? ` (${state})` : ""}`);
+      out.push(`${pad}    volume ${db(t.volume)} dB · ${clipCount(t)}`);
+      if (t.devices.length) out.push(`${pad}    devices: ${t.devices.join(", ")}`);
+    }
+    return out;
+  });
   let sets = $derived(compare ? [data?.now, data?.before] : [shown]);
 
   // ---- arrangement ----
@@ -311,6 +329,11 @@
       <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
       <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>Text</button>
     </div>
+    {#if compare && setLook.pane !== "text" && data?.now && data?.before}
+      <label class="faint small toggle" title="Every track, the changed ones marked (else only the changed ones)">
+        <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> All tracks
+      </label>
+    {/if}
     {#if compare && setLook.pane !== "text" && rows.some((r) => r.details.length)}
       <label class="faint small toggle" title="What changed in each track, as text (or click a track's name)">
         <input type="checkbox" bind:checked={allDetails} /> Details
@@ -321,15 +344,15 @@
     {/if}
   </div>
 
-  {#if setLook.pane === "text"}
-    {#if text === null}
-      <p class="muted">Comparing…</p>
-    {:else if !text.length}
-      <p class="muted">{textEmpty}</p>
+  {#if setLook.pane === "text" && !err && data}
+    {@const lines = !compare ? listing : data.before && data.now ? data.text
+      : (data.now ?? data.before) ? [`${data.now ? "+ a new set" : "- the set was deleted"}`, ...listing] : []}
+    {#if !lines.length}
+      <p class="muted">No changes in the set's tracks.</p>
     {:else}
       <div class="lines mono">
-        {#each text as line}
-          <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
+        {#each lines as line}
+          <div class={compare ? lineKind(line) : ""} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
         {/each}
       </div>
     {/if}
@@ -352,7 +375,7 @@
             {#if data.order}<li><span class="badge modified">Set</span> track order changed</li>{/if}
           </ul>
         {/if}
-        {#if !rows.length}
+        {#if !changedCount}
           <p class="muted small">{data.global.length || data.order ? "No track changed." : "No changes in the set's tracks."}</p>
         {/if}
       {/if}

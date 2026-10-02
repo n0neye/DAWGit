@@ -764,6 +764,11 @@ export class SetView {
     "order": boolean;
     "changes": SetTrackChange[];
 
+    /**
+     * the changes as text lines
+     */
+    "text": string[];
+
     /** Creates a new SetView instance. */
     constructor($$source: Partial<SetView> = {}) {
         if (!("now" in $$source)) {
@@ -781,6 +786,9 @@ export class SetView {
         if (!("changes" in $$source)) {
             this["changes"] = [];
         }
+        if (!("text" in $$source)) {
+            this["text"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -793,6 +801,7 @@ export class SetView {
         const $$createField1_0 = $$createType17;
         const $$createField2_0 = $$createType2;
         const $$createField4_0 = $$createType19;
+        const $$createField5_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("now" in $$parsedSource) {
             $$parsedSource["now"] = $$createField0_0($$parsedSource["now"]);
@@ -805,6 +814,9 @@ export class SetView {
         }
         if ("changes" in $$parsedSource) {
             $$parsedSource["changes"] = $$createField4_0($$parsedSource["changes"]);
+        }
+        if ("text" in $$parsedSource) {
+            $$parsedSource["text"] = $$createField5_0($$parsedSource["text"]);
         }
         return new SetView($$parsedSource as Partial<SetView>);
     }

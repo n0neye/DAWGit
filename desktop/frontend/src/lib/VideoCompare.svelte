@@ -1,12 +1,10 @@
 <script lang="ts">
-  import { setCompare, view } from "./compare.svelte";
 
-  // A video now and before: the one you watch large, the other as a small
-  // still. Compare (view.compare, shared) plays both side by side, together,
-  // with one set of controls.
+  // A video to watch; comparing, both side by side, played together with one
+  // set of controls.
   type Take = { label: string; src: string };
-  let { a, b, onopen }: { a: Take | null; b: Take | null; onopen?: () => void } = $props();
-  let comparing = $derived(view.compare);
+  let { a, b, compare, onopen }: { a: Take | null; b: Take | null; compare: boolean; onopen?: () => void } = $props();
+  let comparing = $derived(compare);
 
   let both = $derived(!!a && !!b);
   let main = $derived(a ?? b);
@@ -69,17 +67,6 @@
 {/snippet}
 
 <div class="vc">
-  {#if both}
-    <div class="bar">
-      {#if !comparing}
-        <button class="thumb" onclick={() => setCompare(true)} title="Compare with this">
-          {@render player(b!, "small")}
-          <span>{b!.label}</span>
-        </button>
-      {/if}
-    </div>
-  {/if}
-
   {#if both && comparing}
     <div class="pair">
       <figure><figcaption>{a!.label}</figcaption><div class="frame">{@render player(a!, "", "a")}</div></figure>
@@ -109,10 +96,6 @@
   .controls input { flex: 1; }
   .play { width: 34px; padding: 4px 0; }
   .time { font-size: 12px; font-variant-numeric: tabular-nums; }
-  .thumb { margin-left: auto; display: flex; align-items: center; gap: 8px; padding: 3px 10px 3px 3px;
-    border-radius: 8px; background: var(--panel); text-align: left; }
-  .thumb :global(video.small) { width: 56px; height: 32px; object-fit: cover; border-radius: 4px; display: block; background: #000; }
-  .thumb span { font-size: 12px; color: var(--muted); }
   .none { padding: 30px; text-align: center; color: var(--faint); font-size: 13px; line-height: 1.6; background: var(--bg);
     display: flex; flex-direction: column; align-items: center; gap: 4px; }
   .none.small { width: 56px; height: 32px; padding: 2px; font-size: 8px; }
