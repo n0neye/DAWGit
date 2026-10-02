@@ -13,11 +13,12 @@
   // (Preview), against the version you're on (Changes) or through its
   // versions (History), shown by its kind's viewer (viewers/). "All files"
   // lists the whole project folder. Each file has a menu (⋯ or right click).
-  let { root, st, summary, excluded = $bindable({}), ondiscard, ondiscardall, onrestore, onrules }: {
+  let { root, st, summary, commitBox, excluded = $bindable({}), ondiscard, ondiscardall, onrestore, onrules }: {
     root: string;
     st: State;
     excluded?: Record<string, boolean>; // changes unticked: left out of the next commit
     summary: Snippet; // shown when no file is selected (tracks you changed)
+    commitBox?: Snippet; // under the files: the message and the Commit button
     ondiscard: (path: string) => void;
     ondiscardall: () => void;
     onrestore: (path: string, version: string, label: string, source: string) => void; // one file from a version (source: its path then)
@@ -264,6 +265,7 @@
   onkeydown={(e) => { if (e.key === "Escape") menu = null; }} />
 
 <div class="panel">
+  <div class="side">
   <aside class="files" bind:this={scroller} bind:clientHeight={viewH} onscroll={onScroll}>
     <div class="files-h">
       <span>{all ? "All files" : `Changed files${changedCount ? ` (${changedCount})` : ""}`}</span>
@@ -342,6 +344,8 @@
       </ul>
     {/if}
   </aside>
+  {#if commitBox}<div class="commit">{@render commitBox()}</div>{/if}
+  </div>
 
   <section class="detail">
     {#if !selected || !current}
@@ -474,7 +478,10 @@
 
 <style>
   .panel { display: grid; grid-template-columns: minmax(240px, 34%) 1fr; height: 100%; min-height: 0; }
-  .files { border-right: 1px solid var(--line); overflow: auto; min-height: 0; padding: 10px 8px 16px 0; }
+  .side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  .files { flex: 1; overflow: auto; min-height: 0; padding: 10px 8px 16px 0; }
+  .commit { flex: none; border-top: 1px solid var(--line); padding: 10px 12px 12px 8px; }
+  .commit :global(textarea) { width: 100%; resize: vertical; min-height: 54px; }
   .files-h { display: flex; align-items: center; gap: 8px; padding: 0 4px 8px 8px; font-size: 12px;
     text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
   .files-h span { flex: 1; }

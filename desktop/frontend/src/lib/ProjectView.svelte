@@ -239,6 +239,8 @@
   let excluded = $state<Record<string, boolean>>({});
   $effect.pre(() => { root; excluded = {}; });
   let leftOut = $derived(st?.changes.filter((c) => excluded[c.path]).length ?? 0);
+  // The commit shortcut as the keyboard says it.
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   // The changes to commit, or none for all of them.
   // (a move commits both its places)
   const picked = () => (leftOut && st ? st.changes.filter((c) => !excluded[c.path]).flatMap((c) => (c.from ? [c.path, c.from] : [c.path])) : []);
@@ -766,7 +768,26 @@
             {#if st!.myEdits.length}<p class="faint small">Pick a file on the left for its details, history and, for samples, to listen.</p>{/if}
           </section>
         {/snippet}
-        <ChangesPanel {root} st={st} {summary} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
+        {#snippet commitBox()}
+          <textarea rows="3" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
+            onkeydown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commit(); }}></textarea>
+          {#if st!.olderVersion}
+            <p class="faint small older">{st!.remoteUrl
+              ? `You're on an older version. Committing combines your changes with the latest version of “${st!.branch}” (you'll see a preview first) — or start a new branch from here.`
+              : "You're on an older version. Make it the latest version to commit changes, or go back to the latest version."}</p>
+          {/if}
+          <button class="primary commit-btn" disabled={!message.trim() || !!busy || (!!st!.olderVersion && !st!.remoteUrl)
+            || (st!.changes.length > 0 && leftOut === st!.changes.length)} onclick={() => commit()}
+            title={st!.remoteUrl
+              ? `Commits the project folder and shares it with the team on “${st!.branch}”. If others committed in the meantime, you'll see what they changed and choose how to combine first.${leftOut ? " Unticked files stay uncommitted." : ""}`
+              : `Commits on this computer. Share the project with a team to work on it together.${leftOut ? " Unticked files stay uncommitted." : ""}`}>
+            <span>{busy === "save" || busy === "first-share" ? "Committing…"
+              : leftOut ? `Commit ${st!.changes.length - leftOut} of ${st!.changes.length}${st!.remoteUrl ? " & Share" : ""}`
+              : st!.remoteUrl ? "Commit & Share" : "Commit"}</span>
+            <kbd>{isMac ? "⌘" : "Ctrl"} ↵</kbd>
+          </button>
+        {/snippet}
+        <ChangesPanel {root} st={st} {summary} {commitBox} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
           ondiscardall={() => (discardAllOpen = true)}
           onrestore={(path, version, label, source) => (restoreFile = { path, version, label, source })} />
       {:else if tab === "history"}
@@ -776,37 +797,6 @@
       {/if}
     </main>
 
-    {#if tab === "changes"}
-      <footer class="save">
-        <textarea rows="2" bind:value={message} placeholder="What did you change? e.g. “New bassline in the chorus”"
-          onkeydown={(e) => { if (e.key === "Enter" && e.ctrlKey) commit(); }}></textarea>
-        <div class="save-row">
-          <p class="faint small">
-            {#if st.olderVersion}
-              {#if st.remoteUrl}
-                You're on an older version. Committing combines your changes with the latest version of
-                “{st.branch}” (you'll see a preview first) — or start a new branch from here.
-              {:else}
-                You're on an older version. Make it the latest version to commit changes, or go back to the
-                latest version.
-              {/if}
-            {:else if st.remoteUrl}
-              Commits the project folder and shares it with the team on “{st.branch}”. If others committed in
-              the meantime, you'll see what they changed and choose how to combine first.
-            {:else}
-              Commits on this computer. Share the project with a team to work on it together.
-            {/if}
-          </p>
-          <button class="primary" disabled={!message.trim() || !!busy || (!!st.olderVersion && !st.remoteUrl)
-            || (st.changes.length > 0 && leftOut === st.changes.length)} onclick={() => commit()}
-            title={leftOut ? "Ctrl+Enter — unticked files stay uncommitted" : "Ctrl+Enter"}>
-            {busy === "save" || busy === "first-share" ? "Committing…"
-              : leftOut ? `Commit ${st.changes.length - leftOut} of ${st.changes.length} files${st.remoteUrl ? " & share" : ""}`
-              : st.remoteUrl ? "Commit version & share" : "Commit version"}
-          </button>
-        </div>
-      </footer>
-    {/if}
   </div>
 
   {#if combine}
@@ -1049,11 +1039,11 @@
   .warn-text { color: var(--warn); }
   main.flush { padding: 0 0 0 16px; overflow: hidden; min-height: 0; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
-  .save { border-top: 1px solid var(--line); background: var(--panel); padding: 12px 24px 14px; }
-  .save textarea { width: 100%; resize: vertical; min-height: 44px; }
-  .save-row { display: flex; align-items: center; gap: 16px; margin-top: 8px; }
-  .save-row p { flex: 1; margin: 0; }
-  .save-row button { padding: 9px 18px; white-space: nowrap; }
+  .older { margin: 6px 0 0; }
+  .commit-btn { width: 100%; margin-top: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .commit-btn kbd { font: inherit; font-size: 11px; opacity: .75; padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; }
+  /* nothing to commit yet (no message, no changes): outlined, still easy to see */
+  .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
   .small { font-size: 12px; margin: 10px 0 0; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
