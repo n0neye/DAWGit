@@ -450,7 +450,7 @@
                 {@render trackName(r, wasOf(r))}
                 {#if r.t.kind === "group" && !compare}
                   <button class="fold gfold" onclick={(e) => { e.stopPropagation(); folds[r.t.id] = !folded(r.t); }}
-                    title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "⊕" : "⊖"}</button>
+                    title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "▸" : "▾"}</button>
                 {/if}
               </div>
             </div>
@@ -607,7 +607,7 @@
   /* columns of a group: a band of its color over the titles, as in Live */
   /* the band reaches over the 1px gap to its left, so it runs on unbroken from the group's title */
   .ctitle .band { display: block; flex: none; height: 5px; margin: 0 0 2px -1px; }
-  .gfold { margin-left: auto; font-size: 12px; line-height: 1; padding: 0 2px; opacity: .85; }
+  .gfold { margin-left: auto; font-size: 10px; line-height: 1; padding: 0 2px; opacity: .85; }
   .stop { width: 7px; height: 7px; background: #4a4a4a; margin-left: 4px; border-radius: 1px; }
   .scene { height: 20px; line-height: 20px; padding: 0 6px; background: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .cmix { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 4px; background: #333; }
