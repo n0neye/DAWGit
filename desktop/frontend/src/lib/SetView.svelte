@@ -440,19 +440,22 @@
         <div class="sess" style:grid-template-columns="repeat({rows.length}, 108px) 116px">
           {#each rows as r (r.t.id + (r.status ?? ""))}
             {@const band = bandOf(r)}
+            {@const inner = r.t.kind !== "group" && !!band}
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="ctitle {r.status ?? ''}" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
-              class:grouped={!!band} class:inner={r.t.kind !== "group" && !!band}
-              style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)} style:--band={band}
-              title={`${kindName[r.t.kind]} · ${clipCount(r.t)}${r.t.instrumentFull ? ` · ${r.t.instrumentFull}` : ""}`}>
-              {@render trackName(r, wasOf(r))}
-              {#if r.t.kind === "group" && !compare}
-                <button class="fold gfold" onclick={(e) => { e.stopPropagation(); folds[r.t.id] = !folded(r.t); }}
-                  title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "⊕" : "⊖"}</button>
-              {/if}
+              class:inner title={`${kindName[r.t.kind]} · ${clipCount(r.t)}${r.t.instrumentFull ? ` · ${r.t.instrumentFull}` : ""}`}>
+              <!-- a track in a group: under the band of the group's color, which runs on from the group's title -->
+              {#if inner}<i class="band" style:background={band}></i>{/if}
+              <div class="tt" style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)}>
+                {@render trackName(r, wasOf(r))}
+                {#if r.t.kind === "group" && !compare}
+                  <button class="fold gfold" onclick={(e) => { e.stopPropagation(); folds[r.t.id] = !folded(r.t); }}
+                    title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "⊕" : "⊖"}</button>
+                {/if}
+              </div>
             </div>
           {/each}
-          <div class="ctitle main-title" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div>
+          <div class="ctitle"><div class="tt" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div></div>
           {#if compare}
             {#each rows as r}<div class="cbadge">{@render badge(r.status)}</div>{/each}
             <div></div>
@@ -586,7 +589,8 @@
 
   .sess-wrap { overflow-x: auto; background: #1c1c1c; border: 1px solid #000; border-radius: 6px; }
   .sess { display: grid; gap: 1px; background: #121212; font-size: 11px; color: #d8d8d8; width: max-content; }
-  .ctitle { display: flex; align-items: center; gap: 3px; height: 22px; padding: 0 6px; font-weight: 600; overflow: hidden; }
+  .ctitle { display: flex; flex-direction: column; height: 26px; font-weight: 600; min-width: 0; }
+  .ctitle .tt { flex: 1; display: flex; align-items: center; gap: 3px; padding: 0 6px; overflow: hidden; min-width: 0; }
   .ctitle.removed { opacity: .6; }
   .cbadge { background: #1c1c1c; padding: 2px 4px; text-align: center; }
   .slot { height: 20px; background: #2a2a2a; display: flex; align-items: center; padding: 0 2px; min-width: 0; }
@@ -601,8 +605,8 @@
   .gmini i { width: 9px; height: 12px; border-radius: 1px;
     background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, .38) 0 1.5px, transparent 1.5px 3.5px); }
   /* columns of a group: a band of its color over the titles, as in Live */
-  .ctitle.grouped { box-shadow: inset 0 3px 0 var(--band); padding-top: 3px; }
-  .ctitle.inner { border-left: 1px solid rgba(0, 0, 0, .35); }
+  /* the band reaches over the 1px gap to its left, so it runs on unbroken from the group's title */
+  .ctitle .band { display: block; flex: none; height: 5px; margin: 0 0 2px -1px; }
   .gfold { margin-left: auto; font-size: 12px; line-height: 1; padding: 0 2px; opacity: .85; }
   .stop { width: 7px; height: 7px; background: #4a4a4a; margin-left: 4px; border-radius: 1px; }
   .scene { height: 20px; line-height: 20px; padding: 0 6px; background: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
