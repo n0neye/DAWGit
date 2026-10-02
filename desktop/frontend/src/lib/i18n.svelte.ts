@@ -13,7 +13,6 @@ export const languages = [
   { code: "fr", name: "Français" },
   { code: "de", name: "Deutsch" },
   { code: "pt-BR", name: "Português (Brasil)" },
-  { code: "ru", name: "Русский" },
   { code: "it", name: "Italiano" },
 ] as const;
 

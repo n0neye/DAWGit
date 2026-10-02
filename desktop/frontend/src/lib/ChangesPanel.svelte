@@ -510,7 +510,7 @@
     background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted);
     display: grid; align-items: center; row-gap: 3px;
     grid-template-columns: 22px 20px minmax(0, 1fr) auto auto;
-    grid-template-areas: "chev pick title title all" ". . total discard discard"; }
+    grid-template-areas: "chev pick title title title" ". . total discard all"; }
   @container (min-width: 380px) {
     .head { grid-template-columns: 22px 20px auto minmax(0, 1fr) auto auto;
       grid-template-areas: "chev pick title total discard all"; }
