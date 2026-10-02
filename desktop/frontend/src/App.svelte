@@ -294,6 +294,7 @@
     if (!folder) return;
     try {
       const p = await api.AddLocalProject(folder);
+      firstShare = p.root; // asks about a first version
       await reload();
       select(p);
     } catch (e) {

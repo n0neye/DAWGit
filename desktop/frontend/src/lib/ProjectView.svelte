@@ -13,8 +13,10 @@
   import PreviewDialog from "./PreviewDialog.svelte";
   import ConflictDialog from "./ConflictDialog.svelte";
 
-  // firstShare: the project was just added to a team; commit and upload its
-  // first version right away.
+  // firstShare: the project was just added (to a team, or this computer).
+  // With no versions yet, it asks whether to commit (and share) a first one
+  // now or after a look through the files; a project with versions shares
+  // them right away.
   let { root, refreshKey, teams, firstShare = false, onchanged, onfirstshared, onsettings }: {
     root: string; refreshKey: number; teams: TeamSummary[]; firstShare?: boolean;
     onchanged: () => void; onfirstshared?: () => void;
@@ -111,16 +113,25 @@
     }
   }
 
-  let firstShareStarted = false;
   $effect(() => {
     root; refreshKey;
-    if (untrack(() => firstShare) && !firstShareStarted) {
-      firstShareStarted = true;
-      shareFirstVersion();
-      return;
-    }
     load();
   });
+
+  // Just added: ask about the first version once the project is read.
+  let firstAsk = $state(false);
+  let firstShareStarted = false;
+  $effect(() => {
+    if (!st || firstShareStarted || !untrack(() => firstShare)) return;
+    firstShareStarted = true;
+    onfirstshared?.();
+    if (!st.head) askFirstVersion();
+    else if (st.remoteUrl) shareFirstVersion();
+  });
+  function askFirstVersion() {
+    if (!message.trim()) message = "First version";
+    firstAsk = true;
+  }
 
   // The team's side (new versions, branches) is refreshed every minute (and
   // when the agent reports new versions)...
@@ -549,7 +560,10 @@
       return;
     }
     onchanged(); // the project moves to the team's list
-    shareFirstVersion(teams.find((t) => t.id === teamId)?.name);
+    if (!st?.head) {
+      await load();
+      askFirstVersion();
+    } else shareFirstVersion(teams.find((t) => t.id === teamId)?.name);
   }
 
   // Commits and uploads the first version of a project that just joined a
@@ -659,6 +673,13 @@
       <div class="banner info"><ProgressBar p={progress} team={st.teamName || undefined} /></div>
     {:else if busy === "first-share"}
       <div class="banner info"><div>Sharing “{st.name}” with the team…</div></div>
+    {/if}
+
+    {#if st.remoteUrl && !st.head && !busy && !progress}
+      <div class="banner info">
+        <div>Not shared with {st.teamName || "the team"} yet: look through the files (right-click › Ignore leaves
+          one out), then commit a first version to share it.</div>
+      </div>
     {/if}
 
     {#if st.cloudFolder && !cloudOk[root]}
@@ -798,6 +819,24 @@
     </main>
 
   </div>
+
+  {#if firstAsk}
+    <Modal title="“{st.name}” is added" onclose={() => (firstAsk = false)}>
+      <p>{st.remoteUrl
+        ? `Commit a first version now and share it with ${st.teamName || "the team"}, samples included?`
+        : "Commit a first version now?"}</p>
+      <p class="muted">Or look through the {st.changes.length} file{st.changes.length === 1 ? "" : "s"} first: leave out
+        what shouldn't be versioned (right-click › Ignore, or the project's settings), tidy the folder, then commit
+        from the Changes tab.{st.remoteUrl ? " Your team sees the project once it's committed." : ""}</p>
+      <label for="first-msg">Message</label>
+      <input id="first-msg" bind:value={message} onkeydown={(e) => { if (e.key === "Enter" && message.trim()) { firstAsk = false; commit(); } }} />
+      {#snippet footer()}
+        <button onclick={() => (firstAsk = false)}>Later</button>
+        <button class="primary" disabled={!message.trim()} onclick={() => { firstAsk = false; commit(); }}>
+          {st?.remoteUrl ? "Commit & Share now" : "Commit now"}</button>
+      {/snippet}
+    </Modal>
+  {/if}
 
   {#if combine}
     <CombineDialog preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
