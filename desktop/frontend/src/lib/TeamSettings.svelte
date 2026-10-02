@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { t } from "./i18n.svelte";
+  import { t, tn } from "./i18n.svelte";
+  import Tx from "./Tx.svelte";
   import { untrack } from "svelte";
   import { api, errorText, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
@@ -48,7 +49,7 @@
     cleanError = "";
     try {
       cleanup = (await api.CleanUpStorage(team.id, remove)) as Cleanup;
-      if (remove) toast(`Deleted ${cleanup.deleted} unused file${cleanup.deleted === 1 ? "" : "s"} (${mb(cleanup.deletedBytes)})`, "ok");
+      if (remove) toast(tn(cleanup.deleted, "Deleted {n} unused file ({size})", "Deleted {n} unused files ({size})", { size: mb(cleanup.deletedBytes) }), "ok");
     } catch (e) {
       cleanError = errorText(e);
     } finally {
@@ -56,11 +57,11 @@
     }
   }
 
-  async function identitySaved(t: TeamSummary) {
-    const renamed = !!team.memberId && t.memberName !== team.memberName;
+  async function identitySaved(s: TeamSummary) {
+    const renamed = !!team.memberId && s.memberName !== team.memberName;
     editingMe = false;
     await reload();
-    toast(renamed ? `You're “${t.memberName}” in ${t.name} — on all your versions` : `You're “${t.memberName}” in ${t.name}`, "ok");
+    toast(t(renamed ? "You're “{name}” in {team} — on all your versions" : "You're “{name}” in {team}", { name: s.memberName, team: s.name }), "ok");
   }
 
   $effect(() => {
@@ -79,7 +80,7 @@
     try {
       await api.RenameTeamForEveryone(team.id, name);
       await reload();
-      toast(`Renamed to ${name.trim()} for everyone`, "ok");
+      toast(t("Renamed to {name} for everyone", { name: name.trim() }), "ok");
     } catch (e) {
       toast(errorText(e), "error", 9000);
     } finally {
@@ -91,7 +92,7 @@
     try {
       await api.RenameTeam(team.id, name);
       await reload();
-      toast("Renamed on this computer", "ok");
+      toast(t("Renamed on this computer"), "ok");
     } catch (e) {
       toast(errorText(e), "error");
     }
@@ -106,7 +107,7 @@
       saved = structuredClone($state.snapshot(conn)) as Conn;
       if (team.isStorage) code = await api.TeamConnectionCode(team.id);
       await reload();
-      toast("Connection checked and saved", "ok");
+      toast(t("Connection checked and saved"), "ok");
     } catch (e) {
       connError = errorText(e);
     } finally {
@@ -119,8 +120,8 @@
       leaving = true;
       await api.RemoveTeam(team.id, keepProjects, keepProjects && fullHistory);
       await reload();
-      toast(keepProjects ? `Disconnected from ${team.name}. Its projects are under Local now.`
-        : `Disconnected from ${team.name}. Project folders were left on disk.`, "info", 7000);
+      toast(t(keepProjects ? "Disconnected from {team}. Its projects are under Local now." : "Disconnected from {team}. Project folders were left on disk.",
+        { team: team.name }), "info", 7000);
       onclose();
     } catch (e) {
       toast(errorText(e), "error", 9000);
@@ -130,7 +131,7 @@
   }
 </script>
 
-<Modal title="{team.name} settings" {onclose} width={620} backdropCloses={false}>
+<Modal title={t("{team} settings", { team: team.name })} {onclose} width={620} backdropCloses={false}>
   <section>
     <h3>{t("Name")}</h3>
     <input bind:value={name} aria-label={t("Team name")} />
@@ -166,7 +167,7 @@
   {#if team.isStorage}
     <section>
       <h3>{t("Invite teammates")}</h3>
-      <p class="faint small">{t("Send this connection code privately; they choose")} <em>{t("Join a team")}</em> {t("and paste it. It contains the storage key.")}</p>
+      <p class="faint small"><Tx text={t("Send this connection code privately; they choose {join} and paste it. It contains the storage key.")} em={{ join: t("Join a team") }} /></p>
       {#if code}<CodeBox {code} />{/if}
     </section>
   {/if}
@@ -220,26 +221,28 @@
       {#if cleanup}
         {@const c = cleanup}
         {#if c.deleted}
-          <p class="small">Deleted {c.deleted} file{c.deleted === 1 ? "" : "s"} ({mb(c.deletedBytes)}).</p>
+          <p class="small">{tn(c.deleted, "Deleted {n} file ({size}).", "Deleted {n} files ({size}).", { size: mb(c.deletedBytes) })}</p>
         {/if}
         {#if c.unused - c.deleted === 0}
-          <p class="small">{c.deleted ? "Nothing else is unused" : "Nothing unused"}: {c.stored} files, used by
-            {c.versions} versions.</p>
+          <p class="small">{t(c.deleted ? "Nothing else is unused: {files} files, used by {versions} versions." : "Nothing unused: {files} files, used by {versions} versions.",
+            { files: c.stored, versions: c.versions })}</p>
         {:else if c.due && !c.deleted}
-          <p class="small">{c.unused} unused file{c.unused === 1 ? "" : "s"} ({mb(c.unusedBytes)}); {c.due}
-            ({mb(c.dueBytes)}) can be deleted now.</p>
+          <p class="small">{tn(c.unused, "{n} unused file ({size}); {due} ({dueSize}) can be deleted now.", "{n} unused files ({size}); {due} ({dueSize}) can be deleted now.",
+            { size: mb(c.unusedBytes), due: c.due, dueSize: mb(c.dueBytes) })}</p>
         {:else}
-          <p class="small">{c.unused - c.deleted} unused file{c.unused - c.deleted === 1 ? "" : "s"}
-            ({mb(c.unusedBytes - c.deletedBytes)}) can be deleted{c.nextCleanup ? ` from ${when(c.nextCleanup)}` : " later"}:
-            come back and clean up again then.</p>
+          <p class="small">{c.nextCleanup
+            ? tn(c.unused - c.deleted, "{n} unused file ({size}) can be deleted from {when}: come back and clean up again then.", "{n} unused files ({size}) can be deleted from {when}: come back and clean up again then.",
+              { size: mb(c.unusedBytes - c.deletedBytes), when: when(c.nextCleanup) })
+            : tn(c.unused - c.deleted, "{n} unused file ({size}) can be deleted later: come back and clean up again then.", "{n} unused files ({size}) can be deleted later: come back and clean up again then.",
+              { size: mb(c.unusedBytes - c.deletedBytes) })}</p>
         {/if}
       {/if}
       {#if cleanError}<p class="error small">{cleanError}</p>{/if}
       <div class="row btns">
-        <button disabled={!!cleaning} onclick={() => clean(false)}>{cleaning === "check" ? "Looking…" : "Find unused files"}</button>
+        <button disabled={!!cleaning} onclick={() => clean(false)}>{cleaning === "check" ? t("Looking…") : t("Find unused files")}</button>
         {#if cleanup?.due && !cleanup.deleted}
           <button class="danger" disabled={!!cleaning} onclick={() => clean(true)}>
-            {cleaning === "delete" ? "Deleting…" : `Delete ${cleanup.due} file${cleanup.due === 1 ? "" : "s"} (${mb(cleanup.dueBytes)})`}</button>
+            {cleaning === "delete" ? t("Deleting…") : tn(cleanup.due, "Delete {n} file ({size})", "Delete {n} files ({size})", { size: mb(cleanup.dueBytes) })}</button>
         {/if}
       </div>
     </section>
@@ -256,24 +259,24 @@
 </Modal>
 
 {#if confirmDisconnect}
-  <Modal title="Disconnect from {team.name}?" onclose={() => (confirmDisconnect = false)}>
+  <Modal title={t("Disconnect from {team}?", { team: team.name })} onclose={() => (confirmDisconnect = false)}>
     <p>{t("This computer forgets the team and its key. Nothing changes for your teammates, and project folders stay on disk.")}</p>
     <label class="keep">
       <input type="checkbox" bind:checked={keepProjects} />
-      <span>{t("Move this team's projects to")} <strong>{t("Local")}</strong>
+      <span><Tx text={t("Move this team's projects to {local}")} strong={{ local: t("Local") }} />
         <span class="faint small">{t("Their versions stay and you can keep committing on this computer. Join the team again later to reconnect them.")}</span></span>
     </label>
     {#if keepProjects && historySize > 0}
       <label class="keep sub">
         <input type="checkbox" bind:checked={fullHistory} />
-        <span>Also download the files of older versions ({mb(historySize)})
+        <span>{t("Also download the files of older versions ({size})", { size: mb(historySize) })}
           <span class="faint small">{t("Without them, older versions that use other samples than today's need the team again to open.")}</span></span>
       </label>
     {/if}
     {#snippet footer()}
       <button onclick={() => (confirmDisconnect = false)} disabled={leaving}>{t("Cancel")}</button>
       <button class="danger" onclick={disconnect} disabled={leaving}>
-        {leaving ? (fullHistory ? "Downloading…" : "Disconnecting…") : "Disconnect"}</button>
+        {leaving ? (fullHistory ? t("Downloading…") : t("Disconnecting…")) : t("Disconnect")}</button>
     {/snippet}
   </Modal>
 {/if}

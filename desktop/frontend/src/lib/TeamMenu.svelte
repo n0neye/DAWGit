@@ -30,7 +30,7 @@
 
   async function connected(t: TeamSummary) {
     connecting = false;
-    toast(`Connected to ${t.name}`, "ok");
+    toast(tr("Connected to {team}", { team: t.name }), "ok");
     await reload();
     if (!t.memberId) {
       identityFor = t;
@@ -43,7 +43,7 @@
   async function identitySaved(t: TeamSummary, renamed: boolean) {
     identityFor = null;
     await reload();
-    toast(renamed ? `You're “${t.memberName}” in ${t.name} — on all your versions` : `You're “${t.memberName}” in ${t.name}`, "ok");
+    toast(tr(renamed ? "You're “{name}” in {team} — on all your versions" : "You're “{name}” in {team}", { name: t.memberName, team: t.name }), "ok");
     if (offerAfterName) {
       const joined = offerAfterName;
       offerAfterName = null;
@@ -75,7 +75,7 @@
       await api.ReconnectProjects(f.team.id, roots);
       found = null;
       await reload();
-      toast(`Reconnected ${roots.length === 1 ? "1 project" : `${roots.length} projects`} to ${f.team.name}`, "ok");
+      toast(tn(roots.length, "Reconnected {n} project to {team}", "Reconnected {n} projects to {team}", { team: f.team.name }), "ok");
     } catch (e) {
       toast(errorText(e), "error", 9000);
     } finally {
@@ -89,13 +89,13 @@
 <div class="team-menu">
   <button class="current" onclick={() => (open = !open)} title={current?.address ?? ""}>
     <span class="label">{tr("Team")}</span>
-    <span class="name">{current?.name ?? "No team"}</span>
+    <span class="name">{current?.name ?? tr("No team")}</span>
     <span class="caret">▾</span>
   </button>
   {#if current && !current.memberId}
     <button class="who" onclick={() => (identityFor = current!)}
       title={tr("Versions you commit here show this name, for everyone in the team")}>
-      ☺ Choose your name in {current.name}
+      ☺ {tr("Choose your name in {team}", { team: current.name })}
     </button>
   {/if}
   {#if open}
@@ -121,8 +121,8 @@
 
 {#if identityFor}
   {@const t = identityFor}
-  <Modal title={t.memberId ? `Your name in ${t.name}` : `Who are you in ${t.name}?`} onclose={() => (identityFor = null)}>
-    <IdentityForm team={t} suggested={overview.author} submitLabel="Save"
+  <Modal title={t.memberId ? tr("Your name in {team}", { team: t.name }) : tr("Who are you in {team}?", { team: t.name })} onclose={() => (identityFor = null)}>
+    <IdentityForm team={t} suggested={overview.author} submitLabel={tr("Save")}
       onsaved={(saved) => identitySaved(saved, !!t.memberId && saved.memberName !== t.memberName)} />
   </Modal>
 {/if}
@@ -135,9 +135,8 @@
 
 {#if found}
   {@const f = found}
-  <Modal title="Projects of {f.team.name} on this computer" onclose={() => (found = null)} backdropCloses={false}>
-    <p class="muted">These projects on this computer belong to {f.team.name}. Reconnect them to share versions with
-      the team again; their history is kept.</p>
+  <Modal title={tr("Projects of {team} on this computer", { team: f.team.name })} onclose={() => (found = null)} backdropCloses={false}>
+    <p class="muted">{tr("These projects on this computer belong to {team}. Reconnect them to share versions with the team again; their history is kept.", { team: f.team.name })}</p>
     <ul class="found">
       {#each f.projects as p (p.root)}
         <li><label><input type="checkbox" bind:checked={p.on} />
@@ -147,7 +146,7 @@
     {#snippet footer()}
       <button onclick={() => (found = null)}>{tr("Not now")}</button>
       <button class="primary" disabled={reconnecting || !f.projects.some((p) => p.on)} onclick={reconnect}>
-        {reconnecting ? "Reconnecting…" : "Reconnect selected"}</button>
+        {reconnecting ? tr("Reconnecting…") : tr("Reconnect selected")}</button>
     {/snippet}
   </Modal>
 {/if}

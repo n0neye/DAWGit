@@ -52,7 +52,7 @@
 
   const fmt = (n: number) => (n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2));
   const describe = (s: ModelStats | null | undefined) =>
-    s ? `${s.triangles.toLocaleString()} triangles · ${s.size.map(fmt).join(" × ")}` : "";
+    s ? `${tr("{n} triangles", { n: s.triangles.toLocaleString() })} · ${s.size.map(fmt).join(" × ")}` : "";
 </script>
 
 {#snippet view(slot: "a" | "b", t: Take)}
@@ -60,7 +60,7 @@
     <figcaption><span>{t.label}</span><span class="stats">{describe(stats[slot])}</span></figcaption>
     <div class="frame">
       {#if slot === "a"}<canvas bind:this={canvasA}></canvas>{:else}<canvas bind:this={canvasB}></canvas>{/if}
-      {#if errors[slot]}<div class="none">Can't show this model: {errors[slot]}</div>
+      {#if errors[slot]}<div class="none">{tr("Can't show this model:")} {errors[slot]}</div>
       {:else if !stats[slot]}<div class="none faint">{tr("Loading the model…")}</div>{/if}
     </div>
   </figure>

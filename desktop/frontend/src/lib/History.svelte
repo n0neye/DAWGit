@@ -85,7 +85,7 @@
           <div class="row" style:height="{ROW}px" role="button" tabindex="0" title={t("Show what this version changed")}
             onclick={() => toggle(v)} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(v); } }}>
             <span class="msg">
-              {v.message || "(no description)"}
+              {v.message || t("(no description)")}
               {#each v.branches as b}<span class="tag">{b}</span>{/each}
               {#if v.id === head}<span class="tag here">{t("you are here")}</span>{/if}
               {#if v.id === latest && latest !== head}<span class="tag">{t("latest")}</span>{/if}
@@ -115,14 +115,14 @@
               {#if v.message}<p class="full">{v.message}</p>{/if}
               <div class="meta faint">
                 {v.author} · {new Date(v.time).toLocaleString()} · <span class="mono">{v.short}</span>
-                {#if v.parents.length > 1} · merge{/if}
+                {#if v.parents.length > 1} · {t("merge")}{/if}
               </div>
               {#if changes[v.id] === undefined}
                 <p class="faint">{t("Reading…")}</p>
               {:else if typeof changes[v.id] === "string"}
                 <p class="error">{changes[v.id]}</p>
               {:else}
-                <ChangeList changes={changes[v.id] as Change[]} empty="No file changes." />
+                <ChangeList changes={changes[v.id] as Change[]} empty={t("No file changes.")} />
               {/if}
             </div>
           {/if}

@@ -73,7 +73,7 @@
         {:else}
           <div class="strip" role="group" onpointerdown={() => (active = k)}>
             <button class="play" class:on={playing[k]} onclick={() => toggle(k)}
-              title={playing[k] ? "Pause (Space)" : "Play (Space)"} aria-label={playing[k] ? "Pause" : "Play"}>
+              title={playing[k] ? t("Pause (Space)") : t("Play (Space)")} aria-label={playing[k] ? t("Pause") : t("Play")}>
               {#if playing[k]}
                 <svg viewBox="0 0 16 16"><rect x="3.5" y="2.5" width="3" height="11" rx="1" /><rect x="9.5" y="2.5" width="3" height="11" rx="1" /></svg>
               {:else}

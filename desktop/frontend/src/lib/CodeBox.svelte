@@ -17,7 +17,7 @@
 
 <div class="code">
   <input class="mono" readonly value={code} aria-label={t("Connection code")} onfocus={(e) => e.currentTarget.select()} />
-  <button class:primary={!copied} onclick={copy}>{copied ? "✓ Copied" : "Copy"}</button>
+  <button class:primary={!copied} onclick={copy}>{copied ? `✓ ${t("Copied")}` : t("Copy")}</button>
 </div>
 
 <style>

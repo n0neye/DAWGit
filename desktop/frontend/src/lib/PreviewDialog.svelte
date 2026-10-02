@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t } from "./i18n.svelte";
+  import { t, tn } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
   import ChangeList from "./ChangeList.svelte";
   import { ago, type Preview } from "./api";
@@ -25,10 +25,10 @@
   {#if nothing}
     <p class="muted">{t("Nothing new — you already have everything.")}</p>
   {:else}
-    <h3>{preview.versions.length} new version{preview.versions.length === 1 ? "" : "s"}</h3>
+    <h3>{tn(preview.versions.length, "{n} new version", "{n} new versions")}</h3>
     <ul class="versions">
       {#each preview.versions as v (v.id)}
-        <li><span class="msg">{v.message || "(no description)"}</span>
+        <li><span class="msg">{v.message || t("(no description)")}</span>
           <span class="faint">{v.author} · {ago(v.time)}</span></li>
       {/each}
     </ul>
@@ -36,7 +36,7 @@
     <ChangeList changes={preview.changes} />
     {#if preview.conflicts.length}
       <div class="conflicts">
-        <strong>{preview.conflicts.length} thing{preview.conflicts.length === 1 ? "" : "s"} you also changed</strong>
+        <strong>{tn(preview.conflicts.length, "{n} thing you also changed", "{n} things you also changed")}</strong>
         {t("— you'll choose what to keep next:")}
         <ul>
           {#each preview.conflicts as c (c.key)}
@@ -54,7 +54,7 @@
     {#if blocked}<p class="blocked">{blocked}</p>{/if}
   {/if}
   {#snippet footer()}
-    <button onclick={onclose}>{nothing ? "Close" : "Cancel"}</button>
+    <button onclick={onclose}>{nothing ? t("Close") : t("Cancel")}</button>
     {#if !nothing}
       <button class="primary" disabled={!!blocked || (asksMessage && !message?.trim())} onclick={onconfirm}>{actionLabel}</button>
     {/if}

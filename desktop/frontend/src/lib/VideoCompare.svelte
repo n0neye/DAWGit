@@ -52,7 +52,7 @@
 
 {#snippet player(t: Take, cls: string, bind?: "a" | "b")}
   {#if failed[t.src]}
-    <div class="none {cls}">This video's format can't be played here
+    <div class="none {cls}">{tr("This video's format can't be played here")}
       {#if onopen && cls !== "small"}<button class="link" onclick={onopen}>{tr("Open in your video player")}</button>{/if}</div>
   {:else if bind === "a"}
     <video class={cls} src={t.src} bind:this={va} {muted} preload="metadata"

@@ -85,12 +85,12 @@
         <div class="row"><span class="no">{i + 1}</span>{#if contentHTML}<span class="txt">{@html contentHTML[i]}</span>{:else}<span class="txt">{l}</span>{/if}</div>
       {/each}
     </div>
-    {#if c.truncated}<p class="faint small">The file goes on: only its first {c.lines.length} lines are shown.</p>{/if}
+    {#if c.truncated}<p class="faint small">{t("The file goes on: only its first {n} lines are shown.", { n: c.lines.length })}</p>{/if}
   {/if}
 {/snippet}
 
 {#if failed}
-  <p class="muted small">Couldn't read it: {failed}</p>
+  <p class="muted small">{t("Couldn't read it:")} {failed}</p>
 {:else if comparing}
   {#if diff === null}
     <p class="muted small">{t("Comparing…")}</p>
@@ -102,7 +102,7 @@
     <div class="bar small">
       {#if diff.hunks.length}
         <span class="add">+{diff.added}</span> <span class="del">−{diff.removed}</span>
-        <span class="faint">line{diff.added + diff.removed === 1 ? "" : "s"}</span>
+        <span class="faint">{diff.added + diff.removed === 1 ? t("line") : t("lines")}</span>
       {:else}
         <span class="faint">{t("No line changes.")}</span>
       {/if}

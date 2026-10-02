@@ -3,6 +3,7 @@
   import { api, errorText, type ProjectInfo, type TeamProject, type TeamSummary } from "./api";
   import Modal from "./Modal.svelte";
   import RulesWindow from "./RulesWindow.svelte";
+  import Tx from "./Tx.svelte";
   import { toast } from "./notify.svelte";
 
   // A project's settings: its name, where it is, its rules, and what can be
@@ -33,7 +34,7 @@
     renaming = true;
     try {
       await api.RenameProject(team?.id ?? "", p.id, here ? p.root : "", name.trim());
-      toast(team ? `Renamed for everyone in ${team.name}` : "Renamed", "ok");
+      toast(team ? t("Renamed for everyone in {team}", { team: team.name }) : t("Renamed"), "ok");
       onrenamed();
     } catch (e) {
       toast(errorText(e), "error");
@@ -45,7 +46,7 @@
   async function openRules() {
     try {
       await api.OpenRules(p.root);
-      toast("Save the file, then DAWGit follows the new rules", "info");
+      toast(t("Save the file, then DAWGit follows the new rules"), "info");
     } catch (e) {
       toast(errorText(e), "error");
     }
@@ -53,9 +54,8 @@
 
   let rulesOpen = $state(false);
   let unlinkSure = $state(false);
-  const presetNames: Record<string, string> = { ableton: "Ableton Live project", unity: "Unity project",
-    unreal: "Unreal project", design: "Design files", code: "Code", none: "No preset" };
-  const presetName = (preset: string) => presetNames[preset] ?? preset;
+  const presetName = (preset: string) => ({ ableton: t("Ableton Live project"), unity: t("Unity project"),
+    unreal: t("Unreal project"), design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[preset] ?? preset;
 </script>
 
 {#if rulesOpen}
@@ -67,15 +67,15 @@
     <div class="line">
       <input bind:value={name} maxlength="100" aria-label={t("Project name")}
         onkeydown={(e) => { if (e.key === "Enter" && name.trim() && name.trim() !== p.name) rename(); }} />
-      <button onclick={rename} disabled={renaming || !name.trim() || name.trim() === p.name}>{renaming ? "Renaming…" : "Rename"}</button>
+      <button onclick={rename} disabled={renaming || !name.trim() || name.trim() === p.name}>{renaming ? t("Renaming…") : t("Rename")}</button>
     </div>
-    <p class="hint">{team ? "Project name shared by the whole team." : "Project name in DAWGit."} Local folder keeps its name.</p>
+    <p class="hint">{team ? t("Project name shared by the whole team.") : t("Project name in DAWGit.")} {t("Local folder keeps its name.")}</p>
   </section>
 
   <section>
     <h3>{t("Where")}</h3>
     <dl>
-      <dt>{t("Team")}</dt><dd>{team ? team.name : "This computer only"}</dd>
+      <dt>{t("Team")}</dt><dd>{team ? team.name : t("This computer only")}</dd>
       {#if p.root}
         <dt>{t("Folder")}</dt>
         <dd class="folder">
@@ -95,7 +95,7 @@
   {#if here && info}
     <section>
       <h3>{t("Rules")}</h3>
-      <p class="hint">{t("Which files DAWGit tracks, set in the project's")} <span class="mono">{t(".dawgit.yaml")}</span>{t(". The file is committed with the project, so everyone uses the same rules.")}</p>
+      <p class="hint"><Tx text={t("Which files DAWGit tracks, set in the project's {file}. The file is committed with the project, so everyone uses the same rules.")} code={{ file: ".dawgit.yaml" }} /></p>
       <ul class="applied">
         {#each info.rules.applied as a}
           <li><strong>{presetName(a.preset)}</strong>
@@ -126,8 +126,8 @@
     {#if p.root}
       <div class="action">
         <div><strong>{t("Unlink folder")}</strong>
-          <p class="hint">DAWGit stops listing this folder{team ? " (the team's copy stays listed, to download)" : ""}.
-            Nothing is deleted: the folder keeps its files and versions, and can be added again.</p></div>
+          <p class="hint">{team ? t("DAWGit stops listing this folder (the team's copy stays listed, to download).") : t("DAWGit stops listing this folder.")}
+            {t("Nothing is deleted: the folder keeps its files and versions, and can be added again.")}</p></div>
         {#if unlinkSure}
           <button class="danger" onclick={onunlink}>{t("Unlink")}</button>
         {:else}
@@ -137,7 +137,7 @@
     {/if}
     {#if team}
       <div class="action">
-        <div><strong>Delete from {team.name}…</strong>
+        <div><strong>{t("Delete from {team}…", { team: team.name })}</strong>
           <p class="hint">{t("Removes it and all its versions from the team, for everyone.")}</p></div>
         <button class="danger" onclick={ondelete}>{t("Delete…")}</button>
       </div>

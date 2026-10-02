@@ -62,7 +62,7 @@
       api.ProjectInfo(p.root).then((i) => { if (rowMenu === key) menuInfo = i; }).catch(() => {});
     }
   }
-  const toolName = (tool: string) => (tool === "Ableton Live" ? "Live" : tool || t("its program"));
+  const toolName = (tool: string) => (tool === "Ableton Live" ? "Live" : tool ? t(tool) : t("its program"));
   function openIn(p: TeamProject, rel: string) {
     rowMenu = "";
     api.OpenInTool(p.root, rel).catch((e) => toast(errorText(e), "error"));

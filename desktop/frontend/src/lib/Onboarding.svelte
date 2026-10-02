@@ -50,7 +50,7 @@
   }
 
   async function pickParent() {
-    parent = (await api.ChooseFolder("Where should downloaded projects go?")) || parent;
+    parent = (await api.ChooseFolder(t("Where should downloaded projects go?"))) || parent;
   }
 
   async function download(id: string) {
@@ -72,7 +72,7 @@
   }
 
   async function addFolder() {
-    const folder = await api.ChooseFolder("Choose an Ableton project folder to share with the team");
+    const folder = await api.ChooseFolder(t("Choose a project folder to share with the team"));
     if (!folder || !team) return;
     busy = "add";
     error = "";
@@ -106,7 +106,7 @@
       <p class="muted">{t("DAWGit keeps your projects' versions in your team's storage, safe if a drive fails. One person creates the team; everyone else joins with the connection code they send. Working alone? Create a team of one.")}</p>
       <JoinOrCreate onconnected={connected} />
     {:else if step === 2 && team}
-      <h1>Who are you in {team.name}?</h1>
+      <h1>{t("Who are you in {team}?", { team: team.name })}</h1>
       <IdentityForm {team} suggested={name} onsaved={async (t) => {
         team = t;
         rememberAuthor(t.memberName);
@@ -124,7 +124,7 @@
         </div>
       </form>
     {:else if step === 3 && team}
-      <h1>Songs in {team.name}</h1>
+      <h1>{t("Projects in {team}", { team: team.name })}</h1>
       {#if overview.teamError}<p class="error">{overview.teamError}</p>{/if}
       {#if remote.length === 0 && mine.length === 0}
         <p class="muted">{t("The team has no projects yet. Add yours to start.")}</p>
@@ -132,7 +132,7 @@
         <p class="muted">{t("Download the songs you work on. You can get the others later from the sidebar.")}</p>
         <div class="row parent">
           <span class="faint">{t("Download into")}</span>
-          <span class="mono path">{parent || "— choose a folder —"}</span>
+          <span class="mono path">{parent || `— ${t("choose a folder")} —`}</span>
           <button class="ghost" onclick={pickParent}>{t("Browse…")}</button>
         </div>
         <ul class="projects">
@@ -142,9 +142,9 @@
           {#each remote as p (p.id)}
             <li class:active={busy === p.id}>
               <span class="name">{p.name}</span>
-              <button onclick={() => download(p.id)} disabled={!!busy}>{busy === p.id ? "Downloading…" : "↓ Download"}</button>
+              <button onclick={() => download(p.id)} disabled={!!busy}>{busy === p.id ? t("Downloading…") : `↓ ${t("Download")}`}</button>
               {#if busy === p.id}
-                <div class="progress"><ProgressBar p={progress} waiting="Connecting…" /></div>
+                <div class="progress"><ProgressBar p={progress} waiting={t("Connecting…")} /></div>
               {/if}
             </li>
           {/each}
@@ -153,10 +153,10 @@
       <p class="faint tip">{t("Tip: to stay out of each other's way, each of you can work on your own branch (⑂ → New branch) or your own set, and merge when it's ready.")}</p>
       {#if error}<p class="error">{error}</p>{/if}
       <div class="row actions">
-        <button onclick={addFolder} disabled={!!busy}>{busy === "add" ? "Sharing…" : "+ Add a project"}</button>
+        <button onclick={addFolder} disabled={!!busy}>{busy === "add" ? t("Sharing…") : `+ ${t("Add a project")}`}</button>
         <span class="spacer"></span>
         <button class="primary" onclick={() => onfinish(downloaded[0])}>
-          {mine.length || downloaded.length ? "Done" : "Skip for now"}
+          {mine.length || downloaded.length ? t("Done") : t("Skip for now")}
         </button>
       </div>
     {:else}

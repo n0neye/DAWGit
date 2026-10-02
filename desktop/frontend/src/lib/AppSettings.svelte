@@ -114,7 +114,8 @@
     padding: 5px 8px; min-width: 200px; }
   label.check { display: flex; align-items: flex-start; gap: 10px; margin: 10px 0; color: var(--text); font-size: 13.5px;
     cursor: pointer; }
-  label.check input { margin-top: 3px; }
+  label.check input { margin-top: 3px; width: auto; flex: none; }
+  label.check > span { flex: 1; }
   .hint { display: block; color: var(--faint); font-size: 12px; margin-top: 2px; }
   .links { display: flex; flex-wrap: wrap; gap: 8px; }
   button.small { padding: 4px 10px; font-size: 12.5px; }

@@ -86,7 +86,20 @@ export function t(text: string, vars?: Record<string, string | number>): string 
   return fill(state.dict[text] || text, vars);
 }
 
-/** One of two texts by count: tn(n, "{n} file", "{n} files"); n is in vars. */
+/** One of two texts by count: tn(n, "{n} file", "{n} files"); n is in vars.
+ * A language with more forms (Russian: 2–4, 5+) translates the plural as
+ * "<other>#few", "<other>#many"… (Intl.PluralRules' categories). */
 export function tn(n: number, one: string, other: string, vars?: Record<string, string | number>): string {
-  return t(n === 1 ? one : other, { n, ...vars });
+  const all = { n, ...vars };
+  if (n !== 1) {
+    let cat = "other";
+    try {
+      cat = new Intl.PluralRules(state.code).select(n);
+    } catch {
+      /* "other" */
+    }
+    const special = state.dict[`${other}#${cat}`];
+    if (special) return fill(special, all);
+  }
+  return t(n === 1 ? one : other, all);
 }

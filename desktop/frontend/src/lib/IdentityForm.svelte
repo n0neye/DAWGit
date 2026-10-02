@@ -48,7 +48,7 @@
 
 <form onsubmit={(e) => { e.preventDefault(); save(); }}>
   {#if !renaming && others.length}
-    <p class="muted">Already in {team.name} on another computer? Pick yourself, so all your versions show one name.</p>
+    <p class="muted">{t("Already in {team} on another computer? Pick yourself, so all your versions show one name.", { team: team.name })}</p>
     <ul class="members">
       {#each others as m (m.id)}
         <li><label><input type="radio" name="who" checked={pick === m.id} onchange={() => choose(m.id)} /> {m.name}</label></li>
@@ -57,14 +57,14 @@
         {t("I'm new to this team")}</label></li>
     </ul>
   {/if}
-  <label for="who-name">{renaming ? `Your name in ${team.name}` : "Your name"}</label>
+  <label for="who-name">{renaming ? t("Your name in {team}", { team: team.name }) : t("Your name")}</label>
   <input id="who-name" bind:value={name} placeholder={t("e.g. Yi")} autocomplete="off" />
   <p class="faint small">{t("Shown next to the versions you commit. If you change it later, it changes on all your versions, for everyone in the team.")}</p>
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">
     <span class="spacer"></span>
     <button type="submit" class="primary" disabled={!name.trim() || busy || members === null}>
-      {busy ? "Saving…" : submitLabel}
+      {busy ? t("Saving…") : submitLabel}
     </button>
   </div>
 </form>

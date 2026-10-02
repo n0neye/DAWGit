@@ -38,13 +38,13 @@
   $effect(() => { check(false); });
 
   let open = $derived(result?.problems.filter((p) => !p.fixed).length ?? 0);
-  const kindName: Record<string, string> = { version: "Version", "folder-list": "Folder list", file: "File" };
+  const kindName = (k: string) => ({ version: t("Version"), "folder-list": t("Folder list"), file: t("File") } as Record<string, string>)[k];
 </script>
 
-<Modal title={`Check “${name}”`} {onclose} backdropCloses={!busy} width={620}>
+<Modal title={t("Check “{name}”", { name })} {onclose} backdropCloses={!busy} width={620}>
   {#if busy}
-    <p class="muted">{repaired || result ? "Repairing…" : "Reading every version and stored file again…"}</p>
-    <ProgressBar p={progress} waiting="Reading versions…" />
+    <p class="muted">{repaired || result ? t("Repairing…") : t("Reading every version and stored file again…")}</p>
+    <ProgressBar p={progress} waiting={t("Reading versions…")} />
   {:else if error}
     <p class="error">{error}</p>
   {:else if result}
@@ -58,8 +58,8 @@
           <li class:fixed={p.fixed}>
             <span class="mark">{p.fixed ? "✓" : "!"}</span>
             <div>
-              <div><span class="kind">{kindName[p.kind] ?? p.kind}</span> <span class="mono">{p.what}</span></div>
-              <div class="muted small">{p.detail}{p.how ? ` — ${p.fixed ? "repaired: " : ""}${p.how}` : ""}</div>
+              <div><span class="kind">{kindName(p.kind) ?? p.kind}</span> <span class="mono">{p.what}</span></div>
+              <div class="muted small">{p.detail}{p.how ? ` — ${p.fixed ? t("repaired:") + " " : ""}${p.how}` : ""}</div>
             </div>
           </li>
         {/each}
@@ -75,7 +75,7 @@
     {#if result && open && !repaired && !busy}
       <button class="primary" onclick={() => check(true)}>{t("Repair")}</button>
     {/if}
-    <button onclick={onclose} disabled={busy}>{result && !busy ? "Done" : "Cancel"}</button>
+    <button onclick={onclose} disabled={busy}>{result && !busy ? t("Done") : t("Cancel")}</button>
   {/snippet}
 </Modal>
 
