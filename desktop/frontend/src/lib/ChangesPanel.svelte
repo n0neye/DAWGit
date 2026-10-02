@@ -327,7 +327,7 @@
                   {#if ff}<span class="from" title={`Moved from ${ff}/`}>← {ff}/</span>{/if}
                 {/if}
                 {#if d.changed && !isOpen(d.path)}<span class="right"><span class="count"
-                  title={`${d.changed} changed file${d.changed === 1 ? "" : "s"} inside, ${formatBytes(d.changedSize)}`}>{d.changed} · {formatBytes(d.changedSize)}</span></span>{/if}
+                  title={`${d.changed} changed file${d.changed === 1 ? "" : "s"} inside, ${formatBytes(d.changedSize)}`}>{d.changed}</span></span>{/if}
               </button>
               <button class="ghost more" title="More" onclick={(e) => { e.stopPropagation(); openMenu(e, d.path, true); }}>⋯</button>
             </li>
