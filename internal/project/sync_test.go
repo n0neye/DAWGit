@@ -38,7 +38,9 @@ func team(t *testing.T) (a, b *Repo) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.SetRemote(url, token)
+	if err := a.SetRemote(url, token); err != nil {
+		t.Fatalf("connect: %v", err) // seen once, rarely: say why
+	}
 	if _, res, err := a.Save("v2", Strategy("fail")); err != nil || res.Action != "published" {
 		t.Fatalf("first save: %v %+v", err, res)
 	}
