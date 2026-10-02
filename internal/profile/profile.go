@@ -92,7 +92,9 @@ func (r Rule) pattern() string {
 
 // file is the shape of .dawgit.yaml.
 type file struct {
-	Requires  string            `yaml:"requires"`
+	Requires string `yaml:"requires"`
+	// Presets: which preset applies to which folder. Use is its older name.
+	Presets   map[string]string `yaml:"presets"`
 	Use       map[string]string `yaml:"use"`
 	Rules     []Rule            `yaml:"rules"`
 	Gitignore bool              `yaml:"gitignore"`
@@ -111,6 +113,10 @@ type Profile struct {
 	Rules    []Rule
 	applied  []applied // longest folder first
 	FromFile bool      // read from .dawgit.yaml (not detected)
+	// Named: the file says which presets apply where (presets:); folders
+	// it doesn't name get none, and what detection finds there is only
+	// suggested (Suggestions).
+	Named map[string]bool
 	// Gitignore: the project's .gitignore files apply too (from
 	// .dawgit.yaml, or a preset in use).
 	Gitignore bool
@@ -201,18 +207,28 @@ func Parse(data []byte, root string) (*Profile, error) {
 			return Detect(root), fmt.Errorf("%s: rule %d: %w", FileName, i+1, err)
 		}
 	}
-	if len(f.Use) == 0 {
-		p.applied = Detect(root).applied
+	if len(f.Presets) > 0 && len(f.Use) > 0 {
+		return Detect(root), fmt.Errorf("%s: write presets: only (use: is its older name)", FileName)
 	}
-	for folder, name := range f.Use {
+	presets := f.Presets
+	if len(presets) == 0 {
+		presets = f.Use
+	}
+	if len(presets) == 0 {
+		p.applied = Detect(root).applied
+	} else {
+		p.Named = map[string]bool{}
+	}
+	for folder, name := range presets {
 		folder = cleanFolder(folder)
+		p.Named[strings.ToLower(folder)] = true
 		if name == "none" {
 			p.applied = append(p.applied, applied{Applied: Applied{Folder: folder, Preset: "none"}})
 			continue
 		}
 		preset, ok := builtin[name]
 		if !ok {
-			return Detect(root), fmt.Errorf("%s: use: %q is not a preset DAWGit knows (known: %s)", FileName, name, strings.Join(Names(), ", "))
+			return Detect(root), fmt.Errorf("%s: presets: %q is not a preset DAWGit knows (known: %s)", FileName, name, strings.Join(Names(), ", "))
 		}
 		p.applied = append(p.applied, applied{Applied: Applied{Folder: folder, Preset: name}, preset: preset})
 	}

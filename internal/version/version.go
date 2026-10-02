@@ -2,7 +2,7 @@
 // from here too (installer, Windows file properties).
 package version
 
-const Version = "0.9.3"
+const Version = "0.9.4"
 
 // Edition names a build with extensions (e.g. "Pro"; set through
 // ext.SetEdition); "" for the public app. It is shown next to the version

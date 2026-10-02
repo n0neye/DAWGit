@@ -6,7 +6,7 @@ DAWGit can be built with extensions that live in another repository: more preset
 
 | Function | Adds | Used by |
 | --- | --- | --- |
-| `ext.RegisterPreset(yaml)` | A preset, in the format of [`internal/profile/presets`](../internal/profile/presets) and [profiles.md](profiles.md). | Detection, `use:` in `.dawgit.yaml` |
+| `ext.RegisterPreset(yaml)` | A preset, in the format of [`internal/profile/presets`](../internal/profile/presets) and [profiles.md](profiles.md). | Detection, `presets:` in `.dawgit.yaml` |
 | `ext.RegisterMerge(name, fn)` | A merge handler: given base, yours and theirs, it returns the merged file, or reports that the changes collide (the file is then chosen whole). | A preset's `handlers: - merge: name` |
 | `ext.RegisterRunning(name, fn)` | A check of whether a tool has the project open. DAWGit doesn't rewrite files while it does. | A preset's `running: name` |
 | `ext.RegisterBackend(prefix, open)` | A kind of team backend for addresses starting with `prefix` (e.g. `rtdb+https://`). It implements `ext.Backend`, and optionally `ext.Capable` to offer features such as locks. | Team addresses and connection codes |
@@ -49,6 +49,6 @@ The desktop app embeds this repository's built frontend (`desktop/frontend/dist`
 Teams may mix builds with and without an extension, so storage stays compatible both ways:
 
 - A backend's extra data (e.g. locks) must not get in the way of builds that don't know about it.
-- A preset the other build doesn't know is an error in `.dawgit.yaml` (`use:`). Projects that need an extension's preset should set `requires:` accordingly, or be used only with builds that have it.
+- A preset the other build doesn't know is an error in `.dawgit.yaml` (`presets:`). Projects that need an extension's preset should set `requires:` accordingly, or be used only with builds that have it.
 
 [ext_test.go](../ext/ext_test.go) is a complete example: a made-up tool with its own preset and a line merge, used by two computers.

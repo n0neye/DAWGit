@@ -453,6 +453,7 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 	if err != nil {
 		return TeamProject{}, err
 	}
+	r.EnsureRules() // a project from before the rules' file: shown as a change
 	a.startAgent(r.Root)
 	return folderProject(r.Root, "downloaded"), nil
 }
@@ -488,6 +489,9 @@ func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
 		return TeamProject{}, err
 	}
 	err = r.JoinTeam(t)
+	if err == nil {
+		_, err = r.EnsureRules() // shown with the first version's files
+	}
 	release()
 	unlock()
 	if err != nil {

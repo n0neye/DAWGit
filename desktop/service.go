@@ -343,7 +343,7 @@ func (a *App) State(root string) (*State, error) {
 		st.Name = filepath.Base(r.Root)
 	}
 	rules, _ := r.Profile()
-	st.Rules = RulesInfo{Applied: rules.Applied(), FromFile: rules.FromFile}
+	st.Rules = RulesInfo{Applied: rules.Applied(), FromFile: rules.FromFile, Suggestions: suggestions(r)}
 	if err := r.CheckRules(); err != nil {
 		st.Rules.Error = err.Error()
 	}

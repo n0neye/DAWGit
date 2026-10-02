@@ -1,10 +1,15 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"dawgit/internal/profile"
+	"dawgit/internal/store"
 	"dawgit/internal/version"
 )
 
@@ -76,3 +81,64 @@ func (r *Repo) profileOf(m *Manifest) (*profile.Profile, error) {
 // forgetProfile makes the next Profile read .dawgit.yaml again (e.g. after a
 // checkout replaced it).
 func (r *Repo) forgetProfile() { r.prof, r.profErr = nil, nil }
+
+// EnsureRules makes the project's .dawgit.yaml the one place its rules are
+// in: written with what DAWGit finds when there is none, and given the
+// presets DAWGit finds when it doesn't say which apply (an older file). It
+// returns what it did ("" nothing, "created", "presets added"). A broken
+// file is left alone (fixing it is the person's).
+func (r *Repo) EnsureRules() (string, error) {
+	p := filepath.Join(r.Root, profile.FileName)
+	data, err := os.ReadFile(p)
+	if errors.Is(err, os.ErrNotExist) {
+		if err := store.WriteAtomic(p, strings.NewReader(profile.Generate(r.Root))); err != nil {
+			return "", err
+		}
+		r.forgetProfile()
+		return "created", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	text, err := profile.WithFoundPresets(string(data), r.Root)
+	if err != nil || text == string(data) {
+		return "", nil
+	}
+	if err := store.WriteAtomic(p, strings.NewReader(text)); err != nil {
+		return "", err
+	}
+	r.forgetProfile()
+	return "presets added", nil
+}
+
+// SetPreset sets which preset applies to folder ("" or "." the project's;
+// "none" for no preset) in the project's .dawgit.yaml, keeping the rest of
+// the file as it is.
+func (r *Repo) SetPreset(folder, preset string) error {
+	if _, ok := profile.Builtin(preset); !ok && preset != "none" {
+		return fmt.Errorf("%q is not a preset DAWGit knows", preset)
+	}
+	if folder == "." {
+		folder = ""
+	}
+	p := filepath.Join(r.Root, profile.FileName)
+	data, err := os.ReadFile(p)
+	if errors.Is(err, os.ErrNotExist) {
+		data, err = []byte(profile.Generate(r.Root)), nil
+	}
+	if err != nil {
+		return err
+	}
+	text, err := profile.SetPreset(string(data), folder, preset, false)
+	if err != nil {
+		return err
+	}
+	if _, err := profile.Parse([]byte(text), r.Root); err != nil {
+		return fmt.Errorf("the change would break %s: %w", profile.FileName, err)
+	}
+	if err := store.WriteAtomic(p, strings.NewReader(text)); err != nil {
+		return err
+	}
+	r.forgetProfile()
+	return nil
+}

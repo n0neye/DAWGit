@@ -672,6 +672,58 @@ export class Result {
 }
 
 /**
+ * RuleSuggestion is a project of a tool found in a folder the rules don't
+ * name yet, with how much its preset would leave out there.
+ */
+export class RuleSuggestion {
+    /**
+     * "" the project folder
+     */
+    "folder": string;
+    "preset": string;
+
+    /**
+     * LeftOut: what the preset leaves out there (its ignore patterns).
+     */
+    "leftOut": string[];
+
+    /**
+     * -1: not counted (too many files)
+     */
+    "leftOutBytes": number;
+
+    /** Creates a new RuleSuggestion instance. */
+    constructor($$source: Partial<RuleSuggestion> = {}) {
+        if (!("folder" in $$source)) {
+            this["folder"] = "";
+        }
+        if (!("preset" in $$source)) {
+            this["preset"] = "";
+        }
+        if (!("leftOut" in $$source)) {
+            this["leftOut"] = [];
+        }
+        if (!("leftOutBytes" in $$source)) {
+            this["leftOutBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleSuggestion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RuleSuggestion {
+        const $$createField2_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("leftOut" in $$parsedSource) {
+            $$parsedSource["leftOut"] = $$createField2_0($$parsedSource["leftOut"]);
+        }
+        return new RuleSuggestion($$parsedSource as Partial<RuleSuggestion>);
+    }
+}
+
+/**
  * RulesInfo is how a project's rules come about (see profile).
  */
 export class RulesInfo {
@@ -690,6 +742,12 @@ export class RulesInfo {
      */
     "error": string;
 
+    /**
+     * Suggestions: projects of tools found in folders the rules don't name
+     * yet (asked about before committing).
+     */
+    "suggestions": RuleSuggestion[];
+
     /** Creates a new RulesInfo instance. */
     constructor($$source: Partial<RulesInfo> = {}) {
         if (!("applied" in $$source)) {
@@ -701,6 +759,9 @@ export class RulesInfo {
         if (!("error" in $$source)) {
             this["error"] = "";
         }
+        if (!("suggestions" in $$source)) {
+            this["suggestions"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -710,9 +771,13 @@ export class RulesInfo {
      */
     static createFrom($$source: any = {}): RulesInfo {
         const $$createField0_0 = $$createType15;
+        const $$createField3_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
+        }
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField3_0($$parsedSource["suggestions"]);
         }
         return new RulesInfo($$parsedSource as Partial<RulesInfo>);
     }
@@ -814,10 +879,10 @@ export class SetView {
      * Creates a new SetView instance from a string or object.
      */
     static createFrom($$source: any = {}): SetView {
-        const $$createField0_0 = $$createType17;
-        const $$createField1_0 = $$createType17;
+        const $$createField0_0 = $$createType19;
+        const $$createField1_0 = $$createType19;
         const $$createField2_0 = $$createType2;
-        const $$createField4_0 = $$createType19;
+        const $$createField4_0 = $$createType21;
         const $$createField5_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("now" in $$parsedSource) {
@@ -999,10 +1064,10 @@ export class State {
         const $$createField16_0 = $$createType1;
         const $$createField18_0 = $$createType1;
         const $$createField20_0 = $$createType10;
-        const $$createField21_0 = $$createType21;
+        const $$createField21_0 = $$createType23;
         const $$createField22_0 = $$createType8;
         const $$createField23_0 = $$createType8;
-        const $$createField24_0 = $$createType23;
+        const $$createField24_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -1139,7 +1204,7 @@ export class TeamConnection {
      * Creates a new TeamConnection instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamConnection {
-        const $$createField1_0 = $$createType24;
+        const $$createField1_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("settings" in $$parsedSource) {
             $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
@@ -1209,11 +1274,11 @@ export class TeamPart {
      * Creates a new TeamPart instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamPart {
-        const $$createField2_0 = $$createType23;
+        const $$createField2_0 = $$createType25;
         const $$createField3_0 = $$createType8;
         const $$createField4_0 = $$createType8;
         const $$createField5_0 = $$createType1;
-        const $$createField7_0 = $$createType25;
+        const $$createField7_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -1395,7 +1460,7 @@ export class TextChanges {
      * Creates a new TextChanges instance from a string or object.
      */
     static createFrom($$source: any = {}): TextChanges {
-        const $$createField4_0 = $$createType27;
+        const $$createField4_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hunks" in $$parsedSource) {
             $$parsedSource["hunks"] = $$createField4_0($$parsedSource["hunks"]);
@@ -1648,7 +1713,7 @@ export class VerifyResult {
      * Creates a new VerifyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): VerifyResult {
-        const $$createField3_0 = $$createType29;
+        const $$createField3_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -1761,17 +1826,19 @@ const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = RulesInfo.createFrom;
 const $$createType14 = profile$0.Applied.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = als$0.Overview.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = SetTrackChange.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = project$0.TrackEdit.createFrom;
+const $$createType16 = RuleSuggestion.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = als$0.Overview.createFrom;
+const $$createType19 = $Create.Nullable($$createType18);
+const $$createType20 = SetTrackChange.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = Branch.createFrom;
+const $$createType22 = project$0.TrackEdit.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = remote$0.Storage.createFrom;
-const $$createType25 = remote$0.Capabilities.createFrom;
-const $$createType26 = textdiff$0.Hunk.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = VerifyProblem.createFrom;
+const $$createType24 = Branch.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = remote$0.Storage.createFrom;
+const $$createType27 = remote$0.Capabilities.createFrom;
+const $$createType28 = textdiff$0.Hunk.createFrom;
 const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = VerifyProblem.createFrom;
+const $$createType31 = $Create.Array($$createType30);
