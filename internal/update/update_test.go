@@ -1,9 +1,17 @@
 package update
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"dawgit/release"
 )
 
 const releases = `[
@@ -72,5 +80,58 @@ func TestFromFeed(t *testing.T) {
 	body = `not json`
 	if _, err := FromFeed(srv.URL+"/latest.json", "0.7.0"); err == nil {
 		t.Fatal("bad feed accepted")
+	}
+}
+
+// A signed feed: the installer is downloaded and checked; a release naming a
+// newer minimum is required.
+func TestSignedUpdate(t *testing.T) {
+	keyPath := filepath.Join(t.TempDir(), "signing.key")
+	pub, _ := release.NewKey(keyPath)
+	key, _ := release.LoadKey(keyPath)
+	old := PublicKey
+	PublicKey = pub
+	defer func() { PublicKey = old }()
+
+	installer := []byte("MZ the installer")
+	sum := sha256.Sum256(installer)
+	m := release.Manifest{Version: "0.9.1", SHA256: hex.EncodeToString(sum[:]), MinVersion: "0.9.0"}
+	release.Sign(key, &m)
+	serveBytes := installer
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".json") {
+			json.NewEncoder(w).Encode(map[string]string{"version": m.Version, "download": "http://" + r.Host + "/DAWGit-0.9.1-setup.exe",
+				"sha256": m.SHA256, "minVersion": m.MinVersion, "signature": m.Signature})
+			return
+		}
+		w.Write(serveBytes)
+	}))
+	defer srv.Close()
+
+	r, err := FromFeed(srv.URL+"/latest.json", "0.8.23")
+	if err != nil || !r.Installable() || !r.Requires("0.8.23") || r.Requires("0.9.0") {
+		t.Fatalf("release: %+v %v", r, err)
+	}
+	dir := t.TempDir()
+	path, err := Download(r, dir, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != string(installer) {
+		t.Fatalf("downloaded %q", got)
+	}
+	// Another installer than the signed one is refused (and not left there).
+	os.Remove(path)
+	serveBytes = []byte("MZ something else")
+	if _, err := Download(r, dir, nil); err == nil {
+		t.Fatal("a changed installer was accepted")
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Fatalf("left behind: %v", entries)
+	}
+	// Signed with another key: offered as a page only.
+	PublicKey = old
+	if r, _ := FromFeed(srv.URL+"/latest.json", "0.8.23"); r.Installable() || r.Requires("0.8.23") {
+		t.Fatalf("unsigned release: %+v", r)
 	}
 }

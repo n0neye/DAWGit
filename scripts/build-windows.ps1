@@ -2,8 +2,11 @@
 #
 #   powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
 #
-# The version comes from internal/version/version.go.
-# Needs: Go, Node.js (npm), NSIS (makensis). Output: dist\
+# The version comes from internal/version/version.go. -MinVersion 0.9.0
+# makes versions before it update before they go on (a new version format).
+# Needs: Go, Node.js (npm), NSIS (makensis), the release signing key
+# (dawgit-release keygen). Output: dist\ (the installer and update.json)
+param([string]$MinVersion = "")
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -63,6 +66,16 @@ Pop-Location
 Step "installer"
 Push-Location (Join-Path $desktop "build\windows")
 & $makensis /V2 "/DVERSION=$Version" "/DDIST=$dist" installer.nsi; Check "makensis"
+Pop-Location
+
+# The release's manifest (dist\update.json, uploaded with the installer):
+# signed, so DAWGit installs the update itself. -MinVersion makes older
+# versions update before they go on (a new version format).
+Step "signature"
+Push-Location $root
+$signArgs = @("sign", "$dist\DAWGit-$Version-setup.exe", $Version)
+if ($MinVersion) { $signArgs += @("-min", $MinVersion) }
+go run ./cmd/dawgit-release @signArgs; Check "sign (dawgit-release keygen makes the key once)"
 Pop-Location
 
 Get-ChildItem $dist -Recurse -File | Format-Table Name, @{n = "MB"; e = { [math]::Round($_.Length / 1MB, 1) } }

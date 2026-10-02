@@ -35,6 +35,11 @@ type App struct {
 	watches map[string]*folderWatch // guarded by mu
 	pickDir func(title string) (string, error)
 	openURL func(url string) error
+	quit    func()       // ends the app (to let an update's installer replace it)
+	working atomic.Int32 // projects open for an operation right now
+	// lastProgress: when a long step (save, upload, download) last said how
+	// it was going (UnixNano).
+	lastProgress atomic.Int64
 }
 
 func NewApp() *App {
@@ -85,7 +90,9 @@ func (a *App) lock(root string) func() {
 }
 
 func (a *App) open(root string) (*project.Repo, func(), error) {
-	unlock := a.lock(root)
+	a.working.Add(1)
+	unlock0 := a.lock(root)
+	unlock := func() { unlock0(); a.working.Add(-1) }
 	r, err := project.Open(root)
 	if err != nil {
 		unlock()
@@ -125,6 +132,7 @@ func (a *App) progressFor(root string) (report func(project.Progress), done func
 			return
 		}
 		last, stage = time.Now(), p.Stage
+		a.lastProgress.Store(last.UnixNano())
 		a.emit("progress", ProgressEvent{Root: root, Stage: p.Stage, Done: p.Done, Total: p.Total,
 			Bytes: p.Bytes, TotalBytes: p.TotalBytes})
 	}

@@ -1442,6 +1442,18 @@ export class UpdateInfo {
      */
     "downloadUrl": string;
 
+    /**
+     * Installable: signed, so DAWGit downloads and installs it itself (else
+     * the installer is only offered as a download).
+     */
+    "installable": boolean;
+
+    /**
+     * Required: this version is too old to keep working (the release says
+     * so, e.g. a new version format): it must be updated.
+     */
+    "required": boolean;
+
     /** Creates a new UpdateInfo instance. */
     constructor($$source: Partial<UpdateInfo> = {}) {
         if (!("version" in $$source)) {
@@ -1453,6 +1465,12 @@ export class UpdateInfo {
         if (!("downloadUrl" in $$source)) {
             this["downloadUrl"] = "";
         }
+        if (!("installable" in $$source)) {
+            this["installable"] = false;
+        }
+        if (!("required" in $$source)) {
+            this["required"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1463,6 +1481,57 @@ export class UpdateInfo {
     static createFrom($$source: any = {}): UpdateInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new UpdateInfo($$parsedSource as Partial<UpdateInfo>);
+    }
+}
+
+/**
+ * UpdateState is how getting an update is going.
+ */
+export class UpdateState {
+    /**
+     * "" | "downloading" | "ready" | "failed"
+     */
+    "stage": string;
+
+    /**
+     * bytes
+     */
+    "done": number;
+    "total": number;
+    "error": string;
+
+    /**
+     * installed on its own (see SetAutoUpdate)
+     */
+    "auto": boolean;
+
+    /** Creates a new UpdateState instance. */
+    constructor($$source: Partial<UpdateState> = {}) {
+        if (!("stage" in $$source)) {
+            this["stage"] = "";
+        }
+        if (!("done" in $$source)) {
+            this["done"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+        if (!("auto" in $$source)) {
+            this["auto"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateState instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateState {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateState($$parsedSource as Partial<UpdateState>);
     }
 }
 
