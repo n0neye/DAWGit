@@ -130,11 +130,6 @@
   const pct = (beats: number) => `${(beats / total) * 100}%`;
 
   const arrClips = (t: TrackSummary | undefined) => (t?.clips ?? []).filter((c) => c.slot < 0);
-  const arrKey = (c: ClipSummary) => `${c.start}|${c.end}|${c.name}`;
-  const slotKey = (c: ClipSummary) => `${c.slot}|${c.name}`;
-  function keys(t: TrackSummary | undefined, key: (c: ClipSummary) => string, session: boolean) {
-    return new Set((t?.clips ?? []).filter((c) => (c.slot >= 0) === session).map(key));
-  }
 
   // A group's lane: its tracks' clips, faint.
   function inside(s: Overview | null | undefined, group: string): TrackSummary[] {
@@ -173,12 +168,58 @@
   });
   // Compare: the text of what changed, per track (click its name) or all.
   let detailsOpen = $state<Record<string, boolean>>({});
+  let sessionMarks = $derived(rows.map((r) => clipMarks(r, true)));
   let allDetails = $state(false);
   const showDetails = (r: Row) => allDetails || !!detailsOpen[r.t.id];
   const toggleDetails = (r: Row) => { if (compare && r.details.length) detailsOpen[r.t.id] = !detailsOpen[r.t.id]; };
 
+  // How a clip changed, said briefly ([] when it didn't).
+  function clipChanges(o: ClipSummary, c: ClipSummary): string[] {
+    const out: string[] = [];
+    if (o.disabled !== c.disabled) out.push(c.disabled ? "Deactivated" : "Activated");
+    if (o.name !== c.name) out.push(`Renamed, was “${o.name}”`);
+    if (o.start !== c.start || o.end !== c.end) out.push("Moved or resized");
+    if (o.notes !== c.notes) out.push("Notes changed");
+    if (o.sample !== c.sample) out.push(`Sample was ${o.sample}`);
+    if (o.gain !== c.gain) out.push(`Gain ${db(o.gain)} → ${db(c.gain)} dB`);
+    if (o.warp !== c.warp) out.push(c.warp ? "Warp on" : "Warp off");
+    else if (o.warpMode !== c.warpMode) out.push(`Warp mode ${o.warpMode} → ${c.warpMode}`);
+    if (o.markers !== c.markers) out.push("Warp markers changed");
+    if (o.transpose !== c.transpose) out.push(`Transpose ${o.transpose} → ${c.transpose} st`);
+    if (o.loop !== c.loop) out.push("Loop changed");
+    if (o.fades !== c.fades) out.push("Fades changed");
+    if (o.envelopes !== c.envelopes) out.push("Clip automation changed");
+    if (o.color !== c.color) out.push("Color changed");
+    return out;
+  }
+
+  type Mark = { kind: "add" | "mod" | "del"; tip: string };
+  // Each clip of a row as compared: new (green), changed (blue, with how),
+  // and the clips that went away (red, drawn as outlines).
+  function clipMarks(r: Row, session: boolean): { marks: Map<ClipSummary, Mark>; gone: ClipSummary[] } {
+    const marks = new Map<ClipSummary, Mark>();
+    const gone: ClipSummary[] = [];
+    const mine = (t: TrackSummary | undefined) => (t?.clips ?? []).filter((c) => (c.slot >= 0) === session);
+    if (!compare || !r.status) return { marks, gone };
+    if (r.status !== "modified") {
+      for (const c of mine(r.t)) marks.set(c, r.status === "added" ? { kind: "add", tip: "New clip" } : { kind: "del", tip: "Deleted with the track" });
+      return { marks, gone };
+    }
+    const place = (c: ClipSummary) => (session ? `s${c.slot}` : `a${c.start}`);
+    const before = new Map<string, ClipSummary[]>();
+    for (const c of mine(r.old)) before.set(place(c), [...(before.get(place(c)) ?? []), c]);
+    for (const c of mine(r.t)) {
+      const o = before.get(place(c))?.shift();
+      if (!o) { marks.set(c, { kind: "add", tip: "New clip" }); continue; }
+      const ch = clipChanges(o, c);
+      if (ch.length) marks.set(c, { kind: "mod", tip: ch.join(" · ") });
+    }
+    for (const left of before.values()) gone.push(...left);
+    return { marks, gone };
+  }
+
   // What a changed track had before, for the dots on what changed.
-  type Was = { name?: string; instrument?: string; muted?: boolean; solo?: boolean; volume?: number };
+  type Was = { name?: string; instrument?: string; instrumentSettings?: boolean; muted?: boolean; solo?: boolean; volume?: number };
   function wasOf(r: Row): Was {
     const o = r.old, t = r.t;
     if (r.status !== "modified" || !o) return {};
@@ -186,6 +227,7 @@
     // Live renumbers the names it makes up: only a given name is renamed
     if ((o.named || t.named) && o.name !== t.name) w.name = o.name;
     if (o.instrument !== t.instrument) w.instrument = o.instrument || "none";
+    else if (t.instrument && o.instrumentState !== t.instrumentState) w.instrumentSettings = true;
     if (o.muted !== t.muted) w.muted = o.muted;
     if (o.solo !== t.solo) w.solo = o.solo;
     if (o.volume !== t.volume) w.volume = o.volume;
@@ -218,9 +260,13 @@
   <span class="dot {kind}" {title}></span>
 {/snippet}
 
+{#snippet clipDot(m: Mark | undefined)}
+  {#if m}<span class="dot {m.kind} in" title={m.tip}></span>{/if}
+{/snippet}
+
 {#snippet mixer(t: TrackSummary, label: string, w: Was = {})}
-  <span class="vol" title={w.volume !== undefined ? `Volume, was ${db(w.volume)} dB` : "Volume"}>
-    {#if w.volume !== undefined}{@render dot(`Volume was ${db(w.volume)} dB`)}{/if}{db(t.volume)}</span>
+  <span class="vol pin" title={w.volume !== undefined ? `Volume, was ${db(w.volume)} dB` : "Volume"}>
+    {db(t.volume)}{#if w.volume !== undefined}{@render dot(`Volume was ${db(w.volume)} dB`)}{/if}</span>
   {#if t.kind !== "main"}
     <span class="ctl">
       <span class="act" class:off={t.muted} title={t.muted ? "Track off (muted)" : "Track on"}>{label}</span>
@@ -234,12 +280,15 @@
 {/snippet}
 
 {#snippet trackName(r: Row, w: Was)}
-  <span class="tname">{r.t.name}</span>
-  {#if w.name !== undefined}{@render dot(`Renamed, was “${w.name}”`)}{/if}
-  {#if r.t.instrument}
-    <span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>
+  <span class="nm pin"><span class="tname">{r.t.name}</span>
+    {#if w.name !== undefined}{@render dot(`Renamed, was “${w.name}”`)}{/if}</span>
+  {#if r.t.instrument || w.instrument !== undefined}
+    <span class="instw pin">
+      {#if r.t.instrument}<span class="inst" title={r.t.instrumentFull}>{r.t.instrument}</span>{:else}<span class="inst none">no instrument</span>{/if}
+      {#if w.instrument !== undefined}{@render dot(`Instrument was ${w.instrument}`)}
+      {:else if w.instrumentSettings}{@render dot(`${r.t.instrument}'s settings changed`)}{/if}
+    </span>
   {/if}
-  {#if w.instrument !== undefined}{@render dot(`Instrument was ${w.instrument}`)}{/if}
 {/snippet}
 
 <div class="setview">
@@ -299,8 +348,7 @@
           </div>
           {#each rows as r (r.t.id + (r.status ?? ""))}
             {@const t = r.t}
-            {@const was = r.status === "modified" ? keys(r.old, arrKey, false) : null}
-            {@const isNow = r.status === "modified" ? keys(t, arrKey, false) : null}
+            {@const cm = clipMarks(r, false)}
             {@const w = wasOf(r)}
             <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
@@ -311,19 +359,17 @@
                     {/each}
                   {/each}
                 {/if}
-                {#if was && isNow}
-                  {#each arrClips(r.old).filter((c) => !isNow.has(arrKey(c))) as c}
-                    <div class="clip ghost" style:left={pct(c.start)} style:width={pct(c.end - c.start)} style:border-color={liveColor(c.color)}
-                      title={`Gone: ${c.name || "clip"}`}></div>
-                  {/each}
-                {/if}
+                {#each cm.gone as c}
+                  <div class="clip ghost" style:left={pct(c.start)} style:width={pct(c.end - c.start)} style:border-color={liveColor(c.color)}
+                    title={`Deleted: ${c.name || "clip"}`}>{@render clipDot({ kind: "del", tip: `Deleted: ${c.name || "clip"}` })}</div>
+                {/each}
                 {#each arrClips(t) as c}
-                  {@const fresh = !!was && !was.has(arrKey(c))}
+                  {@const m = cm.marks.get(c)}
                   <div class="clip" class:off={c.disabled}
                     style:left={pct(c.start)} style:width={pct(c.end - c.start)}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"} · bar ${Math.floor(c.start / beatsPerBar) + 1}${c.disabled ? " · deactivated" : ""}${fresh ? " · new or changed" : ""}`}>
-                    {#if fresh}{@render dot("New or changed clip", "add")}{/if}<span>{c.name}</span>
+                    title={`${c.name || "clip"} · bar ${Math.floor(c.start / beatsPerBar) + 1}${c.disabled ? " · deactivated" : ""}${m ? ` · ${m.tip}` : ""}`}>
+                    <span>{c.name}</span>{@render clipDot(m)}
                   </div>
                 {/each}
               </div>
@@ -383,18 +429,18 @@
             <div></div>
           {/if}
           {#each Array.from({ length: scenes }, (_, i) => i) as i}
-            {#each rows as r}
+            {#each rows as r, ri}
               {@const c = slotClip(r.t, i)}
-              {@const old = r.status === "modified" ? slotClip(r.old, i) : undefined}
-              {@const moved = r.status === "modified" && !!c && !keys(r.old, slotKey, true).has(slotKey(c))}
+              {@const m = c ? sessionMarks[ri].marks.get(c) : undefined}
+              {@const old = sessionMarks[ri].gone.find((g) => g.slot === i)}
               <div class="slot {r.status ?? ''}" class:muted={r.t.muted}>
                 {#if c}
                   <div class="sclip" class:off={c.disabled}
                     style:background={c.disabled ? "" : liveColor(c.color)} style:color={c.disabled ? "" : inkOn(c.color)}
-                    title={`${c.name || "clip"}${c.disabled ? " · deactivated" : ""}${moved ? " · new or changed" : ""}`}>
-                    {#if moved}{@render dot("New or changed clip", "add")}{:else}▶{/if} {c.name}</div>
+                    title={`${c.name || "clip"}${c.disabled ? " · deactivated" : ""}${m ? ` · ${m.tip}` : ""}`}>
+                    ▶ {c.name}{@render clipDot(m)}</div>
                 {:else if old}
-                  <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Gone: ${old.name || "clip"}`}>{old.name}</div>
+                  <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Deleted: ${old.name || "clip"}`}>{old.name}{@render clipDot({ kind: "del", tip: `Deleted: ${old.name || "clip"}` })}</div>
                 {:else if r.t.kind === "group" && groupHasSlot(setOf(r), r.t, i)}
                   <div class="sclip grp" style:background={liveColor(r.t.color)}></div>
                 {:else if r.t.kind !== "return"}
@@ -454,14 +500,19 @@
     font-size: 10.5px; line-height: 21px; padding: 0 4px; white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35); }
   .clip span { opacity: .9; }
   .clip.off, .sclip.off { background: #555; color: #999; }
-  /* what changed: a small dot by it (amber: changed; green: a new clip) */
-  .dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--mod);
-    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .55); vertical-align: middle; }
+  /* what changed: a small dot over its top right corner, taking no room
+     (green: new, blue: changed, red: deleted) */
+  .pin { position: relative; }
+  .dot { position: absolute; top: -3px; right: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--mod);
+    box-shadow: 0 0 0 1.5px rgba(0, 0, 0, .6); pointer-events: auto; z-index: 2; }
   .dot.add { background: var(--add); }
-  .clip .dot, .sclip .dot { margin-right: 4px; position: relative; top: -1px; }
-  .vol .dot { margin-right: 3px; }
-  .ctl { display: inline-flex; align-items: center; gap: 2px; flex: none; }
-  .inst { flex: 0 3 auto; min-width: 22px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  .dot.del { background: var(--del); }
+  .dot.in { top: 2px; right: 2px; } /* inside a clip's corner: clips clip */
+  .ctl { position: relative; display: inline-flex; align-items: center; flex: none; }
+  .nm { display: flex; min-width: 48px; flex: 0 1 auto; }
+  .instw { display: flex; min-width: 22px; flex: 0 3 auto; max-width: 45%; }
+  .inst.none { opacity: .6; font-style: italic; }
+  .inst { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-size: 10px; font-weight: 600; padding: 0 5px; line-height: 14px; border-radius: 7px; background: rgba(0, 0, 0, .28); color: #f0f0f0; }
   .clickable { cursor: pointer; }
   .toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
@@ -472,7 +523,7 @@
   .row.removed { opacity: .6; }
   .row.removed .lane { background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
   .kicon { width: 12px; height: 12px; flex: none; opacity: .8; }
-  .tname { flex: 0 1 auto; min-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .tname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .grow { flex: 1; }
   .nclips { font-size: 10.5px; color: #9a9a9a; }
   .vol { font-size: 10.5px; color: #c8c8c8; min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }

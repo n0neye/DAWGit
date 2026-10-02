@@ -25,6 +25,54 @@ export class ClipSummary {
      */
     "disabled": boolean;
 
+    /**
+     * What a clip's changes can be told by (compared between versions):
+     * settings Live saves, and short hashes of the parts it is made of.
+     * dB (audio)
+     */
+    "gain": number;
+
+    /**
+     * warped (audio)
+     */
+    "warp": boolean;
+
+    /**
+     * Beats, Tones, ... (audio)
+     */
+    "warpMode": string;
+
+    /**
+     * semitones (audio)
+     */
+    "transpose": number;
+
+    /**
+     * the sample's file name (audio)
+     */
+    "sample": string;
+
+    /**
+     * MIDI notes
+     */
+    "notes": string;
+
+    /**
+     * start, end and loop
+     */
+    "loop": string;
+    "fades": string;
+
+    /**
+     * clip automation
+     */
+    "envelopes": string;
+
+    /**
+     * warp markers
+     */
+    "markers": string;
+
     /** Creates a new ClipSummary instance. */
     constructor($$source: Partial<ClipSummary> = {}) {
         if (!("name" in $$source)) {
@@ -44,6 +92,36 @@ export class ClipSummary {
         }
         if (!("disabled" in $$source)) {
             this["disabled"] = false;
+        }
+        if (!("gain" in $$source)) {
+            this["gain"] = 0;
+        }
+        if (!("warp" in $$source)) {
+            this["warp"] = false;
+        }
+        if (!("warpMode" in $$source)) {
+            this["warpMode"] = "";
+        }
+        if (!("transpose" in $$source)) {
+            this["transpose"] = 0;
+        }
+        if (!("sample" in $$source)) {
+            this["sample"] = "";
+        }
+        if (!("notes" in $$source)) {
+            this["notes"] = "";
+        }
+        if (!("loop" in $$source)) {
+            this["loop"] = "";
+        }
+        if (!("fades" in $$source)) {
+            this["fades"] = "";
+        }
+        if (!("envelopes" in $$source)) {
+            this["envelopes"] = "";
+        }
+        if (!("markers" in $$source)) {
+            this["markers"] = "";
         }
 
         Object.assign(this, $$source);
@@ -207,6 +285,11 @@ export class TrackSummary {
      */
     "instrument": string;
     "instrumentFull": string;
+
+    /**
+     * InstrumentState: a short hash of the instrument with its settings.
+     */
+    "instrumentState": string;
     "clips": ClipSummary[];
 
     /** Creates a new TrackSummary instance. */
@@ -250,6 +333,9 @@ export class TrackSummary {
         if (!("instrumentFull" in $$source)) {
             this["instrumentFull"] = "";
         }
+        if (!("instrumentState" in $$source)) {
+            this["instrumentState"] = "";
+        }
         if (!("clips" in $$source)) {
             this["clips"] = [];
         }
@@ -262,13 +348,13 @@ export class TrackSummary {
      */
     static createFrom($$source: any = {}): TrackSummary {
         const $$createField10_0 = $$createType0;
-        const $$createField13_0 = $$createType6;
+        const $$createField14_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("devices" in $$parsedSource) {
             $$parsedSource["devices"] = $$createField10_0($$parsedSource["devices"]);
         }
         if ("clips" in $$parsedSource) {
-            $$parsedSource["clips"] = $$createField13_0($$parsedSource["clips"]);
+            $$parsedSource["clips"] = $$createField14_0($$parsedSource["clips"]);
         }
         return new TrackSummary($$parsedSource as Partial<TrackSummary>);
     }

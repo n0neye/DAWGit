@@ -33,6 +33,12 @@ func TestOverview(t *testing.T) {
 	if v := o.Tracks[2]; v.Instrument != "Vital" || v.InstrumentFull != "Vital (Vst3)" {
 		t.Errorf("vital: %q, %q", v.Instrument, v.InstrumentFull)
 	}
+	if c := o.Tracks[4].Clips[0]; c.Sample == "" || !c.Warp || c.WarpMode == "" || c.Notes != "" {
+		t.Errorf("audio clip: %+v", c)
+	}
+	if c := bass.Clips[0]; c.Notes == "" || c.Loop == "" || c.Sample != "" {
+		t.Errorf("midi clip: %+v", c)
+	}
 	if beat := o.Tracks[5]; beat.Kind != "audio" || beat.Volume != -5 || beat.Muted {
 		t.Errorf("bounce: %+v", beat)
 	}

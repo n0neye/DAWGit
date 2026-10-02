@@ -40,9 +40,11 @@ type TrackSummary struct {
 	Devices []string `json:"devices"`
 	// Instrument: the instrument a MIDI track plays (Vital, Sampler, ...);
 	// InstrumentFull says where it is (in a rack, with its preset name).
-	Instrument     string        `json:"instrument"`
-	InstrumentFull string        `json:"instrumentFull"`
-	Clips          []ClipSummary `json:"clips"`
+	Instrument     string `json:"instrument"`
+	InstrumentFull string `json:"instrumentFull"`
+	// InstrumentState: a short hash of the instrument with its settings.
+	InstrumentState string        `json:"instrumentState"`
+	Clips           []ClipSummary `json:"clips"`
 }
 
 type ClipSummary struct {
@@ -52,6 +54,55 @@ type ClipSummary struct {
 	End      float64 `json:"end"`
 	Slot     int     `json:"slot"`     // session: the scene's index; -1 in the arrangement
 	Disabled bool    `json:"disabled"` // deactivated clip
+	// What a clip's changes can be told by (compared between versions):
+	// settings Live saves, and short hashes of the parts it is made of.
+	Gain      float64 `json:"gain"`      // dB (audio)
+	Warp      bool    `json:"warp"`      // warped (audio)
+	WarpMode  string  `json:"warpMode"`  // Beats, Tones, ... (audio)
+	Transpose float64 `json:"transpose"` // semitones (audio)
+	Sample    string  `json:"sample"`    // the sample's file name (audio)
+	Notes     string  `json:"notes"`     // MIDI notes
+	Loop      string  `json:"loop"`      // start, end and loop
+	Fades     string  `json:"fades"`
+	Envelopes string  `json:"envelopes"` // clip automation
+	Markers   string  `json:"markers"`   // warp markers
+}
+
+var warpModes = map[string]string{"0": "Beats", "1": "Tones", "2": "Texture", "3": "Re-Pitch", "4": "Complex", "6": "Complex Pro"}
+
+// part is a short hash of one part of a clip ("" when it has none).
+func part(e *xmltree.Node) string {
+	if e == nil {
+		return ""
+	}
+	return Fingerprint(e)[:10]
+}
+
+func clipSummary(c Clip) ClipSummary {
+	e := c.Elem
+	cs := ClipSummary{Name: c.Name, Color: color(e), Start: c.Start, End: c.End, Slot: -1,
+		Disabled: e.Val("Disabled", "false") == "true",
+		Notes:    part(e.Child("Notes")), Loop: part(e.Child("Loop")), Fades: part(e.Child("Fades")),
+		Envelopes: part(e.Child("Envelopes")), Markers: part(e.Child("WarpMarkers"))}
+	if c.Kind == "AudioClip" {
+		if g, err := strconv.ParseFloat(e.Val("SampleVolume", "1"), 64); err == nil {
+			cs.Gain = -1000
+			if g > 0 {
+				cs.Gain = math.Round(200*math.Log10(g)) / 10
+			}
+		}
+		cs.Warp = e.Val("IsWarped", "false") == "true"
+		cs.WarpMode = warpModes[e.Val("WarpMode", "")]
+		coarse, _ := strconv.ParseFloat(e.Val("PitchCoarse", "0"), 64)
+		fine, _ := strconv.ParseFloat(e.Val("PitchFine", "0"), 64)
+		cs.Transpose = coarse + fine/100
+		path := e.Val("SampleRef/FileRef/RelativePath", "")
+		if path == "" {
+			path = e.Val("SampleRef/FileRef/Path", "")
+		}
+		cs.Sample = path[strings.LastIndexAny(path, `/\`)+1:]
+	}
+	return cs
 }
 
 var kinds = map[string]string{"MidiTrack": "midi", "AudioTrack": "audio", "GroupTrack": "group", "ReturnTrack": "return"}
@@ -89,10 +140,17 @@ func (s *LiveSet) Overview() *Overview {
 		ts.Devices = t.DeviceNames()
 		if t.Kind() == "MidiTrack" {
 			ts.Instrument, ts.InstrumentFull = instrument(t.Devices())
+			if ts.Instrument != "" {
+				for _, d := range t.Devices() {
+					if !strings.HasPrefix(d.Tag, "Midi") && d.Tag != "MxDeviceMidiEffect" {
+						ts.InstrumentState = part(d)
+						break
+					}
+				}
+			}
 		}
 		for _, c := range t.Clips() {
-			cs := ClipSummary{Name: c.Name, Color: color(c.Elem), Start: c.Start, End: c.End, Slot: -1,
-				Disabled: c.Elem.Val("Disabled", "false") == "true"}
+			cs := clipSummary(c)
 			if strings.HasPrefix(c.Location, "session[") {
 				cs.Slot, _ = strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(c.Location, "session["), "]"))
 			} else if c.End > o.Length {
