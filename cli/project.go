@@ -24,6 +24,15 @@ func openRepo() (*project.Repo, error) {
 	return r, nil
 }
 
+// tidy keeps .dawgit small, as the app does after each operation: of a team
+// project, only the sets stay here (the current version's other files are
+// in the project folder, older ones in the team's storage); leftovers no
+// version refers to go. Best effort: the command's work is done already.
+func tidy(r *project.Repo) {
+	r.PruneObjects()
+	r.GC()
+}
+
 func short(id string) string { return id[:min(10, len(id))] }
 
 func cmdInit(args []string) error {
@@ -182,6 +191,7 @@ func cmdCheckout(args []string) error {
 	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
+	defer tidy(r)
 	m, notes, err := r.GoTo(ref, *force)
 	if err != nil {
 		return err

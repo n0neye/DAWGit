@@ -68,6 +68,7 @@ func cmdSwitch(args []string) error {
 	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
+	defer tidy(r)
 	res, err := r.SwitchBranch(pos[0], *force)
 	if err != nil {
 		return err
@@ -138,6 +139,7 @@ func cmdMergeBranch(args []string) error {
 	if err := guardLiveAlways(r, *force); err != nil {
 		return err
 	}
+	defer tidy(r)
 	res, err := r.MergeBranch(pos[0], *message, project.Strategy(*strategy))
 	if err != nil {
 		return explainConflict(err)
