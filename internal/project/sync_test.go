@@ -378,3 +378,46 @@ func TestMemberIdentity(t *testing.T) {
 		t.Errorf("old version author = %q", got)
 	}
 }
+
+// B's copy points the project's samples at B's folder (relinked): that is
+// no change of B's, so A's change to such a track merges without a conflict.
+func TestRelinkedTrackIsNotAChange(t *testing.T) {
+	a, b := team(t)
+	volume := func(r *Repo, track, value string) {
+		t.Helper()
+		p := filepath.Join(r.Root, "Song.als")
+		s, err := als.Load(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tr := range s.Tracks() {
+			if tr.Name() == track {
+				tr.Elem.Find("DeviceChain/Mixer/Volume/Manual").Set("Value", value)
+			}
+		}
+		if err := s.Save(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	volume(a, "5 Bounce + Reverb", "0.25")
+	if _, _, err := a.Save("quieter bounce", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	volume(b, "3-Vital", "0.5")
+	if _, _, err := b.Save("quieter synth", Strategy("fail")); err != nil {
+		t.Fatalf("B save: %v", err)
+	}
+	tracks := setTracks(t, b)
+	if v := tracks["3-Vital"].Elem.Val("DeviceChain/Mixer/Volume/Manual", ""); v != "0.5" {
+		t.Errorf("B's change lost: volume %s", v)
+	}
+	if v := tracks["5 Bounce + Reverb"].Elem.Val("DeviceChain/Mixer/Volume/Manual", ""); v != "0.25" {
+		t.Errorf("A's change not merged: volume %s", v)
+	}
+	s, _ := als.Load(filepath.Join(b.Root, "Song.als"))
+	for _, ref := range s.SampleRefs() {
+		if ref.RelativePathType == "3" && !strings.HasPrefix(ref.Path, filepath.ToSlash(b.Root)) {
+			t.Errorf("B's sample points elsewhere: %s", ref.Path)
+		}
+	}
+}
