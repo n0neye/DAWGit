@@ -217,25 +217,12 @@ export class ConvertFormat {
 }
 
 /**
- * DownloadSize is what downloading a team project takes, shown before it.
+ * DownloadSize is the size of a team project's latest version, shown
+ * before downloading it.
  */
 export class DownloadSize {
     "files": number;
-
-    /**
-     * the latest version's files
-     */
     "bytes": number;
-
-    /**
-     * Needed: on this disk, the files and DAWGit's own copy of them.
-     */
-    "needed": number;
-
-    /**
-     * on the disk of parent; -1 unknown
-     */
-    "free": number;
 
     /** Creates a new DownloadSize instance. */
     constructor($$source: Partial<DownloadSize> = {}) {
@@ -244,12 +231,6 @@ export class DownloadSize {
         }
         if (!("bytes" in $$source)) {
             this["bytes"] = 0;
-        }
-        if (!("needed" in $$source)) {
-            this["needed"] = 0;
-        }
-        if (!("free" in $$source)) {
-            this["free"] = 0;
         }
 
         Object.assign(this, $$source);
