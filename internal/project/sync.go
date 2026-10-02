@@ -311,8 +311,14 @@ func (r *Repo) publish(c remote.Backend, old string) error {
 // publishTo uploads everything HEAD needs and moves branch from old to HEAD.
 func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 	head := r.Head()
-	if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
-		return err
+	// Only a project new to the team is named here: one that is there keeps
+	// the name the team has (someone may have renamed it).
+	if old == "" {
+		if bs, err := c.Branches(r.Config.ProjectID); err != nil || len(bs) == 0 {
+			if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: r.Config.Name}); err != nil {
+				return err
+			}
+		}
 	}
 	// Snapshots in parent-first order.
 	var order []string

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, errorText, progressShort, type Overview, type Progress, type TeamProject } from "./lib/api";
+  import { api, errorText, progressShort, type Overview, type Progress, type ProjectInfo, type TeamProject } from "./lib/api";
   import ProgressBar from "./lib/ProgressBar.svelte";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
@@ -10,6 +10,7 @@
   import VerifyDialog from "./lib/VerifyDialog.svelte";
   import Modal from "./lib/Modal.svelte";
   import Toasts from "./lib/Toasts.svelte";
+  import ProjectSettings from "./lib/ProjectSettings.svelte";
 
   let overview = $state<Overview | null>(null);
   let onboarding = $state(false);
@@ -30,8 +31,35 @@
   let moving = $state<{ p: TeamProject; team: string } | null>(null);
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
+  let settingsFor = $state<TeamProject | null>(null); // Project settings
+  // The ⋯ menu's "Open in" (read when the menu opens).
+  let menuInfo = $state<ProjectInfo | null>(null);
+  let openSub = $state(false);
+  function toggleMenu(p: TeamProject) {
+    const key = rowKey(p);
+    rowMenu = rowMenu === key ? "" : key;
+    menuInfo = null;
+    openSub = false;
+    if (rowMenu && p.root && (p.status === "downloaded" || p.status === "local")) {
+      api.ProjectInfo(p.root).then((i) => { if (rowMenu === key) menuInfo = i; }).catch(() => {});
+    }
+  }
+  const toolName = (tool: string) => (tool === "Ableton Live" ? "Live" : tool || "its program");
+  function openIn(p: TeamProject, rel: string) {
+    rowMenu = "";
+    api.OpenInTool(p.root, rel).catch((e) => toast(errorText(e), "error"));
+  }
+  const openLabel = (p: TeamProject, rel: string) => (rel === "." ? p.name : rel);
 
   const SELECTED_KEY = "dawgit.selected";
+  // Pinned projects come first in the list (this computer only).
+  const PINNED_KEY = "dawgit.pinned";
+  let pinned = $state<string[]>((() => { try { return JSON.parse(localStorage.getItem(PINNED_KEY) ?? "[]"); } catch { return []; } })());
+  function togglePin(p: TeamProject) {
+    const key = rowKey(p);
+    pinned = pinned.includes(key) ? pinned.filter((k) => k !== key) : [...pinned, key];
+    try { localStorage.setItem(PINNED_KEY, JSON.stringify(pinned)); } catch { /* not remembered */ }
+  }
   const DOWNLOAD_DIR_KEY = "dawgit.downloadDir";
   const remember = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* not persisted */ } };
   const recall = (k: string) => { try { return localStorage.getItem(k) ?? ""; } catch { return ""; } };
@@ -104,7 +132,11 @@
   let current = $derived(overview?.teams.find((t) => t.id === overview?.currentTeam));
   // Local (this computer only) is picked in the team menu like a team.
   let isLocal = $derived(!current);
-  let entries = $derived((isLocal ? overview?.local : overview?.projects) ?? []);
+  let entries = $derived.by(() => {
+    const list = (isLocal ? overview?.local : overview?.projects) ?? [];
+    const pin = (p: TeamProject) => (pinned.includes(rowKey(p)) ? 0 : 1);
+    return [...list].sort((a, b) => pin(a) - pin(b)); // stable: pinned first, the rest as they come
+  });
   let selectedEntry = $derived(
     entries.find((p) => (selected.root ? p.root === selected.root : !!selected.id && p.id === selected.id && !p.root)));
 
@@ -162,7 +194,7 @@
 
   async function forget(p: TeamProject) {
     await api.ForgetProject(p.root);
-    toast(`Removed “${p.name}” from this computer's list (files untouched)`, "info");
+    toast(`Unlinked “${p.name}”: the folder and its versions are untouched`, "info");
     selected = {};
     await reload();
   }
@@ -197,6 +229,9 @@
       busy = "";
     }
   }
+
+  const canMoveTeam = (p: TeamProject) =>
+    !!p.root && (p.status === "local" ? (overview?.teams.length ?? 0) > 0 : (overview?.teams.length ?? 0) > 1);
 
   // Candidate teams for a move: all but the project's own.
   let moveTargets = $derived(moving
@@ -370,6 +405,7 @@
       {#if selectedEntry && (selectedEntry.status === "downloaded" || selectedEntry.status === "local")}
         {#key selectedEntry.root}
           <ProjectView root={selectedEntry.root} {refreshKey} teams={overview.teams} onchanged={reload}
+            onsettings={() => (settingsFor = selectedEntry ?? null)}
             firstShare={firstShare === selectedEntry.root} onfirstshared={() => (firstShare = "")} />
         {/key}
       {:else if selectedEntry && selectedEntry.status === "remote"}
@@ -396,7 +432,7 @@
           <div class="row center">
             <button class="primary" onclick={() => locate(p)}>Locate folder…</button>
             <button onclick={() => download(p)} disabled={!!busy}>Download again</button>
-            <button class="ghost" onclick={() => forget(p)}>Remove from list</button>
+            <button class="ghost" onclick={() => forget(p)} title="DAWGit stops listing it; nothing is deleted">Unlink folder</button>
           </div>
         </div>
       {:else}
@@ -416,44 +452,38 @@
       title={p.status === "remote" ? "On the team, not on this computer yet" : p.root}>
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
-        <span class="name">{p.name}</span>
+        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<span class="pin" title="Pinned">📌</span>{/if}</span>
         <span class="meta" class:busy={p.root && activity[p.root]}>
           {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText[p.status] ?? `⑂ ${p.branch}`}
         </span>
       </span>
     </button>
     <button class="ghost more" class:open={rowMenu === rowKey(p)} title="More"
-      onclick={() => (rowMenu = rowMenu === rowKey(p) ? "" : rowKey(p))}>⋯</button>
+      onclick={() => toggleMenu(p)}>⋯</button>
     {#if rowMenu === rowKey(p)}
       <div class="row-menu" role="menu">
-        {#if p.root}
-          <button class="item" onclick={() => { rowMenu = ""; forget(p); }}>
-            Remove from list<span class="faint">the folder stays on this computer</span>
-          </button>
+        <button class="item" onclick={() => { rowMenu = ""; togglePin(p); }}>{pinned.includes(rowKey(p)) ? "Unpin" : "Pin to top"}</button>
+        {#if menuInfo && menuInfo.openable.length === 1}
+          <button class="item" onclick={() => openIn(p, menuInfo!.openable[0])}>Open in {toolName(menuInfo.tool)}</button>
+        {:else if menuInfo && menuInfo.openable.length > 1}
+          <div class="sub" role="none">
+            <button class="item has-sub" onclick={() => (openSub = !openSub)} aria-expanded={openSub}>
+              Open in {toolName(menuInfo.tool)}<span class="arrow">›</span>
+            </button>
+            {#if openSub}
+              <div class="row-menu submenu" role="menu">
+                {#each menuInfo.openable as rel}
+                  <button class="item" onclick={() => openIn(p, rel)}>{openLabel(p, rel)}</button>
+                {/each}
+              </div>
+            {/if}
+          </div>
         {/if}
-        {#if p.root && (p.status === "downloaded" || p.status === "local")}
-          <button class="item" onclick={() => { rowMenu = ""; checking = p; }}>
-            Check project…<span class="faint">read its whole history again for damage</span>
-          </button>
+        {#if p.root && p.status !== "missing"}
+          <button class="item" onclick={() => { rowMenu = ""; api.ShowFolder(p.root); }}>Open folder</button>
         {/if}
-        {#if p.root && p.status === "downloaded"}
-          <button class="item" onclick={() => {
-            rowMenu = ""; localFull = false; localSize = 0; confirmLocal = p;
-            api.HistoryDownloadSize(p.root, "").then((n) => (localSize = n)).catch(() => {});
-          }}>
-            Move to Local…<span class="faint">keep it on this computer only</span>
-          </button>
-        {/if}
-        {#if p.root && (p.status === "local" ? (overview?.teams.length ?? 0) > 0 : (overview?.teams.length ?? 0) > 1)}
-          <button class="item" onclick={() => { rowMenu = ""; moving = { p, team: "" }; }}>
-            {p.status === "local" ? "Move to a team…" : "Move to another team…"}<span class="faint">share its versions there</span>
-          </button>
-        {/if}
-        {#if p.status !== "local"}
-          <button class="item danger-text" onclick={() => { rowMenu = ""; deleteWord = ""; confirmDelete = p; }}>
-            Delete from server…<span class="faint">for everyone in {current?.name}</span>
-          </button>
-        {/if}
+        <div class="sep"></div>
+        <button class="item" onclick={() => { rowMenu = ""; settingsFor = p; }}>Settings…</button>
       </div>
     {/if}
   </li>
@@ -470,6 +500,22 @@
       <button class="primary" onclick={() => share(folder)}>Share</button>
     {/snippet}
   </Modal>
+{/if}
+
+{#if settingsFor}
+  {@const p = settingsFor}
+  <ProjectSettings {p} team={p.status === "local" ? undefined : current} canMoveTeam={canMoveTeam(p)}
+    onclose={() => (settingsFor = null)}
+    onrenamed={async () => { await reload(); refreshKey++; settingsFor = entries.find((e) => rowKey(e) === rowKey(p)) ?? null; }}
+    oncheck={() => { settingsFor = null; checking = p; }}
+    onmovelocal={() => {
+      settingsFor = null; localFull = false; localSize = 0; confirmLocal = p;
+      api.HistoryDownloadSize(p.root, "").then((n) => (localSize = n)).catch(() => {});
+    }}
+    onmoveteam={() => { settingsFor = null; moving = { p, team: "" }; }}
+    ondelete={() => { settingsFor = null; deleteWord = ""; confirmDelete = p; }}
+    onunlink={() => { settingsFor = null; forget(p); }}
+    onlocate={() => { settingsFor = null; locate(p); }} />
 {/if}
 
 {#if checking}
@@ -574,7 +620,17 @@
     background: transparent; padding: 6px 8px; text-align: left;
   }
   .row-menu .item:hover { background: #33363d; }
-  .row-menu .item .faint { font-size: 11px; }
+  .row-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
+  .row-menu .sub { position: relative; }
+  .row-menu .has-sub { flex-direction: row; justify-content: space-between; align-items: center; }
+  .row-menu .arrow { color: var(--faint); }
+  /* the sets to open, under "Open in" (the list scrolls: a menu beside it would be cut off) */
+  .row-menu.submenu { position: static; min-width: 0; padding: 0 0 2px 10px; background: transparent; border: none; box-shadow: none; }
+  .row-menu.submenu .item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-size: 13px; color: var(--muted); }
+  .row-menu.submenu .item:hover { color: var(--text); }
+  .row-menu .has-sub[aria-expanded="true"] .arrow { transform: rotate(90deg); }
+  .row-menu .arrow { transition: transform .12s; }
+  .pin { font-size: 10px; margin-left: 5px; opacity: .8; }
   .full { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 0; color: var(--text); font-size: 14px; }
   .full input { width: auto; margin-top: 3px; }
   .full .faint { display: block; font-size: 12px; margin-top: 2px; }
