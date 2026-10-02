@@ -418,12 +418,10 @@ export function PreviewUpdate(root: string): $CancellablePromise<$models.Preview
 }
 
 /**
- * ProjectDownloadSize reads the size of a team project's latest version and
- * the free space where it would go (parent, or the nearest folder above it
- * that exists).
+ * ProjectDownloadSize reads the size of a team project's latest version.
  */
-export function ProjectDownloadSize(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.DownloadSize> {
-    return $Call.ByID(2803488273, teamID, projectID, parent).then(($result: any) => {
+export function ProjectDownloadSize(teamID: string, projectID: string): $CancellablePromise<$models.DownloadSize> {
+    return $Call.ByID(2803488273, teamID, projectID).then(($result: any) => {
         return $$createType21($result);
     });
 }

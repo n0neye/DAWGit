@@ -210,21 +210,19 @@
     if (pick) select(pick);
   });
 
-  // Where downloads go, and what downloading the selected project takes.
+  // Where downloads go, and the size of the selected project.
   let downloadDir = $state(recall(DOWNLOAD_DIR_KEY));
   let dlSize = $state<{ id: string; size: DownloadSize | null; error: string } | null>(null);
   $effect(() => {
     const p = selectedEntry;
     const team = overview?.currentTeam;
-    const dir = downloadDir;
     if (!p || p.status !== "remote" || !team) return;
     const id = p.id;
     dlSize = { id, size: null, error: "" };
-    api.ProjectDownloadSize(team, id, dir)
+    api.ProjectDownloadSize(team, id)
       .then((size) => { if (dlSize?.id === id) dlSize = { id, size, error: "" }; })
       .catch((e) => { if (dlSize?.id === id) dlSize = { id, size: null, error: errorText(e) }; });
   });
-  let tooBig = $derived(!!dlSize?.size && dlSize.size.free >= 0 && dlSize.size.needed > dlSize.size.free);
 
   async function download(p: TeamProject) {
     let parent = downloadDir;
@@ -443,11 +441,7 @@
           <p class="muted">This project is on {current?.name} but not on this computer yet.</p>
           {#if dlSize?.id === p.id && dlSize.size}
             {@const z = dlSize.size}
-            <p class="size">
-              {formatBytes(z.bytes)} · {z.files.toLocaleString()} file{z.files === 1 ? "" : "s"}
-              <span class="faint">· needs about {formatBytes(z.needed)} on disk (the files and DAWGit's copy){#if z.free >= 0}, {formatBytes(z.free)} free{/if}</span>
-            </p>
-            {#if tooBig}<p class="size warn">Not enough free space there: free some up or choose another folder.</p>{/if}
+            <p class="size">{formatBytes(z.bytes)} · {z.files.toLocaleString()} file{z.files === 1 ? "" : "s"}</p>
           {:else if dlSize?.id === p.id && !dlSize.error}
             <p class="size faint">Checking the size…</p>
           {/if}
@@ -613,7 +607,6 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .meta.busy { color: var(--accent); }
   .size { margin: 0 0 12px; font-size: 13px; }
-  .size.warn { color: var(--del, #e06c6c); margin-top: -6px; }
   .dl-progress { width: 360px; max-width: 100%; margin: 10px auto 0; display: flex; text-align: left; }
   ul { list-style: none; margin: 0; padding: 0; }
   li { display: flex; align-items: center; position: relative; }
