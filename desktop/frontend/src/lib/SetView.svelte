@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { api, errorText } from "./api";
+  import { api, errorText, lineKind } from "./api";
   import type { SetView } from "../../bindings/dawgit/desktop/models";
   import type { ClipSummary, Overview, TrackSummary } from "../../bindings/dawgit/internal/als/models";
   import { setLook, setSetPane } from "./compare.svelte";
@@ -9,13 +9,15 @@
   // colors, clips and mixer state, in Arrangement or Session view. Compare
   // shows only the tracks that changed: new, deleted, or changed (with the
   // clips that went away as outlines, the new ones ringed).
-  let { root, file, version, fromFile = "", fromVersion, compare, stamp = 0 }: {
+  let { root, file, version, fromFile = "", fromVersion, compare, stamp = 0, text = [], textEmpty = "No changes in the set's tracks." }: {
     root: string; file: string;
     version: string;     // "" the project folder now, a version id, "none": no set
     fromFile?: string;   // the set's path in fromVersion, when it was elsewhere
     fromVersion: string; // the version to compare with, "none": nothing
     compare: boolean;
     stamp?: number;      // reload
+    text?: string[] | null; // the changes as text (Text view; null: still comparing)
+    textEmpty?: string;     // ... when there are none
   } = $props();
 
   let data = $state<SetView | null>(null);
@@ -149,6 +151,17 @@
   }
   function groupHasSlot(s: Overview | null | undefined, g: TrackSummary, i: number) {
     return inside(s, g.id).some((t) => t.clips.some((c) => c.slot === i));
+  }
+  // A group's tracks' clips in one scene.
+  function groupClips(s: Overview | null | undefined, g: TrackSummary, i: number) {
+    return inside(s, g.id).flatMap((t) => t.clips.filter((c) => c.slot === i));
+  }
+  // The color that ties a group's columns together: the group's own (for
+  // it and the tracks in it), "" for a track in no group.
+  function bandOf(r: Row): string {
+    if (r.t.kind === "group") return liveColor(r.t.color);
+    const g = r.t.group ? byID(setOf(r)).get(r.t.group) : undefined;
+    return g ? liveColor(g.color) : "";
   }
 
   // ---- bits ----
@@ -293,11 +306,12 @@
 
 <div class="setview">
   <div class="bar">
-    <div class="modes" title="Live's two views">
+    <div class="modes" title="Live's two views, or the changes as text">
       <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
       <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
+      <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>Text</button>
     </div>
-    {#if compare && rows.some((r) => r.details.length)}
+    {#if compare && setLook.pane !== "text" && rows.some((r) => r.details.length)}
       <label class="faint small toggle" title="What changed in each track, as text (or click a track's name)">
         <input type="checkbox" bind:checked={allDetails} /> Details
       </label>
@@ -307,7 +321,19 @@
     {/if}
   </div>
 
-  {#if err}
+  {#if setLook.pane === "text"}
+    {#if text === null}
+      <p class="muted">Comparing…</p>
+    {:else if !text.length}
+      <p class="muted">{textEmpty}</p>
+    {:else}
+      <div class="lines mono">
+        {#each text as line}
+          <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
+        {/each}
+      </div>
+    {/if}
+  {:else if err}
     <p class="muted">Couldn't read the set: {err}</p>
   {:else if !data}
     <p class="muted">Reading the set…</p>
@@ -413,14 +439,17 @@
       <div class="sess-wrap">
         <div class="sess" style:grid-template-columns="repeat({rows.length}, 108px) 116px">
           {#each rows as r (r.t.id + (r.status ?? ""))}
+            {@const band = bandOf(r)}
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
             <div class="ctitle {r.status ?? ''}" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
-              style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)}
+              class:grouped={!!band} class:inner={r.t.kind !== "group" && !!band}
+              style:background={liveColor(r.t.color)} style:color={inkOn(r.t.color)} style:--band={band}
               title={`${kindName[r.t.kind]} · ${clipCount(r.t)}${r.t.instrumentFull ? ` · ${r.t.instrumentFull}` : ""}`}>
-              {#if r.t.kind === "group" && !compare}
-                <button class="fold" onclick={() => (folds[r.t.id] = !folded(r.t))}>{folded(r.t) ? "▸" : "▾"}</button>
-              {/if}
               {@render trackName(r, wasOf(r))}
+              {#if r.t.kind === "group" && !compare}
+                <button class="fold gfold" onclick={(e) => { e.stopPropagation(); folds[r.t.id] = !folded(r.t); }}
+                  title={folded(r.t) ? "Show its tracks" : "Hide its tracks"}>{folded(r.t) ? "⊕" : "⊖"}</button>
+              {/if}
             </div>
           {/each}
           <div class="ctitle main-title" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>Main</div>
@@ -442,7 +471,11 @@
                 {:else if old}
                   <div class="sclip ghost" style:border-color={liveColor(old.color)} title={`Deleted: ${old.name || "clip"}`}>{old.name}{@render clipDot({ kind: "del", tip: `Deleted: ${old.name || "clip"}` })}</div>
                 {:else if r.t.kind === "group" && groupHasSlot(setOf(r), r.t, i)}
-                  <div class="sclip grp" style:background={liveColor(r.t.color)}></div>
+                  <!-- as Live: the scene's play button for the group, and its tracks' clips in small -->
+                  <div class="gslot" title="Its tracks have clips in this scene">
+                    <span class="gplay">▶</span>
+                    <span class="gmini">{#each groupClips(setOf(r), r.t, i).slice(0, 4) as gc}<i style:background={liveColor(gc.color)}></i>{/each}</span>
+                  </div>
                 {:else if r.t.kind !== "return"}
                   <span class="stop"></span>
                 {/if}
@@ -467,6 +500,10 @@
 
 <style>
   .setview { display: flex; flex-direction: column; gap: 8px; }
+  .lines { padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; line-height: 1.6; user-select: text; }
+  .lines :global(.add) { color: var(--add); }
+  .lines :global(.del) { color: var(--del); }
+  .lines :global(.mod) { color: var(--mod); }
   .bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .small { font-size: 12px; }
   .modes { display: flex; }
@@ -557,7 +594,16 @@
   .slot.muted .sclip:not(.ghost) { filter: saturate(.25) brightness(.7); }
   .sclip { flex: 1; min-width: 0; height: 16px; line-height: 16px; padding: 0 4px; border-radius: 2px; overflow: hidden;
     white-space: nowrap; text-overflow: ellipsis; font-size: 10.5px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .35); }
-  .sclip.grp { opacity: .45; height: 10px; }
+  /* a group's slot: play button and its tracks' clips, small and hatched */
+  .gslot { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 0 3px 0 4px; min-width: 0; }
+  .gplay { font-size: 9px; color: #9a9a9a; }
+  .gmini { display: flex; gap: 2px; }
+  .gmini i { width: 9px; height: 12px; border-radius: 1px;
+    background-image: repeating-linear-gradient(135deg, rgba(0, 0, 0, .38) 0 1.5px, transparent 1.5px 3.5px); }
+  /* columns of a group: a band of its color over the titles, as in Live */
+  .ctitle.grouped { box-shadow: inset 0 3px 0 var(--band); padding-top: 3px; }
+  .ctitle.inner { border-left: 1px solid rgba(0, 0, 0, .35); }
+  .gfold { margin-left: auto; font-size: 12px; line-height: 1; padding: 0 2px; opacity: .85; }
   .stop { width: 7px; height: 7px; background: #4a4a4a; margin-left: 4px; border-radius: 1px; }
   .scene { height: 20px; line-height: 20px; padding: 0 6px; background: #333; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .cmix { display: flex; align-items: center; justify-content: flex-end; gap: 4px; padding: 4px; background: #333; }

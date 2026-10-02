@@ -1,7 +1,7 @@
 <script lang="ts">
   import { folderMoves } from "./moves";
   import type { Snippet } from "svelte";
-  import { api, ago, errorText, fileURL, formatBytes, lineKind, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
+  import { api, ago, errorText, fileURL, formatBytes, previewURL, type FileVersion, type ProjectFile, type State } from "./api";
   import type { IgnoreOption } from "../../bindings/dawgit/desktop/models";
   import ImageCompare from "./ImageCompare.svelte";
   import VideoCompare from "./VideoCompare.svelte";
@@ -11,7 +11,7 @@
   import FileIcon from "./FileIcon.svelte";
   import ConvertDialog from "./ConvertDialog.svelte";
   import TextView from "./TextView.svelte";
-  import { setCompare, setLook, setSetText, view } from "./compare.svelte";
+  import { setCompare, setLook, view } from "./compare.svelte";
   import SetView from "./SetView.svelte";
 
   // Changes tab: files on the left, what changed on the right (the set's
@@ -356,13 +356,7 @@
           <div class="faint small mono">{selected}</div>
           {#if current.live}<div class="faint small">Saved with {current.live}</div>{/if}
         </div>
-        {#if current.kind === "set" && current.status !== "ignored"}
-          <div class="modes" title="The set drawn as Live shows it, or its changes as text">
-            <button class:on={!setLook.text} onclick={() => setSetText(false)}>Tracks</button>
-            <button class:on={setLook.text} onclick={() => setSetText(true)}>Text</button>
-          </div>
-        {/if}
-        {#if current.kind !== "audio" && current.status !== "ignored" && (current.kind !== "set" || !setLook.text)}
+        {#if current.kind !== "audio" && current.status !== "ignored" && (current.kind !== "set" || setLook.pane !== "text")}
           <div class="modes" title="One version, or what changed from the one before">
             <button class:on={!view.compare} onclick={() => setCompare(false)}>Preview</button>
             <button class:on={view.compare} onclick={() => setCompare(true)}>Compare</button>
@@ -410,16 +404,10 @@
             a={current.status !== "deleted" ? { label: current.status === "unchanged" ? "In the project" : "Now (not committed)", src: `${previewURL(root, selected)}&t=${loadedAt}` } : null}
             b={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed")
               ? { label: "In the version you're on", src: previewURL(root, before_, st.head) } : null} />
-        {:else if current.kind === "set" && current.status !== "ignored" && !setLook.text}
-          <SetView {root} file={selected} fromFile={before_} stamp={loadedAt} compare={view.compare}
+        {:else if current.kind === "set" && current.status !== "ignored"}
+          <SetView {root} file={selected} fromFile={before_} stamp={loadedAt} compare={view.compare} text={change?.details ?? []}
             version={current.status === "deleted" ? "none" : ""}
             fromVersion={st.head && (current.status === "modified" || current.status === "deleted" || current.status === "renamed") ? st.head : "none"} />
-        {:else if change?.details.length}
-          <div class="lines mono">
-            {#each change.details as line}
-              <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
-            {/each}
-          </div>
         {:else if current.kind !== "set" && current.status !== "ignored"}
           <TextView {root} file={selected} stamp={loadedAt} fromFile={before_}
             from={current.status === "added" || !st.head ? "none" : st.head}
@@ -475,22 +463,11 @@
                 <ImageCompare
                   a={h.status !== "deleted" ? { label: `“${h.version.message || h.version.short}”`, src: previewURL(root, hp, h.version.id) } : null}
                   b={prev && prev.status !== "deleted" ? { label: `Before: “${prev.version.message || prev.version.short}”`, src: previewURL(root, pp, prev.version.id) } : null} />
-              {:else if current.kind === "set" && !setLook.text}
-                <SetView {root} file={hp} fromFile={pp} compare={view.compare}
+              {:else if current.kind === "set"}
+                <SetView {root} file={hp} fromFile={pp} compare={view.compare} text={pickedDiff}
+                  textEmpty={h.status === "added" ? "The set was added in this version." : "No track changes in this version."}
                   version={h.status === "deleted" ? "none" : h.version.id}
                   fromVersion={prev && prev.status !== "deleted" ? prev.version.id : "none"} />
-              {:else if current.kind === "set"}
-                {#if pickedDiff === null}
-                  <p class="muted">Comparing…</p>
-                {:else if pickedDiff.length === 0}
-                  <p class="muted">{h.status === "added" ? "The set was added in this version." : "No track changes in this version."}</p>
-                {:else}
-                  <div class="lines mono">
-                    {#each pickedDiff as line}
-                      <div class={lineKind(line)} style:padding-left="{(line.length - line.trimStart().length) * 4 + 4}px">{line.trim()}</div>
-                    {/each}
-                  </div>
-                {/if}
               {:else}
                 <p class="muted">{h.status === "renamed" ? `Moved here from ${h.from}` : h.status === "added" ? "Added" : h.status === "deleted" ? "Deleted" : "Changed"} in this version.</p>
                 <TextView {root} file={h.path || selected} fromFile={before(picked)?.path || ""}
