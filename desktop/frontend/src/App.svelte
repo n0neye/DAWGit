@@ -31,6 +31,13 @@
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
   let settingsFor = $state<TeamProject | null>(null); // Project settings
+  // Closes the settings and gives their project: read it first (what the
+  // dialog shows goes with settingsFor).
+  function closeSettings(): TeamProject {
+    const p = settingsFor!;
+    settingsFor = null;
+    return p;
+  }
   // The ⋯ menu's "Open in" (read when the menu opens).
   let menuInfo = $state<ProjectInfo | null>(null);
   let openSub = $state(false);
@@ -428,7 +435,7 @@
         <div class="placeholder">
           <div class="big" aria-hidden="true">☁</div>
           <h1>{p.name}</h1>
-          <p class="muted">This song is on {current?.name} but not on this computer yet.</p>
+          <p class="muted">This project is on {current?.name} but not on this computer yet.</p>
           <button class="primary" onclick={() => download(p)} disabled={!!busy}>
             {busy === p.id ? "Downloading…" : "↓ Download"}
           </button>
@@ -453,7 +460,7 @@
       {:else}
         <div class="placeholder">
           <h1>{current ? current.name : "Local"}</h1>
-          <p class="muted">{current ? "Pick a song on the left, or add a project to share it with the team."
+          <p class="muted">{current ? "Pick a project on the left, or add one to share it with the team."
             : "Projects here keep their versions on this computer only. Pick one on the left, or add one."}</p>
         </div>
       {/if}
@@ -510,16 +517,17 @@
   {@const p = settingsFor}
   <ProjectSettings {p} team={p.status === "local" ? undefined : current} canMoveTeam={canMoveTeam(p)}
     onclose={() => (settingsFor = null)}
-    onrenamed={async () => { await reload(); refreshKey++; settingsFor = entries.find((e) => rowKey(e) === rowKey(p)) ?? null; }}
-    oncheck={() => { settingsFor = null; checking = p; }}
+    onrenamed={async () => { const key = rowKey(p); await reload(); refreshKey++; settingsFor = entries.find((e) => rowKey(e) === key) ?? null; }}
+    oncheck={() => { checking = closeSettings(); }}
     onmovelocal={() => {
-      settingsFor = null; localFull = false; localSize = 0; confirmLocal = p;
-      api.HistoryDownloadSize(p.root, "").then((n) => (localSize = n)).catch(() => {});
+      const q = closeSettings();
+      localFull = false; localSize = 0; confirmLocal = q;
+      api.HistoryDownloadSize(q.root, "").then((n) => (localSize = n)).catch(() => {});
     }}
-    onmoveteam={() => { settingsFor = null; moving = { p, team: "" }; }}
-    ondelete={() => { settingsFor = null; deleteWord = ""; confirmDelete = p; }}
-    onunlink={() => { settingsFor = null; forget(p); }}
-    onlocate={() => { settingsFor = null; locate(p); }} />
+    onmoveteam={() => { moving = { p: closeSettings(), team: "" }; }}
+    ondelete={() => { const q = closeSettings(); deleteWord = ""; confirmDelete = q; }}
+    onunlink={() => forget(closeSettings())}
+    onlocate={() => locate(closeSettings())} />
 {/if}
 
 {#if checking}
@@ -567,7 +575,7 @@
 {#if confirmDelete}
   {@const p = confirmDelete}
   <Modal title="Delete “{p.name}” from the server?" onclose={() => (confirmDelete = null)}>
-    <p>This removes the song and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
+    <p>This removes the project and all its versions from <strong>{current?.name}</strong>, for everyone in the team.
       Copies already on someone's computer are not touched{p.root ? " — yours stays here as a project on this computer only" : ""}.</p>
     <label for="delete-word">Type <strong>{p.name}</strong> to confirm</label>
     <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
