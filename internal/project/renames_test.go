@@ -146,3 +146,82 @@ func TestChangesFollowAMove(t *testing.T) {
 		t.Errorf("merge log: %v", res.MergeLog)
 	}
 }
+
+// A teammate moves a folder while its files are in the project folder only
+// (.dawgit keeps no copy of what the team's storage has): they are moved.
+func TestMoveWithoutLocalCopies(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "Notes/lyrics.txt", lyrics)
+	write(t, a.Root, "Notes/chords.txt", "Am F C G")
+	if _, _, err := a.Save("first", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	b, _, err := Clone(code, "", "Song", filepath.Join(t.TempDir(), "B", "Song Project"), "alex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.PruneObjects(); err != nil {
+		t.Fatal(err)
+	}
+	move(t, a.Root, "Notes/lyrics.txt", "Words/lyrics.txt")
+	move(t, a.Root, "Notes/chords.txt", "Words/chords.txt")
+	if _, _, err := a.Save("tidy up", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	edited := strings.Replace(lyrics, "line 7", "line seven", 1)
+	write(t, b.Root, "Notes/lyrics.txt", edited)
+	if _, _, err := b.Save("better line 7", Strategy("fail")); err != nil {
+		t.Fatalf("merge: %v", err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(b.Root, "Words", "chords.txt")); string(got) != "Am F C G" {
+		t.Errorf("the moved file: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(b.Root, "Notes")); !os.IsNotExist(err) {
+		t.Error("the old folder should be gone")
+	}
+	assertClean(t, b)
+}
+
+// A teammate renames a file and puts a new one in its place, while the old
+// content is in the project folder only: both arrive.
+func TestRenameAndReplaceWithoutLocalCopies(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "Bounces/Mix.wav", "first mix")
+	if _, _, err := a.Save("first", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	b, _, err := Clone(code, "", "Song", filepath.Join(t.TempDir(), "B", "Song Project"), "alex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.PruneObjects(); err != nil {
+		t.Fatal(err)
+	}
+	move(t, a.Root, "Bounces/Mix.wav", "Old/Mix.wav") // written after Bounces/Mix.wav
+	write(t, a.Root, "Bounces/Mix.wav", "second mix")
+	if _, _, err := a.Save("new mix", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.Update(Strategy("fail")); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	for p, want := range map[string]string{"Old/Mix.wav": "first mix", "Bounces/Mix.wav": "second mix"} {
+		if got, _ := os.ReadFile(filepath.Join(b.Root, filepath.FromSlash(p))); string(got) != want {
+			t.Errorf("%s: %q, want %q", p, got, want)
+		}
+	}
+}

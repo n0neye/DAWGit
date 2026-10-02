@@ -76,8 +76,45 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	// Removed files go first: on Windows a file renamed only in case
 	// ("Kick.wav" to "kick.wav") is the same file, and removing the old name
 	// after writing the new one would remove it.
+	// Content whose only copy here is a file about to be overwritten (a
+	// file renamed, a new one in its place) is kept in .dawgit first.
+	overwritten := map[string]bool{}
+	for _, f := range m.Files {
+		if h, ok := have[f.Path]; ok && h != f.Hash {
+			overwritten[r.Abs(f.Path)] = true
+		}
+	}
+	for _, f := range m.Files {
+		if have[f.Path] != f.Hash && !r.Store.Has(f.Hash) {
+			if src := r.sourcesByHash()[f.Hash]; overwritten[src] {
+				if _, _, err := r.Store.PutFile(src); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
+	}
+	// A file the version has elsewhere (moved) goes there instead: it may be
+	// the only copy here (files the team's storage has aren't kept in
+	// .dawgit), and moving is quicker than copying.
+	movedTo := map[string]string{} // content hash -> a new path
+	for _, f := range m.Files {
+		if _, ok := movedTo[f.Hash]; !ok && have[f.Path] != f.Hash {
+			movedTo[f.Hash] = f.Path
+		}
+	}
 	for p := range have {
 		if _, ok := want[p]; !ok && !target.Ignored(p, false) {
+			h := have[p]
+			if dst := movedTo[h]; dst != "" && !r.Store.Has(h) && r.moveFile(p, dst) {
+				delete(movedTo, h)
+				have[dst] = h
+				delete(ix.entries, p)
+				ix.dirty = true
+				if err := ix.record(r.Abs(dst), dst, h, want[dst].Size); err != nil {
+					return nil, nil, err
+				}
+				continue
+			}
 			if err := store.Remove(r.Abs(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
 				return nil, nil, err
 			}
@@ -111,6 +148,25 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	}
 	os.Remove(filepath.Join(r.Dir, switchingFile))
 	return m, notes, nil
+}
+
+// moveFile moves a file of the project folder to another path in it (false
+// when it can't: the content is then exported there as usual).
+func (r *Repo) moveFile(from, to string) bool {
+	dst := r.Abs(to)
+	if _, err := os.Stat(dst); err == nil && !strings.EqualFold(r.Abs(from), dst) {
+		return false // something is there already
+	}
+	if os.MkdirAll(filepath.Dir(dst), 0o755) != nil || os.Rename(r.Abs(from), dst) != nil {
+		return false
+	}
+	r.removeEmptyFolders(from)
+	for h, p := range r.sources { // where that content is here now
+		if p == r.Abs(from) {
+			r.sources[h] = dst
+		}
+	}
+	return true
 }
 
 // removeEmptyFolders removes the folders a removed file leaves empty (a
