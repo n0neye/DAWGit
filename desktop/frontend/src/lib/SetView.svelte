@@ -580,7 +580,7 @@
   .inst { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     font-size: 10px; font-weight: 600; padding: 0 5px; line-height: 14px; border-radius: 7px; background: rgba(0, 0, 0, .28); color: #f0f0f0; }
   .clickable { cursor: pointer; }
-  .toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .toggle { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; white-space: nowrap; flex: none; }
   .toggle input { margin: 0; }
   .clip.ghost, .sclip.ghost { background: transparent; border: 1.5px dashed; box-shadow: none; opacity: .8; }
   .sum { position: absolute; bottom: 3px; height: 5px; opacity: .55; border-radius: 1px; }
@@ -588,8 +588,7 @@
   /* a deleted track: dark, with a "Deleted" label over it (not dimmed) */
   .row.removed .lane > :not(.gone-label), .row.removed .head { opacity: .35; }
   .gone-label { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; pointer-events: none;
-    font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 8px; border-radius: 8px;
-    color: var(--del); background: rgba(20, 20, 20, .85); border: 1px solid color-mix(in srgb, var(--del) 55%, transparent); }
+    font-size: 10.5px; font-weight: 600; letter-spacing: .04em; color: var(--del); }
   .row.removed .lane { background-color: #1d1d1d; background-image: repeating-linear-gradient(135deg, transparent 0 6px, rgba(255, 255, 255, .04) 6px 12px); }
   .kicon { width: 12px; height: 12px; flex: none; opacity: .8; }
   .tname { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
