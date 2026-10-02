@@ -5,6 +5,7 @@
 
 Unicode true
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 
 !ifndef VERSION
   !define VERSION "0.0.0"
@@ -103,6 +104,29 @@ SectionEnd
 Section "Desktop shortcut" SecDesktop
   CreateShortcut "$DESKTOP\${APP}.lnk" "$INSTDIR\${APP}.exe"
 SectionEnd
+
+; DAWGit updating itself runs this silently (/S): the choices made at the
+; first install stay as they are (autostart is the app's setting, the
+; desktop shortcut is left alone), and /relaunch or /relaunch-background
+; opens DAWGit again afterwards (its window, or in the tray).
+Function .onInit
+  IfSilent 0 +3
+    SectionSetFlags ${SecAutostart} 0
+    SectionSetFlags ${SecDesktop} 0
+FunctionEnd
+
+Function .onInstSuccess
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/relaunch-background" $R1
+  IfErrors +3
+    Exec '"$INSTDIR\${APP}.exe" --background'
+    Return
+  ClearErrors
+  ${GetOptions} $R0 "/relaunch" $R1
+  IfErrors +2
+    Exec '"$INSTDIR\${APP}.exe"'
+FunctionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecApp} "The ${APP} app and the command line tool."

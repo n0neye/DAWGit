@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { Events } from "@wailsio/runtime";
   import { api, errorText, progressShort, type Overview, type Progress, type ProjectInfo, type TeamProject } from "./lib/api";
+  import type { UpdateInfo, UpdateState } from "../bindings/dawgit/desktop/models";
   import ProgressBar from "./lib/ProgressBar.svelte";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
@@ -125,15 +126,56 @@
   let appVersion = $state("");
   let edition = $state(""); // a build with extensions, e.g. "Pro"
 
-  // A newer release on GitHub: offered until the user hides that version.
-  let update = $state<{ version: string; pageUrl: string; downloadUrl: string } | null>(null);
+  // A newer release: offered until the user hides that version (unless it's
+  // required: then the app can't be used before updating). A signed one is
+  // downloaded in the background and installed by DAWGit itself.
+  let update = $state<UpdateInfo | null>(null);
+  let updState = $state<UpdateState>({ stage: "", done: 0, total: 0, error: "", auto: true });
+  let installWhenReady = $state(false); // "Update now" before the download finished
   const DISMISSED_KEY = "dawgit.dismissedUpdate";
   async function checkUpdate() {
     try {
       const u = await api.CheckUpdate();
-      update = u && u.version !== recall(DISMISSED_KEY) ? u : null;
+      update = u && (u.required || u.version !== recall(DISMISSED_KEY)) ? u : null;
+      updState = await api.UpdateStatus();
     } catch {
       /* offline: try again later */
+    }
+  }
+  let anyBusy = $derived(Object.keys(activity).length > 0);
+  // While it downloads, ask how it goes too (an event can come before the
+  // first answer and be overwritten by it).
+  $effect(() => {
+    if (updState.stage !== "downloading") return;
+    const t = setInterval(() => api.UpdateStatus().then(onUpdateState).catch(() => {}), 1000);
+    return () => clearInterval(t);
+  });
+  async function updateNow() {
+    if (updState.stage === "ready") {
+      try {
+        await api.InstallUpdate(); // DAWGit closes, updates and opens again
+      } catch (e) {
+        toast(errorText(e), "error", 8000);
+      }
+      return;
+    }
+    installWhenReady = true;
+    api.DownloadUpdate().catch(() => {});
+  }
+  function onUpdateState(st: UpdateState) {
+    updState = st;
+    if (st.stage === "ready" && installWhenReady && !anyBusy) {
+      installWhenReady = false;
+      updateNow();
+    }
+  }
+  const pct = (st: UpdateState) => (st.total > 0 ? Math.round((st.done / st.total) * 100) : 0);
+  async function setAutoUpdate(on: boolean) {
+    try {
+      await api.SetAutoUpdate(on);
+      updState = { ...updState, auto: on };
+    } catch (e) {
+      toast(errorText(e), "error");
     }
   }
   $effect(() => {
@@ -270,6 +312,7 @@
     api.Edition().then((e) => (edition = e)).catch(() => {});
     checkUpdate();
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
+    const offUpdate = Events.On("update", (ev: { data: UpdateState }) => onUpdateState(ev.data));
     const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
       const e = ev.data;
       const name = entries.find((p) => p.root === e.root)?.name ?? "";
@@ -282,6 +325,7 @@
     });
     return () => {
       offProgress();
+      offUpdate();
       offAgent();
     };
   });
@@ -315,16 +359,12 @@
         <div class="update">
           <div class="update-h">
             <span>DAWGit{edition ? ` ${edition}` : ""} {u.version} is available</span>
-            <button class="ghost x" title="Hide until the next version"
-              onclick={() => { remember(DISMISSED_KEY, u.version); update = null; }}>✕</button>
-          </div>
-          <div class="update-a">
-            {#if u.downloadUrl}
-              <button class="primary" onclick={() => openLink(u.downloadUrl)}
-                title="Download the installer; run it to update (your projects and teams are kept)">Download</button>
+            {#if !u.required}
+              <button class="ghost x" title="Hide until the next version"
+                onclick={() => { remember(DISMISSED_KEY, u.version); update = null; }}>✕</button>
             {/if}
-            <button class="ghost" onclick={() => openLink(u.pageUrl)}>What's new</button>
           </div>
+          {@render updateActions(u)}
         </div>
       {/if}
       <TeamMenu {overview} {reload} />
@@ -360,6 +400,10 @@
         <label class="autostart" title="Keeps DAWGit in the tray so you hear about new versions from your team">
           <input type="checkbox" checked={autostart} onchange={(e) => toggleAutostart(e.currentTarget.checked)} />
           Start with Windows
+        </label>
+        <label class="autostart" title="Updates install by themselves when DAWGit is in the tray, or when it quits">
+          <input type="checkbox" checked={updState.auto} onchange={(e) => setAutoUpdate(e.currentTarget.checked)} />
+          Install updates automatically
         </label>
       </div>
     </aside>
@@ -407,6 +451,32 @@
     </section>
   </div>
 {/if}
+
+{#snippet updateActions(u: UpdateInfo)}
+  <div class="update-a">
+    {#if !u.installable}
+      {#if u.downloadUrl}
+        <button class="primary" onclick={() => openLink(u.downloadUrl)}
+          title="Download the installer; run it to update (your projects and teams are kept)">Download</button>
+      {/if}
+    {:else if updState.stage === "downloading" || (installWhenReady && updState.stage !== "failed")}
+      <span class="upd-progress"><span style:width="{pct(updState)}%"></span></span>
+      <span class="faint small">{updState.stage === "ready" ? "Installing…" : `Downloading ${pct(updState)}%`}</span>
+    {:else if updState.stage === "ready"}
+      <button class="primary" onclick={updateNow} disabled={anyBusy}
+        title={anyBusy ? "After the project's current upload or download" : "DAWGit closes, updates and opens again (your projects and teams are kept)"}>
+        Restart to update</button>
+    {:else}
+      <button class="primary" onclick={updateNow} disabled={anyBusy}
+        title="Downloads it, then DAWGit closes, updates and opens again">Update now</button>
+    {/if}
+    <button class="ghost" onclick={() => openLink(u.pageUrl)}>What's new</button>
+  </div>
+  {#if updState.stage === "failed"}<p class="upd-error">{updState.error}</p>{/if}
+  {#if u.installable && updState.stage === "ready" && updState.auto && !u.required}
+    <p class="faint small upd-note">Or it installs by itself when DAWGit is in the tray.</p>
+  {/if}
+{/snippet}
 
 {#snippet row(p: TeamProject)}
   <li>
@@ -484,6 +554,18 @@
   </Modal>
 {/if}
 
+{#if update?.required}
+  {@const u = update}
+  <div class="must-update" role="dialog" aria-modal="true" aria-label="Update DAWGit">
+    <div class="must-card">
+      <h2>Update DAWGit to keep going</h2>
+      <p class="muted">This version of DAWGit can no longer work with your team's projects: they need DAWGit
+        {u.version}. Updating takes a minute, and keeps your projects and teams.</p>
+      {@render updateActions(u)}
+    </div>
+  </div>
+{/if}
+
 <Toasts />
 
 <style>
@@ -554,6 +636,17 @@
   .update-h span { flex: 1; }
   .update-a { display: flex; gap: 6px; margin-top: 6px; }
   .update-a button { padding: 3px 10px; font-size: 12.5px; }
+  .update-a { align-items: center; }
+  .upd-progress { flex: 1; height: 5px; border-radius: 3px; background: #2c5a4e; overflow: hidden; }
+  .upd-progress span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  .upd-error { margin: 6px 0 0; color: var(--danger); font-size: 12px; }
+  .upd-note { margin: 5px 0 0; }
+  .must-update { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 9, 11, .82); }
+  .must-card { width: 440px; max-width: calc(100vw - 48px); padding: 22px 24px; border-radius: 12px;
+    background: var(--panel-2); border: 1px solid var(--line); }
+  .must-card h2 { margin: 0 0 8px; font-size: 18px; }
+  .must-card .update-a button { padding: 6px 14px; font-size: 13.5px; }
   .x { padding: 0 5px; line-height: 16px; color: var(--muted); }
   .autostart { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12.5px; cursor: pointer; }
   .autostart input { width: auto; }

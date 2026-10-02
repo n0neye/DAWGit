@@ -65,6 +65,8 @@ func Run() {
 		}
 	}
 	svc.openURL = func(url string) error { return app.Browser.OpenURL(url) }
+	svc.quit = func() { app.Quit() }
+	go svc.updateInBackground()
 	svc.pickDir = func(title string) (string, error) {
 		// Browser (server-mode) testing has no native dialogs.
 		if dir := os.Getenv("DAWGIT_DEV_PICK_DIR"); dir != "" {
@@ -109,7 +111,10 @@ func Run() {
 	menu := app.NewMenu()
 	menu.Add("Open DAWGit").OnClick(func(*application.Context) { showWindow() })
 	menu.AddSeparator()
-	menu.Add("Quit").OnClick(func(*application.Context) { app.Quit() })
+	menu.Add("Quit").OnClick(func(*application.Context) {
+		svc.beforeQuit() // a downloaded update installs as DAWGit quits
+		app.Quit()
+	})
 
 	tray := app.SystemTray.New()
 	tray.SetIcon(trayIcon)

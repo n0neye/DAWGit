@@ -47,6 +47,9 @@ type Store struct {
 	Projects map[string]string `json:"projects"`
 	// Local lists project folders kept on this computer only (no team).
 	Local []string `json:"local,omitempty"`
+	// ManualUpdates: DAWGit doesn't install updates on its own (it still
+	// downloads them and offers them).
+	ManualUpdates bool `json:"manualUpdates,omitempty"`
 
 	path string
 }

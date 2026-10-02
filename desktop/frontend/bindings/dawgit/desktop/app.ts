@@ -44,6 +44,14 @@ export function AddProjectToTeam(teamID: string, folder: string): $CancellablePr
 }
 
 /**
+ * AutoUpdate: updates install on their own (when DAWGit is in the tray with
+ * nothing to do, or quits); on by default.
+ */
+export function AutoUpdate(): $CancellablePromise<boolean> {
+    return $Call.ByID(4008240681);
+}
+
+/**
  * Autostart reports whether DAWGit starts when the user signs in to Windows.
  */
 export function Autostart(): $CancellablePromise<boolean> {
@@ -51,9 +59,18 @@ export function Autostart(): $CancellablePromise<boolean> {
 }
 
 /**
- * CheckUpdate asks GitHub for a newer release (at most every 6 hours) and
- * returns it, or nil when this is the newest. DAWGIT_NO_UPDATE_CHECK=1 turns
- * it off; DAWGIT_DEV_VERSION pretends to be another version (testing).
+ * Busy: a project is in the middle of something (a commit, an upload, a
+ * download): no update is installed now.
+ */
+export function Busy(): $CancellablePromise<boolean> {
+    return $Call.ByID(3484216334);
+}
+
+/**
+ * CheckUpdate asks for a newer release (at most every 6 hours) and returns
+ * it, or nil when this is the newest. A signed one is downloaded right away,
+ * in the background. DAWGIT_NO_UPDATE_CHECK=1 turns it off;
+ * DAWGIT_DEV_VERSION pretends to be another version (testing).
  */
 export function CheckUpdate(): $CancellablePromise<$models.UpdateInfo | null> {
     return $Call.ByID(2091993444).then(($result: any) => {
@@ -215,6 +232,14 @@ export function DownloadProject(teamID: string, projectID: string, parent: strin
 }
 
 /**
+ * DownloadUpdate fetches the newer release's installer and checks its
+ * signature; "update" events say how it goes.
+ */
+export function DownloadUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(2212963510);
+}
+
+/**
  * Edition names a build with extensions ("" for the public app).
  */
 export function Edition(): $CancellablePromise<string> {
@@ -283,6 +308,14 @@ export function IgnoreOptions(rel: string, isDir: boolean): $CancellablePromise<
     return $Call.ByID(2769552289, rel, isDir).then(($result: any) => {
         return $$createType16($result);
     });
+}
+
+/**
+ * InstallUpdate installs the downloaded update: its installer runs on its
+ * own, replaces DAWGit and opens it again; DAWGit quits.
+ */
+export function InstallUpdate(): $CancellablePromise<void> {
+    return $Call.ByID(3452649115);
 }
 
 /**
@@ -496,6 +529,10 @@ export function SetAuthor(name: string): $CancellablePromise<void> {
     return $Call.ByID(3939896394, name);
 }
 
+export function SetAutoUpdate(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(467942291, on);
+}
+
 /**
  * SetAutostart turns starting DAWGit at sign-in on or off.
  */
@@ -653,6 +690,15 @@ export function Update(root: string, resolutions: { [_ in string]?: string }, fo
 }
 
 /**
+ * UpdateStatus says how getting the update is going.
+ */
+export function UpdateStatus(): $CancellablePromise<$models.UpdateState> {
+    return $Call.ByID(82449916).then(($result: any) => {
+        return $$createType42($result);
+    });
+}
+
+/**
  * UpdateTeamConnection changes how this computer reaches a team (new keys, a
  * moved server). The new settings are checked first. When the address
  * changes, the team's downloaded projects are pointed at it.
@@ -669,7 +715,7 @@ export function UpdateTeamConnection(teamID: string, c: $models.TeamConnection):
  */
 export function VerifyProject(root: string, repair: boolean): $CancellablePromise<$models.VerifyResult | null> {
     return $Call.ByID(997401215, root, repair).then(($result: any) => {
-        return $$createType43($result);
+        return $$createType44($result);
     });
 }
 
@@ -686,7 +732,7 @@ export function Version(): $CancellablePromise<string> {
  */
 export function VersionChanges(root: string, id: string): $CancellablePromise<$models.Change[]> {
     return $Call.ByID(3008736322, root, id).then(($result: any) => {
-        return $$createType45($result);
+        return $$createType46($result);
     });
 }
 
@@ -743,7 +789,8 @@ const $$createType38 = $models.TextChanges.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
 const $$createType40 = $models.TextContent.createFrom;
 const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = $models.VerifyResult.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = $models.Change.createFrom;
-const $$createType45 = $Create.Array($$createType44);
+const $$createType42 = $models.UpdateState.createFrom;
+const $$createType43 = $models.VerifyResult.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = $models.Change.createFrom;
+const $$createType46 = $Create.Array($$createType45);
