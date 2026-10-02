@@ -40,3 +40,42 @@ export class Applied {
         return new Applied($$parsedSource as Partial<Applied>);
     }
 }
+
+/**
+ * PresetEntry is a line of presets:.
+ */
+export class PresetEntry {
+    /**
+     * "" the project folder
+     */
+    "folder": string;
+    "preset": string;
+
+    /**
+     * DAWGit wrote it from what it found
+     */
+    "found": boolean;
+
+    /** Creates a new PresetEntry instance. */
+    constructor($$source: Partial<PresetEntry> = {}) {
+        if (!("folder" in $$source)) {
+            this["folder"] = "";
+        }
+        if (!("preset" in $$source)) {
+            this["preset"] = "";
+        }
+        if (!("found" in $$source)) {
+            this["found"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PresetEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PresetEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PresetEntry($$parsedSource as Partial<PresetEntry>);
+    }
+}

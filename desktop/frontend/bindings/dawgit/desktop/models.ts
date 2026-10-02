@@ -402,6 +402,42 @@ export class Overview {
     }
 }
 
+/**
+ * PresetOption is a preset the window offers.
+ */
+export class PresetOption {
+    "name": string;
+
+    /**
+     * its ignore patterns
+     */
+    "leftOut": string[];
+
+    /** Creates a new PresetOption instance. */
+    constructor($$source: Partial<PresetOption> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("leftOut" in $$source)) {
+            this["leftOut"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PresetOption instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PresetOption {
+        const $$createField1_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("leftOut" in $$parsedSource) {
+            $$parsedSource["leftOut"] = $$createField1_0($$parsedSource["leftOut"]);
+        }
+        return new PresetOption($$parsedSource as Partial<PresetOption>);
+    }
+}
+
 export class Preview {
     /**
      * up-to-date | ahead | fast-forward | merge
@@ -672,6 +708,101 @@ export class Result {
 }
 
 /**
+ * RuleItem is a rule of .dawgit.yaml.
+ */
+export class RuleItem {
+    /**
+     * ignore | track
+     */
+    "kind": string;
+    "pattern": string;
+
+    /** Creates a new RuleItem instance. */
+    constructor($$source: Partial<RuleItem> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("pattern" in $$source)) {
+            this["pattern"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RuleItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RuleItem($$parsedSource as Partial<RuleItem>);
+    }
+}
+
+/**
+ * RuleNode is a file or folder in the Rules window's tree.
+ */
+export class RuleNode {
+    "name": string;
+
+    /**
+     * relative to the project folder
+     */
+    "path": string;
+    "dir": boolean;
+    "ignored": boolean;
+
+    /**
+     * the rule or preset that decides
+     */
+    "by": string;
+
+    /**
+     * a folder presets: names: its preset
+     */
+    "preset": string;
+
+    /**
+     * files only
+     */
+    "size": number;
+
+    /** Creates a new RuleNode instance. */
+    constructor($$source: Partial<RuleNode> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("dir" in $$source)) {
+            this["dir"] = false;
+        }
+        if (!("ignored" in $$source)) {
+            this["ignored"] = false;
+        }
+        if (!("by" in $$source)) {
+            this["by"] = "";
+        }
+        if (!("preset" in $$source)) {
+            this["preset"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RuleNode instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RuleNode {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RuleNode($$parsedSource as Partial<RuleNode>);
+    }
+}
+
+/**
  * RuleSuggestion is a project of a tool found in a folder the rules don't
  * name yet, with how much its preset would leave out there.
  */
@@ -724,6 +855,66 @@ export class RuleSuggestion {
 }
 
 /**
+ * RulesDetail is what the window shows of a project's rules.
+ */
+export class RulesDetail {
+    "presets": profile$0.PresetEntry[];
+    "rules": RuleItem[];
+    "suggestions": RuleSuggestion[];
+    "options": PresetOption[];
+
+    /**
+     * the file can't be read: fix it as text
+     */
+    "error": string;
+
+    /** Creates a new RulesDetail instance. */
+    constructor($$source: Partial<RulesDetail> = {}) {
+        if (!("presets" in $$source)) {
+            this["presets"] = [];
+        }
+        if (!("rules" in $$source)) {
+            this["rules"] = [];
+        }
+        if (!("suggestions" in $$source)) {
+            this["suggestions"] = [];
+        }
+        if (!("options" in $$source)) {
+            this["options"] = [];
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RulesDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RulesDetail {
+        const $$createField0_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
+        const $$createField2_0 = $$createType19;
+        const $$createField3_0 = $$createType21;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("presets" in $$parsedSource) {
+            $$parsedSource["presets"] = $$createField0_0($$parsedSource["presets"]);
+        }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField1_0($$parsedSource["rules"]);
+        }
+        if ("suggestions" in $$parsedSource) {
+            $$parsedSource["suggestions"] = $$createField2_0($$parsedSource["suggestions"]);
+        }
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField3_0($$parsedSource["options"]);
+        }
+        return new RulesDetail($$parsedSource as Partial<RulesDetail>);
+    }
+}
+
+/**
  * RulesInfo is how a project's rules come about (see profile).
  */
 export class RulesInfo {
@@ -770,8 +961,8 @@ export class RulesInfo {
      * Creates a new RulesInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): RulesInfo {
-        const $$createField0_0 = $$createType15;
-        const $$createField3_0 = $$createType17;
+        const $$createField0_0 = $$createType23;
+        const $$createField3_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
@@ -879,10 +1070,10 @@ export class SetView {
      * Creates a new SetView instance from a string or object.
      */
     static createFrom($$source: any = {}): SetView {
-        const $$createField0_0 = $$createType19;
-        const $$createField1_0 = $$createType19;
+        const $$createField0_0 = $$createType25;
+        const $$createField1_0 = $$createType25;
         const $$createField2_0 = $$createType2;
-        const $$createField4_0 = $$createType21;
+        const $$createField4_0 = $$createType27;
         const $$createField5_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("now" in $$parsedSource) {
@@ -1064,10 +1255,10 @@ export class State {
         const $$createField16_0 = $$createType1;
         const $$createField18_0 = $$createType1;
         const $$createField20_0 = $$createType10;
-        const $$createField21_0 = $$createType23;
+        const $$createField21_0 = $$createType29;
         const $$createField22_0 = $$createType8;
         const $$createField23_0 = $$createType8;
-        const $$createField24_0 = $$createType25;
+        const $$createField24_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -1204,7 +1395,7 @@ export class TeamConnection {
      * Creates a new TeamConnection instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamConnection {
-        const $$createField1_0 = $$createType26;
+        const $$createField1_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("settings" in $$parsedSource) {
             $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
@@ -1274,11 +1465,11 @@ export class TeamPart {
      * Creates a new TeamPart instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamPart {
-        const $$createField2_0 = $$createType25;
+        const $$createField2_0 = $$createType31;
         const $$createField3_0 = $$createType8;
         const $$createField4_0 = $$createType8;
         const $$createField5_0 = $$createType1;
-        const $$createField7_0 = $$createType27;
+        const $$createField7_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -1460,7 +1651,7 @@ export class TextChanges {
      * Creates a new TextChanges instance from a string or object.
      */
     static createFrom($$source: any = {}): TextChanges {
-        const $$createField4_0 = $$createType29;
+        const $$createField4_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hunks" in $$parsedSource) {
             $$parsedSource["hunks"] = $$createField4_0($$parsedSource["hunks"]);
@@ -1713,7 +1904,7 @@ export class VerifyResult {
      * Creates a new VerifyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): VerifyResult {
-        const $$createField3_0 = $$createType31;
+        const $$createField3_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -1824,21 +2015,27 @@ const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = Conflict.createFrom;
 const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = RulesInfo.createFrom;
-const $$createType14 = profile$0.Applied.createFrom;
+const $$createType14 = profile$0.PresetEntry.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = RuleSuggestion.createFrom;
+const $$createType16 = RuleItem.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = als$0.Overview.createFrom;
-const $$createType19 = $Create.Nullable($$createType18);
-const $$createType20 = SetTrackChange.createFrom;
+const $$createType18 = RuleSuggestion.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = PresetOption.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = project$0.TrackEdit.createFrom;
+const $$createType22 = profile$0.Applied.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = Branch.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = remote$0.Storage.createFrom;
-const $$createType27 = remote$0.Capabilities.createFrom;
-const $$createType28 = textdiff$0.Hunk.createFrom;
+const $$createType24 = als$0.Overview.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = SetTrackChange.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = project$0.TrackEdit.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = VerifyProblem.createFrom;
+const $$createType30 = Branch.createFrom;
 const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = remote$0.Storage.createFrom;
+const $$createType33 = remote$0.Capabilities.createFrom;
+const $$createType34 = textdiff$0.Hunk.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = VerifyProblem.createFrom;
+const $$createType37 = $Create.Array($$createType36);

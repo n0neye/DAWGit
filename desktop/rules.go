@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -156,62 +155,9 @@ func (a *App) AddIgnoreRule(root, pattern string) error {
 	return os.WriteFile(p, []byte(text), 0o644)
 }
 
-// withIgnoreRule inserts the rule after the last line of the rules block,
-// keeping everything else (comments included) as it is.
+// withIgnoreRule adds `- ignore: pattern` at the end of the rules.
 func withIgnoreRule(text, pattern string) (string, error) {
-	if strings.TrimSpace(pattern) == "" || strings.ContainsAny(pattern, "\n\r") {
-		return "", errors.New("empty rule")
-	}
-	item := "- ignore: " + strconv.Quote(pattern)
-	crlf := strings.Contains(text, "\r\n")
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	join := func(ls []string) string {
-		out := strings.Join(ls, "\n")
-		if crlf {
-			out = strings.ReplaceAll(out, "\n", "\r\n")
-		}
-		return out
-	}
-	at := -1
-	for i, l := range lines {
-		if strings.HasPrefix(l, "rules:") {
-			at = i
-			break
-		}
-	}
-	if at < 0 { // no rules yet
-		for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
-			lines = lines[:len(lines)-1]
-		}
-		return join(append(lines, "rules:", "  "+item, "")), nil
-	}
-	rest := strings.TrimSpace(strings.TrimPrefix(lines[at], "rules:"))
-	if strings.HasPrefix(rest, "[") { // rules: [] (an empty list written inline)
-		if strings.TrimSpace(strings.SplitN(rest, "#", 2)[0]) != "[]" {
-			return "", errors.New("write the rules one per line to add one here")
-		}
-		lines[at] = "rules:"
-	}
-	indent, end := "  ", at+1
-	for i := at + 1; i < len(lines); i++ {
-		l := lines[i]
-		if l != "" && l[0] != ' ' && l[0] != '\t' && l[0] != '-' {
-			break // the next key
-		}
-		t := strings.TrimSpace(l)
-		if t == "" {
-			continue
-		}
-		end = i + 1
-		if strings.HasPrefix(t, "- ") && !strings.HasPrefix(t, "#") {
-			indent = l[:len(l)-len(strings.TrimLeft(l, " \t"))]
-			if strings.Contains(t, strconv.Quote(pattern)) && strings.HasPrefix(t, "- ignore:") {
-				return join(lines), nil // there already
-			}
-		}
-	}
-	out := append(append(append([]string{}, lines[:end]...), indent+item), lines[end:]...)
-	return join(out), nil
+	return profile.AddRule(text, "ignore", pattern)
 }
 
 // globQuote makes a name match itself in a rule: *, ?, [ and \ are taken
