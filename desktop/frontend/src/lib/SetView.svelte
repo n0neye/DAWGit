@@ -21,13 +21,29 @@
   let data = $state<SetView | null>(null);
   let err = $state("");
   let gen = 0;
+  let shownKey = "", shownJSON = "";
+  // A reload of the same set (the project refreshed) keeps what is shown
+  // until the new one is read, and changes nothing when it is the same: no
+  // flash. Another set or version starts empty.
   $effect(() => {
     const g = ++gen;
     stamp;
-    data = null;
-    err = "";
+    const key = [root, file, version, fromFile, fromVersion].join("|");
+    if (key !== shownKey) {
+      shownKey = key;
+      shownJSON = "";
+      data = null;
+      err = "";
+    }
     api.SetOverview(root, file, version, fromFile === file ? "" : fromFile, fromVersion)
-      .then((d) => { if (g === gen) data = d; })
+      .then((d) => {
+        if (g !== gen) return;
+        const json = JSON.stringify(d);
+        if (json === shownJSON) return;
+        shownJSON = json;
+        data = d;
+        err = "";
+      })
       .catch((e) => { if (g === gen) err = errorText(e); });
   });
 
@@ -265,16 +281,18 @@
                   </div>
                 {/each}
               </div>
-              <div class="head" style:--tc={liveColor(t.color)} style:padding-left="{8 + r.depth * 12}px"
+              <div class="head" style:padding-left="{r.depth * 10}px"
                 title={`${kindName[t.kind]} · ${clipCount(t)}${t.devices.length ? ` · ${t.devices.join(", ")}` : ""}`}>
-                {#if t.kind === "group" && !compare}
-                  <button class="fold" onclick={() => (folds[t.id] = !folded(t))} title={folded(t) ? "Show its tracks" : "Hide its tracks"}>{folded(t) ? "▸" : "▾"}</button>
-                {/if}
-                {@render icon(t.kind)}
-                {#if r.status}<span class="mark {r.status}" title={statusName[r.status]}>{markOf[r.status]}</span>{/if}
-                <span class="tname">{t.name}</span>
-                <span class="grow"></span>
-                {#if t.clips.length && !compare}<span class="nclips" title={clipCount(t)}>{t.clips.length}</span>{/if}
+                <div class="hname" style:background={liveColor(t.color)} style:color={inkOn(t.color)}>
+                  {#if t.kind === "group" && !compare}
+                    <button class="fold" onclick={() => (folds[t.id] = !folded(t))} title={folded(t) ? "Show its tracks" : "Hide its tracks"}>{folded(t) ? "▸" : "▾"}</button>
+                  {/if}
+                  {@render icon(t.kind)}
+                  {#if r.status}<span class="mark {r.status}" title={statusName[r.status]}>{markOf[r.status]}</span>{/if}
+                  <span class="tname">{t.name}</span>
+                  <span class="grow"></span>
+                  {#if t.clips.length && !compare}<span class="nclips" title={clipCount(t)}>{t.clips.length}</span>{/if}
+                </div>
                 {@render mixer(t, r.label)}
               </div>
             </div>
@@ -291,8 +309,11 @@
           {#if !compare}
             <div class="row main">
               <div class="lane"></div>
-              <div class="head" style:--tc={liveColor(shown.main.color)}>
-                {@render icon("main")}<span class="tname">Main</span><span class="grow"></span>{@render mixer(shown.main, "")}
+              <div class="head">
+                <div class="hname" style:background={liveColor(shown.main.color)} style:color={inkOn(shown.main.color)}>
+                  {@render icon("main")}<span class="tname">Main</span>
+                </div>
+                {@render mixer(shown.main, "")}
               </div>
             </div>
           {/if}
@@ -370,12 +391,16 @@
     background-image: linear-gradient(90deg, #353535 1px, transparent 1px); background-size: var(--grid) 100%; }
   .row.return .lane, .row.main .lane { background-color: #242424; }
   .row.main { border-top: 6px solid #121212; border-bottom: none; }
-  .head { flex: 0 0 clamp(200px, 45%, 300px); display: flex; align-items: center; gap: 6px; padding: 0 6px 0 8px; min-width: 0;
-    background: #333; border-left: 5px solid var(--tc); }
-  .row.group .head { background: #3b3b3b; font-weight: 600; }
+  .head { flex: 0 0 clamp(200px, 45%, 300px); display: flex; align-items: center; gap: 4px; padding-right: 4px; min-width: 0;
+    background: #333; }
+  .hname { flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; gap: 5px; padding: 0 6px; margin: 2px 2px 2px 0; border-radius: 2px; }
+  .row.group .hname { font-weight: 650; }
+  .row.muted .hname { filter: saturate(.35) brightness(.75); }
+  .hname .nclips { color: inherit; opacity: .7; }
+  .hname .kicon { opacity: .85; }
   .ruler { height: 20px; background: #202020; }
   .ruler .lane { background: #202020; }
-  .ruler-head { background: #202020; border-left-color: #202020; }
+  .ruler-head { background: #202020; }
   .tick { position: absolute; top: 3px; font-size: 10.5px; color: #8a8a8a; padding-left: 3px; border-left: 1px solid #555; line-height: 14px; }
   .locator { position: absolute; top: 3px; font-size: 10.5px; color: #e9e9e9; white-space: nowrap; transform: translateX(-3px); }
   .clip { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; overflow: hidden; min-width: 2px;
