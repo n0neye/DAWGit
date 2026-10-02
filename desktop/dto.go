@@ -54,6 +54,9 @@ type RulesInfo struct {
 	Applied  []profile.Applied `json:"applied"`  // presets by folder
 	FromFile bool              `json:"fromFile"` // a .dawgit.yaml (else detected)
 	Error    string            `json:"error"`    // why commits are refused
+	// Suggestions: projects of tools found in folders the rules don't name
+	// yet (asked about before committing).
+	Suggestions []RuleSuggestion `json:"suggestions"`
 }
 
 type State struct {

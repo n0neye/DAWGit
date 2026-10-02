@@ -3,30 +3,35 @@ package desktop
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"dawgit/internal/profile"
+	"dawgit/internal/project"
 )
 
-// The file DAWGit creates is valid as it is, and names the preset it found.
-func TestRulesFile(t *testing.T) {
-	song := t.TempDir()
-	os.WriteFile(filepath.Join(song, "Song.als"), []byte("x"), 0o644)
-	p, err := profile.Parse([]byte(rulesFile(song)), song)
+// A Live project added to a folder of the project is suggested, with what
+// its preset would leave out; taking it (or saying none) ends the suggestion.
+func TestRuleSuggestions(t *testing.T) {
+	root := t.TempDir()
+	os.WriteFile(filepath.Join(root, profile.FileName), []byte(profile.Generate(root)), 0o644)
+	live := filepath.Join(root, "Music", "New Project")
+	os.MkdirAll(filepath.Join(live, "Ableton Project Info"), 0o755)
+	os.MkdirAll(filepath.Join(live, "Backup"), 0o755)
+	os.WriteFile(filepath.Join(live, "Backup", "Song [old].als"), []byte("0123456789"), 0o644)
+	os.WriteFile(filepath.Join(live, "Song.als"), []byte("x"), 0o644)
+	r, err := project.Init(root, "yi")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a := p.Applied(); len(a) != 1 || a[0].Preset != "ableton" || a[0].Detected {
-		t.Fatalf("applied: %+v", a)
+	s := suggestions(r)
+	if len(s) != 1 || s[0].Folder != "Music/New Project" || s[0].Preset != "ableton" || s[0].LeftOutBytes != 10 {
+		t.Fatalf("suggestions %+v", s)
 	}
-	if len(p.Rules) != 0 || !p.Ignored("Backup", true) {
-		t.Fatalf("rules: %+v", p.Rules)
+	if err := r.SetPreset(s[0].Folder, s[0].Preset); err != nil {
+		t.Fatal(err)
 	}
-	// A folder no preset knows: no use:, so detection goes on as before.
-	plain := t.TempDir()
-	if text := rulesFile(plain); strings.Contains(text, "use:") {
-		t.Fatalf("plain folder:\n%s", text)
+	if s := suggestions(r); len(s) != 0 {
+		t.Errorf("after taking it: %+v", s)
 	}
 }
 

@@ -4,9 +4,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
+	"dawgit/internal/profile"
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 )
@@ -21,7 +23,38 @@ func openRepo() (*project.Repo, error) {
 	if _, err := r.Lock(10 * time.Second); err != nil {
 		return nil, err
 	}
+	ensureRules(r)
 	return r, nil
+}
+
+// ensureRules writes the project's .dawgit.yaml, or adds the presets DAWGit
+// finds to an older one, as the app does when it opens a project.
+func ensureRules(r *project.Repo) {
+	switch did, err := r.EnsureRules(); {
+	case err != nil:
+		fmt.Fprintf(os.Stderr, "warning: %s: %v\n", profile.FileName, err)
+	case did == "created":
+		fmt.Fprintf(os.Stderr, "wrote %s: the presets DAWGit found (commit it with the project)\n", profile.FileName)
+	case did != "":
+		fmt.Fprintf(os.Stderr, "%s: added the presets DAWGit found (commit it with the project)\n", profile.FileName)
+	}
+}
+
+// printSuggestions tells about projects of tools found in folders the rules
+// don't name yet.
+func printSuggestions(r *project.Repo) {
+	p, err := r.Profile()
+	if err != nil {
+		return
+	}
+	for _, s := range p.Suggestions() {
+		folder := s.Folder
+		if folder == "" {
+			folder = "."
+		}
+		fmt.Printf("found: %s; its rules leave out %s.\n  dawgit profile preset %q %s   (or none: not a project)\n",
+			s, strings.Join(s.LeftOut, ", "), folder, s.Preset)
+	}
 }
 
 // tidy keeps .dawgit small, as the app does after each operation: of a team
@@ -49,6 +82,7 @@ func cmdInit(args []string) error {
 	if err != nil {
 		return err
 	}
+	ensureRules(r)
 	fmt.Printf("initialized dawgit project in %s (author %s)\n", r.Root, r.Config.Author)
 	fmt.Println("next: dawgit remote <server-url> --token TOKEN, then dawgit save -m \"first version\"")
 	return nil
@@ -76,6 +110,7 @@ func cmdStatus(args []string) error {
 			fmt.Println("team: up to date")
 		}
 	}
+	printSuggestions(r)
 	changes, err := r.Status()
 	if err != nil {
 		return err

@@ -370,8 +370,8 @@ export function OpenInTool(root: string, rel: string): $CancellablePromise<void>
 }
 
 /**
- * OpenRules opens the project's .dawgit.yaml in a text editor, creating it
- * from a commented template first.
+ * OpenRules opens the project's .dawgit.yaml in a text editor (written with
+ * what DAWGit finds first, when missing).
  */
 export function OpenRules(root: string): $CancellablePromise<void> {
     return $Call.ByID(1176482710, root);
@@ -571,6 +571,14 @@ export function SetOverview(root: string, file: string, version: string, fromFil
     return $Call.ByID(1307357046, root, file, version, fromFile, fromVersion).then(($result: any) => {
         return $$createType29($result);
     });
+}
+
+/**
+ * SetPreset says which preset applies to a folder of a project ("none": it
+ * isn't a project of that tool), in its .dawgit.yaml.
+ */
+export function SetPreset(root: string, folder: string, preset: string): $CancellablePromise<void> {
+    return $Call.ByID(3243533746, root, folder, preset);
 }
 
 /**

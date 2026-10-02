@@ -192,6 +192,7 @@ func cmdClone(args []string) error {
 	}
 	if release, err := r.Lock(0); err == nil {
 		tidy(r)
+		ensureRules(r)
 		release()
 	}
 	fmt.Printf("downloaded %q into %s\n", r.Config.Name, r.Root)

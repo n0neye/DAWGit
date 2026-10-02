@@ -47,6 +47,12 @@ func (a *App) tidyLater(root string) {
 			return
 		}
 		defer release()
+		// The rules' file: written when missing, presets added to an older one.
+		if did, err := r.EnsureRules(); did != "" && a.emit != nil {
+			a.emit("agent", AgentEvent{Root: root, Kind: "rules"})
+		} else if err != nil && tracing {
+			log.Printf("trace tidy %s: rules: %v", root, err)
+		}
 		pruned, err := r.PruneObjects()
 		if err != nil && tracing {
 			log.Printf("trace tidy %s: %v", root, err)

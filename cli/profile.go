@@ -78,6 +78,16 @@ func cmdProfile(args []string) error {
 			fmt.Println()
 		}
 		return loadErr
+	case "preset":
+		if len(args) != 3 {
+			return errors.New("usage: dawgit profile preset <folder> <preset|none>")
+		}
+		folder := filepath.ToSlash(filepath.Clean(args[1]))
+		if err := r.SetPreset(folder, args[2]); err != nil {
+			return err
+		}
+		fmt.Printf("%s: %s now uses %s (commit it with the project)\n", profile.FileName, args[1], args[2])
+		return nil
 	}
-	return fmt.Errorf("unknown profile command %q (check, explain)", args[0])
+	return fmt.Errorf("unknown profile command %q (check, explain, preset)", args[0])
 }

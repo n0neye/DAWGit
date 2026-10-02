@@ -47,6 +47,7 @@ advanced:
   export <id> <folder>                   write a version as a separate project folder
   profile check                          the project's rules (.dawgit.yaml) and whether they work
   profile explain <file>...              why a file is tracked or ignored
+  profile preset <folder> <preset|none>  which preset applies to a folder (presets: in .dawgit.yaml)
   gc                                     free space in .dawgit (files the team's storage has,
                                          leftovers no version uses)
   verify [--repair]                      check the history: every version and stored file;

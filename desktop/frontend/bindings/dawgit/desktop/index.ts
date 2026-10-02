@@ -20,6 +20,7 @@ export {
     ProjectFile,
     ProjectInfo,
     Result,
+    RuleSuggestion,
     RulesInfo,
     SetTrackChange,
     SetView,

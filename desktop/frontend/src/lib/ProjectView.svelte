@@ -1,8 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
-  import { api, ago, errorText, type State, type Result, type Preview, type Conflict, type TeamSummary,
-    type Progress, type Version } from "./api";
+  import { api, ago, errorText, formatBytes, type State, type Result, type Preview, type Conflict, type TeamSummary,
+    type Progress, type Version, type RuleSuggestion } from "./api";
   import { toast } from "./notify.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
@@ -272,9 +272,13 @@
   };
 
   // Commit from the commit box: when the team is ahead, ask first.
-  async function commit(confirmed = false) {
+  async function commit(confirmed = false, rulesAsked = false) {
     if (!message.trim() || busy || (st?.olderVersion && !st.remoteUrl)) return;
     if (st && st.changes.length && leftOut === st.changes.length) return; // nothing ticked
+    if (!confirmed && !rulesAsked && st?.rules.suggestions.length) {
+      rulesAsk = true;
+      return;
+    }
     if (!confirmed) {
       // Files the rules now leave out, and what the project's checks warn
       // about (e.g. a Unity asset without its .meta): say so first.
@@ -296,6 +300,32 @@
   const reopen = () => (st?.tool === "Ableton Live" ? " — reopen the set in Live"
     : st?.tool ? ` — switch back to ${st.tool} to load the changes` : "");
   const label = (rel: string) => (rel === "." ? st?.name ?? "the project" : rel);
+
+  // Projects of tools found in folders the rules don't name yet: their
+  // preset is suggested, and asked about before committing (or their
+  // caches would go up with the version).
+  const presetNames: Record<string, string> = { ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
+    design: "design", code: "code" };
+  const presetName = (p: string) => presetNames[p] ?? p;
+  const aName = (name: string) => (/^(a|e|i|o|un[^i])/i.test(name) ? "an " : "a ") + name;
+  // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
+  const leftOutText = (pats: string[]) => {
+    const names = [...new Set(pats.map((p) => p.replace(/^\/|\/$/g, "")))];
+    return names.length > 4 ? `${names.slice(0, 4).join(", ")} and ${names.length - 4} more` : names.join(", ");
+  };
+  let rulesAsk = $state(false);
+  async function setPreset(s: RuleSuggestion, preset: string) {
+    try {
+      await api.SetPreset(root, s.folder, preset);
+      await refresh();
+      if (rulesAsk && !st?.rules.suggestions.length) {
+        rulesAsk = false;
+        commit(false, true);
+      }
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
+  }
 
   // The project's rules (.dawgit.yaml): files no longer tracked, the dialog.
   let untrackedConfirm = $state<string[] | null>(null);
@@ -700,6 +730,12 @@
           done: () => toast("Files put back as they were", "ok") })}>Put files back</button>
       </div>
     {/if}
+    {#each st.rules.suggestions as s (s.folder + s.preset)}
+      <div class="banner warn">
+        <div>{@render suggestionText(s)}</div>
+        {@render suggestionButtons(s)}
+      </div>
+    {/each}
     {#if st.olderVersion}
       {@const v = st.olderVersion}
       <div class="banner older">
@@ -909,6 +945,34 @@
     </Modal>
   {/if}
 
+  {#snippet suggestionText(s: RuleSuggestion)}
+    <strong>{s.folder ? `${s.folder}/` : "This project"}</strong> looks like {aName(presetName(s.preset))} project.
+    <span class="muted" title={s.leftOut.join("  ")}>Its rules leave out {leftOutText(s.leftOut)}{#if s.leftOutBytes > 0}{" "}({formatBytes(s.leftOutBytes)} here){/if}.</span>
+  {/snippet}
+  {#snippet suggestionButtons(s: RuleSuggestion)}
+    <div class="row">
+      <button class="primary" onclick={() => setPreset(s, s.preset)}>Use {presetName(s.preset)} rules</button>
+      <button class="ghost" onclick={() => setPreset(s, "none")} title="DAWGit won't ask about this folder again">Not a project</button>
+    </div>
+  {/snippet}
+  {#if rulesAsk && st?.rules.suggestions.length}
+    <Modal title="Before you commit" onclose={() => (rulesAsk = false)}>
+      <p>DAWGit found {st.rules.suggestions.length === 1 ? "a project of another tool" : "projects of other tools"} in
+        this one. A tool's rules leave out what it makes again by itself (caches, backups), so that doesn't go up with
+        the version.</p>
+      {#each st.rules.suggestions as s (s.folder + s.preset)}
+        <div class="suggestion">
+          <div>{@render suggestionText(s)}</div>
+          {@render suggestionButtons(s)}
+        </div>
+      {/each}
+      {#snippet footer()}
+        <button onclick={() => (rulesAsk = false)}>Cancel</button>
+        <button onclick={() => { rulesAsk = false; commit(false, true); }}>Commit without these rules</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
   {#if untrackedConfirm}
     {@const files = untrackedConfirm}
     <Modal title={commitWarnings.length ? "Before you commit" : "No longer tracked"} onclose={() => (untrackedConfirm = null)}>
@@ -1066,6 +1130,8 @@
   .banner.info { background: #1d2c38; border: 1px solid #2c4557; }
   .banner.older { background: #2a2536; border: 1px solid #463c5c; }
   .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
+  .suggestion { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .suggestion > div:first-child { flex: 1; }
 
   nav { display: flex; gap: 4px; padding: 10px 24px 0; border-bottom: 1px solid var(--line); }
   nav button { border: none; background: transparent; border-radius: 6px 6px 0 0; padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; }

@@ -1,16 +1,19 @@
 # Project rules (`.dawgit.yaml`)
 
-Most projects need no setup: DAWGit recognizes an Ableton Live project and follows the built-in **ableton** preset. It tracks everything in the project folder except Live's `Backup` folder and its `.asd` analysis files.
+A project's rules say which files are left out of versions. They are in one place: the `.dawgit.yaml` file in the project folder, committed with the project, so the whole team follows the same rules (and so can an agent reading the project).
 
-To change what is tracked, add a `.dawgit.yaml` file to the project folder. In the app: **Rules** next to the team name at the top of a project → **Create .dawgit.yaml**. The file is committed with the project, so the whole team follows the same rules.
+DAWGit writes the file when a project is added (or opened, for a project from before the file): it names the presets it finds, such as **ableton** for a Live project, marked `# found by DAWGit`. Change the file freely. In the app: the gear next to the team name → **Rules**.
 
 ## Example
 
 ```yaml
-requires: "0.7"          # the oldest DAWGit that understands this file
-use:
-  ./: ableton            # the project folder is an Ableton Live project
-rules:                   # yours, on top of the preset; later rules win
+requires: "0.9.4"        # the oldest DAWGit that understands this file
+presets:                 # which preset applies to which folder
+  ./: design  # found by DAWGit
+  "Game/": unity  # found by DAWGit
+  "Music/Theme Project/": ableton  # found by DAWGit
+  "Tools/": none         # not a project of a tool: only the rules below
+rules:                   # yours, on top of the presets; later rules win
   - ignore: "Exports/"   # leave every "Exports" folder out of versions
   - ignore: "*.tmp"
   - track: "*.asd"       # keep Live's analysis files after all
@@ -49,7 +52,11 @@ A few things are never tracked, whatever the rules say: DAWGit's own `.dawgit` f
 
 ## Presets
 
-`use:` says which preset applies to which folder. `./` means the project folder. With no `use:`, DAWGit detects the preset as it would without a `.dawgit.yaml`. `none` turns a folder's preset off, so only your rules apply there.
+`presets:` says which preset applies to which folder (`use:` is its older name, still read). `./` means the project folder. `none` turns a folder's preset off, so only your rules apply there. A folder `presets:` doesn't name gets no preset.
+
+When a project of a tool turns up in a folder `presets:` doesn't name (a Unity project added to a bigger project, say), DAWGit suggests its preset: in the app as a note above the changes, asked again before committing (or the tool's caches would go up with the version); on the command line in `dawgit status`. Taking it, or saying it isn't one, writes the folder into `presets:` (`dawgit profile preset <folder> <preset|none>`). DAWGit looks up to three folders deep, for the projects of tools (presets of priority 0 and up, such as a Live or Unity project); design files or a `.gitignore` in a folder don't make it a project of its own.
+
+A file without `presets:` (from before 0.9.4) gets the presets DAWGit finds added when the project is opened.
 
 The built-in presets:
 
@@ -58,8 +65,6 @@ The built-in presets:
 | `ableton` | Ableton Live projects | an `Ableton Project Info` folder or a `.als` file | `/Backup/`, `*.asd` |
 
 A preset can ask for the project's `.gitignore` files (`gitignore: true`), and has a `priority` for detection (0 by default): when several presets recognize a folder, the highest wins. So a folder with a `.gitignore` can be a code project (a low priority) unless it is also, say, a Unity project.
-
-Detection also looks inside the project folder, up to three folders deep, for the projects of tools (presets of priority 0 and up, such as a Live or Unity project). Their preset applies in their folder: a Unity project in `Game/` leaves out `Game/Library/`, a Live project in `Music/Theme Project/` its own `Backup/`. Design files or a `.gitignore` in a folder don't make it a project of its own. With `use:`, only the folders it names get a preset.
 
 A preset also tells DAWGit which built-in code handles which files, what to check before rewriting files, and how files are grouped and shown in the app. The handlers a preset can name:
 

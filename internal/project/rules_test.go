@@ -103,3 +103,35 @@ func TestRulesThatCantBeFollowed(t *testing.T) {
 	}
 	os.Remove(filepath.Join(root, profile.FileName))
 }
+
+// The rules file is written when missing and given presets: when older;
+// the second time nothing changes.
+func TestEnsureRules(t *testing.T) {
+	r, _ := Init(newProject(t), "yi")
+	if did, err := r.EnsureRules(); err != nil || did != "created" {
+		t.Fatalf("first: %q %v", did, err)
+	}
+	p, err := r.Profile()
+	if err != nil || !p.FromFile || p.Named == nil || !p.Ignored("Backup", true) {
+		t.Fatalf("rules from the file: %+v %v", p.Applied(), err)
+	}
+	if did, _ := r.EnsureRules(); did != "" {
+		t.Errorf("again: %q", did)
+	}
+	// An older file: rules only.
+	os.WriteFile(r.Abs(profile.FileName), []byte("requires: \"0.7\"\nrules:\n  - ignore: \"Exports/\"\n"), 0o644)
+	if did, err := r.EnsureRules(); err != nil || did != "presets added" {
+		t.Fatalf("older file: %q %v", did, err)
+	}
+	data, _ := os.ReadFile(r.Abs(profile.FileName))
+	text := string(data)
+	if !strings.Contains(text, "./: ableton  "+profile.FoundMark) || !strings.Contains(text, `requires: "`+profile.PresetsVersion+`"`) ||
+		!strings.Contains(text, `- ignore: "Exports/"`) {
+		t.Errorf("older file now:\n%s", text)
+	}
+	// A broken file is the person's to fix.
+	os.WriteFile(r.Abs(profile.FileName), []byte("rules: [\n"), 0o644)
+	if did, _ := r.EnsureRules(); did != "" {
+		t.Errorf("broken file changed: %q", did)
+	}
+}
