@@ -123,8 +123,13 @@ func (a *App) Overview() (*Overview, error) {
 		for _, p := range ps {
 			if i, ok := seen[p.ID]; !ok {
 				ov.Projects = append(ov.Projects, TeamProject{ID: p.ID, Name: p.Name, Status: "remote"})
-			} else if ov.Projects[i].Status == "missing" && p.Name != "" {
-				ov.Projects[i].Name = p.Name // the folder name says little once it's gone
+			} else if p.Name != "" && ov.Projects[i].Name != p.Name {
+				// The team's name wins (someone renamed it, or the folder is
+				// gone); the copy here takes it on.
+				ov.Projects[i].Name = p.Name
+				if ov.Projects[i].Status == "downloaded" {
+					go a.adoptName(ov.Projects[i].Root, p.Name)
+				}
 			}
 		}
 	}

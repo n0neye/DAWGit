@@ -523,6 +523,71 @@ export class ProjectFile {
 }
 
 /**
+ * ProjectInfo is what a project's menu and settings show, read without
+ * looking at its files (fast).
+ */
+export class ProjectInfo {
+    "root": string;
+    "name": string;
+    "id": string;
+    "branch": string;
+
+    /**
+     * the program it is made with ("" unknown)
+     */
+    "tool": string;
+
+    /**
+     * what "Open in <Tool>" offers
+     */
+    "openable": string[];
+    "rules": RulesInfo;
+
+    /** Creates a new ProjectInfo instance. */
+    constructor($$source: Partial<ProjectInfo> = {}) {
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("tool" in $$source)) {
+            this["tool"] = "";
+        }
+        if (!("openable" in $$source)) {
+            this["openable"] = [];
+        }
+        if (!("rules" in $$source)) {
+            this["rules"] = (new RulesInfo());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectInfo {
+        const $$createField5_0 = $$createType2;
+        const $$createField6_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("openable" in $$parsedSource) {
+            $$parsedSource["openable"] = $$createField5_0($$parsedSource["openable"]);
+        }
+        if ("rules" in $$parsedSource) {
+            $$parsedSource["rules"] = $$createField6_0($$parsedSource["rules"]);
+        }
+        return new ProjectInfo($$parsedSource as Partial<ProjectInfo>);
+    }
+}
+
+/**
  * Result of save / update / merge / switch.
  */
 export class Result {
@@ -627,7 +692,7 @@ export class RulesInfo {
      * Creates a new RulesInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): RulesInfo {
-        const $$createField0_0 = $$createType14;
+        const $$createField0_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
@@ -724,10 +789,10 @@ export class SetView {
      * Creates a new SetView instance from a string or object.
      */
     static createFrom($$source: any = {}): SetView {
-        const $$createField0_0 = $$createType16;
-        const $$createField1_0 = $$createType16;
+        const $$createField0_0 = $$createType17;
+        const $$createField1_0 = $$createType17;
         const $$createField2_0 = $$createType2;
-        const $$createField4_0 = $$createType18;
+        const $$createField4_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("now" in $$parsedSource) {
             $$parsedSource["now"] = $$createField0_0($$parsedSource["now"]);
@@ -892,7 +957,7 @@ export class State {
      * Creates a new State instance from a string or object.
      */
     static createFrom($$source: any = {}): State {
-        const $$createField0_0 = $$createType19;
+        const $$createField0_0 = $$createType13;
         const $$createField14_0 = $$createType2;
         const $$createField15_0 = $$createType1;
         const $$createField17_0 = $$createType1;
@@ -1578,13 +1643,13 @@ const $$createType9 = Change.createFrom;
 const $$createType10 = $Create.Array($$createType9);
 const $$createType11 = Conflict.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = profile$0.Applied.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = als$0.Overview.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = SetTrackChange.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = RulesInfo.createFrom;
+const $$createType13 = RulesInfo.createFrom;
+const $$createType14 = profile$0.Applied.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = als$0.Overview.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = SetTrackChange.createFrom;
+const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = project$0.TrackEdit.createFrom;
 const $$createType21 = $Create.Array($$createType20);
 const $$createType22 = Branch.createFrom;

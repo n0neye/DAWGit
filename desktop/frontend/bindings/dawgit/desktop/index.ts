@@ -17,6 +17,7 @@ export {
     Overview,
     Preview,
     ProjectFile,
+    ProjectInfo,
     Result,
     RulesInfo,
     SetTrackChange,

@@ -15,9 +15,10 @@
 
   // firstShare: the project was just added to a team; commit and upload its
   // first version right away.
-  let { root, refreshKey, teams, firstShare = false, onchanged, onfirstshared }: {
+  let { root, refreshKey, teams, firstShare = false, onchanged, onfirstshared, onsettings }: {
     root: string; refreshKey: number; teams: TeamSummary[]; firstShare?: boolean;
     onchanged: () => void; onfirstshared?: () => void;
+    onsettings: () => void; // the project's settings (name, rules, …)
   } = $props();
 
   let st = $state<State | null>(cachedState(untrack(() => root)));
@@ -281,7 +282,6 @@
   // The project's rules (.dawgit.yaml): files no longer tracked, the dialog.
   let untrackedConfirm = $state<string[] | null>(null);
   let commitWarnings = $state<string[]>([]);
-  let rulesOpen = $state(false);
   async function openRules() {
     try {
       await api.OpenRules(root);
@@ -627,8 +627,10 @@
           {:else}
             <span class="faint">on this computer only</span>
           {/if}
-          <button class="ghost rules-btn" class:bad={!!st.rules.error} onclick={() => (rulesOpen = true)}
-            title="Which files DAWGit tracks in this project">{st.rules.error ? "⚠ Rules" : "Rules"}</button>
+          <button class="ghost gear" class:bad={!!st.rules.error} onclick={onsettings}
+            title={st.rules.error ? `Project settings — ⚠ ${st.rules.error}` : "Project settings: name, rules, …"}
+            aria-label="Project settings">{st.rules.error ? "⚠" : ""}<svg viewBox="0 0 16 16" aria-hidden="true"><path
+              fill="currentColor" d="M9.4 1.2l.3 1.7c.5.2.9.4 1.3.7l1.6-.6 1.4 2.4-1.3 1.1c.1.5.1 1 0 1.5l1.3 1.1-1.4 2.4-1.6-.6c-.4.3-.8.5-1.3.7l-.3 1.7H6.6l-.3-1.7c-.5-.2-.9-.4-1.3-.7l-1.6.6L2 11.1l1.3-1.1c-.1-.5-.1-1 0-1.5L2 7.4l1.4-2.4 1.6.6c.4-.3.8-.5 1.3-.7l.3-1.7h2.8zM8 5.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8z" /></svg></button>
         </div>
       </div>
       <div class="actions">
@@ -886,31 +888,6 @@
     </Modal>
   {/if}
 
-  {#if rulesOpen}
-    <Modal title="Rules of “{st.name}”" onclose={() => (rulesOpen = false)}>
-      <p class="muted">Which files DAWGit tracks, set in the project's <span class="mono">.dawgit.yaml</span>. The file is
-        committed with the project, so the whole team uses the same rules.</p>
-      <ul class="applied">
-        {#each st.rules.applied as a}
-          <li><strong>{a.preset === "none" ? "No preset" : a.preset === "ableton" ? "Ableton Live project"
-            : st.tool ? `${st.tool} project (${a.preset})` : a.preset}</strong>
-            <span class="faint">{a.folder ? `in ${a.folder}/` : "the project folder"}{a.detected ? " · detected" : ""}</span></li>
-        {:else}
-          <li class="faint">No preset: every file is tracked.</li>
-        {/each}
-      </ul>
-      <p class="faint small">{st.rules.fromFile ? "Your .dawgit.yaml may add rules on top, e.g. to leave a folder out."
-        : "No .dawgit.yaml yet: DAWGit follows the preset as is. Create one to leave folders out or track more."}</p>
-      {#if st.rules.error}<p class="error">{st.rules.error}</p>{/if}
-      {#snippet footer()}
-        <button class="ghost" onclick={() => api.OpenURL("https://github.com/n0neye/DAWGit/blob/main/docs/profiles.md")}>Guide ↗</button>
-        <span class="spacer"></span>
-        <button onclick={() => (rulesOpen = false)}>Close</button>
-        <button class="primary" onclick={() => { rulesOpen = false; openRules(); }}>{st?.rules.fromFile ? "Open .dawgit.yaml" : "Create .dawgit.yaml"}</button>
-      {/snippet}
-    </Modal>
-  {/if}
-
   {#if preview}
     {@const p = preview}
     <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
@@ -1049,15 +1026,14 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
   .dot.on { background: var(--accent); }
   .dot.checking { background: var(--faint); }
-  .rules-btn { padding: 2px 8px; font-size: 12.5px; color: var(--faint); }
-  .rules-btn:hover { color: var(--text); }
-  .rules-btn.bad { color: var(--warn); }
+  .gear { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px; font-size: 12.5px; color: var(--faint); }
+  .gear svg { width: 15px; height: 15px; }
+  .gear:hover { color: var(--text); }
+  .gear.bad { color: var(--warn); }
   .untracked { list-style: none; padding: 8px 12px; margin: 10px 0 0; background: var(--bg); border-radius: 8px;
     font-size: 12.5px; max-height: 220px; overflow: auto; }
   .warnings { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px;
     color: var(--warn); font-size: 13.5px; user-select: text; }
-  .applied { list-style: none; padding: 0; margin: 12px 0; display: flex; flex-direction: column; gap: 6px; }
-  .applied li { display: flex; gap: 10px; align-items: baseline; }
 
   .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
   .banner > div { flex: 1; }

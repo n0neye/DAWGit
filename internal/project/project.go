@@ -102,6 +102,26 @@ func (r *Repo) SaveConfig() error {
 	return writeJSON(filepath.Join(r.Dir, "config.json"), r.Config)
 }
 
+// Rename gives the project another name, for its team too (the folder keeps
+// its own).
+func (r *Repo) Rename(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len([]rune(name)) > 100 {
+		return errors.New("a name needs 1 to 100 characters")
+	}
+	if r.Config.Remote != nil && r.Config.Remote.URL != "" {
+		c, err := r.Client()
+		if err != nil {
+			return err
+		}
+		if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: name}); err != nil {
+			return err
+		}
+	}
+	r.Config.Name = name
+	return r.SaveConfig()
+}
+
 // projectName derives a display name from an Ableton project folder
 // ("My Song Project" -> "My Song").
 func projectName(root string) string {
