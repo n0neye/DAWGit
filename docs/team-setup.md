@@ -44,17 +44,15 @@ The **Team** menu at the top of the sidebar switches between teams and joins or 
 - **Your name in this team** — shown next to the versions you commit; changing it changes it on all your versions, for everyone.
 - **Invite teammates** — copy the connection code again.
 - **Connection** — change the bucket or key (e.g. after making a new key). DAWGit checks the new settings before saving them.
-- **Disconnect** — forget the team on this computer. By default its projects move to **Local**: their versions stay and you can keep committing. When you join the team again, DAWGit lists the projects of that team it finds under Local, to reconnect the ones you tick.
+- **Disconnect** — forget the team on this computer. By default its projects keep their versions, set aside. When you join the team again, DAWGit lists the projects of that team it finds on this computer, to reconnect the ones you tick.
 
 Keys are stored once per computer (in `%APPDATA%\DAWGit\teams.json`), never inside project folders, so a project folder can be copied or shared without leaking them.
 
-**Disk space.** A team project's history lives in the team's storage. On your computer, the project's `.dawgit` folder keeps its Live Sets (small) but not copies of samples the team's storage already has: the project folder has the current ones, and older ones are downloaded when you go to an older version, listen to one, or restore a file. A project kept on this computer only (Local) keeps everything, so its `.dawgit` folder grows to about the size of the project. When you disconnect from a team, you can download the files of older versions too, so its projects work fully under Local.
+**Disk space.** A team project's history lives in the team's storage. On your computer, the project's `.dawgit` folder keeps its Live Sets (small) but not copies of samples the team's storage already has: the project folder has the current ones, and older ones are downloaded when you go to an older version, listen to one, or restore a file. When you disconnect from a team, you can download the files of older versions too.
 
 ## 4. Share a project (the person who has it)
 
-In the sidebar, click **+ Add project** and choose the Ableton project folder (the one with the `.als` file and `Ableton Project Info`). DAWGit commits a first version and uploads it, samples included.
-
-To keep a project's versions on this computer only, pick **Local** in the Team menu and add it there. It can be shared later with **Share with a team…** at the top of the project.
+In the sidebar, click **+ Add project** and choose the project folder (for Live, the one with the `.als` file and `Ableton Project Info`). DAWGit asks whether to commit and share a first version now, or later, after you've looked through the files and ignored the folders or files you don't need (right-click › Ignore). Nothing is uploaded until you say so.
 
 ## 5. Get a project (everyone else)
 
@@ -62,12 +60,13 @@ The sidebar lists every song in the current team. Songs not on this computer yet
 
 If you move a downloaded project folder, DAWGit marks it with ⚠: click **Locate folder…** to point it at the new place.
 
-The **⋯** menu next to a song:
+The **⋯** menu next to a project: **Pin to top**, **Open in Live** (or the project's program), **Open folder** and **Settings…**. The project's settings (also the ⚙ by its title) hold:
 
-- **Remove from list** — the folder stays on this computer.
-- **Move to Local…** — take it out of the team on this computer only; its versions stay. The team keeps its copy.
-- **Move to another team…** (or **Move to a team…** for a Local project) — share its versions with another team you are in.
-- **Delete from server…** — delete it from the team for everyone (you type the song's name to confirm). Copies already on someone's computer are kept.
+- **Name** — rename it for everyone in the team; the folder keeps its name.
+- **Rules** — which files are versioned (`.dawgit.yaml`).
+- **Check project…** — read its whole history again, looking for damage.
+- **Unlink folder** — DAWGit stops listing the folder here; nothing is deleted.
+- **Delete from the team…** — delete it for everyone (you type its name to confirm). Copies already on someone's computer are kept.
 
 ## Everyday use
 

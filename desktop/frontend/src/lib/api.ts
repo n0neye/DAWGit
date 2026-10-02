@@ -58,8 +58,6 @@ export function lineKind(line: string): string {
 }
 
 /** A connection code bundles storage address and keys; no token needed. */
-// Overview.currentTeam when the Local projects (this computer only) are shown.
-export const LOCAL = "local";
 
 // How a long step (save, upload, download) is going; "progress" events.
 export type Progress = { root: string; stage: string; done: number; total: number; bytes?: number; totalBytes?: number };

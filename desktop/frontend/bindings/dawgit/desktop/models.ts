@@ -335,11 +335,6 @@ export class Overview {
     "projects": TeamProject[];
     "teamError": string;
 
-    /**
-     * kept on this computer only
-     */
-    "local": TeamProject[];
-
     /** Creates a new Overview instance. */
     constructor($$source: Partial<Overview> = {}) {
         if (!("author" in $$source)) {
@@ -357,9 +352,6 @@ export class Overview {
         if (!("teamError" in $$source)) {
             this["teamError"] = "";
         }
-        if (!("local" in $$source)) {
-            this["local"] = [];
-        }
 
         Object.assign(this, $$source);
     }
@@ -370,16 +362,12 @@ export class Overview {
     static createFrom($$source: any = {}): Overview {
         const $$createField1_0 = $$createType5;
         const $$createField3_0 = $$createType7;
-        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("teams" in $$parsedSource) {
             $$parsedSource["teams"] = $$createField1_0($$parsedSource["teams"]);
         }
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField3_0($$parsedSource["projects"]);
-        }
-        if ("local" in $$parsedSource) {
-            $$parsedSource["local"] = $$createField5_0($$parsedSource["local"]);
         }
         return new Overview($$parsedSource as Partial<Overview>);
     }

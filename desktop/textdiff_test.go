@@ -15,7 +15,7 @@ func TestTextDiff(t *testing.T) {
 	root := newSong(t)
 	notes := filepath.Join(root, "notes.txt")
 	os.WriteFile(notes, []byte("intro\nverse\nchorus\n"), 0o644)
-	if _, err := a.AddLocalProject(root); err != nil {
+	if _, err := project.Init(root, "yi"); err != nil { // committed here, no team needed
 		t.Fatal(err)
 	}
 	if _, err := a.Save(root, "first", true, nil, true, nil); err != nil {

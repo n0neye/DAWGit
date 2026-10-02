@@ -4,23 +4,20 @@
   import { toast } from "./notify.svelte";
 
   // A project's settings: its name, where it is, its rules, and what can be
-  // done with it (check it, move it, unlink or delete it). The actions that
+  // done with it (check it, unlink or delete it). The actions that
   // need a confirmation of their own are the caller's.
-  let { p, team, canMoveTeam, onclose, onrenamed, oncheck, onmovelocal, onmoveteam, ondelete, onunlink, onlocate }: {
+  let { p, team, onclose, onrenamed, oncheck, ondelete, onunlink, onlocate }: {
     p: TeamProject;
     team?: TeamSummary;     // the project's team (none: on this computer only)
-    canMoveTeam: boolean;   // there is a team to move it to
     onclose: () => void;
     onrenamed: () => void;
     oncheck: () => void;
-    onmovelocal: () => void;
-    onmoveteam: () => void;
     ondelete: () => void;
     onunlink: () => void;
     onlocate: () => void;
   } = $props();
 
-  const here = $derived(p.status === "downloaded" || p.status === "local");
+  const here = $derived(p.status === "downloaded");
   let info = $state<ProjectInfo | null>(null);
   $effect(() => {
     if (!here) return;
@@ -114,25 +111,6 @@
         <div><strong>Check project…</strong><p class="hint">Reads its whole history again, looking for damage.</p></div>
         <button onclick={oncheck}>Check…</button>
       </div>
-    </section>
-  {/if}
-
-  {#if p.root && (p.status === "downloaded" || (p.status === "local" && canMoveTeam) || (p.status !== "local" && canMoveTeam))}
-    <section>
-      <h3>Sharing</h3>
-      {#if p.status === "downloaded"}
-        <div class="action">
-          <div><strong>Move to Local…</strong><p class="hint">Keep it on this computer only. The team keeps its copy.</p></div>
-          <button onclick={onmovelocal}>Move…</button>
-        </div>
-      {/if}
-      {#if canMoveTeam}
-        <div class="action">
-          <div><strong>{p.status === "local" ? "Move to a team…" : "Move to another team…"}</strong>
-            <p class="hint">Share its versions there.</p></div>
-          <button onclick={onmoveteam}>Move…</button>
-        </div>
-      {/if}
     </section>
   {/if}
 

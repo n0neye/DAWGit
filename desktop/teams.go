@@ -54,7 +54,6 @@ type Overview struct {
 	CurrentTeam string        `json:"currentTeam"`
 	Projects    []TeamProject `json:"projects"` // of the current team
 	TeamError   string        `json:"teamError"`
-	Local       []TeamProject `json:"local"` // kept on this computer only
 }
 
 func teamSummary(t teams.Team) TeamSummary {
@@ -79,13 +78,16 @@ func (a *App) Overview() (*Overview, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Every project is a team's (0.9): with "local" or no team picked, the
+	// first team is shown.
+	if store.Find(store.Current) == nil && len(store.Teams) > 0 {
+		store.Current = store.Teams[0].ID
+		store.Save()
+	}
 	ov := &Overview{Author: store.Author, CurrentTeam: store.Current, Teams: []TeamSummary{},
-		Projects: []TeamProject{}, Local: []TeamProject{}}
+		Projects: []TeamProject{}}
 	for _, t := range store.Teams {
 		ov.Teams = append(ov.Teams, teamSummary(t))
-	}
-	for _, root := range store.Local {
-		ov.Local = append(ov.Local, folderProject(root, "local"))
 	}
 	t := store.Find(store.Current)
 	if t == nil {
@@ -225,7 +227,7 @@ func (a *App) SelectTeam(id string) error {
 	if err != nil {
 		return err
 	}
-	if id != teams.LocalID && store.Find(id) == nil {
+	if store.Find(id) == nil {
 		return errors.New("unknown team")
 	}
 	store.Current = id
@@ -338,47 +340,6 @@ func (a *App) detach(store *teams.Store, root string, fullHistory bool) error {
 	}
 	store.AddLocal(r.Root)
 	return nil
-}
-
-// MoveProjectToLocal takes a project out of its team, on this computer only:
-// it stays in the team for everyone else, and here keeps its versions under
-// Local (with fullHistory, also the files of older versions).
-func (a *App) MoveProjectToLocal(root string, fullHistory bool) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	if err := a.detach(store, root, fullHistory); err != nil {
-		return err
-	}
-	return store.Save()
-}
-
-// MoveProjectToTeam puts a project (from Local or another team) in a team;
-// the page then shares its versions there (as for a first share). The old
-// team keeps its copy.
-func (a *App) MoveProjectToTeam(root, teamID string) (TeamProject, error) {
-	store, err := teams.Load()
-	if err != nil {
-		return TeamProject{}, err
-	}
-	if store.Find(teamID) == nil {
-		return TeamProject{}, errors.New("unknown team")
-	}
-	// The new team gets the whole history, so all of it must be here.
-	if r, err := project.Open(root); err == nil && r.Config.Remote == nil {
-		if n, _, _ := r.HistoryNotHere(); n > 0 {
-			return TeamProject{}, errors.New("some files of older versions are only in the storage of the team this " +
-				"project was in: join that team again, then move the project from there")
-		}
-	}
-	if err := a.detach(store, root, true); err != nil {
-		return TeamProject{}, err
-	}
-	if err := store.Save(); err != nil {
-		return TeamProject{}, err
-	}
-	return a.AddProjectToTeam(teamID, root)
 }
 
 // FoundProject is a project on this computer that belongs to a team.
@@ -528,36 +489,6 @@ func projectFolder(folder string) string {
 		}
 	}
 	return clean
-}
-
-// AddLocalProject tracks a folder on this computer only (no team).
-func (a *App) AddLocalProject(folder string) (TeamProject, error) {
-	folder = projectFolder(folder)
-	store, err := teams.Load()
-	if err != nil {
-		return TeamProject{}, err
-	}
-	r, err := project.Open(folder)
-	if errors.Is(err, project.ErrNotRepo) {
-		r, err = project.Init(folder, store.Author)
-	}
-	if err != nil {
-		return TeamProject{}, err
-	}
-	if r.Config.Remote != nil {
-		return TeamProject{}, errors.New("this project belongs to a team: connect to that team to open it")
-	}
-	store.AddLocal(r.Root)
-	store.Current = teams.LocalID // show it
-	if err := store.Save(); err != nil {
-		return TeamProject{}, err
-	}
-	return folderProject(r.Root, "local"), nil
-}
-
-// ShareProject moves a local-only project into a team (see AddProjectToTeam).
-func (a *App) ShareProject(root, teamID string) (TeamProject, error) {
-	return a.AddProjectToTeam(teamID, root)
 }
 
 // LocateProject points a team project at a folder that was moved.
