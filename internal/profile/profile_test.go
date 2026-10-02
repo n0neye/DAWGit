@@ -180,3 +180,36 @@ func TestEndsWithMatchesLikeMatchPath(t *testing.T) {
 		}
 	}
 }
+
+// A Live project in a folder of a bigger project is found: its rules apply
+// there, also with a .dawgit.yaml that doesn't say which presets to use.
+func TestDetectsProjectsInside(t *testing.T) {
+	root := t.TempDir()
+	live := filepath.Join(root, "Music", "Theme Project")
+	os.MkdirAll(filepath.Join(live, "Ableton Project Info"), 0o755)
+	os.MkdirAll(filepath.Join(live, "Backup"), 0o755)
+	os.MkdirAll(filepath.Join(root, "Art"), 0o755)
+	os.MkdirAll(filepath.Join(root, "Backup"), 0o755)
+	check := func(p *Profile) {
+		t.Helper()
+		if !p.Ignored("Music/Theme Project/Backup", true) || p.Ignored("Backup", true) {
+			t.Errorf("Live's rules inside its folder only: %+v", p.Applied())
+		}
+		if p.Kind("Music/Theme Project/Song.als") != "set" {
+			t.Error("the set is a set")
+		}
+	}
+	check(Detect(root))
+	os.WriteFile(filepath.Join(root, FileName), []byte("rules:\n  - ignore: \"*.tmp\"\n"), 0o644)
+	p, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(p)
+	// Deeper than DAWGit looks: not found.
+	deep := filepath.Join(root, "a", "b", "c", "d")
+	os.MkdirAll(filepath.Join(deep, "Ableton Project Info"), 0o755)
+	if len(Detect(root).Applied()) != 1 {
+		t.Errorf("too deep: %+v", Detect(root).Applied())
+	}
+}

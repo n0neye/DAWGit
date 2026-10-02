@@ -22,8 +22,15 @@ func rulesFile(root string) string {
 		v = parts[0] + "." + parts[1]
 	}
 	use := ""
-	if a := profile.Detect(root).Applied(); len(a) == 1 {
-		use = "use:\n  ./: " + a[0].Preset + "\n"
+	if a := profile.Detect(root).Applied(); len(a) > 0 {
+		use = "use:\n"
+		for _, x := range a {
+			folder := "./"
+			if x.Folder != "" {
+				folder = strconv.Quote(x.Folder + "/") // a project found inside
+			}
+			use += "  " + folder + ": " + x.Preset + "\n"
+		}
 	}
 	return `# DAWGit's rules for this project: which files are left out of versions.
 # This file is committed with the project, so the whole team uses the same rules.

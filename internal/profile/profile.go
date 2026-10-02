@@ -252,11 +252,67 @@ func Detect(root string) *Profile {
 	for _, name := range names {
 		if detects(builtin[name], root) {
 			p.applied = append(p.applied, applied{Applied: Applied{Folder: "", Preset: name, Detected: true}, preset: builtin[name]})
-			p.followGitignore()
-			return p
+			break
 		}
 	}
+	p.detectInside(names)
+	p.sort()
+	p.followGitignore()
 	return p
+}
+
+// Sub-projects are looked for this deep in the project folder, in at most
+// this many folders.
+const (
+	subprojectDepth   = 3
+	subprojectFolders = 2000
+)
+
+// detectInside finds the projects of tools inside the project folder (a
+// Unity or Live project in a folder of a bigger project): their own rules
+// apply there (Unity's Library, Live's Backup). Only presets of tools'
+// project folders (priority 0 and up): design files or a .gitignore in a
+// folder don't make it a project of its own.
+func (p *Profile) detectInside(names []string) {
+	type dir struct {
+		rel   string
+		depth int
+	}
+	queue := []dir{{"", 0}}
+	visited := 0
+	for len(queue) > 0 && visited < subprojectFolders {
+		d := queue[0]
+		queue = queue[1:]
+		entries, err := os.ReadDir(filepath.Join(p.root, filepath.FromSlash(d.rel)))
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			rel := path.Join(d.rel, e.Name())
+			if p.Ignored(rel, true) {
+				continue
+			}
+			visited++
+			found := ""
+			for _, name := range names {
+				if builtin[name].Priority >= 0 && detects(builtin[name], filepath.Join(p.root, filepath.FromSlash(rel))) {
+					found = name
+					break
+				}
+			}
+			if found != "" {
+				p.applied = append(p.applied, applied{Applied: Applied{Folder: rel, Preset: found, Detected: true}, preset: builtin[found]})
+				p.sort()
+				continue // its own rules from here on
+			}
+			if d.depth+1 < subprojectDepth {
+				queue = append(queue, dir{rel, d.depth + 1})
+			}
+		}
+	}
 }
 
 func detects(pr *Preset, root string) bool {

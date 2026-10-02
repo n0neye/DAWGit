@@ -59,6 +59,8 @@ The built-in presets:
 
 A preset can ask for the project's `.gitignore` files (`gitignore: true`), and has a `priority` for detection (0 by default): when several presets recognize a folder, the highest wins. So a folder with a `.gitignore` can be a code project (a low priority) unless it is also, say, a Unity project.
 
+Detection also looks inside the project folder, up to three folders deep, for the projects of tools (presets of priority 0 and up, such as a Live or Unity project). Their preset applies in their folder: a Unity project in `Game/` leaves out `Game/Library/`, a Live project in `Music/Theme Project/` its own `Backup/`. Design files or a `.gitignore` in a folder don't make it a project of its own. With `use:`, only the folders it names get a preset.
+
 A preset also tells DAWGit which built-in code handles which files, what to check before rewriting files, and how files are grouped and shown in the app. The handlers a preset can name:
 
 | Handler | Kind | Does |
