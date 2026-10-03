@@ -61,6 +61,15 @@ type Backend interface {
 
 var _ Backend = (*Client)(nil)
 
+// BodyStore is storage that keeps encoded blobs (package blob: compressed,
+// with a header) under an object's hash; the upload is checked against the
+// encoding's own SHA-256. A team server keeps contents as they are.
+type BodyStore interface {
+	PutObjectBody(hash string, r io.Reader, size int64, bodySHA string) error
+}
+
+var _ BodyStore = (*S3Backend)(nil)
+
 // Member is a person in the team. Versions record the member's id, so a new
 // display name applies to everything they did.
 type Member struct {

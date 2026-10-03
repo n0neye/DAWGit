@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"dawgit/internal/blob"
 	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/store"
@@ -200,7 +201,12 @@ func (r *Repo) fetchTrees(c remote.Backend, root string) error {
 		if err := inParallel(need, func(h string) error {
 			var data []byte
 			err := remote.Retry(remote.RetryAttempts, func() error {
-				body, err := c.GetObject(h)
+				raw, err := c.GetObject(h)
+				if err != nil {
+					return err
+				}
+				defer raw.Close()
+				body, err := blob.NewReader(raw)
 				if err != nil {
 					return err
 				}
