@@ -159,7 +159,7 @@ func (p *Profile) Suggestions() []Suggestion {
 	if p.Named == nil {
 		return nil
 	}
-	found := &Profile{root: p.root, Rules: p.Rules, Gitignore: p.Gitignore, gi: p.gi,
+	found := &Profile{root: p.root, Rules: p.Rules, Gitignore: p.Gitignore,
 		applied: append([]applied(nil), p.applied...)}
 	names := Names()
 	sort.SliceStable(names, func(i, j int) bool { return builtin[names[i]].Priority > builtin[names[j]].Priority })

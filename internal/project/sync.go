@@ -3,6 +3,7 @@ package project
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"dawgit/internal/blob"
+	"dawgit/internal/chunk"
 	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/teams"
@@ -222,16 +224,34 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	}
 	t := r.newTransfer(StageDownloading, len(need), total)
 	t.report()
+	var once sync.Once
+	var here map[string]pieceAt
+	local := func() map[string]pieceAt {
+		once.Do(func() { here = r.localPieces() })
+		return here
+	}
 	return transferAll(need, func(h string) int64 { return r.sizes[h] }, func(h string) error {
 		// Storage failing for a moment (or the connection dropping): again.
+		var list *chunk.List
 		err := remote.Retry(remote.RetryAttempts, func() error {
+			list = nil
 			raw, err := c.GetObject(h)
 			if err != nil {
 				return err
 			}
-			body, err := blob.NewReader(raw)
+			body, isList, err := blob.Open(raw)
 			if err != nil {
 				raw.Close()
+				return err
+			}
+			if isList { // kept as pieces
+				text, err := io.ReadAll(body)
+				body.Close()
+				raw.Close()
+				if err != nil {
+					return err
+				}
+				list, err = chunk.Parse(text)
 				return err
 			}
 			cr := t.reader(body, -1)
@@ -247,6 +267,9 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 			}
 			return nil
 		})
+		if err == nil && list != nil {
+			err = r.downloadChunked(c, h, list, t, local)
+		}
 		if err != nil {
 			return fmt.Errorf("download %s: %w", short(h), err)
 		}
@@ -400,7 +423,28 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 		}
 		defer release()
 	}
-	if err := r.uploadObjects(c, objects); err != nil {
+	var leaseMu sync.Mutex
+	var releases []func()
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+	hold := func(hashes []string) error {
+		l, ok := c.(remote.Leaser)
+		if !ok {
+			return nil
+		}
+		release, err := l.Lease(hashes)
+		if err != nil {
+			return err
+		}
+		leaseMu.Lock()
+		releases = append(releases, release)
+		leaseMu.Unlock()
+		return nil
+	}
+	if err := r.uploadObjects(c, objects, hold); err != nil {
 		return err
 	}
 	// The versions' folder lists, after the files they list.
@@ -422,7 +466,9 @@ func (r *Repo) publishTo(c remote.Backend, branch, old string) error {
 	return c.UpdateBranch(r.Config.ProjectID, branch, old, head)
 }
 
-func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
+// uploadObjects uploads the files storage lacks; hold leases the pieces of
+// big files kept as pieces (see uploadChunked).
+func (r *Repo) uploadObjects(c remote.Backend, hashes []string, hold func([]string) error) error {
 	hashes = dedupe(hashes)
 	if len(hashes) > 100 { // a moment on a big project: say so
 		r.report(StageChecking, 0, 0)
@@ -448,6 +494,19 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 		}
 		// Storage failing for a moment (or the connection dropping): again,
 		// from the file's start.
+		if bs, ok := c.(remote.BodyStore); ok {
+			src, err := r.copyHere(h)
+			if err != nil {
+				return fmt.Errorf("upload %s: %w (needed to upload this project's versions)", short(h), err)
+			}
+			if fi, err := os.Stat(src); err == nil && fi.Size() >= chunk.MinFile {
+				if err := r.uploadChunked(bs, c, h, src, size, t, hold); err != nil {
+					return fmt.Errorf("upload %s: %w", short(h), err)
+				}
+				t.fileDone()
+				return nil
+			}
+		}
 		enc, err := r.encodeForUpload(c, h)
 		if err != nil {
 			return fmt.Errorf("upload %s: %w", short(h), err)

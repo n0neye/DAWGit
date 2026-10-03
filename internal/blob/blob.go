@@ -3,7 +3,8 @@
 // the SHA-256 of its own contents; only the bytes in storage differ.
 //
 // A compressed blob starts with Magic, then a mode byte ('z' zstd, 's' as
-// is) and the data. Anything else is the contents as they are (all blobs from
+// is, 'c' a chunk list: the file is kept as pieces, see package chunk) and
+// the data. Anything else is the contents as they are (all blobs from
 // before compression). A file whose own contents start with Magic is stored
 // behind the header ('s'), so it is never taken for a compressed one.
 package blob
@@ -18,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/klauspost/compress/zstd"
@@ -29,6 +31,17 @@ const Magic = "\xffDAWGIT\x01"
 const (
 	modeZstd   = 'z'
 	modeStored = 's'
+	modeChunks = 'c'
+)
+
+// ErrChunkList: the blob is a chunk list, not contents (see Open).
+var ErrChunkList = errors.New("blob: a chunk list")
+
+// zstd encoders and decoders shared by the in-memory functions (safe for
+// concurrent use).
+var (
+	encoder, _ = zstd.NewWriter(nil, zstd.WithEncoderConcurrency(runtime.GOMAXPROCS(0)))
+	decoder, _ = zstd.NewReader(nil, zstd.WithDecoderConcurrency(0))
 )
 
 // MinSaving: compressed blobs are kept only when at least this much smaller.
@@ -193,27 +206,83 @@ func (c *countWriter) Write(p []byte) (int, error) {
 }
 
 // NewReader reads a blob from storage as the file's own contents: decoded
-// when it has the header, as it is otherwise.
+// when it has the header, as it is otherwise. A chunk list is ErrChunkList.
 func NewReader(r io.Reader) (io.ReadCloser, error) {
+	rc, list, err := Open(r)
+	if err != nil {
+		return nil, err
+	}
+	if list {
+		rc.Close()
+		return nil, ErrChunkList
+	}
+	return rc, nil
+}
+
+// Open reads a blob from storage: the file's own contents, or (list) the
+// text of a chunk list.
+func Open(r io.Reader) (rc io.ReadCloser, list bool, err error) {
 	br := bufio.NewReaderSize(r, 64<<10)
 	head, err := br.Peek(len(Magic) + 1)
 	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrBufferFull) {
-		return nil, err
+		return nil, false, err
 	}
 	if len(head) < len(Magic)+1 || string(head[:len(Magic)]) != Magic {
-		return io.NopCloser(br), nil
+		return io.NopCloser(br), false, nil
 	}
 	mode := head[len(Magic)]
 	br.Discard(len(Magic) + 1)
 	switch mode {
 	case modeStored:
-		return io.NopCloser(br), nil
-	case modeZstd:
+		return io.NopCloser(br), false, nil
+	case modeZstd, modeChunks:
 		dec, err := zstd.NewReader(br, zstd.WithDecoderConcurrency(1))
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return dec.IOReadCloser(), nil
+		return dec.IOReadCloser(), mode == modeChunks, nil
 	}
-	return nil, fmt.Errorf("blob: unknown mode %q (made by a newer DAWGit?)", mode)
+	return nil, false, fmt.Errorf("blob: unknown mode %q (made by a newer DAWGit?)", mode)
+}
+
+// IsChunkList tells from a blob's first bytes whether it is a chunk list.
+func IsChunkList(head []byte) bool {
+	return len(head) > len(Magic) && string(head[:len(Magic)]) == Magic && head[len(Magic)] == modeChunks
+}
+
+// EncodeBytes is data ready for storage (a piece of a file): compressed when
+// that saves at least MinSaving, as it is otherwise (behind the header when
+// it starts with Magic).
+func EncodeBytes(data []byte) []byte {
+	if len(data) >= 512 {
+		z := encoder.EncodeAll(data, append([]byte(Magic), modeZstd))
+		if float64(len(z)) <= float64(len(data))*(1-MinSaving) {
+			return z
+		}
+	}
+	if bytes.HasPrefix(data, []byte(Magic)) {
+		return append(append([]byte(Magic), modeStored), data...)
+	}
+	return data
+}
+
+// DecodeBytes is the contents of a blob read whole (a piece of a file).
+func DecodeBytes(b []byte) ([]byte, error) {
+	if len(b) < len(Magic)+1 || string(b[:len(Magic)]) != Magic {
+		return b, nil
+	}
+	switch b[len(Magic)] {
+	case modeStored:
+		return b[len(Magic)+1:], nil
+	case modeZstd:
+		return decoder.DecodeAll(b[len(Magic)+1:], nil)
+	case modeChunks:
+		return nil, ErrChunkList
+	}
+	return nil, fmt.Errorf("blob: unknown mode %q (made by a newer DAWGit?)", b[len(Magic)])
+}
+
+// ChunkList is the blob that keeps a file as pieces: text from chunk.List.
+func ChunkList(text []byte) []byte {
+	return encoder.EncodeAll(text, append([]byte(Magic), modeChunks))
 }

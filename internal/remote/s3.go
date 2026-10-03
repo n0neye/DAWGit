@@ -758,6 +758,20 @@ func (b *S3Backend) putMultipart(key string, r io.Reader, size int64) error {
 	return nil
 }
 
+func (b *S3Backend) MarkChunked(hash string) error {
+	if !validHex(hash, 64) {
+		return fmt.Errorf("invalid object hash %q", hash)
+	}
+	r, err := b.put(chunkedDir+hash, nil, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
 func (b *S3Backend) GetObject(hash string) (io.ReadCloser, error) {
 	if !validHex(hash, 64) {
 		return nil, ErrNotFound

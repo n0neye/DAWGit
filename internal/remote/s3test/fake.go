@@ -35,6 +35,9 @@ type Server struct {
 	// Requests counts requests by method, e.g. to check polling cost;
 	// "LIST" counts listings (also counted as GET).
 	Requests map[string]int
+	// PutBytes and GetBytes count the bytes of objects written and read
+	// (what a share uploads, a download downloads).
+	PutBytes, GetBytes int64
 	// IgnoreConditions acts like storage without conditional writes.
 	IgnoreConditions bool
 	// FailPart makes uploading that part number of a multipart upload fail.
@@ -131,6 +134,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", obj.etag)
 		w.Header().Set("Content-Length", strconv.Itoa(len(obj.data)))
 		if r.Method == "GET" {
+			s.GetBytes += int64(len(obj.data))
 			w.Write(obj.data)
 		}
 	case "PUT":
@@ -145,6 +149,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		if !s.IgnoreConditions && !preconditions(w, r, obj) {
 			return
 		}
+		s.PutBytes += int64(len(data))
 		sum := md5.Sum(data)
 		o := &object{data: data, etag: `"` + hex.EncodeToString(sum[:]) + `"`, modified: s.now()}
 		bucket[key] = o
@@ -325,4 +330,25 @@ func (s *Server) Object(bucket, key string) ([]byte, bool) {
 		return nil, false
 	}
 	return append([]byte(nil), o.data...), true
+}
+
+// Delete removes key from bucket (tests lose objects on purpose).
+func (s *Server) Delete(bucket, key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.buckets[bucket], key)
+}
+
+// Keys lists the keys in bucket under prefix.
+func (s *Server) Keys(bucket, prefix string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []string
+	for k := range s.buckets[bucket] {
+		if strings.HasPrefix(k, prefix) {
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

@@ -64,8 +64,15 @@ var _ Backend = (*Client)(nil)
 // BodyStore is storage that keeps encoded blobs (package blob: compressed,
 // with a header) under an object's hash; the upload is checked against the
 // encoding's own SHA-256. A team server keeps contents as they are.
+//
+// A big file may be kept as pieces: its pieces are put as objects, then
+// MarkChunked, then the chunk list (blob.ChunkList) under the file's hash
+// (see docs/design/chunked-files.md).
 type BodyStore interface {
 	PutObjectBody(hash string, r io.Reader, size int64, bodySHA string) error
+	// MarkChunked notes that the object hash is (about to be) a chunk list,
+	// so storage cleanup keeps its pieces.
+	MarkChunked(hash string) error
 }
 
 var _ BodyStore = (*S3Backend)(nil)

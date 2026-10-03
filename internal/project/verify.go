@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"dawgit/internal/blob"
+	"dawgit/internal/chunk"
 	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/store"
@@ -234,6 +235,67 @@ func (r *Repo) Verify(repair bool) (*VerifyReport, error) {
 			r.repairFile(c, h, &p, !rep.TeamChecked || teamLacks[h])
 		}
 		rep.Problems = append(rep.Problems, p)
+	}
+	// Big files kept as pieces: the team must have every piece.
+	if bs, ok := c.(remote.BodyStore); ok && rep.TeamChecked {
+		lists := map[string]*chunk.List{}
+		var pieces []string
+		for h := range paths {
+			if l := r.loadChunkList(h); l != nil && !teamLacks[h] {
+				lists[h] = l
+				pieces = append(pieces, l.Hashes()...)
+			}
+		}
+		if len(pieces) > 0 {
+			missing, err := c.MissingObjects(dedupe(pieces))
+			if err != nil {
+				rep.TeamChecked = false
+			}
+			lacks := map[string]bool{}
+			for _, ph := range missing {
+				lacks[ph] = true
+			}
+			// Files here first: uploading their pieces again may mend others.
+			order := make([]string, 0, len(lists))
+			for h := range lists {
+				order = append(order, h)
+			}
+			sort.Slice(order, func(i, j int) bool {
+				hi, hj := r.localCopy(order[i]) != "", r.localCopy(order[j]) != ""
+				if hi != hj {
+					return hi
+				}
+				return order[i] < order[j]
+			})
+			for _, h := range order {
+				l := lists[h]
+				n := 0
+				for _, ph := range l.Hashes() {
+					if lacks[ph] {
+						n++
+					}
+				}
+				if n == 0 {
+					continue
+				}
+				p := Problem{Kind: "file", ID: h, Path: paths[h],
+					Detail: fmt.Sprintf("the team's storage lacks %d of its %d pieces", n, len(l.Pieces))}
+				if repair {
+					if src := r.localCopy(h); src == "" {
+						p.How = "no copy on this computer to upload again"
+					} else if err := r.uploadChunked(bs, c, h, src, -1, r.newTransfer(StageUploading, 1, 0),
+						func([]string) error { return nil }); err != nil {
+						p.How = "uploading it again failed: " + err.Error()
+					} else {
+						p.Fixed, p.How = true, "uploaded the missing pieces again"
+						for _, ph := range l.Hashes() {
+							delete(lacks, ph)
+						}
+					}
+				}
+				rep.Problems = append(rep.Problems, p)
+			}
+		}
 	}
 	// Damaged files no version needs any more: just removed.
 	for _, h := range damaged {

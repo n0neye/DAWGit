@@ -1,15 +1,19 @@
 package remote
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
 
+	"dawgit/internal/blob"
+	"dawgit/internal/chunk"
 	"dawgit/internal/manifest"
 )
 
@@ -24,6 +28,10 @@ import (
 //     before the version that uses them.
 //   - Unused files are first marked (gc/candidates.json), and deleted only
 //     by a cleanup at least confirmAfter later, if still unused.
+//   - A big file may be kept as pieces (a chunk list, marked chunked/<hash>):
+//     its pieces are used for as long as the list is stored, used or not, so
+//     a share relying on a list that is there keeps its pieces too. Pieces
+//     of a deleted list go in a later cleanup.
 
 const (
 	leaseLife    = 14 * 24 * time.Hour
@@ -35,6 +43,7 @@ const (
 	gcObjectsDir   = "objects/"
 	gcProjectsDir  = "projects/"
 	gcSnapshotsDir = "snapshots/"
+	chunkedDir     = "chunked/"
 )
 
 var gcNow = time.Now // tests move time on
@@ -113,6 +122,42 @@ func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
 		return nil, err
 	}
 	rep.Stored = len(stored)
+	isStored := map[string]bool{}
+	for _, it := range stored {
+		isStored[strings.ReplaceAll(strings.TrimPrefix(it.key, gcObjectsDir), "/", "")] = true
+	}
+	// Pieces of the files kept as chunk lists.
+	markers, err := b.listAll(chunkedDir)
+	if err != nil {
+		return nil, err
+	}
+	var lists, staleMarkers []string
+	for _, m := range markers {
+		h := strings.TrimPrefix(m.key, chunkedDir)
+		switch {
+		case isStored[h]:
+			lists = append(lists, h)
+		case now.Sub(m.modified) >= minAge: // the list was deleted (or never made it)
+			staleMarkers = append(staleMarkers, m.key)
+		}
+	}
+	var mu sync.Mutex
+	err = parallelN(checks, lists, func(h string) error {
+		l, err := b.chunkList(h)
+		if err != nil {
+			return fmt.Errorf("a big file's list of pieces %s can't be read (%w): storage not cleaned up", h[:10], err)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for _, p := range l.Pieces {
+			used[p.Hash] = true
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	rep.Used = len(used)
 	marked := map[string]time.Time{} // hash: first found unused
 	if r, err := b.get(candidatesKey); err == nil {
 		json.Unmarshal(r.body, &marked)
@@ -157,6 +202,9 @@ func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
 		}
 		for _, l := range stale {
 			b.delete(l)
+		}
+		for _, m := range staleMarkers {
+			b.delete(m)
 		}
 	}
 	data, _ := json.Marshal(nextMarked)
@@ -253,6 +301,27 @@ func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
 		level = next
 	}
 	return used, nil
+}
+
+// chunkList reads the list of pieces stored for the file h.
+func (b *S3Backend) chunkList(h string) (*chunk.List, error) {
+	r, err := b.get(objectKey(h))
+	if err != nil {
+		return nil, err
+	}
+	rc, list, err := blob.Open(bytes.NewReader(r.body))
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	if !list {
+		return &chunk.List{}, nil // kept whole after all
+	}
+	text, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+	return chunk.Parse(text)
 }
 
 // listAll lists every key under dir with its size and time.

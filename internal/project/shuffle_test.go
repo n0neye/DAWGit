@@ -9,9 +9,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"dawgit/internal/remote"
+	"dawgit/internal/chunk"
 	"dawgit/internal/remote/s3test"
 )
 
@@ -50,9 +52,17 @@ func (s *shuffler) content() string {
 	}
 	s.n++
 	c := fmt.Sprintf("%s content %d %s", s.who, s.n, strings.Repeat("x", s.rnd.Intn(50)))
+	if s.rnd.Intn(16) == 0 { // a big file, kept as pieces in the team's storage
+		c = bigBase()[:chunk.MinFile+s.rnd.Intn(1<<20)] + c
+	}
 	s.seen = append(s.seen, c)
 	return c
 }
+
+var bigBaseOnce = sync.OnceValue(func() string { return string(randomBytes(9, chunk.MinFile+1<<20)) })
+
+// bigBase is the start of the big files: they share most of their pieces.
+func bigBase() string { return bigBaseOnce() }
 
 func (s *shuffler) newPath() string {
 	dirs := []string{"Files", "Files/A", "Files/B", "Files/A/Deep", "Files/C"}

@@ -78,6 +78,14 @@ func (t *transfer) shrink(n int64) {
 	t.reportLocked()
 }
 
+// count adds n bytes moved (or found here instead).
+func (t *transfer) count(n int64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.bytes += n
+	t.reportLocked()
+}
+
 // reader counts what passes through rd. Size lets uploads stream a file of
 // known size instead of reading it into memory first.
 func (t *transfer) reader(rd io.Reader, size int64) *countingReader {
