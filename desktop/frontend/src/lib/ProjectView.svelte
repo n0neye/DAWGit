@@ -52,7 +52,6 @@
 
   // dialogs
   let preview = $state<{ title: string; label: string; data: Preview; run: Action; blocked: string } | null>(null);
-  const UNSAVED = () => t("You have uncommitted changes. Commit a version instead — the team's changes are merged in as part of it, and anything you both changed is shown then.");
   let conflicts = $state<{ items: Conflict[]; run: Action; force: boolean } | null>(null);
   let liveBlocked = $state<{ run: Action; resolutions: Record<string, string>; set: string } | null>(null);
   let branchMenu = $state(false);
@@ -81,7 +80,6 @@
   // combine, put your work on a branch, or discard it.
   let combine = $state<{ data: Preview; message: string } | null>(null);
   let branchThenCommit = $state(""); // commit this after creating the branch
-  let discardOpen = $state(false);
   let discardFile = $state(""); // one file's changes, after confirming
   let discardAllOpen = $state(false);
   let discardSome = $state<string[] | null>(null); // the ticked changes, after confirming
@@ -256,11 +254,11 @@
       const text: Record<string, string> = {
         "published": t("Version committed and shared with the team"),
         "saved-locally": t("Version committed on this computer (not shared with a team)"),
-        "fast-forward": t("You had nothing new; updated to the team's latest version"),
+        "fast-forward": t("Updated to the team's latest version: nothing of yours was left to commit"),
         "nothing": t("Nothing changed since your last version"),
       };
       toast(text[r.action] ?? t("Version committed"), r.action === "nothing" ? "info" : "ok");
-      if (r.log.length && r.action === "published") toast(t("The team's changes were merged into your files") + reopen(), "warn", 9000);
+      if (r.log.length && r.action === "published") toast(t("The team's versions were taken in first; yours comes after them") + reopen(), "info", 9000);
       if (r.action !== "nothing") message = "";
   };
 
@@ -304,8 +302,10 @@
         return;
       }
     }
-    if (st?.incoming.length || st?.olderVersion) openCombine(message);
-    else run(saveAction(message));
+    // Teammates' versions are taken in first, by the save itself: yours
+    // comes after them. Changes made on an older version are combined.
+    if (st?.olderVersion) openCombine(message);
+    else run(saveAction(message, !!st?.incoming.length));
   }
 
   // The tool the project is made with: Live gets its own words.
@@ -416,21 +416,12 @@
     });
   }
 
-  function discardAndUpdate() {
-    discardOpen = false;
-    run({
-      name: "update",
-      call: (res, force) => api.DiscardAndUpdate(root, res, force),
-      done: () => toast(t("Your changes were discarded and you have the team's latest versions") + reopen(), "ok", 8000),
-    });
-  }
-
   const updateAction: Action = {
     name: "update",
     call: (res, force) => api.Update(root, res, force),
     done: (r) => {
       if (r.action === "fast-forward" || r.action === "merged") {
-        toast(t("You're up to date") + reopen(), "ok", 8000);
+        toast((r.keptWork ? t("You're up to date. Your changes are kept, still uncommitted") : t("You're up to date")) + reopen(), "ok", 8000);
         if (r.action === "merged") toast(t("Your versions and the team's were combined. Commit a version to share the result."), "info", 9000);
       } else toast(t("Already up to date"), "info");
     },
@@ -447,7 +438,7 @@
       if (data) preview = {
         title: who ? tn(vs.length, "{who} shared {n} new version", "{who} shared {n} new versions", { who }) : t("Updates from the team"),
         label: who ? t("Bring in {who}'s changes", { who }) : t("Get updates"), data, run: updateAction,
-        blocked: st?.changes.length ? UNSAVED() : "" };
+        blocked: "" };
     } catch (e) {
       toast(errorText(e), "error");
     } finally {
@@ -777,21 +768,13 @@
     {#if st.incoming.length}
       <div class="banner info">
         <div>
-          <Tx text={st.changes.length && !st.olderVersion
-            ? tn(news.length, "{who} committed {n} new version while you were working:", "{who} committed {n} new versions while you were working:")
-            : tn(news.length, "{who} shared {n} new version:", "{who} shared {n} new versions:")}
+          <Tx text={tn(news.length, "{who} shared {n} new version:", "{who} shared {n} new versions:")}
             strong={{ who: [...new Set(news.map((v) => v.author))].join(", ") }} />
           <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
+          {#if st.changes.length && !st.olderVersion}<span class="keep">{t("Your uncommitted changes stay as they are.")}</span>{/if}
         </div>
         {#if st.olderVersion}
           <!-- back to the latest version first -->
-        {:else if st.changes.length}
-          <button class="ghost" onclick={() => (discardOpen = true)} disabled={!!busy}
-            title={t("Drop your uncommitted changes and take the team's versions")}>{t("Discard my changes…")}</button>
-          <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
-            title={t("Commit your work on a new branch; this branch stays as the team left it")}>{t("Put my work on a new branch…")}</button>
-          <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
-            title={t("See what they changed, then combine it with your work")}>{t("Preview & combine")}</button>
         {:else}
           <button onclick={openUpdatePreview} disabled={!!busy}>{t("Preview")}</button>
           <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>{t("Get updates")}</button>
@@ -960,18 +943,6 @@
     </Modal>
   {/if}
 
-  {#if discardOpen}
-    <Modal title={t("Discard your changes?")} onclose={() => (discardOpen = false)}>
-      <p>{tn(st.changes.length, "Your {n} uncommitted change will be lost, and the project gets the team's latest versions of “{branch}”.",
-        "Your {n} uncommitted changes will be lost, and the project gets the team's latest versions of “{branch}”.", { branch: st.branch })}</p>
-      <p class="muted">{t("To keep them instead, combine them with the team's work or put them on a new branch.")}</p>
-      {#snippet footer()}
-        <button onclick={() => (discardOpen = false)}>{t("Cancel")}</button>
-        <button class="danger" onclick={discardAndUpdate}>{t("Discard and update")}</button>
-      {/snippet}
-    </Modal>
-  {/if}
-
   {#snippet suggestionText(s: RuleSuggestion)}
     <Tx text={t(s.folder ? "{tool} project found in {folder}." : "{tool} project found in the project folder.")}
       strong={{ folder: `${s.folder}/`, tool: presetName(s.preset) }} />
@@ -1029,7 +1000,7 @@
 
   {#if preview}
     {@const p = preview}
-    <PreviewDialog {root} title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
+    <PreviewDialog {root} keepsWork={p.run === updateAction && !!st.changes.length} title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
       onclose={() => (preview = null)}
       onconfirm={() => { const action = p.run; preview = null; run(action); }} />
   {/if}
@@ -1173,6 +1144,7 @@
   /* nothing to commit yet (no message, no changes): outlined, still easy to see */
   .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
   .small { font-size: 12px; margin: 10px 0 0; }
+  .keep { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
   .tracks li { display: flex; align-items: center; gap: 10px; }

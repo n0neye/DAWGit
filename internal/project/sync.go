@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -615,6 +616,9 @@ type SyncResult struct {
 	MergeLog []string
 	// Relinked lists sample paths rewritten for this machine.
 	Relinked []string
+	// KeptWork: uncommitted changes were kept through the update (still
+	// uncommitted, merged with the team's versions).
+	KeptWork bool
 }
 
 // Update brings the workspace up to date with the server branch: a fast
@@ -635,12 +639,14 @@ func (r *Repo) Update(opts MergeOptions) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.integrate(c, branches[r.BranchName()], opts, "Merge versions from the team")
+	return r.integrate(c, branches[r.BranchName()], opts, "Merge versions from the team", true)
 }
 
 // integrate brings version target (and its history) into the workspace: a
 // fast forward when HEAD is behind, otherwise a merge version with message.
-func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, message string) (*SyncResult, error) {
+// keepWork: uncommitted changes don't stop a fast forward; they are merged
+// into the new files and stay uncommitted (updateKeepingWork).
+func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, message string, keepWork bool) (*SyncResult, error) {
 	head := r.Head()
 	res := &SyncResult{From: head, To: head}
 	if target == "" || target == head {
@@ -661,6 +667,14 @@ func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, mes
 			return nil, err
 		}
 		if len(changes) > 0 {
+			if keepWork {
+				if behind, err := r.isAncestor(head, target); err != nil || behind {
+					if err != nil {
+						return nil, err
+					}
+					return r.updateKeepingWork(c, head, target, opts, res)
+				}
+			}
 			return nil, fmt.Errorf("%w (%d file(s)); save a version first", ErrDirty, len(changes))
 		}
 	}
@@ -694,15 +708,125 @@ func (r *Repo) integrate(c remote.Backend, target string, opts MergeOptions, mes
 	return res, nil
 }
 
-// Save records the working files as a version and shares it: versions saved
-// by others in the meantime are merged in first.
+// keptWorkFile names the last uncommitted work kept by updateKeepingWork.
+const keptWorkFile = "kept-work"
+
+// updateKeepingWork moves the project to target (HEAD is behind it) while
+// the working files have changes not committed: the changes are kept as a
+// version of their own first (a backup, never shared), merged with the
+// team's versions (Live Sets track by track; a file both changed is a
+// conflict), and the result written to the working files. The project is
+// then on target, the changes still uncommitted: no version is made.
+func (r *Repo) updateKeepingWork(c remote.Backend, head, target string, opts MergeOptions, res *SyncResult) (*SyncResult, error) {
+	work, ix, err := r.workingManifest("Uncommitted work, kept while getting the team's versions")
+	if err != nil {
+		return nil, err
+	}
+	if err := r.save(work); err != nil {
+		return nil, err
+	}
+	if err := ix.save(); err != nil {
+		return nil, err
+	}
+	base, err := r.Load(head)
+	if err != nil {
+		return nil, err
+	}
+	theirs, err := r.Load(target)
+	if err != nil {
+		return nil, err
+	}
+	r.knowSizes(theirs, base)
+	if err := r.fetchObjects(c, setHashes(theirs, base)); err != nil {
+		return nil, err
+	}
+	merged, log, err := r.mergeManifests(base, work, theirs, opts)
+	if err != nil { // nothing changed: the work is where it was
+		os.Remove(r.snapshotPath(work.ID))
+		return nil, err
+	}
+	r.knowSizes(merged)
+	if err := r.fetchObjects(c, merged.Objects()); err != nil {
+		return nil, err
+	}
+	notes, err := r.putFiles(merged, target, "work "+work.ID)
+	if err != nil {
+		return nil, err
+	}
+	// The files now (the work merged in) are kept as a version of their own
+	// too, never shared: until they are committed, the working files stand
+	// for their contents (a merged set, relinked here, maps to it), and the
+	// store must keep them. Only the last kept work stays.
+	merged.Parents, merged.Message = []string{target}, "Uncommitted work with the team's versions merged in"
+	if err := r.save(merged); err != nil {
+		return nil, err
+	}
+	keep := work.ID + "\n" + merged.ID + "\n"
+	if old, err := os.ReadFile(filepath.Join(r.Dir, keptWorkFile)); err == nil {
+		for _, id := range strings.Fields(string(old)) {
+			if !strings.Contains(keep, id) {
+				os.Remove(r.snapshotPath(id))
+			}
+		}
+	}
+	os.WriteFile(filepath.Join(r.Dir, keptWorkFile), []byte(keep), 0o644)
+	res.Action, res.To, res.MergeLog, res.Relinked, res.KeptWork = "fast-forward", target, log, notes, true
+	return res, nil
+}
+
+// Save records the working files as a version and shares it. Versions the
+// team saved in the meantime are taken into the working files first (as an
+// update keeping the work does), so the new version comes after them: no
+// merge version. Versions committed here and not shared yet are merged.
 func (r *Repo) Save(message string, opts MergeOptions) (*Manifest, *SyncResult, error) {
+	var first *SyncResult
+	if c, err := r.Client(); err == nil {
+		if first, err = r.catchUp(c, opts); err != nil {
+			return nil, nil, err
+		}
+	}
 	m, err := r.Snapshot(message)
 	if err != nil && !errors.Is(err, ErrNothingToSnapshot) {
 		return nil, nil, err
 	}
 	res, err := r.Share(opts)
+	if res != nil && first != nil { // what came in first is part of it
+		if res.Action == "up-to-date" { // nothing left to commit: it was an update
+			res.Action, res.From, res.To = "fast-forward", first.From, first.To
+		}
+		res.MergeLog = append(first.MergeLog, res.MergeLog...)
+		res.Relinked = append(first.Relinked, res.Relinked...)
+		res.KeptWork = first.KeptWork
+	}
 	return m, res, err
+}
+
+// catchUp takes in the team's versions before a save when HEAD is behind
+// them and the working files have changes (nil when there's nothing to do,
+// or the team can't be reached: the share then tells).
+func (r *Repo) catchUp(c remote.Backend, opts MergeOptions) (*SyncResult, error) {
+	head := r.Head()
+	if head == "" {
+		return nil, nil
+	}
+	branches, err := c.Branches(r.Config.ProjectID)
+	if err != nil {
+		return nil, nil
+	}
+	target := branches[r.BranchName()]
+	if target == "" || target == head {
+		return nil, nil
+	}
+	if err := r.fetchSnapshots(c, target); err != nil {
+		return nil, nil
+	}
+	if behind, err := r.isAncestor(head, target); err != nil || !behind {
+		return nil, nil
+	}
+	if changes, err := r.Status(); err != nil || len(changes) == 0 {
+		return nil, err
+	}
+	return r.updateKeepingWork(c, head, target, opts, &SyncResult{From: head, To: head})
 }
 
 // Share shares the versions committed here that the team hasn't got (none
@@ -736,6 +860,15 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 			}
 		}
 		if !ahead {
+			// Ours not shared yet: put them after the team's (no merge
+			// version), when they are a plain line and nothing is left
+			// uncommitted; otherwise merged.
+			if log, ok, err := r.replayOnto(c, remoteHead, opts); err != nil {
+				return nil, err
+			} else if ok {
+				res.MergeLog = append(res.MergeLog, log...)
+				continue // publish them
+			}
 			up, err := r.Update(opts)
 			if err != nil {
 				return nil, err
@@ -761,6 +894,71 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 		return res, nil
 	}
 	return nil, errors.New("the server branch keeps changing; try again")
+}
+
+// replayOnto puts the versions committed here and not in target (the team's
+// branch moved on) after target, in order, each merged with what came
+// before it (sets track by track), keeping their messages, authors and
+// times; then the project is on the last one. ok is false when they can't
+// be replayed (a merge among them, or uncommitted changes): nothing is
+// changed then.
+func (r *Repo) replayOnto(c remote.Backend, target string, opts MergeOptions) (log []string, ok bool, err error) {
+	have, err := r.ancestors(target)
+	if err != nil {
+		return nil, false, err
+	}
+	var ours []*Manifest // newest first, then reversed
+	for id := r.Head(); id != "" && !have[id]; {
+		m, err := r.Load(id)
+		if err != nil {
+			return nil, false, err
+		}
+		if len(m.Parents) != 1 {
+			return nil, false, nil // a merge (or a first version): merged instead
+		}
+		ours = append(ours, m)
+		id = m.Parents[0]
+	}
+	if len(ours) == 0 {
+		return nil, false, nil
+	}
+	if changes, err := r.Status(); err != nil || len(changes) > 0 {
+		return nil, false, err
+	}
+	slices.Reverse(ours)
+	onto, err := r.Load(target)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, m := range ours {
+		base, err := r.Load(m.Parents[0])
+		if err != nil {
+			return nil, false, err
+		}
+		r.knowSizes(onto, base)
+		if err := r.fetchObjects(c, setHashes(onto, base)); err != nil {
+			return nil, false, err
+		}
+		next, l, err := r.mergeManifests(base, m, onto, opts)
+		if err != nil {
+			return nil, false, err // nothing changed yet: the versions are where they were
+		}
+		next.Parents, next.Message, next.Author, next.AuthorID, next.Time =
+			[]string{onto.ID}, m.Message, m.Author, m.AuthorID, m.Time
+		if err := r.save(next); err != nil {
+			return nil, false, err
+		}
+		log = append(log, l...)
+		onto = next
+	}
+	r.knowSizes(onto)
+	if err := r.fetchObjects(c, onto.Objects()); err != nil {
+		return nil, false, err
+	}
+	if _, err := r.putFiles(onto, onto.ID, onto.ID); err != nil {
+		return nil, false, err
+	}
+	return log, true, nil
 }
 
 // Clone connects to a team (address + token, or a connection code) and

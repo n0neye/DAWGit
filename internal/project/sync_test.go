@@ -103,9 +103,10 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 		}
 	}
 	assertClean(t, b)
+	// Taken in before committing: B's version comes after A's, no merge.
 	m, _ := b.Load(b.Head())
-	if len(m.Parents) != 2 {
-		t.Errorf("merge version should have two parents: %v", m.Parents)
+	if len(m.Parents) != 1 || m.Parents[0] != a.Head() {
+		t.Errorf("B's version should follow A's: %v", m.Parents)
 	}
 
 	// A takes the merge: a fast forward.
@@ -124,24 +125,101 @@ func TestTeamSaveMergesAndUpdateFastForwards(t *testing.T) {
 	if up, _ := a.Update(Strategy("fail")); up.Action != "up-to-date" {
 		t.Errorf("second update: %+v", up)
 	}
-	// Everyone's versions are listed, merge first.
+	// Everyone's versions are listed, in one line.
 	log, _ := a.Log()
 	var msgs []string
 	for _, m := range log {
 		msgs = append(msgs, m.Message)
 	}
-	if len(msgs) != 4 || msgs[0] != "Merge versions from the team" || msgs[3] != "v2" {
+	if len(msgs) != 3 || msgs[0] != "drums" || msgs[1] != "group audio" || msgs[2] != "v2" {
 		t.Errorf("log = %v", msgs)
 	}
 }
 
-func TestUpdateRefusesUnsavedChanges(t *testing.T) {
+// Getting the team's versions keeps uncommitted work: merged in, still
+// uncommitted, and no version is made.
+func TestUpdateKeepsUncommittedWork(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	if _, _, err := a.Save("group audio", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := b.Log()
+	os.WriteFile(filepath.Join(b.Root, "Samples", "idea.wav"), []byte("RIFF idea"), 0o644)
+	up, err := b.Update(Strategy("fail"))
+	if err != nil || up.Action != "fast-forward" || !up.KeptWork || up.To != a.Head() || b.Head() != a.Head() {
+		t.Fatalf("update: %v %+v", err, up)
+	}
+	if setTracks(t, b)["Audios"].Elem == nil {
+		t.Error("A's set not taken in")
+	}
+	if got, _ := os.ReadFile(filepath.Join(b.Root, "Samples", "idea.wav")); string(got) != "RIFF idea" {
+		t.Errorf("work lost: %q", got)
+	}
+	changes, _ := b.Status()
+	if len(changes) != 1 || changes[0].Path != "Samples/idea.wav" || changes[0].Status != "added" {
+		t.Errorf("still uncommitted: %+v", changes)
+	}
+	after, _ := b.Log()
+	if len(after) != len(before)+1 { // A's version only
+		t.Errorf("log %d -> %d versions", len(before), len(after))
+	}
+
+	// Committing it then is a version after A's: no merge.
+	m, res, err := b.Save("idea", Strategy("fail"))
+	if err != nil || res.Action != "published" || len(m.Parents) != 1 || m.Parents[0] != a.Head() {
+		t.Fatalf("save: %v %+v %v", err, res, m)
+	}
+
+	// A crash halfway: the work comes back as it was.
+	kept, _ := os.ReadFile(filepath.Join(b.Dir, keptWorkFile))
+	os.Remove(filepath.Join(b.Root, "Samples", "idea.wav"))
+	os.WriteFile(filepath.Join(b.Dir, switchingFile), []byte("work "+strings.Fields(string(kept))[0]+"\n"), 0o644)
+	if b.UnfinishedSwitch() == "" {
+		t.Fatal("unfinished switch not seen")
+	}
+	if _, err := b.RecoverSwitch(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(b.Root, "Samples", "idea.wav")); string(got) != "RIFF idea" {
+		t.Errorf("not recovered: %q", got)
+	}
+}
+
+// Both changed the same set: merged track by track into the working set;
+// where both changed one track, the update asks first.
+func TestUpdateMergesUncommittedSet(t *testing.T) {
 	a, b := team(t)
 	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
 	a.Save("group audio", Strategy("fail"))
-	os.WriteFile(filepath.Join(b.Root, "Samples", "idea.wav"), []byte("RIFF"), 0o644)
-	if _, err := b.Update(Strategy("fail")); !errors.Is(err, ErrDirty) {
-		t.Fatalf("expected ErrDirty, got %v", err)
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+	head := b.Head()
+	_, err := b.Update(Strategy("fail"))
+	var conflict *MergeConflictError
+	if !errors.As(err, &conflict) || len(conflict.Conflicts) != 1 {
+		t.Fatalf("expected a conflict, got %v", err)
+	}
+	if b.Head() != head || setTracks(t, b)["Audios"].Elem != nil || setTracks(t, b)["Drum"].Elem == nil {
+		t.Fatal("a refused update changed something")
+	}
+	up, err := b.Update(Strategy("both"))
+	if err != nil || !up.KeptWork || b.Head() != a.Head() {
+		t.Fatalf("update: %v %+v", err, up)
+	}
+	tracks := setTracks(t, b)
+	if tracks["Audios"].Elem == nil || tracks["Drum"].Elem == nil {
+		t.Errorf("merged set lacks a side: %v", keys(tracks))
+	}
+	if changes, _ := b.Status(); len(changes) != 1 || changes[0].Path != "Song.als" {
+		t.Errorf("uncommitted: %+v", changes)
+	}
+	// Tidying (as after every operation) keeps what the merged set needs:
+	// committing it later works.
+	b.PruneObjects()
+	b.GC()
+	m, res, err := b.Save("drums", Strategy("fail"))
+	if err != nil || res.Action != "published" || len(m.Parents) != 1 || m.Parents[0] != a.Head() {
+		t.Fatalf("save after tidying: %v %+v", err, res)
 	}
 }
 
@@ -419,5 +497,77 @@ func TestRelinkedTrackIsNotAChange(t *testing.T) {
 		if ref.RelativePathType == "3" && !strings.HasPrefix(ref.Path, filepath.ToSlash(b.Root)) {
 			t.Errorf("B's sample points elsewhere: %s", ref.Path)
 		}
+	}
+}
+
+// Versions committed here while the team moved on are put after the team's
+// when shared: one line, no merge version.
+func TestShareReplaysUnsharedVersions(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	if _, _, err := a.Save("group audio", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	// B commits twice without sharing (offline, say).
+	os.WriteFile(filepath.Join(b.Root, "Samples", "one.wav"), []byte("RIFF one"), 0o644)
+	if _, err := b.Snapshot("one"); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(b.Root, "Samples", "two.wav"), []byte("RIFF two"), 0o644)
+	if _, err := b.Snapshot("two"); err != nil {
+		t.Fatal(err)
+	}
+	res, err := b.Share(Strategy("fail"))
+	if err != nil || res.Action != "published" {
+		t.Fatalf("share: %v %+v", err, res)
+	}
+	log, _ := b.Log()
+	var msgs []string
+	for _, m := range log {
+		msgs = append(msgs, m.Message)
+		if len(m.Parents) > 1 {
+			t.Errorf("a merge version: %q", m.Message)
+		}
+	}
+	if strings.Join(msgs, ",") != "two,one,group audio,v2" {
+		t.Errorf("log = %v", msgs)
+	}
+	if setTracks(t, b)["Audios"].Elem == nil {
+		t.Error("A's set not taken in")
+	}
+	for _, f := range []string{"one.wav", "two.wav"} {
+		if _, err := os.Stat(filepath.Join(b.Root, "Samples", f)); err != nil {
+			t.Errorf("%s lost", f)
+		}
+	}
+	assertClean(t, b)
+	if up, err := a.Update(Strategy("fail")); err != nil || up.Action != "fast-forward" {
+		t.Fatalf("A update: %v %+v", err, up)
+	}
+}
+
+// Replaying asks where both changed the same track, and then goes on.
+func TestShareReplayConflict(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	a.Save("group audio", Strategy("fail"))
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+	b.Snapshot("drums")
+	head := b.Head()
+	_, err := b.Share(Strategy("fail"))
+	var conflict *MergeConflictError
+	if !errors.As(err, &conflict) || b.Head() != head {
+		t.Fatalf("expected a conflict and nothing changed: %v", err)
+	}
+	if _, err := b.Share(Strategy("both")); err != nil {
+		t.Fatal(err)
+	}
+	m, _ := b.Load(b.Head())
+	if m.Message != "drums" || len(m.Parents) != 1 || m.Parents[0] != a.Head() {
+		t.Fatalf("replayed: %q %v", m.Message, m.Parents)
+	}
+	tracks := setTracks(t, b)
+	if tracks["Audios"].Elem == nil || tracks["Drum"].Elem == nil {
+		t.Errorf("tracks %v", keys(tracks))
 	}
 }

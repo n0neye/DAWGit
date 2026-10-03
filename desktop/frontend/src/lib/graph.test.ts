@@ -1,4 +1,4 @@
-// Run with: npm run test:graph
+// Run with: npx esbuild src/lib/graph.test.ts --bundle --platform=node --outfile=%TEMP%/g.js && node %TEMP%/g.js
 import { layout } from "./graph.js";
 declare const process: { exitCode?: number };
 
@@ -23,3 +23,18 @@ assert(rows.every((r) => r.width <= 2), "never wider than 2 lanes");
 // Linear history stays in one lane.
 const linear = layout([{ id: "c", parents: ["b"] }, { id: "b", parents: ["a"] }, { id: "a", parents: [] }]);
 assert(linear.every((r) => r.lane === 0 && r.width === 1), "linear history is one lane");
+
+// A teammate's version merged in from the side: that line is dashed, the
+// main line (first parents from the branch head) is not.
+const side = layout([
+  { id: "M", parents: ["C", "T"] },
+  { id: "C", parents: ["X"] },
+  { id: "T", parents: ["X"] },
+  { id: "X", parents: [] },
+], ["M"]);
+const into = side[0].down.find((s) => s.to !== side[0].lane)!;
+assert(!!into && into.side === true, "the line to the side parent is a side line");
+assert(side[0].down.some((s) => s.to === side[0].lane && !s.side), "the first parent line is main");
+assert(side[1].down.every((s) => (s.from === side[2].lane ? s.side : !s.side)), "the side column stays dashed past C");
+assert(side[2].down.filter((s) => s.from === side[2].lane).every((s) => s.side), "T's line into X is a side line");
+assert(layout([{ id: "M", parents: ["C", "T"] }, { id: "C", parents: [] }, { id: "T", parents: [] }]).every((r) => r.down.every((s) => !s.side)), "no tips: nothing dashed");

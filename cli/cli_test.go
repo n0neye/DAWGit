@@ -126,7 +126,8 @@ func TestJSON(t *testing.T) {
 		st.Changes[0].Status != "modified" {
 		t.Fatalf("status with the team ahead: %s", rep.Result)
 	}
-	if exit, rep := run(t, b, "update"); exit != 1 || rep.Error.Code != "unsaved_changes" {
+	// Uncommitted work is kept through an update, unless both changed a file.
+	if exit, rep := run(t, b, "update"); exit != 3 || rep.Error.Code != "merge_conflict" {
 		t.Fatalf("update with changes: %d %+v", exit, rep.Error)
 	}
 	exit, rep = run(t, b, "update", "--preview")
@@ -150,7 +151,8 @@ func TestJSON(t *testing.T) {
 	}
 	exit, rep = run(t, b, "save", "-m", "B's notes", "--strategy", "theirs")
 	json.Unmarshal(rep.Result, &sv)
-	if exit != 0 || sv.Action != "published" || len(sv.Merged) == 0 {
+	// Theirs taken: nothing of B's left to commit, B is just up to date.
+	if exit != 0 || sv.Action != "fast-forward" || sv.Saved != nil || len(sv.Merged) == 0 {
 		t.Fatalf("save with theirs: %s", rep.Result)
 	}
 	if got, _ := os.ReadFile(filepath.Join(b, "notes.txt")); string(got) != "A's notes" {

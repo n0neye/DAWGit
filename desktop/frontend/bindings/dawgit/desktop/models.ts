@@ -696,6 +696,12 @@ export class Result {
     "liveRunning": boolean;
     "openSet": string;
 
+    /**
+     * KeptWork: uncommitted changes were kept through an update (still
+     * uncommitted, the team's versions merged in).
+     */
+    "keptWork": boolean;
+
     /** Creates a new Result instance. */
     constructor($$source: Partial<Result> = {}) {
         if (!("action" in $$source)) {
@@ -715,6 +721,9 @@ export class Result {
         }
         if (!("openSet" in $$source)) {
             this["openSet"] = "";
+        }
+        if (!("keptWork" in $$source)) {
+            this["keptWork"] = false;
         }
 
         Object.assign(this, $$source);

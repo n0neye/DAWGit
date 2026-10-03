@@ -14,7 +14,12 @@
   } = $props();
 
   const ROW = 40, LANE = 16, PAD = 12;
-  let rows = $derived(layout(versions));
+  // Main lines start at the branch heads and where you are; lines merged in
+  // from the side are drawn dashed.
+  let rows = $derived(layout(versions, [head, latest, ...versions.filter((v) => v.branches.length).map((v) => v.id)].filter(Boolean)));
+  // Merges DAWGit made (the team's versions and yours combined): quiet.
+  const autoMerge = (v: { parents: string[]; message: string }) =>
+    v.parents.length > 1 && v.message === "Merge versions from the team";
   let graphWidth = $derived(PAD * 2 + LANE * Math.max(1, ...rows.map((r) => r.width)));
   const x = (lane: number) => PAD + lane * LANE;
 
@@ -66,7 +71,8 @@
       </defs>
       {#each rows as r, i}
         {#each r.down as s}
-          <path d={segment(i, s.from, s.to)} stroke="var(--lane-{s.color})" stroke-width="2" fill="none" />
+          <path d={segment(i, s.from, s.to)} stroke="var(--lane-{s.color})" stroke-width={s.side ? 1.5 : 2} fill="none"
+            stroke-dasharray={s.side ? "4 4" : undefined} opacity={s.side ? 0.55 : 1} />
         {/each}
       {/each}
       {#each rows as r, i}
@@ -81,11 +87,11 @@
     </svg>
     <ul style:padding-left="{graphWidth}px">
       {#each versions as v (v.id)}
-        <li class:incoming={incoming.has(v.id)} class:open={open[v.id]}>
+        <li class:incoming={incoming.has(v.id)} class:open={open[v.id]} class:automerge={autoMerge(v)}>
           <div class="row" style:height="{ROW}px" role="button" tabindex="0" title={t("Show what this version changed")}
             onclick={() => toggle(v)} onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(v); } }}>
             <span class="msg">
-              {v.message || t("(no description)")}
+              {autoMerge(v) ? t("Combined with the team's versions") : v.message || t("(no description)")}
               {#each v.branches as b}<span class="tag">{b}</span>{/each}
               {#if v.id === head}<span class="tag here">{t("you are here")}</span>{/if}
               {#if v.id === latest && latest !== head}<span class="tag">{t("latest")}</span>{/if}
@@ -146,6 +152,7 @@
   .row:hover .acts { display: flex; }
   .acts button { padding: 3px 10px; font-size: 12.5px; }
   li.incoming .msg { color: var(--muted); }
+  li.automerge .msg { color: var(--faint); font-style: italic; }
   .msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .who { width: 90px; color: var(--muted); }
   .when { width: 110px; text-align: right; }

@@ -278,14 +278,31 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	if err := r.guardLatest(); err != nil {
 		return nil, err
 	}
-	if err := r.checkProfile(); err != nil {
+	m, ix, err := r.workingManifest(message)
+	if err != nil {
 		return nil, err
+	}
+	if err := r.save(m); err != nil {
+		return nil, err
+	}
+	if err := r.setHead(m.ID); err != nil {
+		return nil, err
+	}
+	return m, ix.save()
+}
+
+// workingManifest is the working files as a version after HEAD (not
+// saved): their contents are kept in the store. ErrNothingToSnapshot when
+// they are as HEAD has them.
+func (r *Repo) workingManifest(message string) (*Manifest, *index, error) {
+	if err := r.checkProfile(); err != nil {
+		return nil, nil, err
 	}
 	ix := r.loadIndex()
 	r.report(StageScanning, 0, 0)
 	files, err := r.workingFiles(ix)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Content the version we're on already has is kept (here or in the
 	// team's storage): only new content is looked for in the store.
@@ -294,7 +311,7 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	head := r.Head()
 	if head != "" {
 		if prev, err = r.Load(head); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, f := range prev.Files {
 			known[f.Hash] = true
@@ -326,21 +343,37 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 	if len(paths) > 0 {
 		r.report(StageStoring, 0, len(paths))
 	}
+	// A relinked set the index maps to the version's object stands for that
+	// object; if the object is gone (here and in the team's storage), the
+	// file is what it is.
+	rehashed := map[string]FileEntry{}
 	if err := inParallel(paths, func(p string) error {
-		if _, _, err := r.Store.PutFile(r.Abs(p)); err != nil {
+		h, n, err := r.Store.PutFile(r.Abs(p))
+		if err != nil {
 			return err
 		}
 		mu.Lock()
+		rehashed[p] = FileEntry{Path: p, Hash: h, Size: n}
 		stored++
 		r.report(StageStoring, stored, len(paths))
 		mu.Unlock()
 		return nil
 	}); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	for _, list := range [][]FileEntry{files, working} {
+		for i, f := range list {
+			if e, ok := rehashed[f.Path]; ok && e.Hash != f.Hash {
+				list[i] = e
+				if err := ix.record(r.Abs(e.Path), e.Path, e.Hash, 0); err != nil {
+					return nil, nil, err
+				}
+			}
+		}
 	}
 	external, packs, missing, err := r.sampleRefs(working)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if r.Only != nil && prev != nil { // the sets not committed keep theirs
 		external, packs, missing = keepRefs(prev, external, packs, missing)
@@ -351,17 +384,11 @@ func (r *Repo) Snapshot(message string) (*Manifest, error) {
 		Files: files, External: external, Packs: packs, Missing: missing}
 	if prev != nil {
 		if sameContent(prev, m) {
-			return nil, ErrNothingToSnapshot
+			return nil, nil, ErrNothingToSnapshot
 		}
 		m.Parents = []string{head}
 	}
-	if err := r.save(m); err != nil {
-		return nil, err
-	}
-	if err := r.setHead(m.ID); err != nil {
-		return nil, err
-	}
-	return m, ix.save()
+	return m, ix, nil
 }
 
 // onlyChanges is base with the files at paths as they are in working (or

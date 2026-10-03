@@ -259,9 +259,10 @@ func TestCommitOnOlderVersionThenCombine(t *testing.T) {
 	if err != nil || res.Action != "published" {
 		t.Fatalf("combine: %v %+v", err, res)
 	}
+	// Put after the latest version: one line, no merge version.
 	head, _ := b.Load(b.Head())
-	if len(head.Parents) != 2 || !((head.Parents[0] == m.ID && head.Parents[1] == v2.ID) || (head.Parents[0] == v2.ID && head.Parents[1] == m.ID)) {
-		t.Fatalf("merge parents %v, want %s and %s", head.Parents, m.ID, v2.ID)
+	if len(head.Parents) != 1 || head.Parents[0] != v2.ID || head.Message != m.Message {
+		t.Fatalf("replayed %q on %v, want on %s", head.Message, head.Parents, v2.ID)
 	}
 	if _, err := os.Stat(filepath.Join(b.Root, "Samples", "older-idea.wav")); err != nil {
 		t.Error("the change made on the older version is gone")

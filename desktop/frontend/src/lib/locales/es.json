@@ -837,5 +837,11 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "Ningún compañero comparte aún su configuración, así que DAWGit no sabe si pueden abrirlo. Pueden activarlo en los ajustes del equipo.",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "Tu configuración no está compartida: actívala en los ajustes del equipo para que las revisiones de tus compañeros te incluyan.",
 "Your setup": "Tu configuración",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "Tu versión de Live y los nombres y versiones de tus plugins y packs (sin archivos ni carpetas), para que la revisión del proyecto sepa si tus compañeros pueden abrirlo. Al desactivarlo se borra del almacenamiento del equipo."
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "Tu versión de Live y los nombres y versiones de tus plugins y packs (sin archivos ni carpetas), para que la revisión del proyecto sepa si tus compañeros pueden abrirlo. Al desactivarlo se borra del almacenamiento del equipo.",
+"Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "Tus cambios sin confirmar se quedan como están, aún sin confirmar. Donde ambos cambiaron lo mismo, eliges qué conservar.",
+"Updated to the team's latest version: nothing of yours was left to commit": "Actualizado a la última versión del equipo: no quedó nada tuyo por confirmar",
+"The team's versions were taken in first; yours comes after them": "Primero se incorporaron las versiones del equipo; la tuya va después",
+"You're up to date. Your changes are kept, still uncommitted": "Estás al día. Tus cambios se conservan, aún sin confirmar",
+"Your uncommitted changes stay as they are.": "Tus cambios sin confirmar se quedan como están.",
+"Combined with the team's versions": "Combinado con las versiones del equipo"
 }

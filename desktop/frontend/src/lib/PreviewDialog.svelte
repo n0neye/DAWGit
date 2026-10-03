@@ -4,7 +4,7 @@
   import IncomingChanges from "./IncomingChanges.svelte";
   import { type Preview } from "./api";
 
-  let { root, title, preview, actionLabel, onconfirm, onclose, blocked = "", message = $bindable(null) }: {
+  let { root, title, preview, actionLabel, onconfirm, onclose, blocked = "", keepsWork = false, message = $bindable(null) }: {
     root: string;
     title: string;
     preview: Preview;
@@ -12,6 +12,7 @@
     onconfirm: () => void;
     onclose: () => void;
     blocked?: string; // why the action cannot run now
+    keepsWork?: boolean; // uncommitted changes stay (an update)
     // The new version's description (merges), editable; null: none.
     message?: string | null;
   } = $props();
@@ -46,6 +47,7 @@
         {#if count("modified")}<li>{tn(count("modified"), "{n} file is replaced by theirs", "{n} files are replaced by theirs")}</li>{/if}
         {#if count("renamed")}<li>{tn(count("renamed"), "{n} file is moved", "{n} files are moved")}</li>{/if}
         {#if count("deleted")}<li>{tn(count("deleted"), "{n} file is deleted", "{n} files are deleted")}</li>{/if}
+        {#if keepsWork}<li>{t("Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.")}</li>{/if}
         <li class="faint">{t("Your current version stays in the history: you can go back to it any time.")}</li>
       </ul>
     </div>
