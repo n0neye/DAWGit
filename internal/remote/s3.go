@@ -917,3 +917,64 @@ func keepAlive() *http.Transport {
 	t.MaxIdleConnsPerHost = 64
 	return t
 }
+
+// SetupStore keeps what each member's computer has for the team's projects
+// (Live versions, plugins, packs: names only), shared by members who chose
+// to. A team server doesn't keep them (yet).
+type SetupStore interface {
+	PutSetup(memberID string, data []byte) error
+	DeleteSetup(memberID string) error
+	// Setups maps member id to the setup they shared.
+	Setups() (map[string][]byte, error)
+}
+
+var _ SetupStore = (*S3Backend)(nil)
+
+const setupsDir = "setups/"
+
+func (b *S3Backend) PutSetup(memberID string, data []byte) error {
+	if !ValidMemberID(memberID) {
+		return errors.New("invalid member id")
+	}
+	r, err := b.put(setupsDir+memberID+".json", data, nil)
+	if err != nil {
+		return err
+	}
+	if r.status != http.StatusOK {
+		return s3Error(r)
+	}
+	return nil
+}
+
+func (b *S3Backend) DeleteSetup(memberID string) error {
+	if !ValidMemberID(memberID) {
+		return errors.New("invalid member id")
+	}
+	return b.delete(setupsDir + memberID + ".json")
+}
+
+func (b *S3Backend) Setups() (map[string][]byte, error) {
+	keys, err := b.list(setupsDir, false)
+	if err != nil {
+		return nil, err
+	}
+	var mu sync.Mutex
+	out := map[string][]byte{}
+	err = parallel(keys, func(key string) error {
+		r, err := b.get(key)
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		id := strings.TrimSuffix(strings.TrimPrefix(key, setupsDir), ".json")
+		if ValidMemberID(id) {
+			mu.Lock()
+			out[id] = r.body
+			mu.Unlock()
+		}
+		return nil
+	})
+	return out, err
+}

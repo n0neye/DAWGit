@@ -3,8 +3,10 @@
 
 export {
     LiveReport,
+    MemberCheck,
     PackLine,
     PluginLine,
+    PluginVersion,
     Report,
     SampleReport,
     SetLine

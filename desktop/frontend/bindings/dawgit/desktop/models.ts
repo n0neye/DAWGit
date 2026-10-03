@@ -1624,6 +1624,13 @@ export class TeamSummary {
      */
     "keysUnreadable": boolean;
 
+    /**
+     * ShareSetup: this computer shares its setup with the team;
+     * CanShareSetup: the team's storage keeps setups (a server doesn't yet).
+     */
+    "shareSetup": boolean;
+    "canShareSetup": boolean;
+
     /** Creates a new TeamSummary instance. */
     constructor($$source: Partial<TeamSummary> = {}) {
         if (!("id" in $$source)) {
@@ -1646,6 +1653,12 @@ export class TeamSummary {
         }
         if (!("keysUnreadable" in $$source)) {
             this["keysUnreadable"] = false;
+        }
+        if (!("shareSetup" in $$source)) {
+            this["shareSetup"] = false;
+        }
+        if (!("canShareSetup" in $$source)) {
+            this["canShareSetup"] = false;
         }
 
         Object.assign(this, $$source);

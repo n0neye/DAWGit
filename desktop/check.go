@@ -18,5 +18,13 @@ func (a *App) ProjectCheck(root string) (*health.Report, error) {
 	if err != nil {
 		return nil, err
 	}
-	return health.Check(inv, liveenv.Read()), nil
+	rep := health.Check(inv, liveenv.Read())
+	// Teammates who share their setup: can they open it?
+	if t, err := r.Team(); err == nil && t.Remote.IsStorage() {
+		rep.TeamSetups, rep.ShareSetup = true, t.ShareSetup
+		if setups, err := teamSetups(t); err == nil {
+			health.CheckTeam(rep, inv, setups)
+		}
+	}
+	return rep, nil
 }

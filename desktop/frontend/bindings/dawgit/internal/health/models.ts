@@ -89,6 +89,88 @@ export class LiveReport {
 }
 
 /**
+ * MemberCheck is a teammate's computer against the project, from the setup
+ * they shared.
+ */
+export class MemberCheck {
+    "name": string;
+    "updated": string;
+
+    /**
+     * their newest Live ("" none)
+     */
+    "live": string;
+
+    /**
+     * "yes", "older", "none" (see LiveReport)
+     */
+    "opens": string;
+
+    /**
+     * MissingPlugins: plugins the sets use that their Live didn't find;
+     * OtherVersions: plugins they have in another version than this computer.
+     */
+    "missingPlugins": string[];
+    "otherVersions": PluginVersion[];
+    "missingPacks": string[];
+    "pluginsKnown": boolean;
+    "packsKnown": boolean;
+
+    /** Creates a new MemberCheck instance. */
+    constructor($$source: Partial<MemberCheck> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("updated" in $$source)) {
+            this["updated"] = "";
+        }
+        if (!("live" in $$source)) {
+            this["live"] = "";
+        }
+        if (!("opens" in $$source)) {
+            this["opens"] = "";
+        }
+        if (!("missingPlugins" in $$source)) {
+            this["missingPlugins"] = [];
+        }
+        if (!("otherVersions" in $$source)) {
+            this["otherVersions"] = [];
+        }
+        if (!("missingPacks" in $$source)) {
+            this["missingPacks"] = [];
+        }
+        if (!("pluginsKnown" in $$source)) {
+            this["pluginsKnown"] = false;
+        }
+        if (!("packsKnown" in $$source)) {
+            this["packsKnown"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MemberCheck instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MemberCheck {
+        const $$createField4_0 = $$createType7;
+        const $$createField5_0 = $$createType9;
+        const $$createField6_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("missingPlugins" in $$parsedSource) {
+            $$parsedSource["missingPlugins"] = $$createField4_0($$parsedSource["missingPlugins"]);
+        }
+        if ("otherVersions" in $$parsedSource) {
+            $$parsedSource["otherVersions"] = $$createField5_0($$parsedSource["otherVersions"]);
+        }
+        if ("missingPacks" in $$parsedSource) {
+            $$parsedSource["missingPacks"] = $$createField6_0($$parsedSource["missingPacks"]);
+        }
+        return new MemberCheck($$parsedSource as Partial<MemberCheck>);
+    }
+}
+
+/**
  * PackLine is a pack the sets use; Here: "yes", "no" or "unknown".
  */
 export class PackLine {
@@ -177,6 +259,38 @@ export class PluginLine {
 }
 
 /**
+ * PluginVersion is a plugin in two versions: theirs and this computer's.
+ */
+export class PluginVersion {
+    "name": string;
+    "theirs": string;
+    "here": string;
+
+    /** Creates a new PluginVersion instance. */
+    constructor($$source: Partial<PluginVersion> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("theirs" in $$source)) {
+            this["theirs"] = "";
+        }
+        if (!("here" in $$source)) {
+            this["here"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginVersion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginVersion {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginVersion($$parsedSource as Partial<PluginVersion>);
+    }
+}
+
+/**
  * Report is a project's check.
  */
 export class Report {
@@ -197,6 +311,19 @@ export class Report {
      */
     "live": LiveReport | null;
 
+    /**
+     * Team: teammates who share their setup, checked against the project
+     * (nil when not known: no team, or its storage can't keep setups).
+     */
+    "team": MemberCheck[];
+
+    /**
+     * TeamSetups: the team can keep setups; ShareSetup: this computer's
+     * is shared.
+     */
+    "teamSetups": boolean;
+    "shareSetup": boolean;
+
     /** Creates a new Report instance. */
     constructor($$source: Partial<Report> = {}) {
         if (!("files" in $$source)) {
@@ -214,6 +341,15 @@ export class Report {
         if (!("live" in $$source)) {
             this["live"] = null;
         }
+        if (!("team" in $$source)) {
+            this["team"] = [];
+        }
+        if (!("teamSetups" in $$source)) {
+            this["teamSetups"] = false;
+        }
+        if (!("shareSetup" in $$source)) {
+            this["shareSetup"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -222,10 +358,14 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
+        const $$createField5_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("live" in $$parsedSource) {
             $$parsedSource["live"] = $$createField4_0($$parsedSource["live"]);
+        }
+        if ("team" in $$parsedSource) {
+            $$parsedSource["team"] = $$createField5_0($$parsedSource["team"]);
         }
         return new Report($$parsedSource as Partial<Report>);
     }
@@ -282,7 +422,7 @@ export class SampleReport {
      * Creates a new SampleReport instance from a string or object.
      */
     static createFrom($$source: any = {}): SampleReport {
-        const $$createField4_0 = $$createType11;
+        const $$createField4_0 = $$createType15;
         const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("packs" in $$parsedSource) {
@@ -336,7 +476,11 @@ const $$createType4 = SampleReport.createFrom;
 const $$createType5 = PluginLine.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = $Create.Array($Create.Any);
-const $$createType8 = LiveReport.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = PackLine.createFrom;
-const $$createType11 = $Create.Array($$createType10);
+const $$createType8 = PluginVersion.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = LiveReport.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = MemberCheck.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = PackLine.createFrom;
+const $$createType15 = $Create.Array($$createType14);

@@ -2,6 +2,7 @@ package health
 
 import (
 	"testing"
+	"time"
 
 	"dawgit/internal/als"
 	"dawgit/internal/liveenv"
@@ -63,5 +64,34 @@ func TestCheck(t *testing.T) {
 	}
 	if Check(&project.Inventory{Files: 3}, env).Live != nil {
 		t.Error("no sets: no Live report")
+	}
+}
+
+func TestCheckTeam(t *testing.T) {
+	vital := als.PluginRef{Name: "Vital", Format: "VST3", UID: "56535456-6974-6176-6974-616c00000000"}
+	serum := als.PluginRef{Name: "Serum 2", Format: "VST3", UID: "bbbb"}
+	inv := &project.Inventory{Sets: []project.SetInventory{{Path: "Song.als", Version: "12.3.1",
+		Plugins: []als.PluginRef{vital, serum}}}, Samples: project.SampleInventory{Packs: []string{"Drum Booth"}, PackRefs: 2}}
+	here := &liveenv.Env{Installs: []liveenv.Install{{Version: "12.3.2"}}, PluginsKnown: true, PacksKnown: true,
+		Packs: []string{"Drum Booth"}, Plugins: []liveenv.Plugin{
+			{ID: "device:vst3:instr:" + vital.UID, Format: "VST3", Name: "Vital", Version: "1.0.7"},
+			{ID: "device:vst3:instr:bbbb", Format: "VST3", Name: "Serum 2", Version: "2.0.1"}}}
+	mika := SetupFrom(&liveenv.Env{Installs: []liveenv.Install{{Version: "12.1.5", Edition: "Standard"}},
+		PluginsKnown: true, PacksKnown: true, Plugins: []liveenv.Plugin{
+			{ID: "device:vst3:instr:" + vital.UID, Format: "VST3", Name: "Vital", Version: "1.0.6"}}}, time.Now())
+	rep := Check(inv, here)
+	CheckTeam(rep, inv, map[string]Setup{"Mika": mika})
+	if len(rep.Team) != 1 {
+		t.Fatal(rep.Team)
+	}
+	m := rep.Team[0]
+	if m.Live != "12.1.5" || m.Opens != "older" || len(m.MissingPlugins) != 1 || m.MissingPlugins[0] != "Serum 2" ||
+		len(m.OtherVersions) != 1 || m.OtherVersions[0] != (PluginVersion{"Vital", "1.0.6", "1.0.7"}) ||
+		len(m.MissingPacks) != 1 {
+		t.Fatalf("%+v", m)
+	}
+	again := SetupFrom(here, time.Now().Add(time.Hour))
+	if !again.Same(SetupFrom(here, time.Now())) || again.Same(mika) {
+		t.Error("Same")
 	}
 }

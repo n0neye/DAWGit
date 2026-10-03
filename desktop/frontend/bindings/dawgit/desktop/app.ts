@@ -633,6 +633,14 @@ export function SetPreset(root: string, folder: string, preset: string): $Cancel
 }
 
 /**
+ * SetShareSetup turns sharing this computer's setup with a team on (it is
+ * shared now) or off (the shared one is deleted).
+ */
+export function SetShareSetup(teamID: string, on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(4086362209, teamID, on);
+}
+
+/**
  * SetTracked tracks a file or folder of the project, or leaves it out, with
  * the fewest rules: a rule of the window's that said the opposite goes; a
  * rule is added only when still needed.

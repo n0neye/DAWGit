@@ -36,6 +36,18 @@
   let leaving = $state(false);
   const mb = (n: number) => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : `${Math.max(1, Math.round(n / (1 << 20)))} MB`);
   let editingMe = $state(false);
+  let shareSetup = $state(untrack(() => team.shareSetup));
+  let shareError = $state("");
+  async function toggleShare(on: boolean) {
+    shareError = "";
+    try {
+      await api.SetShareSetup(team.id, on);
+      shareSetup = on;
+      await reload();
+    } catch (e) {
+      shareError = errorText(e);
+    }
+  }
 
   // Storage cleanup: files no version of any project uses.
   type Cleanup = { versions: number; stored: number; unused: number; unusedBytes: number; due: number;
@@ -163,6 +175,16 @@
       {#if team.memberId}<button class="ghost small" onclick={() => (editingMe = false)}>{t("Cancel")}</button>{/if}
     {/if}
   </section>
+
+  {#if team.canShareSetup}
+    <section>
+      <h3>{t("Your setup")}</h3>
+      <label class="share"><input type="checkbox" checked={shareSetup} onchange={(e) => toggleShare(e.currentTarget.checked)} />
+        {t("Share my setup with the team")}</label>
+      <p class="faint small">{t("Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.")}</p>
+      {#if shareError}<p class="error">{shareError}</p>{/if}
+    </section>
+  {/if}
 
   {#if team.isStorage}
     <section>
@@ -293,6 +315,8 @@
   .secret { gap: 6px; }
   .secret input { flex: 1; min-width: 0; }
   .error { color: var(--danger); user-select: text; }
+  .share { display: flex; align-items: center; gap: 8px; color: var(--text); font-size: 14px; }
+  .share input { width: auto; }
   .danger-text { color: var(--danger); }
   .me { gap: 10px; align-items: center; margin-bottom: 4px; }
   .me button { padding: 4px 10px; font-size: 13px; }

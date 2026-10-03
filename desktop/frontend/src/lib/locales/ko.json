@@ -823,5 +823,19 @@
 "“{name}” is downloaded": "“{name}” 다운로드 완료",
 "Project check": "프로젝트 확인",
 "Can this computer open it? DAWGit looked:": "이 컴퓨터에서 열 수 있을까요? DAWGit이 확인했습니다:",
-"OK": "확인"
+"OK": "확인",
+"Share my setup with the team": "내 환경을 팀과 공유",
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. You can change this in the team's settings.": "내 Live 버전과 플러그인, Pack의 이름과 버전(파일과 폴더는 제외). 프로젝트 확인에서 팀원이 프로젝트를 열 수 있는지 알 수 있습니다. 팀 설정에서 바꿀 수 있습니다.",
+"{name} can open it (Live {version})": "{name}님은 열 수 있습니다(Live {version})",
+"has Live {version}, older than {need}": "Live {version}, {need}보다 오래됨",
+"no Live found": "Live 없음",
+"doesn't have {plugins}": "{plugins} 없음",
+"doesn't have the packs {packs}": "Pack {packs} 없음",
+"Other versions: {list}": "다른 버전: {list}",
+"{name} {theirs} (here {here})": "{name} {theirs}(여기 {here})",
+"setup from {when}": "환경 정보: {when}",
+"No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "아직 환경을 공유한 팀원이 없어 열 수 있는지 DAWGit이 알 수 없습니다. 팀원은 팀 설정에서 켤 수 있습니다.",
+"Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "내 환경이 팀과 공유되지 않았습니다: 팀 설정에서 켜면 팀원의 확인에 내가 포함됩니다.",
+"Your setup": "내 환경",
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "내 Live 버전과 플러그인, Pack의 이름과 버전(파일과 폴더는 제외). 프로젝트 확인에서 팀원이 프로젝트를 열 수 있는지 알 수 있습니다. 끄면 팀 저장소에서 삭제됩니다."
 }

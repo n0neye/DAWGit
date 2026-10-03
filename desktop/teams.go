@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"dawgit/internal/health"
+	"dawgit/internal/liveenv"
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 	"dawgit/internal/teams"
@@ -35,6 +37,10 @@ type TeamSummary struct {
 	// KeysUnreadable: this computer can't read the team's keys (settings
 	// copied from another computer or Windows user).
 	KeysUnreadable bool `json:"keysUnreadable"`
+	// ShareSetup: this computer shares its setup with the team;
+	// CanShareSetup: the team's storage keeps setups (a server doesn't yet).
+	ShareSetup    bool `json:"shareSetup"`
+	CanShareSetup bool `json:"canShareSetup"`
 }
 
 // TeamProject is a project as the sidebar shows it.
@@ -58,7 +64,8 @@ type Overview struct {
 
 func teamSummary(t teams.Team) TeamSummary {
 	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
-		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable}
+		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable,
+		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage()}
 }
 
 func folderProject(root, status string) TeamProject {
@@ -206,6 +213,9 @@ func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
 		return TeamSummary{}, err
 	}
 	forgetNames(t.Remote.URL)
+	if t.ShareSetup {
+		go shareSetup(*t, health.SetupFrom(liveenv.Read(), time.Now()))
+	}
 	return teamSummary(*t), nil
 }
 

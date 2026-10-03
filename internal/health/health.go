@@ -5,6 +5,8 @@
 package health
 
 import (
+	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -21,6 +23,13 @@ type Report struct {
 	Ignored      int         `json:"ignored"` // left out by the rules
 	IgnoredBytes int64       `json:"ignoredBytes"`
 	Live         *LiveReport `json:"live"` // nil: no Live Sets
+	// Team: teammates who share their setup, checked against the project
+	// (nil when not known: no team, or its storage can't keep setups).
+	Team []MemberCheck `json:"team"`
+	// TeamSetups: the team can keep setups; ShareSetup: this computer's
+	// is shared.
+	TeamSetups bool `json:"teamSetups"`
+	ShareSetup bool `json:"shareSetup"`
 }
 
 // LiveReport is about the project's Live Sets.
@@ -171,6 +180,12 @@ func find(here []liveenv.Plugin, p als.PluginRef) *liveenv.Plugin {
 		}
 	}
 	return nil
+}
+
+func equalJSON(a, b any) bool {
+	x, _ := json.Marshal(a)
+	y, _ := json.Marshal(b)
+	return bytes.Equal(x, y)
 }
 
 func nonNil(xs []string) []string {

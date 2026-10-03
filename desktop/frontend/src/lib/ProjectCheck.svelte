@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t, tn } from "./i18n.svelte";
-  import { api, errorText, formatBytes } from "./api";
+  import { api, ago, errorText, formatBytes } from "./api";
   import type { Report } from "../../bindings/dawgit/internal/health/models";
 
   // A project's check: for Live Sets, the Live version they need, their
@@ -76,7 +76,8 @@
         {#if !live.plugins.length}
           <li class="ok"><b>✓</b> <span>{t("No third-party plugins: Live's own devices only")}</span></li>
         {:else}
-          <li class={pluginsMissing.length && mode !== "added" ? "warn" : "info"}><b>{pluginsMissing.length && mode !== "added" ? "⚠" : "ⓘ"}</b> <span>
+          {@const level = mode === "added" || !live.pluginsKnown ? "info" : pluginsMissing.length ? "warn" : "ok"}
+          <li class={level}><b>{level === "warn" ? "⚠" : level === "ok" ? "✓" : "ⓘ"}</b> <span>
             {#if mode === "added"}
               {tn(live.plugins.length, "{n} third-party plugin. Teammates without it (or with another version) may not hear these devices the same: freeze or bounce those tracks if needed.", "{n} third-party plugins. Teammates without them (or with other versions) may not hear these devices the same: freeze or bounce those tracks if needed.")}
             {:else if pluginsMissing.length}
@@ -101,6 +102,34 @@
         {/if}
       {/if}
 
+      <!-- teammates, from the setups they share -->
+      {#if live && report.teamSetups}
+        {#each report.team ?? [] as m}
+          {@const fine = m.opens === "yes" && !m.missingPlugins.length && !m.missingPacks.length}
+          <li class={fine ? "ok" : "warn"}><b>{fine ? "✓" : "⚠"}</b> <span>
+            {#if fine}
+              {t("{name} can open it (Live {version})", { name: m.name, version: m.live })}
+            {:else}
+              <strong>{m.name}</strong>:
+              {#if m.opens === "older"}{t("has Live {version}, older than {need}", { version: m.live, need: live.needs })}.{/if}
+              {#if m.opens === "none"}{t("no Live found")}.{/if}
+              {#if m.missingPlugins.length}{t("doesn't have {plugins}", { plugins: m.missingPlugins.join(", ") })}.{/if}
+              {#if m.missingPacks.length}{t("doesn't have the packs {packs}", { packs: m.missingPacks.join(", ") })}.{/if}
+            {/if}
+            {#if m.otherVersions.length}
+              <br /><span class="muted">{t("Other versions: {list}", { list: m.otherVersions.map((p) => t("{name} {theirs} (here {here})", { name: p.name, theirs: p.theirs, here: p.here })).join(", ") })}</span>
+            {/if}
+            <span class="faint small">· {t("setup from {when}", { when: ago(m.updated) })}</span>
+          </span></li>
+        {/each}
+        {#if !report.team?.length}
+          <li class="info"><b>ⓘ</b> <span>{t("No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.")}</span></li>
+        {/if}
+        {#if !report.shareSetup}
+          <li class="info"><b>ⓘ</b> <span>{t("Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.")}</span></li>
+        {/if}
+      {/if}
+
       <!-- upload -->
       {#if mode === "added"}
         <li class="info"><b>ⓘ</b> <span>{tn(report.files, "The first version uploads {n} file ({size})", "The first version uploads {n} files ({size})", { size: formatBytes(report.bytes) })}{report.ignored
@@ -122,6 +151,7 @@
   .link { border: none; background: transparent; color: var(--accent); padding: 0 0 0 4px; font-size: 12px; cursor: pointer; }
   .paths, .plugins { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
   code { font-size: 11.5px; color: var(--muted); word-break: break-all; }
+  .small { font-size: 11.5px; }
   .plugin { color: var(--text); }
   .plugin .mark { display: inline-block; width: 14px; }
   .plugin.yes .mark { color: var(--accent); }

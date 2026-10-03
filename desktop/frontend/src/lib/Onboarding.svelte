@@ -107,7 +107,7 @@
       <JoinOrCreate onconnected={connected} />
     {:else if step === 2 && team}
       <h1>{t("Who are you in {team}?", { team: team.name })}</h1>
-      <IdentityForm {team} suggested={name} onsaved={async (t) => {
+      <IdentityForm {team} suggested={name} askShare onsaved={async (t) => {
         team = t;
         rememberAuthor(t.memberName);
         await reload();

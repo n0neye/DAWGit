@@ -6,10 +6,11 @@
   // Who you are in a team. On a new computer, pick yourself from the member
   // list (same person, same name on all your versions) or join as someone
   // new. Once set, this renames you for everyone, on old versions too.
-  let { team, suggested = "", submitLabel = "Continue", onsaved }: {
+  let { team, suggested = "", submitLabel = "Continue", askShare = false, onsaved }: {
     team: TeamSummary;
     suggested?: string; // a name to start with (e.g. from this computer)
     submitLabel?: string;
+    askShare?: boolean; // also ask whether to share this computer's setup (joining)
     onsaved: (t: TeamSummary) => void;
   } = $props();
 
@@ -17,6 +18,8 @@
   let pick = $state(untrack(() => team.memberId) || "new"); // member id, or "new"
   let name = $state(untrack(() => team.memberName) || untrack(() => suggested));
   let busy = $state(false);
+  let share = $state(true);
+  let sharing = $derived(askShare && team.canShareSetup && !team.memberId);
   let error = $state("");
 
   $effect(() => {
@@ -37,6 +40,8 @@
     busy = true;
     error = "";
     try {
+      // First the choice (shared once you are someone in the team).
+      if (sharing) await api.SetShareSetup(team.id, share);
       onsaved(await api.SetIdentity(team.id, pick === "new" ? "" : pick, name.trim()));
     } catch (e) {
       error = errorText(e);
@@ -60,6 +65,10 @@
   <label for="who-name">{renaming ? t("Your name in {team}", { team: team.name }) : t("Your name")}</label>
   <input id="who-name" bind:value={name} placeholder={t("e.g. Yi")} autocomplete="off" />
   <p class="faint small">{t("Shown next to the versions you commit. If you change it later, it changes on all your versions, for everyone in the team.")}</p>
+  {#if sharing}
+    <label class="share"><input type="checkbox" bind:checked={share} /> {t("Share my setup with the team")}</label>
+    <p class="faint small">{t("Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. You can change this in the team's settings.")}</p>
+  {/if}
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">
     <span class="spacer"></span>
@@ -75,5 +84,7 @@
   .members input { width: auto; }
   .small { font-size: 12px; margin: 6px 0 0; }
   .error { color: var(--danger); }
+  .share { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; color: var(--text); font-size: 14px; }
+  .share input { width: auto; }
   .actions { margin-top: 14px; }
 </style>
