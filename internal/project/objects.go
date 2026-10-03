@@ -117,6 +117,8 @@ func (r *Repo) localCopy(h string) string {
 	if r.Store.Has(h) {
 		return r.Store.Path(h)
 	}
+	r.srcMu.Lock()
+	defer r.srcMu.Unlock()
 	p := r.sourcesByHash()[h]
 	if p == "" {
 		return ""
@@ -345,6 +347,7 @@ func (r *Repo) PruneObjects() (int64, error) {
 		}
 	}
 	r.sources = nil
+	r.tidyChunkLists()
 	return freed, nil
 }
 

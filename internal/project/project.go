@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"sync"
 	"strings"
 
 	"dawgit/internal/profile"
@@ -55,6 +56,7 @@ type Repo struct {
 	remote  map[string]bool   // objects only in the team's storage (remoteOnly)
 	sources map[string]string // contents found outside the store (sourcesByHash)
 	stamps  map[string]stamp  // the project files among them: as they were hashed
+	srcMu   sync.Mutex        // localCopy runs in parallel transfers
 	prof    *profile.Profile  // the project's rules (Profile)
 	profErr error
 }

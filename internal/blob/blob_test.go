@@ -86,3 +86,48 @@ func TestOldBlobs(t *testing.T) {
 		}
 	}
 }
+
+func TestBytes(t *testing.T) {
+	noise := make([]byte, 5000)
+	rand.Read(noise)
+	for _, b := range [][]byte{nil, []byte("hi"), noise, bytes.Repeat([]byte("level "), 2000),
+		append([]byte(Magic+"z"), noise...)} {
+		enc := EncodeBytes(b)
+		back, err := DecodeBytes(enc)
+		if err != nil || !bytes.Equal(back, b) {
+			t.Fatalf("round trip of %d bytes: %v", len(b), err)
+		}
+		// as a stream too
+		r, err := NewReader(bytes.NewReader(enc))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := io.ReadAll(r); !bytes.Equal(got, b) {
+			t.Fatal("stream differs")
+		}
+	}
+	if len(EncodeBytes(bytes.Repeat([]byte("level "), 2000))) > 1000 {
+		t.Error("should compress")
+	}
+}
+
+func TestChunkListBlob(t *testing.T) {
+	text := []byte("dawgit-chunks 1 fastcdc-gear 1 2 3\n")
+	b := ChunkList(text)
+	if !IsChunkList(b[:16]) || IsChunkList([]byte(Magic+"z")) {
+		t.Fatal("IsChunkList")
+	}
+	if _, err := NewReader(bytes.NewReader(b)); err != ErrChunkList {
+		t.Fatalf("NewReader: %v", err)
+	}
+	if _, err := DecodeBytes(b); err != ErrChunkList {
+		t.Fatalf("DecodeBytes: %v", err)
+	}
+	rc, list, err := Open(bytes.NewReader(b))
+	if err != nil || !list {
+		t.Fatal(err)
+	}
+	if got, _ := io.ReadAll(rc); !bytes.Equal(got, text) {
+		t.Fatalf("%q", got)
+	}
+}

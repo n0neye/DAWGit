@@ -1,6 +1,6 @@
 # Chunked big files
 
-Status: proposed (after 0.9.6 compression). Not built.
+Status: built (0.9.7). Server-hosted teams keep whole files.
 
 ## Why
 
@@ -99,15 +99,16 @@ chunking there is later, with its own protocol.
 
 For each file to upload of at least 16 MB:
 
-1. Read it once: cut it into pieces, hashing each (and the whole, which is
-   known already).
+1. Read it: cut it into pieces, hashing each, and the whole (it must still
+   be the content the version names). The pieces that go up are read again
+   in step 3, each checked against the list.
 2. Ask storage which pieces are missing (`MissingObjects`; pieces of the
    file's previous version are usually there).
 3. Upload the missing pieces (compressed, as any blob), in parallel, with
    retries.
-4. Upload the chunk list under the file's hash — after its pieces, as
-   versions are written after their files: a chunk list is never there
-   without its pieces.
+4. Write a marker `chunked/<file hash>` (see Cleanup), then the chunk list
+   under the file's hash — after its pieces, as versions are written after
+   their files: a chunk list is never there without its pieces.
 
 The lease a share writes (cleanup must not delete what a share relies on)
 also lists the pieces. Progress counts the bytes actually sent.
@@ -118,10 +119,12 @@ Files already stored whole stay whole; nothing is re-uploaded.
 
 `GetObject(file)`: whole contents as today, or a chunk list. For a list:
 
-1. Pieces this computer already has are taken from here: when the previous
-   version of the same file is in the project folder (or the store), its own
-   chunk list (kept in `.dawgit/chunks/<hash>`, a few KB each, or worked out
-   again by cutting the file) says which pieces it holds and where.
+1. Pieces this computer already has are taken from here: every big file
+   uploaded or downloaded here keeps its chunk list in
+   `.dawgit/chunks/<hash>` (a few KB each; forgotten once the file is no
+   longer on this computer), which says which pieces the file holds and
+   where. Each piece read from a file here is checked against its hash; one
+   that changed meanwhile is downloaded instead.
 2. The rest are downloaded in parallel, each checked against its hash.
 3. Pieces are written in order into the store; the whole file's SHA-256 is
    checked as today.
@@ -133,28 +136,34 @@ So a teammate pulling an everyday level edit downloads under 1 MB too.
 Today: every version's trees name the files in use; files nobody uses are
 marked, then deleted a day later if still unused.
 
-Now a file in use may be a chunk list, and its pieces are in use too. For
-every file in use of at least 16 MB, cleanup reads the first bytes of its
-object (a range request); for a chunk list, the whole list. Chunk lists never
-change, so their pieces are cached between cleanups (`gc/chunks.json`).
-Big files are few (hundreds), so this adds little.
+Now a file may be a chunk list. Cleanup finds them by their markers
+(`chunked/<hash>`, one listing) and reads each list that is stored: **its
+pieces are in use for as long as the list is stored, used or not.** So a
+share relying on a list that is there (an upload that stopped, say) keeps
+its pieces too, through the list's own lease. Once an unused list is
+deleted, its pieces are marked by the next cleanup and deleted by a later
+one; markers whose list is gone are deleted after a week.
 
 The rest is unchanged: pieces uploaded in the last week are kept (a share
-uploads pieces before its list), leases keep a running share's pieces, and
-unused pieces are deleted only on a second cleanup.
+uploads pieces before its list), leases keep a running share's pieces (the
+share leases the pieces it is about to rely on), and unused pieces are
+deleted only on a second cleanup. Big files are few (hundreds), so reading
+their lists adds little.
 
 ## Checking (verify)
 
 - Locally nothing changes (files are whole on this computer).
-- `--team` checks, for big files, that the chunk list and its pieces exist;
-  repair re-uploads missing pieces from a local copy.
+- With a team, verify checks that the team has every piece of the big files
+  whose chunk lists are kept here; repair uploads missing pieces again from
+  a copy here (files here first: their pieces may mend other versions).
 
 ## Compatibility
 
 - Old blobs and whole files keep working; mixing is fine (a file's older
   versions whole, newer ones chunked).
-- DAWGit 0.9.6 can't read chunk lists: the release that writes them must
-  force updating (`-min`), as 0.9.6 did for compression.
+- DAWGit 0.9.6 can't read chunk lists ("unknown mode … made by a newer
+  DAWGit?"): the release that writes them (0.9.7) must force updating
+  (`-min 0.9.7`), as 0.9.6 did for compression.
 
 ## Costs
 
@@ -179,8 +188,7 @@ unused pieces are deleted only on a second cleanup.
    flaky storage; the shuffled-files test with big files.
 6. E2E: the Unreal scenario (s10) edits a level and checks the bytes sent.
 
-## Open questions
+## Decided
 
-- 16 MB threshold: lower to 8 MB for Unity scenes? (They already compress
-  to ~6%; pieces would save most of the rest for small edits.)
-- Server-hosted teams: keep whole files for now?
+- 16 MB threshold (Unity scenes of ~8 MB stay whole: they compress to ~6%).
+- Server-hosted teams keep whole files for now.
