@@ -499,3 +499,75 @@ func TestRelinkedTrackIsNotAChange(t *testing.T) {
 		}
 	}
 }
+
+// Versions committed here while the team moved on are put after the team's
+// when shared: one line, no merge version.
+func TestShareReplaysUnsharedVersions(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	if _, _, err := a.Save("group audio", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	// B commits twice without sharing (offline, say).
+	os.WriteFile(filepath.Join(b.Root, "Samples", "one.wav"), []byte("RIFF one"), 0o644)
+	if _, err := b.Snapshot("one"); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(b.Root, "Samples", "two.wav"), []byte("RIFF two"), 0o644)
+	if _, err := b.Snapshot("two"); err != nil {
+		t.Fatal(err)
+	}
+	res, err := b.Share(Strategy("fail"))
+	if err != nil || res.Action != "published" {
+		t.Fatalf("share: %v %+v", err, res)
+	}
+	log, _ := b.Log()
+	var msgs []string
+	for _, m := range log {
+		msgs = append(msgs, m.Message)
+		if len(m.Parents) > 1 {
+			t.Errorf("a merge version: %q", m.Message)
+		}
+	}
+	if strings.Join(msgs, ",") != "two,one,group audio,v2" {
+		t.Errorf("log = %v", msgs)
+	}
+	if setTracks(t, b)["Audios"].Elem == nil {
+		t.Error("A's set not taken in")
+	}
+	for _, f := range []string{"one.wav", "two.wav"} {
+		if _, err := os.Stat(filepath.Join(b.Root, "Samples", f)); err != nil {
+			t.Errorf("%s lost", f)
+		}
+	}
+	assertClean(t, b)
+	if up, err := a.Update(Strategy("fail")); err != nil || up.Action != "fast-forward" {
+		t.Fatalf("A update: %v %+v", err, up)
+	}
+}
+
+// Replaying asks where both changed the same track, and then goes on.
+func TestShareReplayConflict(t *testing.T) {
+	a, b := team(t)
+	copyFile(t, filepath.Join(fixtureProject, "Split-A.als"), filepath.Join(a.Root, "Song.als"))
+	a.Save("group audio", Strategy("fail"))
+	copyFile(t, filepath.Join(fixtureProject, "Split-B.als"), filepath.Join(b.Root, "Song.als"))
+	b.Snapshot("drums")
+	head := b.Head()
+	_, err := b.Share(Strategy("fail"))
+	var conflict *MergeConflictError
+	if !errors.As(err, &conflict) || b.Head() != head {
+		t.Fatalf("expected a conflict and nothing changed: %v", err)
+	}
+	if _, err := b.Share(Strategy("both")); err != nil {
+		t.Fatal(err)
+	}
+	m, _ := b.Load(b.Head())
+	if m.Message != "drums" || len(m.Parents) != 1 || m.Parents[0] != a.Head() {
+		t.Fatalf("replayed: %q %v", m.Message, m.Parents)
+	}
+	tracks := setTracks(t, b)
+	if tracks["Audios"].Elem == nil || tracks["Drum"].Elem == nil {
+		t.Errorf("tracks %v", keys(tracks))
+	}
+}

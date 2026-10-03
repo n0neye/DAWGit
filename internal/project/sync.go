@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -859,6 +860,15 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 			}
 		}
 		if !ahead {
+			// Ours not shared yet: put them after the team's (no merge
+			// version), when they are a plain line and nothing is left
+			// uncommitted; otherwise merged.
+			if log, ok, err := r.replayOnto(c, remoteHead, opts); err != nil {
+				return nil, err
+			} else if ok {
+				res.MergeLog = append(res.MergeLog, log...)
+				continue // publish them
+			}
 			up, err := r.Update(opts)
 			if err != nil {
 				return nil, err
@@ -884,6 +894,71 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 		return res, nil
 	}
 	return nil, errors.New("the server branch keeps changing; try again")
+}
+
+// replayOnto puts the versions committed here and not in target (the team's
+// branch moved on) after target, in order, each merged with what came
+// before it (sets track by track), keeping their messages, authors and
+// times; then the project is on the last one. ok is false when they can't
+// be replayed (a merge among them, or uncommitted changes): nothing is
+// changed then.
+func (r *Repo) replayOnto(c remote.Backend, target string, opts MergeOptions) (log []string, ok bool, err error) {
+	have, err := r.ancestors(target)
+	if err != nil {
+		return nil, false, err
+	}
+	var ours []*Manifest // newest first, then reversed
+	for id := r.Head(); id != "" && !have[id]; {
+		m, err := r.Load(id)
+		if err != nil {
+			return nil, false, err
+		}
+		if len(m.Parents) != 1 {
+			return nil, false, nil // a merge (or a first version): merged instead
+		}
+		ours = append(ours, m)
+		id = m.Parents[0]
+	}
+	if len(ours) == 0 {
+		return nil, false, nil
+	}
+	if changes, err := r.Status(); err != nil || len(changes) > 0 {
+		return nil, false, err
+	}
+	slices.Reverse(ours)
+	onto, err := r.Load(target)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, m := range ours {
+		base, err := r.Load(m.Parents[0])
+		if err != nil {
+			return nil, false, err
+		}
+		r.knowSizes(onto, base)
+		if err := r.fetchObjects(c, setHashes(onto, base)); err != nil {
+			return nil, false, err
+		}
+		next, l, err := r.mergeManifests(base, m, onto, opts)
+		if err != nil {
+			return nil, false, err // nothing changed yet: the versions are where they were
+		}
+		next.Parents, next.Message, next.Author, next.AuthorID, next.Time =
+			[]string{onto.ID}, m.Message, m.Author, m.AuthorID, m.Time
+		if err := r.save(next); err != nil {
+			return nil, false, err
+		}
+		log = append(log, l...)
+		onto = next
+	}
+	r.knowSizes(onto)
+	if err := r.fetchObjects(c, onto.Objects()); err != nil {
+		return nil, false, err
+	}
+	if _, err := r.putFiles(onto, onto.ID, onto.ID); err != nil {
+		return nil, false, err
+	}
+	return log, true, nil
 }
 
 // Clone connects to a team (address + token, or a connection code) and
