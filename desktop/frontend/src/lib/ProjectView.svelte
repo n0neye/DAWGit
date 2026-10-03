@@ -433,7 +433,7 @@
       const vs = own.length ? own : (data?.versions ?? []);
       const who = [...new Set(vs.map((v) => v.author))].join(", ");
       if (data) preview = {
-        title: who ? tn(vs.length, "{who} saved {n} new version", "{who} saved {n} new versions", { who }) : t("Updates from the team"),
+        title: who ? tn(vs.length, "{who} shared {n} new version", "{who} shared {n} new versions", { who }) : t("Updates from the team"),
         label: who ? t("Bring in {who}'s changes", { who }) : t("Get updates"), data, run: updateAction,
         blocked: st?.changes.length ? UNSAVED() : "" };
     } catch (e) {
@@ -766,7 +766,7 @@
         <div>
           <Tx text={st.changes.length && !st.olderVersion
             ? tn(news.length, "{who} committed {n} new version while you were working:", "{who} committed {n} new versions while you were working:")
-            : tn(news.length, "{who} saved {n} new version:", "{who} saved {n} new versions:")}
+            : tn(news.length, "{who} shared {n} new version:", "{who} shared {n} new versions:")}
             strong={{ who: [...new Set(news.map((v) => v.author))].join(", ") }} />
           <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
         </div>

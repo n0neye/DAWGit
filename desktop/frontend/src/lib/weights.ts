@@ -13,7 +13,7 @@ export const heavier = (a: string, b: string) => ((rank[b] ?? -1) > (rank[a] ?? 
 export const isSmall = (w: string) => w === "noise" || w === "tidy";
 
 export function weightName(w: string): string {
-  return ({ arrangement: t("Arrangement"), sound: t("Sound"), mix: t("Mix"), tidy: t("Tidying"),
+  return ({ arrangement: t("Arranging"), sound: t("Sound"), mix: t("Mix"), tidy: t("Tidying"),
     noise: t("Plugin state") } as Record<string, string>)[w] ?? "";
 }
 

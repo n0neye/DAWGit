@@ -344,8 +344,8 @@
 <div class="setview">
   <div class="bar">
     <div class="modes" title={tr("Live's two views, or the changes as text")}>
-      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>{tr("Arrangement")}</button>
-      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>{tr("Session")}</button>
+      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
+      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
       <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>{tr("Text")}</button>
     </div>
     {#if compare && setLook.pane !== "text" && data?.now && data?.before}
