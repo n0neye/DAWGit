@@ -35,7 +35,8 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 
 ## Layout
 
-- `cmd/dawgit` — command line tool; `dawgit serve` is the team server
+- `cmd/dawgit` — command line tool (package `cli`; `--json` results and error codes in `cli/output.go`); `dawgit serve` is the team server
+- `docs/` — also a Go package: embeds `agents.md` for `dawgit help agents`
 - `desktop/` — Windows desktop app (Wails v3, Svelte 5); installer in `desktop/build/windows/installer.nsi`
 - `internal/xmltree` — ordered XML tree with byte-exact round-trip of Live's output
 - `internal/als` — Live Set model, content fingerprints (noise-aware), structural validator

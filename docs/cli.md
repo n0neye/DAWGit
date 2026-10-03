@@ -1,6 +1,8 @@
 # Command line tool
 
-The desktop app covers everyday use, including creating a team on Cloudflare R2. The command line tool `dawgit.exe` is for a few advanced tasks. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`). Run `dawgit help` for the full list.
+The desktop app covers everyday use, including creating a team on Cloudflare R2. The command line tool `dawgit.exe` is for a few advanced tasks, scripts and AI agents. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`), and the installer puts that folder on your PATH (an option, on by default): open a new terminal and type `dawgit`. Run `dawgit help` for the full list.
+
+**Scripts and AI agents:** `status`, `log`, `save`, `update`, `merge` and `version` take `--json` (one JSON object on stdout, errors with fixed codes), and no command ever waits for an answer. See [DAWGit for AI agents](agents.md), also printed by `dawgit help agents`.
 
 ## Team storage (S3-compatible)
 

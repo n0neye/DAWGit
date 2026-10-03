@@ -34,6 +34,9 @@ const (
 	modeChunks = 'c'
 )
 
+// ErrNewerFormat: the blob was made by a newer DAWGit.
+var ErrNewerFormat = errors.New("stored by a newer DAWGit: update DAWGit to read it")
+
 // ErrChunkList: the blob is a chunk list, not contents (see Open).
 var ErrChunkList = errors.New("blob: a chunk list")
 
@@ -242,7 +245,7 @@ func Open(r io.Reader) (rc io.ReadCloser, list bool, err error) {
 		}
 		return dec.IOReadCloser(), mode == modeChunks, nil
 	}
-	return nil, false, fmt.Errorf("blob: unknown mode %q (made by a newer DAWGit?)", mode)
+	return nil, false, fmt.Errorf("blob: unknown mode %q: %w", mode, ErrNewerFormat)
 }
 
 // IsChunkList tells from a blob's first bytes whether it is a chunk list.
@@ -279,7 +282,7 @@ func DecodeBytes(b []byte) ([]byte, error) {
 	case modeChunks:
 		return nil, ErrChunkList
 	}
-	return nil, fmt.Errorf("blob: unknown mode %q (made by a newer DAWGit?)", b[len(Magic)])
+	return nil, fmt.Errorf("blob: unknown mode %q: %w", b[len(Magic)], ErrNewerFormat)
 }
 
 // ChunkList is the blob that keeps a file as pieces: text from chunk.List.

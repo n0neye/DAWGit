@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -21,9 +22,12 @@ import (
 // parseArgs parses flags that may appear before or after positional args.
 func parseArgs(fs *flag.FlagSet, args []string) ([]string, error) {
 	var pos []string
+	if jsonMode {
+		fs.SetOutput(io.Discard) // the error says it
+	}
 	for {
 		if err := fs.Parse(args); err != nil {
-			return nil, err
+			return nil, &cliError{Code: "usage", Exit: exitUsage, Err: err}
 		}
 		args = fs.Args()
 		if len(args) == 0 {
@@ -218,7 +222,13 @@ func liveOpenError(set, why string) error {
 	if why != "" {
 		what = why + ", but " + what
 	}
-	return errors.New(what + ".\nSave and close it in Live, then run this again (or use --force if it is not open)")
+	ce := &cliError{Code: "set_open_in_live", Exit: exitLiveOpen,
+		Err:  errors.New(what + ".\nSave and close it in Live, then run this again (or use --force if it is not open)"),
+		Hint: "ask the user to save and close the set in Live; use --force only if it is not open"}
+	if set != "?" {
+		ce.Set = set
+	}
+	return ce
 }
 
 // guardLive refuses to rewrite sets while one is open in Live, unless forced.
@@ -246,12 +256,24 @@ func printMerge(res *project.SyncResult) {
 	}
 }
 
-func explainConflict(err error) error {
-	var c *project.MergeConflictError
-	if errors.As(err, &c) {
-		return fmt.Errorf("%w\nchoose how to resolve: --strategy ours | theirs | both", err)
-	}
-	return err
+// syncJSON is what save, update and merge did.
+type syncJSON struct {
+	// Action: published (shared), local (saved, no team), nothing-changed,
+	// up-to-date, ahead (you have versions the team lacks), fast-forward,
+	// merged.
+	Action string       `json:"action"`
+	Saved  *versionJSON `json:"saved"` // the version saved, if any
+	From   string       `json:"from,omitempty"`
+	To     string       `json:"to,omitempty"`
+	Merged []string     `json:"merged"`   // what a merge took from each side
+	Relink []string     `json:"relinked"` // sample paths rewritten for this computer
+	// ReopenSets: sets changed under Live: they must be reopened there.
+	ReopenSets bool `json:"reopen_sets"`
+}
+
+func syncOf(res *project.SyncResult) syncJSON {
+	return syncJSON{Action: res.Action, From: res.From, To: res.To, Merged: nonNil(res.MergeLog),
+		Relink: nonNil(res.Relinked), ReopenSets: len(res.MergeLog) > 0}
 }
 
 func cmdSave(args []string) error {
@@ -263,7 +285,7 @@ func cmdSave(args []string) error {
 		return err
 	}
 	if *msg == "" {
-		return errors.New(`a message is required: dawgit save -m "what changed"`)
+		return usageError(`a message is required: dawgit save -m "what changed"`)
 	}
 	r, err := openRepo()
 	if err != nil {
@@ -276,34 +298,48 @@ func cmdSave(args []string) error {
 	}
 	defer tidy(r)
 	m, res, err := r.Save(*msg, project.Strategy(*strategy))
-	if errors.Is(err, project.ErrNoRemote) {
+	var out syncJSON
+	switch {
+	case errors.Is(err, project.ErrNoRemote):
+		out = syncJSON{Action: "nothing-changed", Merged: []string{}, Relink: []string{}}
 		if m != nil {
-			fmt.Printf("saved version %s locally (not connected to a team; see `dawgit remote`)\n", short(m.ID))
-			return nil
+			out.Action = "local"
 		}
-		fmt.Println("nothing changed")
-		return nil
-	}
-	if err != nil {
-		return explainConflict(err)
+	case err != nil:
+		return err
+	default:
+		out = syncOf(res)
+		if out.Action == "up-to-date" && m == nil {
+			out.Action = "nothing-changed"
+		}
 	}
 	if m != nil {
-		fmt.Printf("saved version %s  %s\n", short(m.ID), m.Message)
+		v := versionOf(m, nil)
+		out.Saved = &v
 	}
-	printMerge(res)
-	switch res.Action {
-	case "published":
-		fmt.Println("shared with the team")
-		if len(res.MergeLog) > 0 {
-			fmt.Println("others' changes were merged into your files: reopen the set in Live")
-		}
-	case "up-to-date":
-		if m == nil {
+	result("save", out, func() {
+		switch out.Action {
+		case "local":
+			fmt.Printf("saved version %s locally (not connected to a team; see `dawgit remote`)\n", short(m.ID))
+			return
+		case "nothing-changed":
 			fmt.Println("nothing changed")
+			return
 		}
-	case "fast-forward":
-		fmt.Println("you had nothing new; updated to the team's latest version")
-	}
+		if m != nil {
+			fmt.Printf("saved version %s  %s\n", short(m.ID), m.Message)
+		}
+		printMerge(res)
+		switch res.Action {
+		case "published":
+			fmt.Println("shared with the team")
+			if len(res.MergeLog) > 0 {
+				fmt.Println("others' changes were merged into your files: reopen the set in Live")
+			}
+		case "fast-forward":
+			fmt.Println("you had nothing new; updated to the team's latest version")
+		}
+	})
 	return nil
 }
 
@@ -324,7 +360,7 @@ func cmdUpdate(args []string) error {
 		if err != nil {
 			return err
 		}
-		printPreview(p, "the team")
+		result("update", previewOf(r, p), func() { printPreview(p, "the team") })
 		return nil
 	}
 	if err := guardLive(r, *force); err != nil {
@@ -333,20 +369,22 @@ func cmdUpdate(args []string) error {
 	defer tidy(r)
 	res, err := r.Update(project.Strategy(*strategy))
 	if err != nil {
-		return explainConflict(err)
+		return err
 	}
-	switch res.Action {
-	case "up-to-date":
-		fmt.Println("already up to date")
-	case "ahead":
-		fmt.Println("you have versions the team does not have yet: dawgit save -m \"...\" to share them")
-	case "fast-forward", "merged":
-		fmt.Printf("updated to %s\n", short(res.To))
-		printMerge(res)
-		if res.Action == "merged" {
-			fmt.Println("your versions and the team's were merged; run `dawgit save` to share the result")
+	result("update", syncOf(res), func() {
+		switch res.Action {
+		case "up-to-date":
+			fmt.Println("already up to date")
+		case "ahead":
+			fmt.Println("you have versions the team does not have yet: dawgit save -m \"...\" to share them")
+		case "fast-forward", "merged":
+			fmt.Printf("updated to %s\n", short(res.To))
+			printMerge(res)
+			if res.Action == "merged" {
+				fmt.Println("your versions and the team's were merged; run `dawgit save` to share the result")
+			}
 		}
-	}
+	})
 	return nil
 }
 

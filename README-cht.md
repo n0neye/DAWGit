@@ -39,6 +39,7 @@
 
 - [團隊架設指南](docs/team-setup.md)（英文）
 - [命令列工具](docs/cli.md)（英文）
+- [給 AI Agent 的使用說明](docs/agents.md)（英文；Claude Code、Codex、Cursor 等）
 - [建置與開發](docs/development.md)（英文）
 
 歡迎到 [Issues](../../issues) 回報問題或提供意見。
