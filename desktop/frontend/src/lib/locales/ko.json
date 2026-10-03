@@ -842,5 +842,6 @@
 "Updated to the team's latest version: nothing of yours was left to commit": "팀의 최신 버전으로 업데이트했습니다: 커밋할 내 변경이 남지 않았습니다",
 "The team's versions were taken in first; yours comes after them": "팀의 버전을 먼저 가져왔고, 내 버전은 그 뒤에 이어집니다",
 "You're up to date. Your changes are kept, still uncommitted": "최신 상태입니다. 변경은 그대로 남아 있고 아직 커밋되지 않았습니다",
-"Your uncommitted changes stay as they are.": "커밋하지 않은 변경은 그대로 남습니다."
+"Your uncommitted changes stay as they are.": "커밋하지 않은 변경은 그대로 남습니다.",
+"Combined with the team's versions": "팀의 버전과 합침"
 }

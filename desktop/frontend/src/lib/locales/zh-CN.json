@@ -842,5 +842,6 @@
 "Updated to the team's latest version: nothing of yours was left to commit": "已更新到团队最新版本：你这边没有剩下要提交的改动",
 "The team's versions were taken in first; yours comes after them": "已先带入团队的版本，你的版本接在后面",
 "You're up to date. Your changes are kept, still uncommitted": "已是最新版本。你的改动都保留着，仍未提交",
-"Your uncommitted changes stay as they are.": "你未提交的改动会保持原样。"
+"Your uncommitted changes stay as they are.": "你未提交的改动会保持原样。",
+"Combined with the team's versions": "与团队的版本合并"
 }

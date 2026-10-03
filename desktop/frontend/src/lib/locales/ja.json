@@ -842,5 +842,6 @@
 "Updated to the team's latest version: nothing of yours was left to commit": "チームの最新バージョンに更新しました：あなたの側にコミットする変更は残っていません",
 "The team's versions were taken in first; yours comes after them": "先にチームのバージョンを取り込み、あなたのバージョンはその後に続きます",
 "You're up to date. Your changes are kept, still uncommitted": "最新の状態です。変更はそのまま残っていて、まだコミットされていません",
-"Your uncommitted changes stay as they are.": "コミットしていない変更はそのまま残ります。"
+"Your uncommitted changes stay as they are.": "コミットしていない変更はそのまま残ります。",
+"Combined with the team's versions": "チームのバージョンと合わせました"
 }

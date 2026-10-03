@@ -842,5 +842,6 @@
 "Updated to the team's latest version: nothing of yours was left to commit": "Mis à jour vers la dernière version de l'équipe : il ne restait rien de vous à valider",
 "The team's versions were taken in first; yours comes after them": "Les versions de l'équipe ont été intégrées d'abord ; la vôtre vient après",
 "You're up to date. Your changes are kept, still uncommitted": "Vous êtes à jour. Vos changements sont conservés, toujours non validés",
-"Your uncommitted changes stay as they are.": "Vos changements non validés restent tels quels."
+"Your uncommitted changes stay as they are.": "Vos changements non validés restent tels quels.",
+"Combined with the team's versions": "Combiné avec les versions de l'équipe"
 }
