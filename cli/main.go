@@ -21,7 +21,7 @@ everyday (run inside an Ableton project folder):
   save -m MESSAGE                        save a version and share it with the team
   update [--preview]                     get the team's latest versions (or just look)
   status                                 what changed since your last version
-  agent                                  keep running: tell you about new versions (never changes
+  watch                                  keep running: tell you about new versions (never changes
                                          your files)
   log                                    list versions
 
@@ -116,8 +116,8 @@ func Main() {
 		err = cmdConnectionCode(os.Args[2:])
 	case "clone":
 		err = cmdClone(os.Args[2:])
-	case "agent":
-		err = cmdAgent(os.Args[2:])
+	case "watch", "agent": // agent: its name before 0.9.8
+		err = cmdWatch(os.Args[2:])
 	case "save":
 		err = cmdSave(os.Args[2:])
 	case "update":

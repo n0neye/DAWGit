@@ -44,7 +44,7 @@ dawgit clone <address> "Song" [folder] --token T   # download a team project
 dawgit teams                         # teams this computer is connected to
 ```
 
-`dawgit agent` keeps running while you work and tells you when someone commits a new version on your branch. It never changes your files. The desktop app does the same in the background.
+`dawgit watch` keeps running while you work and tells you when someone commits a new version on your branch. It never changes your files. The desktop app does the same in the background.
 
 `save` and `update` merge Live Sets track by track. When you and a teammate changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if the team's changes must be merged in.
 

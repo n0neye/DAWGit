@@ -296,7 +296,7 @@ func (a *App) RemoveTeam(id string, keepProjects, fullHistory bool) error {
 		if !strings.HasPrefix(key, id+"/") {
 			continue
 		}
-		a.stopAgent(root)
+		a.stopWatch(root)
 		if keepProjects {
 			if err := a.detach(store, root, fullHistory); err != nil {
 				return err
@@ -313,7 +313,7 @@ func (a *App) RemoveTeam(id string, keepProjects, fullHistory bool) error {
 // complete here first, and with fullHistory every older one too (else those
 // keep needing the team's storage). The caller saves the store.
 func (a *App) detach(store *teams.Store, root string, fullHistory bool) error {
-	a.stopAgent(root)
+	a.stopWatch(root)
 	r, unlock, err := a.open(root)
 	if err != nil {
 		for key, p := range store.Projects {
@@ -454,7 +454,7 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 		return TeamProject{}, err
 	}
 	r.EnsureRules() // a project from before the rules' file: shown as a change
-	a.startAgent(r.Root)
+	a.startWatch(r.Root)
 	return folderProject(r.Root, "downloaded"), nil
 }
 
@@ -501,7 +501,7 @@ func (a *App) AddProjectToTeam(teamID, folder string) (TeamProject, error) {
 	if err := a.SelectTeam(teamID); err != nil {
 		return TeamProject{}, err
 	}
-	a.startAgent(r.Root)
+	a.startWatch(r.Root)
 	return folderProject(r.Root, "downloaded"), nil
 }
 
@@ -537,13 +537,13 @@ func (a *App) LocateProject(teamID, projectID, folder string) (TeamProject, erro
 	if err := store.Save(); err != nil {
 		return TeamProject{}, err
 	}
-	a.startAgent(r.Root)
+	a.startWatch(r.Root)
 	return folderProject(r.Root, "downloaded"), nil
 }
 
 // ForgetProject removes a project from the list (the folder is untouched).
 func (a *App) ForgetProject(root string) error {
-	a.stopAgent(root)
+	a.stopWatch(root)
 	store, err := teams.Load()
 	if err != nil {
 		return err

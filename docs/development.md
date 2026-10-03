@@ -43,7 +43,7 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `internal/merge` — track-level 3-way merge (tracks, placement, order, sends, globals) with id repair
 - `internal/store` — content-addressed blob store (SHA-256)
 - `internal/project` — versions, status, history, restore with sample relinking; `sync.go` does save/update/clone and merges
-- `internal/agent` — background watcher: backs up unsaved work, teammates' edits (soft locks), new versions
+- `internal/teamwatch` — background watcher: backs up unsaved work, teammates' edits (soft locks), new versions
 - `internal/livecheck` — detects a running Live before rewriting sets
 - `internal/manifest` — version manifest shared by client and server
 - `internal/server` — self-hosted team server (files on disk, token auth, branch compare-and-swap)

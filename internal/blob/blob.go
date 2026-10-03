@@ -57,7 +57,7 @@ var incompressible = map[string]bool{
 	".mp4": true, ".mov": true, ".m4v": true, ".mkv": true, ".webm": true, ".avi": true,
 	".mp3": true, ".m4a": true, ".aac": true, ".ogg": true, ".opus": true, ".flac": true,
 	".zip": true, ".7z": true, ".rar": true, ".gz": true, ".xz": true, ".zst": true, ".bz2": true,
-	".als": true, // Live's sets are gzip
+	".als":  true, // Live's sets are gzip
 	".docx": true, ".xlsx": true, ".pptx": true, ".jar": true, ".apk": true, ".unitypackage": true,
 }
 
