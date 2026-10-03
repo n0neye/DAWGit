@@ -677,10 +677,19 @@ func (b *S3Backend) PutObject(hash string, r io.Reader) error {
 		}
 		r, size = bytes.NewReader(data), int64(len(data))
 	}
+	return b.PutObjectBody(hash, r, size, hash)
+}
+
+// PutObjectBody uploads the bytes stored for the object hash: an encoded
+// blob (see package blob) whose own SHA-256 is bodySHA, size bytes long.
+func (b *S3Backend) PutObjectBody(hash string, r io.Reader, size int64, bodySHA string) error {
+	if !validHex(hash, 64) || !validHex(bodySHA, 64) {
+		return fmt.Errorf("invalid object hash %q", hash)
+	}
 	if size > multipartThreshold {
 		return b.putMultipart(objectKey(hash), r, size)
 	}
-	resp, err := b.do("PUT", objectKey(hash), nil, r, size, hash, nil)
+	resp, err := b.do("PUT", objectKey(hash), nil, r, size, bodySHA, nil)
 	if err != nil {
 		return err
 	}

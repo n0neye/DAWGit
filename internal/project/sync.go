@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"dawgit/internal/blob"
 	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/teams"
@@ -224,13 +225,19 @@ func (r *Repo) fetchObjects(c remote.Backend, hashes []string) error {
 	return transferAll(need, func(h string) int64 { return r.sizes[h] }, func(h string) error {
 		// Storage failing for a moment (or the connection dropping): again.
 		err := remote.Retry(remote.RetryAttempts, func() error {
-			body, err := c.GetObject(h)
+			raw, err := c.GetObject(h)
 			if err != nil {
+				return err
+			}
+			body, err := blob.NewReader(raw)
+			if err != nil {
+				raw.Close()
 				return err
 			}
 			cr := t.reader(body, -1)
 			got, _, err := r.Store.Put(cr)
 			body.Close()
+			raw.Close()
 			if err != nil {
 				cr.undo()
 				return err
@@ -441,7 +448,31 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 		}
 		// Storage failing for a moment (or the connection dropping): again,
 		// from the file's start.
-		err := remote.Retry(remote.RetryAttempts, func() error {
+		enc, err := r.encodeForUpload(c, h)
+		if err != nil {
+			return fmt.Errorf("upload %s: %w", short(h), err)
+		}
+		if enc != nil {
+			defer enc.Remove()
+			if size >= 0 {
+				t.shrink(size - enc.Size)
+			}
+			size = enc.Size
+		}
+		err = remote.Retry(remote.RetryAttempts, func() error {
+			if enc != nil && enc.Encoded {
+				f, err := os.Open(enc.Path)
+				if err != nil {
+					return err
+				}
+				defer f.Close()
+				cr := t.reader(f, size)
+				if err := c.(remote.BodyStore).PutObjectBody(h, cr, size, enc.SHA256); err != nil {
+					cr.undo()
+					return err
+				}
+				return nil
+			}
 			f, err := r.openObject(h)
 			if err != nil {
 				return fmt.Errorf("%w (needed to upload this project's versions)", err)
@@ -460,6 +491,20 @@ func (r *Repo) uploadObjects(c remote.Backend, hashes []string) error {
 		t.fileDone()
 		return nil
 	})
+}
+
+// encodeForUpload compresses object h for storage that keeps blobs (see
+// package blob); nil for storage that takes contents as they are (a DAWGit
+// server checks each object's hash).
+func (r *Repo) encodeForUpload(c remote.Backend, h string) (*blob.Encoded, error) {
+	if _, ok := c.(remote.BodyStore); !ok {
+		return nil, nil
+	}
+	src, err := r.copyHere(h)
+	if err != nil {
+		return nil, fmt.Errorf("%w (needed to upload this project's versions)", err)
+	}
+	return blob.Encode(src, h, filepath.Join(r.Dir, "objects", "tmp"))
 }
 
 func dedupe(xs []string) []string {

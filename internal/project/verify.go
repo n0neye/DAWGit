@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"dawgit/internal/blob"
 	"dawgit/internal/manifest"
 	"dawgit/internal/remote"
 	"dawgit/internal/store"
@@ -303,7 +304,12 @@ func (r *Repo) readTreeFromDisk(h string) ([]manifest.TreeEntry, error) {
 }
 
 func (r *Repo) refetchTree(c remote.Backend, h string) error {
-	body, err := c.GetObject(h)
+	raw, err := c.GetObject(h)
+	if err != nil {
+		return err
+	}
+	defer raw.Close()
+	body, err := blob.NewReader(raw)
 	if err != nil {
 		return err
 	}

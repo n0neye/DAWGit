@@ -315,3 +315,14 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request, bucket map[string]
 	w.Header().Set("Content-Type", "application/xml")
 	xml.NewEncoder(w).Encode(res)
 }
+
+// Object is what is stored at key in bucket (tests look at the bytes).
+func (s *Server) Object(bucket, key string) ([]byte, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	o, ok := s.buckets[bucket][key]
+	if !ok {
+		return nil, false
+	}
+	return append([]byte(nil), o.data...), true
+}
