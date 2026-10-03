@@ -1,14 +1,15 @@
 <script lang="ts">
   import { t, tn } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
-  import ChangeList from "./ChangeList.svelte";
-  import { ago, type Preview } from "./api";
+  import IncomingChanges from "./IncomingChanges.svelte";
+  import { type Preview } from "./api";
 
   // Teammates committed on this branch while you were working: combine your
   // work with theirs (after seeing what comes in), or put yours on a branch.
   // older: the changes were made on an older version (Go to), not while
   // teammates committed.
-  let { preview, branch, older = false, message = $bindable(), busy = false, oncombine, onbranch, onclose }: {
+  let { root, preview, branch, older = false, message = $bindable(), busy = false, oncombine, onbranch, onclose }: {
+    root: string;
     preview: Preview;
     branch: string;
     older?: boolean;
@@ -28,8 +29,8 @@
   let n = $derived(versions.length);
 </script>
 
-<Modal title={older ? tn(n, "“{branch}” has {n} newer version than the one you're on", "“{branch}” has {n} newer versions than the one you're on", { branch })
-  : tn(n, "{who} committed {n} version while you were working", "{who} committed {n} versions while you were working", { who: authors })} {onclose} width={720}>
+<Modal width={1000} title={older ? tn(n, "“{branch}” has {n} newer version than the one you're on", "“{branch}” has {n} newer versions than the one you're on", { branch })
+  : tn(n, "{who} committed {n} version while you were working", "{who} committed {n} versions while you were working", { who: authors })} {onclose}>
   {#if older}
     <p class="muted">{t("You changed an older version. Commit your changes after it and combine them with the latest version of “{branch}” — DAWGit merges track by track and asks only where both changed the same thing — or keep your work on a branch of its own.", { branch })}</p>
   {:else}
@@ -37,14 +38,7 @@
   {/if}
 
   <h3>{t("New on “{branch}”", { branch })}</h3>
-  <ul class="versions">
-    {#each versions as v (v.id)}
-      <li><span class="msg">{v.message || t("(no description)")}</span>
-        <span class="faint">{v.author} · {ago(v.time)}</span></li>
-    {/each}
-  </ul>
-  <h3>{t("What they changed")}</h3>
-  <ChangeList changes={preview.changes} />
+  <IncomingChanges {root} {preview} {versions} />
   {#if preview.conflicts.length}
     <div class="conflicts">
       <strong>{tn(preview.conflicts.length, "{n} thing you also changed in committed versions", "{n} things you also changed in committed versions")}</strong> {t("— you'll choose what to keep next:")}
@@ -71,9 +65,6 @@
 
 <style>
   h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 8px; }
-  .versions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .versions li { display: flex; gap: 10px; }
-  .msg { flex: 1; }
   .conflicts {
     margin-top: 14px; padding: 10px 12px; border-radius: 8px;
     background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8;

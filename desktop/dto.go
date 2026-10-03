@@ -33,6 +33,29 @@ type Change struct {
 	From    string   `json:"from"`    // renamed: where it was
 	Edited  bool     `json:"edited"`  // renamed: its content changed too
 	Details []string `json:"details"` // semantic diff lines for sets
+	// Weight: for sets, the heaviest change (diff.Weight*: noise, tidy,
+	// mix, sound, arrangement); "" for other files.
+	Weight string        `json:"weight"`
+	Tracks []TrackWeight `json:"tracks"` // for sets: each changed track and its weight
+}
+
+// TrackWeight is a changed track of a set and how much it changed.
+type TrackWeight struct {
+	Name   string `json:"name"`
+	Status string `json:"status"` // added | removed | modified
+	Weight string `json:"weight"`
+}
+
+// toChange describes a changed file; d is its set diff (nil for others).
+func toChange(path, status, from string, edited bool, d *diff.SetDiff) Change {
+	c := Change{Path: path, Status: status, From: from, Edited: edited, Details: diffLines(d), Tracks: []TrackWeight{}}
+	if d != nil && !d.Empty() {
+		c.Weight = d.Weight()
+		for _, tc := range d.TrackChanges {
+			c.Tracks = append(c.Tracks, TrackWeight{Name: tc.Name, Status: tc.Status, Weight: tc.Weight()})
+		}
+	}
+	return c
 }
 
 type Branch struct {
@@ -122,6 +145,10 @@ type Preview struct {
 	Conflicts []Conflict `json:"conflicts"`
 	// Message: for merges, the default description of the merge version.
 	Message string `json:"message"`
+	// Changes compare Base (where the two sides parted; "" none) with
+	// Target (what comes in).
+	Base   string `json:"base"`
+	Target string `json:"target"`
 }
 
 func toVersion(m *project.Manifest, tips map[string][]string) Version {

@@ -429,7 +429,12 @@
     try {
       const data = await api.PreviewUpdate(root);
       mergeMessage = null;
-      if (data) preview = { title: t("Updates from the team"), label: t("Get updates"), data, run: updateAction,
+      const own = data?.versions.filter((v) => v.parents.length < 2) ?? [];
+      const vs = own.length ? own : (data?.versions ?? []);
+      const who = [...new Set(vs.map((v) => v.author))].join(", ");
+      if (data) preview = {
+        title: who ? tn(vs.length, "{who} shared {n} new version", "{who} shared {n} new versions", { who }) : t("Updates from the team"),
+        label: who ? t("Bring in {who}'s changes", { who }) : t("Get updates"), data, run: updateAction,
         blocked: st?.changes.length ? UNSAVED() : "" };
     } catch (e) {
       toast(errorText(e), "error");
@@ -761,7 +766,7 @@
         <div>
           <Tx text={st.changes.length && !st.olderVersion
             ? tn(news.length, "{who} committed {n} new version while you were working:", "{who} committed {n} new versions while you were working:")
-            : tn(news.length, "{who} saved {n} new version:", "{who} saved {n} new versions:")}
+            : tn(news.length, "{who} shared {n} new version:", "{who} shared {n} new versions:")}
             strong={{ who: [...new Set(news.map((v) => v.author))].join(", ") }} />
           <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
         </div>
@@ -878,7 +883,7 @@
   {/if}
 
   {#if combine}
-    <CombineDialog preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
+    <CombineDialog {root} preview={combine.data} branch={st.branch} older={!!st.olderVersion} bind:message={combine.message} busy={!!busy}
       onclose={() => (combine = null)} oncombine={combineAndShare} onbranch={() => putOnBranch(combine!.message)} />
   {/if}
 
@@ -999,7 +1004,7 @@
 
   {#if preview}
     {@const p = preview}
-    <PreviewDialog title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
+    <PreviewDialog {root} title={p.title} preview={p.data} actionLabel={p.label} blocked={p.blocked} bind:message={mergeMessage}
       onclose={() => (preview = null)}
       onconfirm={() => { const action = p.run; preview = null; run(action); }} />
   {/if}

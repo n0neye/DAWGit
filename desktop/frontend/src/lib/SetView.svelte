@@ -5,6 +5,8 @@
   import type { ClipSummary, Overview, TrackSummary } from "../../bindings/dawgit/internal/als/models";
   import { setAllTracks, setLook, setSetPane } from "./viewers/settings.svelte";
   import { inkOn, liveColor } from "./livecolors";
+  import WeightSummary from "./WeightSummary.svelte";
+  import { isSmall, weightName, weightHint } from "./weights";
 
   // A Live Set drawn the way Live shows it, simplified: its tracks with their
   // colors, clips and mixer state, in Arrangement or Session view, or as
@@ -49,7 +51,9 @@
   });
 
   type Status = "added" | "removed" | "modified";
-  type Row = { t: TrackSummary; depth: number; status?: Status; old?: TrackSummary; details: string[]; label: string };
+  // weight: how much its change matters (weights.ts); weights: each detail's
+  type Row = { t: TrackSummary; depth: number; status?: Status; old?: TrackSummary; details: string[]; label: string;
+    weight?: string; weights?: string[] };
 
   // groups opened or closed here (else as saved in the set)
   let folds = $state<Record<string, boolean>>({});
@@ -90,7 +94,8 @@
     if (!now && !before) return [];
     if (!before || !now) {
       const s = (now ?? before)!, lab = labels(s);
-      return s.tracks.map((t) => ({ t, depth: 0, status: (now ? "added" : "removed") as Status, details: [], label: lab.get(t.id) ?? "" }));
+      return s.tracks.map((t) => ({ t, depth: 0, status: (now ? "added" : "removed") as Status, details: [], label: lab.get(t.id) ?? "",
+        weight: "arrangement" }));
     }
     const change = new Map(data.changes.map((c) => [c.id, c]));
     const old = byID(before), labNow = labels(now), labOld = labels(before), ids = byID(now);
@@ -99,13 +104,14 @@
     for (const t of now.tracks) {
       const c = change.get(t.id);
       rows.push({ t, depth: depth(t), status: c?.status as Status | undefined, old: old.get(t.id),
-        details: !c || c.status === "added" ? [] : c.details, label: labNow.get(t.id) ?? "" });
+        details: !c || c.status === "added" ? [] : c.details, label: labNow.get(t.id) ?? "",
+        weight: c?.weight, weights: c?.weights });
     }
     // a deleted track goes after the changed track it followed, if any
     const nowIDs = new Set(now.tracks.map((t) => t.id));
     before.tracks.forEach((t, i) => {
       if (nowIDs.has(t.id)) return;
-      const row: Row = { t, depth: 0, status: "removed", details: [], label: labOld.get(t.id) ?? "" };
+      const row: Row = { t, depth: 0, status: "removed", details: [], label: labOld.get(t.id) ?? "", weight: "arrangement" };
       let at = 0;
       for (let k = i - 1; k >= 0; k--) {
         const j = rows.findIndex((r) => r.t.id === before.tracks[k].id);
@@ -116,8 +122,16 @@
     return rows;
   });
 
-  // Comparing: the tracks that changed, or all with those marked.
-  let rows = $derived(compare ? (setLook.allTracks ? compareRows : compareRows.filter((r) => r.status)) : previewRows);
+  // Comparing: the tracks that changed (without small changes, if so
+  // chosen), or all with those marked.
+  let hideSmall = $state(false);
+  const small = (r: Row) => !!r.status && isSmall(r.weight ?? "");
+  let rows = $derived(compare
+    ? (setLook.allTracks ? compareRows : compareRows.filter((r) => r.status && !(hideSmall && small(r))))
+    : previewRows);
+  let smallCount = $derived(compareRows.filter(small).length);
+  let summary = $derived(compareRows.filter((r) => r.status).map((r) => ({ name: r.t.name, status: r.status!, weight: r.weight ?? "" })));
+  const markTitle = (r: Row) => (r.weight ? `${statusName[r.status!]} · ${weightName(r.weight)}: ${weightHint(r.weight)}` : statusName[r.status!]);
   let changedCount = $derived(compareRows.filter((r) => r.status).length);
 
   // Text: comparing, the changes; else the set, track by track.
@@ -330,13 +344,18 @@
 <div class="setview">
   <div class="bar">
     <div class="modes" title={tr("Live's two views, or the changes as text")}>
-      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>{tr("Arrangement")}</button>
-      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>{tr("Session")}</button>
+      <button class:on={setLook.pane === "arrangement"} onclick={() => setSetPane("arrangement")}>Arrangement</button>
+      <button class:on={setLook.pane === "session"} onclick={() => setSetPane("session")}>Session</button>
       <button class:on={setLook.pane === "text"} onclick={() => setSetPane("text")}>{tr("Text")}</button>
     </div>
     {#if compare && setLook.pane !== "text" && data?.now && data?.before}
       <label class="faint small toggle" title={tr("Every track, the changed ones marked (else only the changed ones)")}>
         <input type="checkbox" checked={setLook.allTracks} onchange={(e) => setAllTracks(e.currentTarget.checked)} /> {tr("All tracks")}
+      </label>
+    {/if}
+    {#if compare && setLook.pane !== "text" && smallCount && !setLook.allTracks}
+      <label class="faint small toggle" title={tr("Hide tracks whose only changes are names, colors, order, groups or a plugin saving its state")}>
+        <input type="checkbox" bind:checked={hideSmall} /> {tr("Hide small changes ({n})", { n: smallCount })}
       </label>
     {/if}
     {#if compare && setLook.pane !== "text" && rows.some((r) => r.details.length)}
@@ -374,6 +393,7 @@
       {:else if data.before && !data.now}
         <p class="muted small">{tr("The set was deleted: these were its tracks.")}</p>
       {:else if data.before && data.now}
+        {#if summary.length}<div class="wsum"><WeightSummary tracks={summary} /></div>{/if}
         {#if data.global.length || data.order}
           <ul class="global">
             {#each data.global as g}<li><span class="badge modified">{tr("Set")}</span> {g}</li>{/each}
@@ -404,7 +424,7 @@
             {@const t = r.t}
             {@const cm = clipMarks(r, false)}
             {@const w = wasOf(r)}
-            <div class="row {t.kind} {r.status ?? ''}" class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
+            <div class="row {t.kind} {r.status ?? ''}" class:small={compare && small(r)} class:muted={t.muted} class:firstreturn={!compare && t.kind === "return" && rows[rows.indexOf(r) - 1]?.t.kind !== "return"}>
               <div class="lane">
                 {#if r.status === "removed"}<span class="gone-label">{tr("Deleted")}</span>{/if}
                 {#if t.kind === "group"}
@@ -437,7 +457,7 @@
                     <button class="fold" onclick={() => (folds[t.id] = !folded(t))} title={folded(t) ? "Show its tracks" : "Hide its tracks"}>{folded(t) ? "▸" : "▾"}</button>
                   {/if}
                   {@render icon(t.kind)}
-                  {#if r.status}<span class="mark {r.status}" title={statusName[r.status]}>{markOf[r.status]}</span>{/if}
+                  {#if r.status}<span class="mark {r.status}" title={markTitle(r)}>{markOf[r.status]}</span>{/if}
                   {@render trackName(r, w)}
                   <span class="grow"></span>
                   {#if t.clips.length && !compare}<span class="nclips" title={clipCount(t)}>{t.clips.length}</span>{/if}
@@ -447,7 +467,7 @@
             </div>
             {#if r.details.length && showDetails(r)}
               <div class="details">
-                {#each r.details as line}<div>{line.trim()}</div>{/each}
+                {#each r.details as line, i}<div class:small={isSmall(r.weights?.[i] ?? "")}>{line.trim()}</div>{/each}
               </div>
             {/if}
           {/each}
@@ -471,7 +491,7 @@
             {@const band = bandOf(r)}
             {@const inner = r.t.kind !== "group" && !!band}
             <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-            <div class="ctitle {r.status ?? ''}" class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
+            <div class="ctitle {r.status ?? ''}" class:small={compare && small(r)} class:clickable={compare && r.details.length > 0} onclick={() => toggleDetails(r)}
               class:inner title={`${kindName[r.t.kind]} · ${clipCount(r.t)}${r.t.instrumentFull ? ` · ${r.t.instrumentFull}` : ""}`}>
               <!-- a track in a group: under the band of the group's color, which runs on from the group's title -->
               {#if inner}<i class="band" style:background={band}></i>{/if}
@@ -524,7 +544,7 @@
       </div>
       {#if compare}
         {#each rows.filter((r) => r.details.length && showDetails(r)) as r}
-          <div class="details"><b>{r.t.name}</b>{#each r.details as line}<div>{line.trim()}</div>{/each}</div>
+          <div class="details"><b>{r.t.name}</b>{#each r.details as line, i}<div class:small={isSmall(r.weights?.[i] ?? "")}>{line.trim()}</div>{/each}</div>
         {/each}
       {/if}
     {/if}
@@ -618,6 +638,9 @@
     font-family: ui-monospace, Consolas, monospace; line-height: 1.5; }
   .arr .details { background: #1a1a1a; border-bottom-color: #121212; color: #a8a8a8; }
   .details b { font-family: inherit; color: var(--text); }
+  .details .small { opacity: .55; }
+  .row.small, .ctitle.small { opacity: .5; }
+  .wsum { margin: 0 0 8px; }
   .link { border: none; background: transparent; color: var(--accent); padding: 0; font-size: 11.5px; cursor: pointer; }
 
   .sess-wrap { overflow-x: auto; background: #1c1c1c; border: 1px solid #000; border-radius: 6px; }

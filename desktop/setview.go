@@ -13,18 +13,24 @@ import (
 // SetView is a Live Set drawn as Live shows it, and how its tracks changed
 // from another version of it.
 type SetView struct {
-	Now     *als.Overview    `json:"now"`    // nil: no set in that version
-	Before  *als.Overview    `json:"before"` // nil: nothing to compare with
-	Global  []string         `json:"global"` // tempo, main track, ...
-	Order   bool             `json:"order"`  // the tracks' order changed
-	Changes []SetTrackChange `json:"changes"`
-	Text    []string         `json:"text"` // the changes as text lines
+	Now    *als.Overview `json:"now"`    // nil: no set in that version
+	Before *als.Overview `json:"before"` // nil: nothing to compare with
+	Global []string      `json:"global"` // tempo, main track, ...
+	// GlobalWeights weigh Global (diff.Weight*); Weight is the heaviest
+	// change of all.
+	GlobalWeights []string         `json:"globalWeights"`
+	Weight        string           `json:"weight"`
+	Order         bool             `json:"order"` // the tracks' order changed
+	Changes       []SetTrackChange `json:"changes"`
+	Text          []string         `json:"text"` // the changes as text lines
 }
 
 type SetTrackChange struct {
 	ID      string   `json:"id"`
 	Status  string   `json:"status"` // added | removed | modified
 	Details []string `json:"details"`
+	Weight  string   `json:"weight"`  // the track's heaviest change
+	Weights []string `json:"weights"` // each detail's
 }
 
 // SetOverview reads a set in a version ("" for the project folder now,
@@ -47,7 +53,7 @@ func (a *App) SetOverview(root, file, version, fromFile, fromVersion string) (*S
 	if err != nil {
 		return nil, err
 	}
-	out := &SetView{Global: []string{}, Changes: []SetTrackChange{}, Text: []string{}}
+	out := &SetView{Global: []string{}, GlobalWeights: []string{}, Changes: []SetTrackChange{}, Text: []string{}}
 	if now != nil {
 		out.Now = now.Overview()
 	}
@@ -59,8 +65,17 @@ func (a *App) SetOverview(root, file, version, fromFile, fromVersion string) (*S
 		out.Global = nonNil(d.GlobalChanges)
 		out.Order = d.OrderChanged
 		out.Text = diffLines(d)
+		out.Weight = d.Weight()
+		for _, g := range out.Global {
+			out.GlobalWeights = append(out.GlobalWeights, diff.GlobalWeight(g))
+		}
 		for _, tc := range d.TrackChanges {
-			out.Changes = append(out.Changes, SetTrackChange{ID: tc.TrackID, Status: tc.Status, Details: nonNil(tc.Details)})
+			ws := []string{}
+			for _, x := range tc.Details {
+				ws = append(ws, diff.DetailWeight(x))
+			}
+			out.Changes = append(out.Changes, SetTrackChange{ID: tc.TrackID, Status: tc.Status, Details: nonNil(tc.Details),
+				Weight: tc.Weight(), Weights: ws})
 		}
 	}
 	return out, nil

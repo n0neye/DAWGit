@@ -246,6 +246,46 @@ func (r *Repo) VersionChanges(ref string) ([]FileChange, error) {
 	return r.fileChanges(parent, m)
 }
 
+// MissingSets lists the sets of version ref and its first parent that are
+// not on this computer: VersionChanges can't tell what changed in them.
+func (r *Repo) MissingSets(ref string) ([]string, error) {
+	id, err := r.Resolve(ref)
+	if err != nil {
+		return nil, err
+	}
+	m, err := r.Load(id)
+	if err != nil {
+		return nil, err
+	}
+	ms := []*Manifest{m}
+	if len(m.Parents) > 0 {
+		p, err := r.Load(m.Parents[0])
+		if err != nil {
+			return nil, err
+		}
+		ms = append(ms, p)
+	}
+	var out []string
+	for _, h := range dedupe(setHashes(ms...)) {
+		if !r.Store.Has(h) {
+			out = append(out, h)
+		}
+	}
+	return out, nil
+}
+
+// FetchSets downloads the sets MissingSets lists (sets are kept here).
+func (r *Repo) FetchSets(hashes []string) error {
+	if len(hashes) == 0 {
+		return nil
+	}
+	c, err := r.Client()
+	if err != nil {
+		return err
+	}
+	return r.fetchObjects(c, hashes)
+}
+
 func (r *Repo) mergeVersion(c remote.Backend, target, message string, opts MergeOptions) (*SyncResult, error) {
 	res, err := r.integrate(c, target, opts, message)
 	if err != nil || res.Action == "up-to-date" || res.Action == "ahead" {
@@ -280,6 +320,9 @@ type Preview struct {
 	Changes  []FileChange
 	// Conflicts that need a decision.
 	Conflicts []ConflictItem
+	// Changes compare Base (where the two sides parted, "" for none) with
+	// Target (the version that comes in).
+	Base, Target string
 }
 
 // PreviewUpdate previews `update` on the current branch.
@@ -342,6 +385,7 @@ func (r *Repo) previewTarget(c remote.Backend, target string) (*Preview, error) 
 	if baseID == head {
 		p.Action = "fast-forward"
 	}
+	p.Base, p.Target = baseID, target
 
 	// Incoming versions: reachable from target but not from HEAD.
 	have, err := r.ancestors(head)
