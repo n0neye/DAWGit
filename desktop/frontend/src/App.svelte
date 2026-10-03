@@ -125,6 +125,7 @@
   // A project just added to a team: its view commits and uploads the first
   // version.
   let firstShare = $state("");
+  let justDownloaded = $state(""); // show its check when it opens
   let appVersion = $state("");
   let edition = $state(""); // a build with extensions, e.g. "Pro"
 
@@ -255,6 +256,7 @@
     try {
       const got = await api.DownloadProject(overview!.currentTeam, p.id, parent);
       toast(t("Downloaded “{name}” to {folder}", { name: got.name, folder: got.root }), "ok", 7000);
+      justDownloaded = got.root;
       await reload();
       select(got);
     } catch (e) {
@@ -382,6 +384,7 @@
   <Onboarding {overview} {reload} onfinish={async (root, share) => {
     onboarding = false;
     if (root && share) firstShare = root;
+    else if (root) justDownloaded = root;
     await reload();
     if (root) selected = { root };
   }} />
@@ -441,7 +444,8 @@
         {#key selectedEntry.root}
           <ProjectView root={selectedEntry.root} {refreshKey} teams={overview.teams} onchanged={reload}
             onsettings={() => (settingsFor = selectedEntry ?? null)}
-            firstShare={firstShare === selectedEntry.root} onfirstshared={() => (firstShare = "")} />
+            firstShare={firstShare === selectedEntry.root} onfirstshared={() => (firstShare = "")}
+            downloaded={justDownloaded === selectedEntry.root} ondownloadseen={() => (justDownloaded = "")} />
         {/key}
       {:else if selectedEntry && selectedEntry.status === "remote"}
         {@const p = selectedEntry}
