@@ -78,6 +78,32 @@ func cmdSwitch(args []string) error {
 	return nil
 }
 
+// previewJSON is what update or merge would bring in.
+type previewJSON struct {
+	// Action: up-to-date, ahead (nothing new), fast-forward, merge.
+	Action    string         `json:"action"`
+	Versions  []versionJSON  `json:"versions"` // incoming, newest first
+	Changes   []changeJSON   `json:"changes"`
+	Conflicts []conflictJSON `json:"conflicts"` // need --strategy
+}
+
+func previewOf(r *project.Repo, p *project.Preview) previewJSON {
+	names := r.MemberNames()
+	out := previewJSON{Action: p.Action, Versions: []versionJSON{}, Changes: []changeJSON{},
+		Conflicts: conflictsJSON(p.Conflicts)}
+	for _, m := range p.Versions {
+		out.Versions = append(out.Versions, versionOf(m, names))
+	}
+	for _, c := range p.Changes {
+		ch := changeJSON{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited}
+		if c.SetDiff != nil {
+			ch.SetChanges = setLines(c.SetDiff.Render())
+		}
+		out.Changes = append(out.Changes, ch)
+	}
+	return out
+}
+
 func printPreview(p *project.Preview, what string) {
 	switch p.Action {
 	case "up-to-date":
@@ -133,7 +159,7 @@ func cmdMergeBranch(args []string) error {
 		if err != nil {
 			return err
 		}
-		printPreview(p, "branch "+pos[0])
+		result("merge", previewOf(r, p), func() { printPreview(p, "branch "+pos[0]) })
 		return nil
 	}
 	if err := guardLiveAlways(r, *force); err != nil {
@@ -142,15 +168,17 @@ func cmdMergeBranch(args []string) error {
 	defer tidy(r)
 	res, err := r.MergeBranch(pos[0], *message, project.Strategy(*strategy))
 	if err != nil {
-		return explainConflict(err)
+		return err
 	}
-	switch res.Action {
-	case "up-to-date", "ahead":
-		fmt.Printf("nothing to merge: you already have everything from %s\n", pos[0])
-	default:
-		printMerge(res)
-		fmt.Printf("merged %s into %s and shared it (%s); reopen the set in Live\n", pos[0], r.BranchName(), short(res.To))
-	}
+	result("merge", syncOf(res), func() {
+		switch res.Action {
+		case "up-to-date", "ahead":
+			fmt.Printf("nothing to merge: you already have everything from %s\n", pos[0])
+		default:
+			printMerge(res)
+			fmt.Printf("merged %s into %s and shared it (%s); reopen the set in Live\n", pos[0], r.BranchName(), short(res.To))
+		}
+	})
 	return nil
 }
 

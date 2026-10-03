@@ -11,8 +11,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"sync"
 	"strings"
+	"sync"
 
 	"dawgit/internal/profile"
 	"dawgit/internal/remote"

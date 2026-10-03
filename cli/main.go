@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"dawgit/docs"
 	"dawgit/internal/als"
 	"dawgit/internal/diff"
 	"dawgit/internal/merge"
@@ -21,7 +22,7 @@ everyday (run inside an Ableton project folder):
   save -m MESSAGE                        save a version and share it with the team
   update [--preview]                     get the team's latest versions (or just look)
   status                                 what changed since your last version
-  agent                                  keep running: tell you about new versions (never changes
+  watch                                  keep running: tell you about new versions (never changes
                                          your files)
   log                                    list versions
 
@@ -62,79 +63,102 @@ set commands:
         [--strategy fail|ours|theirs|both]
 
   version                                show the DAWGit version
+
+for programs and AI agents:
+  --json                                 status, log, save, update, merge, version: one JSON
+                                         object on stdout; errors with fixed codes
+  help agents [--snippet]                how AI agents use DAWGit (or lines for a project's
+                                         AGENTS.md)
 `
 
 // Main runs the dawgit command line tool with os.Args (extensions register
 // what they add first; see dawgit/ext).
-func Main() {
-	if len(os.Args) < 2 {
+func Main() { os.Exit(Run(os.Args[1:])) }
+
+// Run runs one dawgit command and returns its exit status (see output.go).
+func Run(args []string) int {
+	args, jsonMode = stripJSON(args)
+	if len(args) < 1 {
+		if jsonMode {
+			return fail("", usageError("usage: dawgit <command> [args] (dawgit help)"))
+		}
 		fmt.Fprint(os.Stderr, usage)
-		os.Exit(2)
+		return exitUsage
 	}
+	command, rest := args[0], args[1:]
+	if jsonMode && !jsonCommands[command] {
+		return fail(command, usageError("--json is not supported by `dawgit %s`", command))
+	}
+	defer releaseHeld()
 	var err error
 	code := 0
-	switch os.Args[1] {
+	switch command {
 	case "info":
-		err = cmdInfo(os.Args[2:])
+		err = cmdInfo(rest)
 	case "diff":
-		err = cmdDiff(os.Args[2:])
+		err = cmdDiff(rest)
 	case "merge-sets":
-		code, err = cmdMerge(os.Args[2:])
+		code, err = cmdMerge(rest)
 	case "merge":
-		err = cmdMergeBranch(os.Args[2:])
+		err = cmdMergeBranch(rest)
 	case "branch":
-		err = cmdBranch(os.Args[2:])
+		err = cmdBranch(rest)
 	case "switch":
-		err = cmdSwitch(os.Args[2:])
+		err = cmdSwitch(rest)
 	case "init":
-		err = cmdInit(os.Args[2:])
+		err = cmdInit(rest)
 	case "status":
-		err = cmdStatus(os.Args[2:])
+		err = cmdStatus(rest)
 	case "snapshot":
-		err = cmdSnapshot(os.Args[2:])
+		err = cmdSnapshot(rest)
 	case "log":
-		err = cmdLog(os.Args[2:])
+		err = cmdLog(rest)
 	case "checkout":
-		err = cmdCheckout(os.Args[2:])
+		err = cmdCheckout(rest)
 	case "export":
-		err = cmdExport(os.Args[2:])
+		err = cmdExport(rest)
 	case "gc":
 		err = cmdGC()
 	case "verify":
-		code, err = cmdVerify(os.Args[2:])
+		code, err = cmdVerify(rest)
 	case "storage-cleanup":
-		err = cmdStorageCleanup(os.Args[2:])
+		err = cmdStorageCleanup(rest)
 	case "profile":
-		err = cmdProfile(os.Args[2:])
+		err = cmdProfile(rest)
 	case "serve":
-		err = cmdServe(os.Args[2:])
+		err = cmdServe(rest)
 	case "remote":
-		err = cmdRemote(os.Args[2:])
+		err = cmdRemote(rest)
 	case "teams":
-		err = cmdTeams(os.Args[2:])
+		err = cmdTeams(rest)
 	case "connection-code":
-		err = cmdConnectionCode(os.Args[2:])
+		err = cmdConnectionCode(rest)
 	case "clone":
-		err = cmdClone(os.Args[2:])
-	case "agent":
-		err = cmdAgent(os.Args[2:])
+		err = cmdClone(rest)
+	case "watch", "agent": // agent: its name before 0.9.8
+		err = cmdWatch(rest)
 	case "save":
-		err = cmdSave(os.Args[2:])
+		err = cmdSave(rest)
 	case "update":
-		err = cmdUpdate(os.Args[2:])
+		err = cmdUpdate(rest)
 	case "-h", "--help", "help":
-		fmt.Print(usage)
+		err = cmdHelp(rest)
 	case "version", "--version", "-v":
-		fmt.Println("dawgit " + version.Display())
+		result("version", map[string]string{"name": version.Name(), "version": version.Version,
+			"display": version.Display()}, func() { fmt.Println("dawgit " + version.Display()) })
+	case "path":
+		err = cmdPath(rest)
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", os.Args[1], usage)
-		os.Exit(2)
+		if jsonMode {
+			return fail(command, usageError("unknown command %q", command))
+		}
+		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", command, usage)
+		return exitUsage
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		return fail(command, err)
 	}
-	os.Exit(code)
+	return code
 }
 
 func cmdInfo(args []string) error {
@@ -255,4 +279,19 @@ func cmdMerge(args []string) (int, error) {
 	}
 	fmt.Printf("\nwrote %s\n", *out)
 	return 0, nil
+}
+
+// cmdHelp: dawgit help [agents [--snippet]].
+func cmdHelp(args []string) error {
+	switch {
+	case len(args) == 0:
+		fmt.Print(usage)
+	case args[0] == "agents" && len(args) == 1:
+		fmt.Print(docs.Agents)
+	case args[0] == "agents" && len(args) == 2 && args[1] == "--snippet":
+		fmt.Print(docs.AgentsSnippet)
+	default:
+		return usageError("usage: dawgit help [agents [--snippet]]")
+	}
+	return nil
 }

@@ -20,11 +20,23 @@ func openRepo() (*project.Repo, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := r.Lock(10 * time.Second); err != nil {
+	release, err := r.Lock(10 * time.Second)
+	if err != nil {
 		return nil, err
 	}
+	held = append(held, release)
 	ensureRules(r)
 	return r, nil
+}
+
+// held are the locks the command took: released when it ends (Run).
+var held []func()
+
+func releaseHeld() {
+	for _, release := range held {
+		release()
+	}
+	held = nil
 }
 
 // ensureRules writes the project's .dawgit.yaml, or adds the presets DAWGit
@@ -88,39 +100,102 @@ func cmdInit(args []string) error {
 	return nil
 }
 
+// statusJSON is `dawgit status --json`.
+type statusJSON struct {
+	Project string `json:"project"`
+	Branch  string `json:"branch"`
+	Version string `json:"version"` // the version the files are on ("" before the first)
+	// OnOlderVersion: checked out an older version (Latest is the newest).
+	OnOlderVersion bool         `json:"on_older_version"`
+	Latest         string       `json:"latest,omitempty"`
+	Team           *teamJSON    `json:"team"` // null when not in a team
+	Changes        []changeJSON `json:"changes"`
+	// Suggestions: projects of tools found in folders the rules don't name.
+	Suggestions []suggestionJSON `json:"suggestions"`
+}
+
+type teamJSON struct {
+	Reachable bool   `json:"reachable"`
+	Incoming  bool   `json:"incoming"` // others saved versions: dawgit update
+	Error     string `json:"error,omitempty"`
+}
+
+type suggestionJSON struct {
+	Folder  string   `json:"folder"`
+	Preset  string   `json:"preset"`
+	LeftOut []string `json:"left_out"`
+}
+
 func cmdStatus(args []string) error {
+	if len(args) > 0 {
+		return usageError("usage: dawgit status [--json]")
+	}
 	r, err := openRepo()
 	if err != nil {
 		return err
 	}
-	if head := r.Head(); r.OnOlderVersion() {
-		fmt.Printf("on an older version %s (latest: %s; `dawgit checkout latest` goes back)\n", short(head), short(r.Latest()))
-	} else if head != "" {
-		fmt.Printf("on version %s\n", short(head))
-	} else {
-		fmt.Println("no snapshots yet")
+	out := statusJSON{Project: r.Config.Name, Branch: r.BranchName(), Version: r.Head(),
+		OnOlderVersion: r.OnOlderVersion(), Changes: []changeJSON{}, Suggestions: []suggestionJSON{}}
+	if out.OnOlderVersion {
+		out.Latest = r.Latest()
 	}
 	if r.Config.Remote != nil {
-		switch incoming, err := r.Incoming(); {
-		case err != nil:
-			fmt.Printf("team: not reachable (%v)\n", err)
-		case incoming:
-			fmt.Println("team: new versions saved by others (run `dawgit update`)")
-		default:
-			fmt.Println("team: up to date")
+		incoming, err := r.Incoming()
+		out.Team = &teamJSON{Reachable: err == nil, Incoming: incoming}
+		if err != nil {
+			out.Team.Error = err.Error()
 		}
 	}
-	printSuggestions(r)
+	if p, err := r.Profile(); err == nil {
+		for _, s := range p.Suggestions() {
+			folder := s.Folder
+			if folder == "" {
+				folder = "."
+			}
+			out.Suggestions = append(out.Suggestions, suggestionJSON{Folder: folder, Preset: s.Preset,
+				LeftOut: nonNil(s.LeftOut)})
+		}
+	}
 	changes, err := r.Status()
 	if err != nil {
 		return err
 	}
-	if len(changes) == 0 {
+	for _, c := range changes {
+		ch := changeJSON{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited}
+		if c.SetDiff != nil {
+			ch.SetChanges = setLines(c.SetDiff.Render())
+		}
+		out.Changes = append(out.Changes, ch)
+	}
+	result("status", out, func() { printStatus(r, out) })
+	return nil
+}
+
+func printStatus(r *project.Repo, s statusJSON) {
+	switch {
+	case s.OnOlderVersion:
+		fmt.Printf("on an older version %s (latest: %s; `dawgit checkout latest` goes back)\n", short(s.Version), short(s.Latest))
+	case s.Version != "":
+		fmt.Printf("on version %s\n", short(s.Version))
+	default:
+		fmt.Println("no snapshots yet")
+	}
+	switch t := s.Team; {
+	case t == nil:
+	case !t.Reachable:
+		fmt.Printf("team: not reachable (%s)\n", t.Error)
+	case t.Incoming:
+		fmt.Println("team: new versions saved by others (run `dawgit update`)")
+	default:
+		fmt.Println("team: up to date")
+	}
+	printSuggestions(r)
+	if len(s.Changes) == 0 {
 		fmt.Println("nothing changed")
-		return nil
+		return
 	}
 	sym := map[string]string{"added": "+", "modified": "~", "deleted": "-", "renamed": "M", "untracked": "o"}
-	for _, c := range changes {
+	for _, c := range s.Changes {
 		if c.Status == "renamed" {
 			edited := ""
 			if c.Edited {
@@ -130,13 +205,10 @@ func cmdStatus(args []string) error {
 			continue
 		}
 		fmt.Printf("%s %s\n", sym[c.Status], c.Path)
-		if c.SetDiff != nil {
-			for _, line := range strings.Split(c.SetDiff.Render(), "\n") {
-				fmt.Println("    " + line)
-			}
+		for _, line := range c.SetChanges {
+			fmt.Println("    " + line)
 		}
 	}
-	return nil
 }
 
 func cmdSnapshot(args []string) error {
@@ -172,6 +244,13 @@ func cmdSnapshot(args []string) error {
 }
 
 func cmdLog(args []string) error {
+	fs := flag.NewFlagSet("log", flag.ContinueOnError)
+	limit := fs.Int("n", 0, "show only the newest N versions")
+	if pos, err := parseArgs(fs, args); err != nil {
+		return err
+	} else if len(pos) > 0 {
+		return usageError("usage: dawgit log [-n N] [--json]")
+	}
 	r, err := openRepo()
 	if err != nil {
 		return err
@@ -180,8 +259,8 @@ func cmdLog(args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(log) == 0 {
-		fmt.Println("no snapshots yet")
+	if *limit > 0 && len(log) > *limit {
+		log = log[:*limit]
 	}
 	// Mark where each server branch is (best effort).
 	tips := map[string][]string{}
@@ -193,13 +272,26 @@ func cmdLog(args []string) error {
 		}
 	}
 	names := r.MemberNames()
+	out := struct {
+		Versions []versionJSON `json:"versions"` // newest first
+	}{Versions: []versionJSON{}}
 	for _, m := range log {
-		mark := ""
-		if names := tips[m.ID]; len(names) > 0 {
-			mark = "  [" + strings.Join(names, ", ") + "]"
-		}
-		fmt.Printf("%s  %s  %-12s %s%s\n", short(m.ID), when(m), project.AuthorName(m, names), m.Message, mark)
+		v := versionOf(m, names)
+		v.Branches = tips[m.ID]
+		out.Versions = append(out.Versions, v)
 	}
+	result("log", out, func() {
+		if len(log) == 0 {
+			fmt.Println("no snapshots yet")
+		}
+		for i, m := range log {
+			mark := ""
+			if b := out.Versions[i].Branches; len(b) > 0 {
+				mark = "  [" + strings.Join(b, ", ") + "]"
+			}
+			fmt.Printf("%s  %s  %-12s %s%s\n", short(m.ID), when(m), out.Versions[i].Author, m.Message, mark)
+		}
+	})
 	return nil
 }
 

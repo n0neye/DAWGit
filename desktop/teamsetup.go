@@ -145,7 +145,7 @@ func (a *App) UpdateTeamConnection(teamID string, c TeamConnection) (TeamSummary
 
 // repoint makes a downloaded project use the team's new address.
 func (a *App) repoint(root, url string) {
-	a.stopAgent(root)
+	a.stopWatch(root)
 	r, unlock, err := a.open(root)
 	if err == nil {
 		if r.Config.Remote != nil {
@@ -154,7 +154,7 @@ func (a *App) repoint(root, url string) {
 		}
 		unlock()
 	}
-	a.startAgent(root)
+	a.startWatch(root)
 }
 
 // StorageCleanup is what cleaning up a team's storage found (and did).

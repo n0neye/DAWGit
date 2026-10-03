@@ -35,7 +35,8 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 
 ## Layout
 
-- `cmd/dawgit` — command line tool; `dawgit serve` is the team server
+- `cmd/dawgit` — command line tool (package `cli`; `--json` results and error codes in `cli/output.go`); `dawgit serve` is the team server
+- `docs/` — also a Go package: embeds `agents.md` for `dawgit help agents`
 - `desktop/` — Windows desktop app (Wails v3, Svelte 5); installer in `desktop/build/windows/installer.nsi`
 - `internal/xmltree` — ordered XML tree with byte-exact round-trip of Live's output
 - `internal/als` — Live Set model, content fingerprints (noise-aware), structural validator
@@ -43,7 +44,7 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `internal/merge` — track-level 3-way merge (tracks, placement, order, sends, globals) with id repair
 - `internal/store` — content-addressed blob store (SHA-256)
 - `internal/project` — versions, status, history, restore with sample relinking; `sync.go` does save/update/clone and merges
-- `internal/agent` — background watcher: backs up unsaved work, teammates' edits (soft locks), new versions
+- `internal/teamwatch` — background watcher: backs up unsaved work, teammates' edits (soft locks), new versions
 - `internal/livecheck` — detects a running Live before rewriting sets
 - `internal/manifest` — version manifest shared by client and server
 - `internal/server` — self-hosted team server (files on disk, token auth, branch compare-and-swap)

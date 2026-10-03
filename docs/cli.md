@@ -1,6 +1,8 @@
 # Command line tool
 
-The desktop app covers everyday use, including creating a team on Cloudflare R2. The command line tool `dawgit.exe` is for a few advanced tasks. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`). Run `dawgit help` for the full list.
+The desktop app covers everyday use, including creating a team on Cloudflare R2. The command line tool `dawgit.exe` is for a few advanced tasks, scripts and AI agents. It is installed in the `bin` folder of the DAWGit install folder (`%LOCALAPPDATA%\Programs\DAWGit\bin`), and the installer puts that folder on your PATH (an option, on by default): open a new terminal and type `dawgit`. Run `dawgit help` for the full list.
+
+**Scripts and AI agents:** `status`, `log`, `save`, `update`, `merge` and `version` take `--json` (one JSON object on stdout, errors with fixed codes), and no command ever waits for an answer. See [DAWGit for AI agents](agents.md), also printed by `dawgit help agents`.
 
 ## Team storage (S3-compatible)
 
@@ -44,7 +46,7 @@ dawgit clone <address> "Song" [folder] --token T   # download a team project
 dawgit teams                         # teams this computer is connected to
 ```
 
-`dawgit agent` keeps running while you work and tells you when someone commits a new version on your branch. It never changes your files. The desktop app does the same in the background.
+`dawgit watch` keeps running while you work and tells you when someone commits a new version on your branch. It never changes your files. The desktop app does the same in the background.
 
 `save` and `update` merge Live Sets track by track. When you and a teammate changed the same track (or the same sample file) they stop and ask for `--strategy ours|theirs|both`. They refuse to rewrite sets while Ableton Live is running if the team's changes must be merged in.
 

@@ -1,4 +1,4 @@
-// Package desktop is the DAWGit desktop app: a tray app that runs the agent
+// Package desktop is the DAWGit desktop app: a tray app that runs a team watch
 // for each project and a window to commit versions, get updates and manage
 // branches. cmd/dawgit-desktop runs it, and so can a build with extensions
 // (see dawgit/ext).
@@ -92,14 +92,14 @@ func Run() {
 		// Started by Windows at sign-in: stay in the tray.
 		Hidden: slices.Contains(os.Args[1:], backgroundFlag),
 	})
-	// Closing the window keeps DAWGit running in the tray (the agents keep
+	// Closing the window keeps DAWGit running in the tray (the team watches keep
 	// watching); Quit is in the tray menu.
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
 		window.Hide()
 		e.Cancel()
 	})
 
-	// From the tray (or minimised) the agents look for new versions less often.
+	// From the tray (or minimised) the team watches look for new versions less often.
 	svc.setHidden(slices.Contains(os.Args[1:], backgroundFlag))
 	for ev, hidden := range map[events.WindowEventType]bool{
 		events.Common.WindowHide: true, events.Common.WindowMinimise: true,

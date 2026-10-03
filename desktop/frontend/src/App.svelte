@@ -337,7 +337,7 @@
     }
   }
 
-  type AgentEvent = { root: string; kind: string; author: string; labels: string[]; text: string; versions: { author: string; message: string }[] };
+  type WatchEvent = { root: string; kind: string; author: string; labels: string[]; text: string; versions: { author: string; message: string }[] };
 
   onMount(() => {
     reload().then(() => {
@@ -349,7 +349,7 @@
     checkUpdate();
     const offProgress = Events.On("progress", (ev: { data: Progress }) => onProgress(ev.data));
     const offUpdate = Events.On("update", (ev: { data: UpdateState }) => onUpdateState(ev.data));
-    const offAgent = Events.On("agent", (ev: { data: AgentEvent }) => {
+    const offWatch = Events.On("team-watch", (ev: { data: WatchEvent }) => {
       const e = ev.data;
       const name = entries.find((p) => p.root === e.root)?.name ?? "";
       switch (e.kind) {
@@ -362,7 +362,7 @@
     return () => {
       offProgress();
       offUpdate();
-      offAgent();
+      offWatch();
     };
   });
 

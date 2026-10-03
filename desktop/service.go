@@ -14,36 +14,36 @@ import (
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
-	"dawgit/internal/agent"
 	"dawgit/internal/handlers"
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 	"dawgit/internal/teams"
+	"dawgit/internal/teamwatch"
 	"dawgit/internal/version"
 )
 
 // App is the service the frontend calls. Every method that touches a project
 // takes its folder (root) and holds that project's lock, so the background
-// agent and user actions never run at the same time.
+// team watch and user actions never run at the same time.
 type App struct {
-	notify  func(title, body string)
-	emit    func(name string, data any)
-	mu      sync.Mutex // guards locks, agents
-	locks   map[string]*sync.Mutex
-	agents  map[string]context.CancelFunc
-	hidden  atomic.Bool             // the window is in the tray or minimised
-	watches map[string]*folderWatch // guarded by mu
-	pickDir func(title string) (string, error)
-	openURL func(url string) error
-	quit    func()       // ends the app (to let an update's installer replace it)
-	working atomic.Int32 // projects open for an operation right now
+	notify      func(title, body string)
+	emit        func(name string, data any)
+	mu          sync.Mutex // guards locks, teamWatches
+	locks       map[string]*sync.Mutex
+	teamWatches map[string]context.CancelFunc
+	hidden      atomic.Bool             // the window is in the tray or minimised
+	watches     map[string]*folderWatch // guarded by mu
+	pickDir     func(title string) (string, error)
+	openURL     func(url string) error
+	quit        func()       // ends the app (to let an update's installer replace it)
+	working     atomic.Int32 // projects open for an operation right now
 	// lastProgress: when a long step (save, upload, download) last said how
 	// it was going (UnixNano).
 	lastProgress atomic.Int64
 }
 
 func NewApp() *App {
-	return &App{locks: map[string]*sync.Mutex{}, agents: map[string]context.CancelFunc{}, watches: map[string]*folderWatch{}}
+	return &App{locks: map[string]*sync.Mutex{}, teamWatches: map[string]context.CancelFunc{}, watches: map[string]*folderWatch{}}
 }
 
 func (a *App) ServiceName() string { return "App" }
@@ -54,7 +54,7 @@ func (a *App) Version() string { return version.Version }
 // Edition names a build with extensions ("" for the public app).
 func (a *App) Edition() string { return version.Edition }
 
-// ServiceStartup starts an agent for every downloaded team project (in all
+// ServiceStartup starts a team watch for every downloaded team project (in all
 // teams, so notices keep coming whichever team is selected).
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.migrateLegacyConfig()
@@ -63,7 +63,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 		return nil
 	}
 	for _, root := range store.Roots() {
-		a.startAgent(root)
+		a.startWatch(root)
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 func (a *App) ServiceShutdown() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	for _, cancel := range a.agents {
+	for _, cancel := range a.teamWatches {
 		cancel()
 	}
 	return nil
@@ -155,9 +155,9 @@ func (a *App) Signature(root string) string {
 	return r.SetsSignature()
 }
 
-// --- agent ---
+// --- team watch ---
 
-type AgentEvent struct {
+type WatchEvent struct {
 	Root     string    `json:"root"`
 	Kind     string    `json:"kind"`
 	Author   string    `json:"author"`
@@ -166,23 +166,23 @@ type AgentEvent struct {
 	Versions []Version `json:"versions"`
 }
 
-func (a *App) startAgent(root string) {
+func (a *App) startWatch(root string) {
 	r, err := project.Open(root)
 	if err != nil || r.Config.Remote == nil {
 		return
 	}
 	a.mu.Lock()
-	if _, running := a.agents[root]; running {
+	if _, running := a.teamWatches[root]; running {
 		a.mu.Unlock()
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	a.agents[root] = cancel
+	a.teamWatches[root] = cancel
 	a.mu.Unlock()
 
 	a.tidyLater(root) // e.g. a project from before files were kept in the team's storage
 	go func() {
-		w := agent.New(root)
+		w := teamwatch.New(root)
 		for {
 			for _, e := range w.Check() {
 				a.handleEvent(root, r.Config.Name, e)
@@ -196,7 +196,7 @@ func (a *App) startAgent(root string) {
 	}()
 }
 
-// pollInterval is how often an agent looks for new versions. Storage bills
+// pollInterval is how often a team watch looks for new versions. Storage bills
 // each request, so it looks every minute while the window is open and every
 // five minutes from the tray; a team server is asked more often.
 func (a *App) pollInterval(r *project.Repo) time.Duration {
@@ -216,26 +216,26 @@ func (a *App) pollInterval(r *project.Repo) time.Duration {
 // setHidden records whether the window is hidden (in the tray) or minimised.
 func (a *App) setHidden(h bool) { a.hidden.Store(h) }
 
-func (a *App) stopAgent(root string) {
+func (a *App) stopWatch(root string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if cancel, ok := a.agents[root]; ok {
+	if cancel, ok := a.teamWatches[root]; ok {
 		cancel()
-		delete(a.agents, root)
+		delete(a.teamWatches, root)
 	}
 }
 
-func (a *App) handleEvent(root, name string, e agent.Event) {
-	ev := AgentEvent{Root: root, Kind: string(e.Kind), Author: e.Author, Labels: nonNil(e.Labels), Text: e.Text,
+func (a *App) handleEvent(root, name string, e teamwatch.Event) {
+	ev := WatchEvent{Root: root, Kind: string(e.Kind), Author: e.Author, Labels: nonNil(e.Labels), Text: e.Text,
 		Versions: toVersions(e.Versions, nil)}
 	if a.emit != nil {
-		a.emit("agent", ev)
+		a.emit("team-watch", ev)
 	}
 	if a.notify == nil {
 		return
 	}
 	switch e.Kind {
-	case agent.NewVersions:
+	case teamwatch.NewVersions:
 		var names map[string]string
 		if r, err := project.Open(root); err == nil {
 			names = a.memberNames(r)

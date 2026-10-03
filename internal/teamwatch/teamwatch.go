@@ -1,7 +1,7 @@
-// Package agent watches a project while its owner works in Live: it notices
-// versions the team committed on the project's branch. It never changes
-// project files.
-package agent
+// Package teamwatch watches a project while its owner works in Live: it
+// notices versions the team committed on the project's branch. It never
+// changes project files.
+package teamwatch
 
 import (
 	"context"
@@ -24,7 +24,7 @@ type Event struct {
 	Labels   []string
 	Versions []*project.Manifest
 	Text     string
-	// Waiting: the versions were already there when the agent started.
+	// Waiting: the versions were already there when the watch started.
 	Waiting bool
 }
 

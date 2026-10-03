@@ -39,6 +39,7 @@ The [team setup guide](docs/team-setup.md) has the details and everyday use.
 
 - [Team setup guide](docs/team-setup.md)
 - [Command line tool](docs/cli.md)
+- [DAWGit for AI agents](docs/agents.md) (Claude Code, Codex, Cursor…)
 - [Building and development](docs/development.md)
 
 Feedback and bug reports are welcome in [Issues](../../issues).

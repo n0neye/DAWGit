@@ -12,8 +12,8 @@ import (
 	"sync"
 	"testing"
 
-	"dawgit/internal/remote"
 	"dawgit/internal/chunk"
+	"dawgit/internal/remote"
 	"dawgit/internal/remote/s3test"
 )
 

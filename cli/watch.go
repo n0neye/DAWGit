@@ -8,16 +8,16 @@ import (
 	"os/signal"
 	"time"
 
-	"dawgit/internal/agent"
+	"dawgit/internal/teamwatch"
 )
 
 func logf(format string, a ...any) {
 	fmt.Printf("%s  %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, a...))
 }
 
-func printEvent(e agent.Event) {
+func printEvent(e teamwatch.Event) {
 	switch e.Kind {
-	case agent.NewVersions:
+	case teamwatch.NewVersions:
 		for _, m := range e.Versions {
 			logf("%s saved a new version: %q", m.Author, m.Message)
 		}
@@ -25,15 +25,15 @@ func printEvent(e agent.Event) {
 			logf("(these were already waiting)")
 		}
 		logf("run `dawgit update --preview` to see the changes, `dawgit update` to get them")
-	case agent.Offline:
+	case teamwatch.Offline:
 		logf("cannot reach the server (%s); will keep trying", e.Text)
-	case agent.Online:
+	case teamwatch.Online:
 		logf("server reachable again")
 	}
 }
 
-func cmdAgent(args []string) error {
-	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
+func cmdWatch(args []string) error {
+	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
 	interval := fs.Duration("interval", 0, "how often to check (default: 5s for a server, 1m for storage)")
 	if _, err := parseArgs(fs, args); err != nil {
 		return err
@@ -52,7 +52,7 @@ func cmdAgent(args []string) error {
 	if *interval == 0 {
 		*interval = r.PollInterval()
 	}
-	agent.Run(ctx, r.Root, *interval, printEvent)
+	teamwatch.Run(ctx, r.Root, *interval, printEvent)
 	fmt.Println("stopped")
 	return nil
 }
