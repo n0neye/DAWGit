@@ -48,8 +48,11 @@ Strategies: `ours` (keep this computer's), `theirs` (keep the team's),
 `both` (keep both: the track twice, or the file under a new name, when
 `can_keep_both`). A strategy applies to every conflict of that run.
 
-To only get the team's versions: `dawgit update --json`. It refuses while
-there are changes not saved (`unsaved_changes`): save first.
+To only get the team's versions: `dawgit update --json`. Changes not saved
+yet stay as they are (still not saved) and the team's versions are merged
+into the files; when you and a teammate changed the same file or track it
+stops with `merge_conflict` first (`--strategy` decides). `result.kept_work`
+is true when uncommitted changes were kept.
 
 ## Output
 
@@ -101,7 +104,7 @@ took from each side), `relinked` (sample paths rewritten for this computer),
 | 6 | `not_a_project` | not in a tracked folder: `dawgit init`, or `cd` into the project |
 | 6 | `newer_version_needed` | the team uses a newer DAWGit: the user must update |
 | 6 | `server_out_of_date` | the team's server needs updating |
-| 1 | `unsaved_changes` | save first (`dawgit save -m ...`) |
+| 1 | `unsaved_changes` | save first (`dawgit save -m ...`); `update` keeps them unless you also have versions not shared |
 | 1 | `on_older_version` | an older version is checked out: `dawgit checkout latest` |
 | 1 | `unshared_versions` | `dawgit save -m ...` shares them |
 | 1 | `not_connected` | the project is not in a team (`save` still saves locally) |

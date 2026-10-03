@@ -837,5 +837,10 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "Nenhum colega compartilha a configuração ainda, então o DAWGit não sabe se conseguem abrir. Eles podem ativar nas configurações da equipe.",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "Sua configuração não está compartilhada: ative nas configurações da equipe para as verificações dos colegas incluírem você.",
 "Your setup": "Sua configuração",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "Sua versão do Live e os nomes e versões dos seus plugins e packs (sem arquivos nem pastas), para a verificação do projeto saber se os colegas conseguem abri-lo. Desativar remove do armazenamento da equipe."
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "Sua versão do Live e os nomes e versões dos seus plugins e packs (sem arquivos nem pastas), para a verificação do projeto saber se os colegas conseguem abri-lo. Desativar remove do armazenamento da equipe.",
+"Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "Suas alterações não confirmadas ficam como estão, ainda não confirmadas. Onde os dois mudaram a mesma coisa, você escolhe o que manter.",
+"Updated to the team's latest version: nothing of yours was left to commit": "Atualizado para a versão mais recente da equipe: não sobrou nada seu para confirmar",
+"The team's versions were taken in first; yours comes after them": "As versões da equipe foram trazidas primeiro; a sua vem depois",
+"You're up to date. Your changes are kept, still uncommitted": "Você está em dia. Suas alterações continuam aí, ainda não confirmadas",
+"Your uncommitted changes stay as they are.": "Suas alterações não confirmadas ficam como estão."
 }

@@ -269,11 +269,14 @@ type syncJSON struct {
 	Relink []string     `json:"relinked"` // sample paths rewritten for this computer
 	// ReopenSets: sets changed under Live: they must be reopened there.
 	ReopenSets bool `json:"reopen_sets"`
+	// KeptWork: uncommitted changes were kept through an update (merged
+	// with the team's versions, still uncommitted).
+	KeptWork bool `json:"kept_work,omitempty"`
 }
 
 func syncOf(res *project.SyncResult) syncJSON {
 	return syncJSON{Action: res.Action, From: res.From, To: res.To, Merged: nonNil(res.MergeLog),
-		Relink: nonNil(res.Relinked), ReopenSets: len(res.MergeLog) > 0}
+		Relink: nonNil(res.Relinked), ReopenSets: len(res.MergeLog) > 0, KeptWork: res.KeptWork}
 }
 
 func cmdSave(args []string) error {
@@ -380,6 +383,9 @@ func cmdUpdate(args []string) error {
 		case "fast-forward", "merged":
 			fmt.Printf("updated to %s\n", short(res.To))
 			printMerge(res)
+			if res.KeptWork {
+				fmt.Println("your uncommitted changes are kept (still uncommitted)")
+			}
 			if res.Action == "merged" {
 				fmt.Println("your versions and the team's were merged; run `dawgit save` to share the result")
 			}

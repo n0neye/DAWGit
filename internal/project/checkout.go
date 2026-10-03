@@ -41,11 +41,23 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 			return nil, nil, fmt.Errorf("%w (%d file(s); snapshot them or use --force)", ErrDirty, len(changes))
 		}
 	}
+	notes, err := r.putFiles(m, id, id)
+	if err != nil {
+		return nil, nil, err
+	}
+	return m, notes, nil
+}
 
+// putFiles makes the working files those of m, relinking samples for this
+// computer, and then puts the project on version head. switching is what
+// UnfinishedSwitch tells until it's done: the version m is (its id), or
+// "work <id>" when m is HEAD's files with uncommitted work merged in (a
+// recovery then puts back that work, kept as version <id>).
+func (r *Repo) putFiles(m *Manifest, head, switching string) ([]string, error) {
 	ix := r.loadIndex()
 	working, err := r.workingFiles(ix)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	have := map[string]string{}
 	for _, f := range working {
@@ -55,7 +67,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	// starts ignoring a folder, it is not deleted from everyone's computer.
 	target, err := r.profileOf(m)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	want := m.FileMap()
 	var need []string
@@ -66,12 +78,12 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 	}
 	r.knowSizes(m)
 	if err := r.ensureHashes(need); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	// Files change from here on: a switch that stops halfway (a crash, the
 	// power) is known until it's done, and can be finished (UnfinishedSwitch).
-	if err := os.WriteFile(filepath.Join(r.Dir, switchingFile), []byte(id+"\n"), 0o644); err != nil {
-		return nil, nil, err
+	if err := os.WriteFile(filepath.Join(r.Dir, switchingFile), []byte(switching+"\n"), 0o644); err != nil {
+		return nil, err
 	}
 	// Removed files go first: on Windows a file renamed only in case
 	// ("Kick.wav" to "kick.wav") is the same file, and removing the old name
@@ -88,7 +100,7 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 		if have[f.Path] != f.Hash && !r.Store.Has(f.Hash) {
 			if src := r.sourcesByHash()[f.Hash]; overwritten[src] {
 				if _, _, err := r.Store.PutFile(src); err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 			}
 		}
@@ -111,12 +123,12 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 				delete(ix.entries, p)
 				ix.dirty = true
 				if err := ix.record(r.Abs(dst), dst, h, want[dst].Size); err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				continue
 			}
 			if err := store.Remove(r.Abs(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return nil, nil, err
+				return nil, err
 			}
 			r.removeEmptyFolders(p)
 			delete(ix.entries, p)
@@ -128,26 +140,26 @@ func (r *Repo) Checkout(ref string, force bool) (*Manifest, []string, error) {
 			continue
 		}
 		if err := r.exportObject(f.Hash, r.Abs(f.Path)); err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", f.Path, err)
+			return nil, fmt.Errorf("%s: %w", f.Path, err)
 		}
 		if err := ix.record(r.Abs(f.Path), f.Path, f.Hash, f.Size); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	r.forgetProfile() // the version may have brought another .dawgit.yaml
 
 	notes, err := r.relink(m, ix)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if err := r.setHead(m.ID); err != nil {
-		return nil, nil, err
+	if err := r.setHead(head); err != nil {
+		return nil, err
 	}
 	if err := ix.save(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	os.Remove(filepath.Join(r.Dir, switchingFile))
-	return m, notes, nil
+	return notes, nil
 }
 
 // moveFile moves a file of the project folder to another path in it (false
@@ -195,6 +207,12 @@ func (r *Repo) UnfinishedSwitch() string {
 		return ""
 	}
 	id := strings.TrimSpace(string(data))
+	if work, ok := strings.CutPrefix(id, "work "); ok { // HEAD stays: its files and the work kept
+		if r.HasSnapshot(work) {
+			return id
+		}
+		id = ""
+	}
 	if id == "" || id == r.Head() || !r.HasSnapshot(id) {
 		os.Remove(filepath.Join(r.Dir, switchingFile))
 		return ""
@@ -212,6 +230,15 @@ func (r *Repo) RecoverSwitch() ([]string, error) {
 	id := r.UnfinishedSwitch()
 	if id == "" {
 		return nil, nil
+	}
+	if work, ok := strings.CutPrefix(id, "work "); ok {
+		// Getting the team's versions into uncommitted work stopped: the
+		// work as it was, on the version the project is still on.
+		m, err := r.Load(work)
+		if err != nil {
+			return nil, err
+		}
+		return r.putFiles(m, r.Head(), id)
 	}
 	if h := r.Head(); h != "" {
 		id = h

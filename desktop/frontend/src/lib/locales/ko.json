@@ -837,5 +837,10 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "아직 환경을 공유한 팀원이 없어 열 수 있는지 DAWGit이 알 수 없습니다. 팀원은 팀 설정에서 켤 수 있습니다.",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "내 환경이 팀과 공유되지 않았습니다: 팀 설정에서 켜면 팀원의 확인에 내가 포함됩니다.",
 "Your setup": "내 환경",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "내 Live 버전과 플러그인, Pack의 이름과 버전(파일과 폴더는 제외). 프로젝트 확인에서 팀원이 프로젝트를 열 수 있는지 알 수 있습니다. 끄면 팀 저장소에서 삭제됩니다."
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "내 Live 버전과 플러그인, Pack의 이름과 버전(파일과 폴더는 제외). 프로젝트 확인에서 팀원이 프로젝트를 열 수 있는지 알 수 있습니다. 끄면 팀 저장소에서 삭제됩니다.",
+"Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "커밋하지 않은 변경은 그대로 남고 계속 커밋되지 않은 상태입니다. 둘 다 같은 곳을 바꿨다면 무엇을 남길지 고릅니다.",
+"Updated to the team's latest version: nothing of yours was left to commit": "팀의 최신 버전으로 업데이트했습니다: 커밋할 내 변경이 남지 않았습니다",
+"The team's versions were taken in first; yours comes after them": "팀의 버전을 먼저 가져왔고, 내 버전은 그 뒤에 이어집니다",
+"You're up to date. Your changes are kept, still uncommitted": "최신 상태입니다. 변경은 그대로 남아 있고 아직 커밋되지 않았습니다",
+"Your uncommitted changes stay as they are.": "커밋하지 않은 변경은 그대로 남습니다."
 }

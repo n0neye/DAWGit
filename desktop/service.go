@@ -357,7 +357,7 @@ func (a *App) State(root string) (*State, error) {
 	}
 	st.CloudFolder = cloudFolder(r.Root)
 	if id := r.UnfinishedSwitch(); id != "" {
-		if m, err := r.Header(id); err == nil {
+		if m, err := r.Header(strings.TrimPrefix(id, "work ")); err == nil {
 			v := toVersion(m, nil)
 			st.Unfinished = &v
 		}
@@ -610,7 +610,7 @@ func conflictResult(err error) (*Result, error) {
 func syncResult(res *project.SyncResult) *Result {
 	out := &Result{Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}
 	if res != nil {
-		out.Action, out.Log, out.Relinked = res.Action, nonNil(res.MergeLog), nonNil(res.Relinked)
+		out.Action, out.Log, out.Relinked, out.KeptWork = res.Action, nonNil(res.MergeLog), nonNil(res.Relinked), res.KeptWork
 	}
 	return out
 }
@@ -647,7 +647,9 @@ func (a *App) Save(root, message string, combine bool, resolutions map[string]st
 		// for them, just as when teammates committed in the meantime.
 		incoming = incoming || r.OnOlderVersion()
 	}
-	if incoming && !combine {
+	// Teammates' versions are taken in first (Repo.Save); changes made on
+	// an older version are combined only when asked.
+	if r.OnOlderVersion() && !combine {
 		return &Result{Action: "behind", Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}, nil
 	}
 	if set := liveGuard(r, force); incoming && set != "" {

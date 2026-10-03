@@ -837,5 +837,10 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "Nessun compagno condivide ancora la sua configurazione, quindi DAWGit non sa se possono aprirlo. Possono attivarla nelle impostazioni del team.",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "La tua configurazione non è condivisa: attivala nelle impostazioni del team così i controlli dei compagni ti includono.",
 "Your setup": "La tua configurazione",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "La tua versione di Live e nomi e versioni di plugin e pack (nessun file, nessuna cartella), così il controllo del progetto sa se i compagni possono aprirlo. Disattivarla la rimuove dallo spazio del team."
+"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "La tua versione di Live e nomi e versioni di plugin e pack (nessun file, nessuna cartella), così il controllo del progetto sa se i compagni possono aprirlo. Disattivarla la rimuove dallo spazio del team.",
+"Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "Le tue modifiche non confermate restano come sono, ancora non confermate. Dove avete cambiato la stessa cosa, scegli tu cosa tenere.",
+"Updated to the team's latest version: nothing of yours was left to commit": "Aggiornato all'ultima versione del team: non restava niente di tuo da confermare",
+"The team's versions were taken in first; yours comes after them": "Prima sono state portate dentro le versioni del team; la tua viene dopo",
+"You're up to date. Your changes are kept, still uncommitted": "Sei aggiornato. Le tue modifiche restano, ancora non confermate",
+"Your uncommitted changes stay as they are.": "Le tue modifiche non confermate restano come sono."
 }

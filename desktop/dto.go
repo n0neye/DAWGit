@@ -136,6 +136,9 @@ type Result struct {
 	// with force when it is closed.
 	LiveRunning bool   `json:"liveRunning"`
 	OpenSet     string `json:"openSet"`
+	// KeptWork: uncommitted changes were kept through an update (still
+	// uncommitted, the team's versions merged in).
+	KeptWork bool `json:"keptWork"`
 }
 
 type Preview struct {
