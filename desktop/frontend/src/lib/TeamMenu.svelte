@@ -122,7 +122,7 @@
 {#if identityFor}
   {@const t = identityFor}
   <Modal title={t.memberId ? tr("Your name in {team}", { team: t.name }) : tr("Who are you in {team}?", { team: t.name })} onclose={() => (identityFor = null)}>
-    <IdentityForm team={t} suggested={overview.author} submitLabel={tr("Save")}
+    <IdentityForm team={t} suggested={overview.author} submitLabel={tr("Save")} askShare
       onsaved={(saved) => identitySaved(saved, !!t.memberId && saved.memberName !== t.memberName)} />
   </Modal>
 {/if}

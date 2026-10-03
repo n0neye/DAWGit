@@ -272,3 +272,79 @@ func DeviceLabel(d *xmltree.Node) string {
 	}
 	return d.Tag
 }
+
+// PluginRef is a third-party plugin a set uses.
+type PluginRef struct {
+	Name   string // as Live shows it
+	Format string // "VST3", "VST" (VST2) or "AU"
+	// UID identifies a VST3 plugin as Live's plugin list does
+	// (8-4-4-4-12 hex digits); VST2: its unique id (decimal).
+	UID  string
+	File string // VST2: the plugin's file name (e.g. "Serum_x64.dll")
+}
+
+// PluginRefs lists the plugins the set uses, each once.
+func (s *LiveSet) PluginRefs() []PluginRef {
+	seen := map[string]bool{}
+	var out []PluginRef
+	for _, d := range s.Root.Iter("PluginDevice") {
+		desc := d.Child("PluginDesc")
+		if desc == nil || len(desc.Children) == 0 {
+			continue
+		}
+		info := desc.Children[0]
+		p := PluginRef{Name: info.Val("Name", ""), Format: strings.TrimSuffix(info.Tag, "PluginInfo")}
+		switch info.Tag {
+		case "Vst3PluginInfo":
+			p.Format = "VST3"
+			for _, u := range info.Iter("Uid") {
+				p.UID = vst3UID(u)
+				break
+			}
+		case "VstPluginInfo":
+			p.Format = "VST"
+			p.Name = info.Val("PlugName", "")
+			p.UID = info.Val("UniqueId", "")
+			if path := info.Val("Path", ""); path != "" {
+				p.File = path[strings.LastIndexAny(path, `/\`)+1:]
+			}
+		case "AuPluginInfo":
+			p.Format = "AU"
+		}
+		if p.Name == "" {
+			p.Name = info.Val("PlugName", "?")
+		}
+		key := p.Format + "|" + p.UID + "|" + p.Name
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, p)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name) })
+	return out
+}
+
+// vst3UID writes a VST3 class id stored as four 32-bit numbers the way
+// Live's plugin list does: 56535456-6974-6176-6974-616c00000000.
+func vst3UID(u *xmltree.Node) string {
+	var b []byte
+	for i := 0; i < 4; i++ {
+		v, err := strconv.ParseInt(u.Val(fmt.Sprintf("Fields.%d", i), "0"), 10, 64)
+		if err != nil {
+			return ""
+		}
+		x := uint32(v)
+		b = append(b, byte(x>>24), byte(x>>16), byte(x>>8), byte(x))
+	}
+	h := fmt.Sprintf("%x", b)
+	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
+}
+
+// Version is the Live version that saved the set ("12.1.5"), from Creator.
+func (s *LiveSet) Version() string {
+	c := s.Creator()
+	if i := strings.LastIndex(c, " "); i >= 0 {
+		return c[i+1:]
+	}
+	return c
+}

@@ -60,3 +60,26 @@ func TestS3BackendErrors(t *testing.T) {
 		t.Error("invalid endpoint accepted")
 	}
 }
+
+func TestSetups(t *testing.T) {
+	fake := s3test.New("band")
+	defer fake.Close()
+	b, err := remote.NewS3(fake.URL, "band", "team", "auto", "k", "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, c := strings.Repeat("a", 32), strings.Repeat("c", 32)
+	b.PutSetup(a, []byte(`{"live":[]}`))
+	b.PutSetup(c, []byte(`{"packs":[]}`))
+	got, err := b.Setups()
+	if err != nil || len(got) != 2 || string(got[a]) != `{"live":[]}` {
+		t.Fatalf("%v %v", got, err)
+	}
+	b.DeleteSetup(a)
+	if got, _ := b.Setups(); len(got) != 1 {
+		t.Fatalf("after delete: %v", got)
+	}
+	if b.PutSetup("../x", nil) == nil {
+		t.Error("bad id")
+	}
+}

@@ -32,6 +32,9 @@ type Team struct {
 	// record the id; the name is kept in the team's member list).
 	MemberID   string `json:"memberId,omitempty"`
 	MemberName string `json:"memberName,omitempty"`
+	// ShareSetup: this computer shares its setup (Live versions, plugins,
+	// packs: names only) with the team, for project checks.
+	ShareSetup bool `json:"shareSetup,omitempty"`
 	// KeysUnreadable: the team's keys were sealed by another Windows user
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.

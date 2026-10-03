@@ -65,6 +65,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	for _, root := range store.Roots() {
 		a.startWatch(root)
 	}
+	go a.shareSetups(ctx)
 	return nil
 }
 

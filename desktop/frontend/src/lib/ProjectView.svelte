@@ -13,14 +13,17 @@
   import History from "./History.svelte";
   import Modal from "./Modal.svelte";
   import PreviewDialog from "./PreviewDialog.svelte";
+  import ProjectCheck from "./ProjectCheck.svelte";
   import ConflictDialog from "./ConflictDialog.svelte";
 
   // firstShare: the project was just added (to a team, or this computer).
   // With no versions yet, it asks whether to commit (and share) a first one
   // now or after a look through the files; a project with versions shares
   // them right away.
-  let { root, refreshKey, teams, firstShare = false, onchanged, onfirstshared, onsettings }: {
+  let { root, refreshKey, teams, firstShare = false, downloaded = false, onchanged, onfirstshared, ondownloadseen, onsettings }: {
     root: string; refreshKey: number; teams: TeamSummary[]; firstShare?: boolean;
+    downloaded?: boolean; // just downloaded: show the project's check
+    ondownloadseen?: () => void;
     onchanged: () => void; onfirstshared?: () => void;
     onsettings: () => void; // the project's settings (name, rules, …)
   } = $props();
@@ -130,6 +133,15 @@
     if (!st.head) askFirstVersion();
     else if (st.remoteUrl) shareAsk = true; // versions already: share them now or later
   });
+  // Just downloaded, or asked for: the project's check.
+  let checkOpen = $state<"" | "downloaded" | "check">("");
+  $effect(() => {
+    if (st && untrack(() => downloaded)) {
+      checkOpen = "downloaded";
+      ondownloadseen?.();
+    }
+  });
+
   function askFirstVersion() {
     if (!message.trim()) message = t("First version");
     firstAsk = true;
@@ -687,6 +699,7 @@
             {/if}
           </div>
         {/if}
+        <button class="ghost" onclick={() => (checkOpen = "check")} title={t("Check the project: Live version, samples, plugins")}>✓</button>
         <button class="ghost refresh" class:spin={refreshing} onclick={refresh} title={t("Refresh")}>↻</button>
         <button class="ghost" onclick={() => api.ShowFolder(st!.root)} title={t("Show folder")}>📁</button>
       </div>
@@ -856,6 +869,7 @@
     <Modal title={t("Share “{name}” with {team}?", { name: st.name, team: st.teamName || t("the team") })} onclose={() => (shareAsk = false)}>
       <p>{isLive ? tn(st.history.length, "Upload its {n} version now, samples included?", "Upload its {n} versions now, samples included?")
         : tn(st.history.length, "Upload its {n} version now?", "Upload its {n} versions now?")}</p>
+      <ProjectCheck {root} mode="added" />
       <p class="muted">{t("Or later: first look through the files and ignore the folders or files you don't need (right-click › Ignore), then share from the banner at the top. Your team sees the project once it's shared.")}{st.changes.length
           ? " " + tn(st.changes.length, "The {n} uncommitted change stays in Changes either way.", "The {n} uncommitted changes stay in Changes either way.") : ""}</p>
       {#snippet footer()}
@@ -865,11 +879,22 @@
     </Modal>
   {/if}
 
+  {#if checkOpen}
+    <Modal title={checkOpen === "downloaded" ? t("“{name}” is downloaded", { name: st.name }) : t("Project check")} onclose={() => (checkOpen = "")}>
+      {#if checkOpen === "downloaded"}<p>{t("Can this computer open it? DAWGit looked:")}</p>{/if}
+      <ProjectCheck {root} mode={checkOpen} />
+      {#snippet footer()}
+        <button class="primary" onclick={() => (checkOpen = "")}>{t("OK")}</button>
+      {/snippet}
+    </Modal>
+  {/if}
+
   {#if firstAsk}
     <Modal title={t("“{name}” is added", { name: st.name })} onclose={() => (firstAsk = false)}>
       <p>{st.remoteUrl
         ? t(isLive ? "Commit a first version now and share it with {team}, samples included?" : "Commit a first version now and share it with {team}?", { team: st.teamName || t("the team") })
         : t("Commit a first version now?")}</p>
+      <ProjectCheck {root} mode="added" />
       <p class="muted">{tn(st.changes.length, "Or later: first look through the {n} file and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.",
         "Or later: first look through the {n} files and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.")}{st.remoteUrl ? " " + t("Your team sees the project once it's committed.") : ""}</p>
       <label for="first-msg">{t("Message")}</label>
