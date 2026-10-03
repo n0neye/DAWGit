@@ -204,6 +204,9 @@ type changeJSON struct {
 	// SetChanges: what changed in a Live Set (tracks, devices, clips…), one
 	// line each, as `dawgit diff` prints it.
 	SetChanges []string `json:"set_changes,omitempty"`
+	// Weight: for a Live Set, its heaviest change: noise (a plugin saving its
+	// own state), tidy, mix, sound or arrangement.
+	Weight string `json:"weight,omitempty"`
 }
 
 type conflictJSON struct {

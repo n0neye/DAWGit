@@ -4,7 +4,7 @@
 /**
  * App is the service the frontend calls. Every method that touches a project
  * takes its folder (root) and holds that project's lock, so the background
- * agent and user actions never run at the same time.
+ * team watch and user actions never run at the same time.
  * @module
  */
 

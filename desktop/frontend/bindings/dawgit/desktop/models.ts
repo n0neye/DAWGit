@@ -77,6 +77,17 @@ export class Change {
      */
     "details": string[];
 
+    /**
+     * Weight: for sets, the heaviest change (diff.Weight*: noise, tidy,
+     * mix, sound, arrangement); "" for other files.
+     */
+    "weight": string;
+
+    /**
+     * for sets: each changed track and its weight
+     */
+    "tracks": TrackWeight[];
+
     /** Creates a new Change instance. */
     constructor($$source: Partial<Change> = {}) {
         if (!("path" in $$source)) {
@@ -94,6 +105,12 @@ export class Change {
         if (!("details" in $$source)) {
             this["details"] = [];
         }
+        if (!("weight" in $$source)) {
+            this["weight"] = "";
+        }
+        if (!("tracks" in $$source)) {
+            this["tracks"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -103,9 +120,13 @@ export class Change {
      */
     static createFrom($$source: any = {}): Change {
         const $$createField4_0 = $$createType2;
+        const $$createField6_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("details" in $$parsedSource) {
             $$parsedSource["details"] = $$createField4_0($$parsedSource["details"]);
+        }
+        if ("tracks" in $$parsedSource) {
+            $$parsedSource["tracks"] = $$createField6_0($$parsedSource["tracks"]);
         }
         return new Change($$parsedSource as Partial<Change>);
     }
@@ -199,9 +220,9 @@ export class ConvertFormat {
      * Creates a new ConvertFormat instance from a string or object.
      */
     static createFrom($$source: any = {}): ConvertFormat {
-        const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType3;
-        const $$createField5_0 = $$createType3;
+        const $$createField3_0 = $$createType5;
+        const $$createField4_0 = $$createType5;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("bitrates" in $$parsedSource) {
             $$parsedSource["bitrates"] = $$createField3_0($$parsedSource["bitrates"]);
@@ -389,8 +410,8 @@ export class Overview {
      * Creates a new Overview instance from a string or object.
      */
     static createFrom($$source: any = {}): Overview {
-        const $$createField1_0 = $$createType5;
-        const $$createField3_0 = $$createType7;
+        const $$createField1_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("teams" in $$parsedSource) {
             $$parsedSource["teams"] = $$createField1_0($$parsedSource["teams"]);
@@ -452,6 +473,13 @@ export class Preview {
      */
     "message": string;
 
+    /**
+     * Changes compare Base (where the two sides parted; "" none) with
+     * Target (what comes in).
+     */
+    "base": string;
+    "target": string;
+
     /** Creates a new Preview instance. */
     constructor($$source: Partial<Preview> = {}) {
         if (!("action" in $$source)) {
@@ -469,6 +497,12 @@ export class Preview {
         if (!("message" in $$source)) {
             this["message"] = "";
         }
+        if (!("base" in $$source)) {
+            this["base"] = "";
+        }
+        if (!("target" in $$source)) {
+            this["target"] = "";
+        }
 
         Object.assign(this, $$source);
     }
@@ -477,9 +511,9 @@ export class Preview {
      * Creates a new Preview instance from a string or object.
      */
     static createFrom($$source: any = {}): Preview {
-        const $$createField1_0 = $$createType8;
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
+        const $$createField1_0 = $$createType10;
+        const $$createField2_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("versions" in $$parsedSource) {
             $$parsedSource["versions"] = $$createField1_0($$parsedSource["versions"]);
@@ -628,7 +662,7 @@ export class ProjectInfo {
      */
     static createFrom($$source: any = {}): ProjectInfo {
         const $$createField5_0 = $$createType2;
-        const $$createField6_0 = $$createType13;
+        const $$createField6_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("openable" in $$parsedSource) {
             $$parsedSource["openable"] = $$createField5_0($$parsedSource["openable"]);
@@ -692,7 +726,7 @@ export class Result {
     static createFrom($$source: any = {}): Result {
         const $$createField1_0 = $$createType2;
         const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType12;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("log" in $$parsedSource) {
             $$parsedSource["log"] = $$createField1_0($$parsedSource["log"]);
@@ -893,10 +927,10 @@ export class RulesDetail {
      * Creates a new RulesDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): RulesDetail {
-        const $$createField0_0 = $$createType15;
-        const $$createField1_0 = $$createType17;
-        const $$createField2_0 = $$createType19;
-        const $$createField3_0 = $$createType21;
+        const $$createField0_0 = $$createType17;
+        const $$createField1_0 = $$createType19;
+        const $$createField2_0 = $$createType21;
+        const $$createField3_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("presets" in $$parsedSource) {
             $$parsedSource["presets"] = $$createField0_0($$parsedSource["presets"]);
@@ -961,8 +995,8 @@ export class RulesInfo {
      * Creates a new RulesInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): RulesInfo {
-        const $$createField0_0 = $$createType23;
-        const $$createField3_0 = $$createType19;
+        const $$createField0_0 = $$createType25;
+        const $$createField3_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("applied" in $$parsedSource) {
             $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
@@ -983,6 +1017,16 @@ export class SetTrackChange {
     "status": string;
     "details": string[];
 
+    /**
+     * the track's heaviest change
+     */
+    "weight": string;
+
+    /**
+     * each detail's
+     */
+    "weights": string[];
+
     /** Creates a new SetTrackChange instance. */
     constructor($$source: Partial<SetTrackChange> = {}) {
         if (!("id" in $$source)) {
@@ -994,6 +1038,12 @@ export class SetTrackChange {
         if (!("details" in $$source)) {
             this["details"] = [];
         }
+        if (!("weight" in $$source)) {
+            this["weight"] = "";
+        }
+        if (!("weights" in $$source)) {
+            this["weights"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -1003,9 +1053,13 @@ export class SetTrackChange {
      */
     static createFrom($$source: any = {}): SetTrackChange {
         const $$createField2_0 = $$createType2;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("details" in $$parsedSource) {
             $$parsedSource["details"] = $$createField2_0($$parsedSource["details"]);
+        }
+        if ("weights" in $$parsedSource) {
+            $$parsedSource["weights"] = $$createField4_0($$parsedSource["weights"]);
         }
         return new SetTrackChange($$parsedSource as Partial<SetTrackChange>);
     }
@@ -1032,6 +1086,13 @@ export class SetView {
     "global": string[];
 
     /**
+     * GlobalWeights weigh Global (diff.Weight*); Weight is the heaviest
+     * change of all.
+     */
+    "globalWeights": string[];
+    "weight": string;
+
+    /**
      * the tracks' order changed
      */
     "order": boolean;
@@ -1053,6 +1114,12 @@ export class SetView {
         if (!("global" in $$source)) {
             this["global"] = [];
         }
+        if (!("globalWeights" in $$source)) {
+            this["globalWeights"] = [];
+        }
+        if (!("weight" in $$source)) {
+            this["weight"] = "";
+        }
         if (!("order" in $$source)) {
             this["order"] = false;
         }
@@ -1070,11 +1137,12 @@ export class SetView {
      * Creates a new SetView instance from a string or object.
      */
     static createFrom($$source: any = {}): SetView {
-        const $$createField0_0 = $$createType25;
-        const $$createField1_0 = $$createType25;
+        const $$createField0_0 = $$createType27;
+        const $$createField1_0 = $$createType27;
         const $$createField2_0 = $$createType2;
-        const $$createField4_0 = $$createType27;
-        const $$createField5_0 = $$createType2;
+        const $$createField3_0 = $$createType2;
+        const $$createField6_0 = $$createType29;
+        const $$createField7_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("now" in $$parsedSource) {
             $$parsedSource["now"] = $$createField0_0($$parsedSource["now"]);
@@ -1085,11 +1153,14 @@ export class SetView {
         if ("global" in $$parsedSource) {
             $$parsedSource["global"] = $$createField2_0($$parsedSource["global"]);
         }
+        if ("globalWeights" in $$parsedSource) {
+            $$parsedSource["globalWeights"] = $$createField3_0($$parsedSource["globalWeights"]);
+        }
         if ("changes" in $$parsedSource) {
-            $$parsedSource["changes"] = $$createField4_0($$parsedSource["changes"]);
+            $$parsedSource["changes"] = $$createField6_0($$parsedSource["changes"]);
         }
         if ("text" in $$parsedSource) {
-            $$parsedSource["text"] = $$createField5_0($$parsedSource["text"]);
+            $$parsedSource["text"] = $$createField7_0($$parsedSource["text"]);
         }
         return new SetView($$parsedSource as Partial<SetView>);
     }
@@ -1250,15 +1321,15 @@ export class State {
      * Creates a new State instance from a string or object.
      */
     static createFrom($$source: any = {}): State {
-        const $$createField0_0 = $$createType13;
+        const $$createField0_0 = $$createType15;
         const $$createField15_0 = $$createType2;
         const $$createField16_0 = $$createType1;
         const $$createField18_0 = $$createType1;
-        const $$createField20_0 = $$createType10;
-        const $$createField21_0 = $$createType29;
-        const $$createField22_0 = $$createType8;
-        const $$createField23_0 = $$createType8;
-        const $$createField24_0 = $$createType31;
+        const $$createField20_0 = $$createType12;
+        const $$createField21_0 = $$createType31;
+        const $$createField22_0 = $$createType10;
+        const $$createField23_0 = $$createType10;
+        const $$createField24_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -1395,7 +1466,7 @@ export class TeamConnection {
      * Creates a new TeamConnection instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamConnection {
-        const $$createField1_0 = $$createType32;
+        const $$createField1_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("settings" in $$parsedSource) {
             $$parsedSource["settings"] = $$createField1_0($$parsedSource["settings"]);
@@ -1465,11 +1536,11 @@ export class TeamPart {
      * Creates a new TeamPart instance from a string or object.
      */
     static createFrom($$source: any = {}): TeamPart {
-        const $$createField2_0 = $$createType31;
-        const $$createField3_0 = $$createType8;
-        const $$createField4_0 = $$createType8;
+        const $$createField2_0 = $$createType33;
+        const $$createField3_0 = $$createType10;
+        const $$createField4_0 = $$createType10;
         const $$createField5_0 = $$createType1;
-        const $$createField7_0 = $$createType33;
+        const $$createField7_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -1651,7 +1722,7 @@ export class TextChanges {
      * Creates a new TextChanges instance from a string or object.
      */
     static createFrom($$source: any = {}): TextChanges {
-        const $$createField4_0 = $$createType35;
+        const $$createField4_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hunks" in $$parsedSource) {
             $$parsedSource["hunks"] = $$createField4_0($$parsedSource["hunks"]);
@@ -1708,6 +1779,42 @@ export class TextContent {
             $$parsedSource["lines"] = $$createField2_0($$parsedSource["lines"]);
         }
         return new TextContent($$parsedSource as Partial<TextContent>);
+    }
+}
+
+/**
+ * TrackWeight is a changed track of a set and how much it changed.
+ */
+export class TrackWeight {
+    "name": string;
+
+    /**
+     * added | removed | modified
+     */
+    "status": string;
+    "weight": string;
+
+    /** Creates a new TrackWeight instance. */
+    constructor($$source: Partial<TrackWeight> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("weight" in $$source)) {
+            this["weight"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TrackWeight instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TrackWeight {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TrackWeight($$parsedSource as Partial<TrackWeight>);
     }
 }
 
@@ -1904,7 +2011,7 @@ export class VerifyResult {
      * Creates a new VerifyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): VerifyResult {
-        const $$createField3_0 = $$createType37;
+        const $$createField3_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -2004,38 +2111,40 @@ export class Version {
 const $$createType0 = Version.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $Create.Array($Create.Any);
-const $$createType4 = TeamSummary.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = TeamProject.createFrom;
+const $$createType3 = TrackWeight.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Array($Create.Any);
+const $$createType6 = TeamSummary.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($$createType0);
-const $$createType9 = Change.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = Conflict.createFrom;
+const $$createType8 = TeamProject.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($$createType0);
+const $$createType11 = Change.createFrom;
 const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = RulesInfo.createFrom;
-const $$createType14 = profile$0.PresetEntry.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = RuleItem.createFrom;
+const $$createType13 = Conflict.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = RulesInfo.createFrom;
+const $$createType16 = profile$0.PresetEntry.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = RuleSuggestion.createFrom;
+const $$createType18 = RuleItem.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = PresetOption.createFrom;
+const $$createType20 = RuleSuggestion.createFrom;
 const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = profile$0.Applied.createFrom;
+const $$createType22 = PresetOption.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = als$0.Overview.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = SetTrackChange.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = project$0.TrackEdit.createFrom;
+const $$createType24 = profile$0.Applied.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = als$0.Overview.createFrom;
+const $$createType27 = $Create.Nullable($$createType26);
+const $$createType28 = SetTrackChange.createFrom;
 const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = Branch.createFrom;
+const $$createType30 = project$0.TrackEdit.createFrom;
 const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = remote$0.Storage.createFrom;
-const $$createType33 = remote$0.Capabilities.createFrom;
-const $$createType34 = textdiff$0.Hunk.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = VerifyProblem.createFrom;
+const $$createType32 = Branch.createFrom;
+const $$createType33 = $Create.Array($$createType32);
+const $$createType34 = remote$0.Storage.createFrom;
+const $$createType35 = remote$0.Capabilities.createFrom;
+const $$createType36 = textdiff$0.Hunk.createFrom;
 const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = VerifyProblem.createFrom;
+const $$createType39 = $Create.Array($$createType38);

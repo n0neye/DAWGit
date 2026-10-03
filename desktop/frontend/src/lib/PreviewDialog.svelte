@@ -1,10 +1,11 @@
 <script lang="ts">
   import { t, tn } from "./i18n.svelte";
   import Modal from "./Modal.svelte";
-  import ChangeList from "./ChangeList.svelte";
-  import { ago, type Preview } from "./api";
+  import IncomingChanges from "./IncomingChanges.svelte";
+  import { type Preview } from "./api";
 
-  let { title, preview, actionLabel, onconfirm, onclose, blocked = "", message = $bindable(null) }: {
+  let { root, title, preview, actionLabel, onconfirm, onclose, blocked = "", message = $bindable(null) }: {
+    root: string;
     title: string;
     preview: Preview;
     actionLabel: string;
@@ -19,21 +20,36 @@
   let asksMessage = $derived(message !== null && preview.action === "merge");
 
   let nothing = $derived(preview.action === "up-to-date" || preview.action === "ahead");
+  // Merges only combine the other versions: not listed (unless that's all).
+  let versions = $derived.by(() => {
+    const own = preview.versions.filter((v) => v.parents.length < 2);
+    return own.length ? own : preview.versions;
+  });
+
+  // What happens to the files here, counted.
+  const isSet = (p: string) => /\.als$/i.test(p);
+  let sets = $derived(preview.changes.filter((c) => isSet(c.path) && c.status !== "deleted").length);
+  let count = (status: string) => preview.changes.filter((c) => !isSet(c.path) && c.status === status).length;
 </script>
 
-<Modal {title} {onclose} width={720}>
+<Modal {title} {onclose} width={1000}>
   {#if nothing}
     <p class="muted">{t("Nothing new — you already have everything.")}</p>
   {:else}
-    <h3>{tn(preview.versions.length, "{n} new version", "{n} new versions")}</h3>
-    <ul class="versions">
-      {#each preview.versions as v (v.id)}
-        <li><span class="msg">{v.message || t("(no description)")}</span>
-          <span class="faint">{v.author} · {ago(v.time)}</span></li>
-      {/each}
-    </ul>
-    <h3>{t("What changes")}</h3>
-    <ChangeList changes={preview.changes} />
+    <IncomingChanges {root} {preview} {versions} />
+
+    <div class="effects">
+      <strong>{t("What happens to your files")}</strong>
+      <ul>
+        {#if sets}<li>{tn(sets, "{n} set is updated: if it's open in Live, open it again afterwards", "{n} sets are updated: if they're open in Live, open them again afterwards")}</li>{/if}
+        {#if count("added")}<li>{tn(count("added"), "{n} file is added", "{n} files are added")}</li>{/if}
+        {#if count("modified")}<li>{tn(count("modified"), "{n} file is replaced by theirs", "{n} files are replaced by theirs")}</li>{/if}
+        {#if count("renamed")}<li>{tn(count("renamed"), "{n} file is moved", "{n} files are moved")}</li>{/if}
+        {#if count("deleted")}<li>{tn(count("deleted"), "{n} file is deleted", "{n} files are deleted")}</li>{/if}
+        <li class="faint">{t("Your current version stays in the history: you can go back to it any time.")}</li>
+      </ul>
+    </div>
+
     {#if preview.conflicts.length}
       <div class="conflicts">
         <strong>{tn(preview.conflicts.length, "{n} thing you also changed", "{n} things you also changed")}</strong>
@@ -62,10 +78,8 @@
 </Modal>
 
 <style>
-  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 8px; }
-  .versions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-  .versions li { display: flex; gap: 10px; }
-  .msg { flex: 1; }
+  .effects { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
+  .effects ul { margin: 6px 0 0; padding-left: 20px; }
   .conflicts {
     margin-top: 14px; padding: 10px 12px; border-radius: 8px;
     background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8;

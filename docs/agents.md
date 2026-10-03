@@ -72,7 +72,7 @@ when a field changes meaning; new fields may appear any time.
 | `version` | the version the files are on (`""` before the first) |
 | `on_older_version`, `latest` | an older version is checked out; `dawgit checkout latest` goes back |
 | `team` | `null` without a team, else `reachable`, `incoming` (others saved versions: update), `error` |
-| `changes` | `path`, `status` (`added`, `modified`, `deleted`, `renamed` with `from`, `untracked`: still on disk but the rules leave it out), `set_changes` (for Live sets: tracks, devices, clips changed, one line each) |
+| `changes` | `path`, `status` (`added`, `modified`, `deleted`, `renamed` with `from`, `untracked`: still on disk but the rules leave it out), `set_changes` (for Live sets: tracks, devices, clips changed, one line each), `weight` (for Live sets, the biggest kind of change: `noise` a plugin re-saving its own state, `tidy` names/colors/order/groups, `mix`, `sound` devices, `arrangement` clips/notes/tracks/tempo) |
 | `suggestions` | tool projects found in folders the rules don't cover: `dawgit profile preset <folder> <preset>` |
 
 `log` (`-n N` for the newest N): `versions`, newest first: `id`, `time`

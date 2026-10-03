@@ -26,7 +26,7 @@ To try the desktop UI in a browser (no native dialogs), build it in server mode:
 
 ```
 cd desktop
-go build -tags server -o bin/DAWGit-server.exe .
+go build -tags server -o bin/DAWGit-server.exe ./cmd/dawgit-desktop
 set WAILS_SERVER_PORT=8765
 set DAWGIT_CONFIG_DIR=%TEMP%\dawgit-dev      # a fresh settings folder (shows onboarding)
 set DAWGIT_DEV_PICK_DIR=C:\path\to\a\folder   # what the folder picker returns

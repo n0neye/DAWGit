@@ -376,8 +376,7 @@ func (a *App) State(root string) (*State, error) {
 	}
 	sw.lap("status")
 	for _, c := range changes {
-		st.Changes = append(st.Changes, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited,
-			Details: diffLines(c.SetDiff)})
+		st.Changes = append(st.Changes, toChange(c.Path, c.Status, c.From, c.Edited, c.SetDiff))
 	}
 	st.MyEdits = nonNil(project.EditsIn(changes))
 	sw.lap("edits")
@@ -699,11 +698,10 @@ func (a *App) ShareVersions(root string) (*Result, error) {
 
 func toPreview(p *project.Preview, names map[string]string) *Preview {
 	out := &Preview{Action: p.Action, Versions: toVersions(p.Versions, nil), Changes: []Change{},
-		Conflicts: toConflicts(p.Conflicts)}
+		Conflicts: toConflicts(p.Conflicts), Base: p.Base, Target: p.Target}
 	renameAuthors(names, out.Versions)
 	for _, c := range p.Changes {
-		out.Changes = append(out.Changes, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited,
-			Details: diffLines(c.SetDiff)})
+		out.Changes = append(out.Changes, toChange(c.Path, c.Status, c.From, c.Edited, c.SetDiff))
 	}
 	return out
 }
@@ -928,13 +926,26 @@ func (a *App) VersionChanges(root, id string) ([]Change, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A teammate's version not taken in yet: its sets are downloaded first
+	// (they are small, and kept), under the project's lock.
+	if missing, err := r.MissingSets(id); err == nil && len(missing) > 0 && r.Config.Remote != nil {
+		lr, unlock, err := a.open(root)
+		if err != nil {
+			return nil, err
+		}
+		err = lr.FetchSets(missing)
+		unlock()
+		if err != nil {
+			return nil, err
+		}
+	}
 	changes, err := r.VersionChanges(id)
 	if err != nil {
 		return nil, err
 	}
 	out := []Change{}
 	for _, c := range changes {
-		out = append(out, Change{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited, Details: diffLines(c.SetDiff)})
+		out = append(out, toChange(c.Path, c.Status, c.From, c.Edited, c.SetDiff))
 	}
 	return out, nil
 }

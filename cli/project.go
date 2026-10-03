@@ -163,7 +163,7 @@ func cmdStatus(args []string) error {
 	for _, c := range changes {
 		ch := changeJSON{Path: c.Path, Status: c.Status, From: c.From, Edited: c.Edited}
 		if c.SetDiff != nil {
-			ch.SetChanges = setLines(c.SetDiff.Render())
+			ch.SetChanges, ch.Weight = setLines(c.SetDiff.Render()), c.SetDiff.Weight()
 		}
 		out.Changes = append(out.Changes, ch)
 	}

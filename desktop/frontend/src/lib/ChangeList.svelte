@@ -2,6 +2,7 @@
   import { folderMoves } from "./moves";
   import { lineKind, type Change } from "./api";
   import FileIcon from "./FileIcon.svelte";
+  import WeightSummary from "./WeightSummary.svelte";
   import { t } from "./i18n.svelte";
 
   // Changes as a tree of folders (open, each can be closed), what changed at
@@ -81,6 +82,9 @@
             {/if}
             <span class="right"><span class="sym" title={statusName(c.status)}>{sym[c.status] ?? "·"}</span></span>
           </div>
+          {#if c.tracks?.length}
+            <div class="wsum" style:margin-left="{row.depth * 14 + 42}px"><WeightSummary tracks={c.tracks} /></div>
+          {/if}
           {#if c.details.length}
             <div class="details mono" style:margin-left="{row.depth * 14 + 42}px">
               {#each c.details as line}
@@ -95,6 +99,7 @@
 {/if}
 
 <style>
+  .wsum { margin: 2px 0 2px; }
   .changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
   .row { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 26px; padding-top: 2px; padding-bottom: 2px;
     padding-right: 6px; border: none; border-radius: 5px; background: transparent; text-align: left; font-size: 13px; }

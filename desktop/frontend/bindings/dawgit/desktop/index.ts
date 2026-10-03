@@ -36,6 +36,7 @@ export {
     TeamSummary,
     TextChanges,
     TextContent,
+    TrackWeight,
     UpdateInfo,
     UpdateState,
     VerifyProblem,
