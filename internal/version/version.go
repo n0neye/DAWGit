@@ -3,7 +3,7 @@
 package version
 
 // Version is the release this build is (Stable) or leads up to (Nightly).
-const Version = "0.12.3"
+const Version = "0.13.0"
 
 // Build marks a Nightly build: "nightly.<UTC time>" (the build script sets
 // it with -ldflags -X), "" for a Stable one.
