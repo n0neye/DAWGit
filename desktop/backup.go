@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dawgit/internal/backup"
+	"dawgit/internal/remote"
 	"dawgit/internal/teams"
 )
 
@@ -39,12 +40,16 @@ var (
 // BackupInfo is a team's backup, for Team Settings.
 type BackupInfo struct {
 	// Supported: the team keeps its work in storage (R2/S3).
-	Supported bool   `json:"supported"`
-	Folder    string `json:"folder"` // "" when this computer doesn't back up
-	Paused    bool   `json:"paused"`
-	Running   bool   `json:"running"`
-	Done      int64  `json:"done"`
-	Total     int64  `json:"total"`
+	Supported bool `json:"supported"`
+	// Kind: "folder" or "s3"; Folder: where (the folder, or the storage's
+	// address, bucket and folder; no keys); "" when this computer doesn't
+	// back up.
+	Kind    string `json:"kind"`
+	Folder  string `json:"folder"`
+	Paused  bool   `json:"paused"`
+	Running bool   `json:"running"`
+	Done    int64  `json:"done"`
+	Total   int64  `json:"total"`
 	// LastSuccess and LastAttempt: RFC 3339, "" for never.
 	LastSuccess string `json:"lastSuccess"`
 	LastAttempt string `json:"lastAttempt"`
@@ -85,7 +90,10 @@ func (a *App) BackupInfo(teamID string) (*BackupInfo, error) {
 	}
 	info := &BackupInfo{Supported: t.Remote.IsStorage(), Others: []MemberBackup{}}
 	if b := t.Backup; b != nil {
-		info.Folder, info.Paused, info.Size = b.Folder, b.Paused, b.Size
+		if d, err := backup.DestOf(b); err == nil {
+			info.Kind, info.Folder = d.Kind(), d.Name()
+		}
+		info.Paused, info.Size = b.Paused, b.Size
 		info.LastSuccess, info.LastAttempt = stamp(b.LastSuccess), stamp(b.LastAttempt)
 		info.Error, info.Failing = b.LastError, backup.Failing(b)
 		if b.LastError == backup.ErrMissing.Error() {
@@ -130,7 +138,63 @@ func (a *App) SetBackupFolder(teamID, folder string) (string, error) {
 	if _, err := backup.Storage(*t); err != nil {
 		return "", err
 	}
-	switch err := backup.Claim(folder, t.ID, t.Name); {
+	return a.useBackup(store, t, backup.Folder(folder), teams.Backup{Folder: folder})
+}
+
+// SetBackupStorage makes S3-compatible storage (another bucket, or a folder
+// of one) where this computer backs up team teamID, and starts a backup.
+// Problems as SetBackupFolder's, and "same-storage": it is (in) the team's
+// own storage.
+func (a *App) SetBackupStorage(teamID string, s remote.Storage) (string, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return "", err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return "", errors.New("unknown team")
+	}
+	if _, err := backup.Storage(*t); err != nil {
+		return "", err
+	}
+	cfg, err := s.Config()
+	if err != nil {
+		return "", err
+	}
+	if backup.Overlaps(cfg, *t) {
+		return "same-storage", nil
+	}
+	if err := remote.CheckBackup(cfg); err != nil {
+		return "", err
+	}
+	d, err := backup.Bucket(cfg)
+	if err != nil {
+		return "", err
+	}
+	return a.useBackup(store, t, d, teams.Backup{Storage: &cfg})
+}
+
+// BackupStorage is this computer's backup storage for team teamID, to edit
+// (nil when it backs up to a folder, or not at all).
+func (a *App) BackupStorage(teamID string) (*remote.Storage, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil || t.Backup == nil || t.Backup.Storage == nil {
+		return nil, nil
+	}
+	s, ok := remote.StorageOf(*t.Backup.Storage)
+	if !ok {
+		return nil, nil
+	}
+	return &s, nil
+}
+
+// useBackup claims d for team t and backs up there from now on.
+func (a *App) useBackup(store *teams.Store, t *teams.Team, d backup.Dest, b teams.Backup) (string, error) {
+	switch err := backup.Claim(d, t.ID, t.Name); {
 	case errors.Is(err, backup.ErrOtherTeam):
 		return "other-team", nil
 	case errors.Is(err, backup.ErrNotEmpty):
@@ -138,14 +202,16 @@ func (a *App) SetBackupFolder(teamID, folder string) (string, error) {
 	case err != nil:
 		return "", err
 	}
-	if t.Backup == nil || t.Backup.Folder != folder {
-		t.Backup = &teams.Backup{Folder: folder}
+	if old := t.Backup; old != nil {
+		if c, err := backup.DestOf(old); err == nil && c.Kind() == d.Kind() && c.Name() == d.Name() {
+			b.LastSuccess, b.LastAttempt, b.Size = old.LastSuccess, old.LastAttempt, old.Size
+		}
 	}
-	t.Backup.Paused = false
+	t.Backup = &b
 	if err := store.Save(); err != nil {
 		return "", err
 	}
-	go a.backUp(teamID)
+	go a.backUp(t.ID)
 	return "", nil
 }
 
@@ -260,17 +326,9 @@ func (a *App) backUp(teamID string) {
 		a.emitBackup(teamID)
 	}()
 
-	store, err := teams.Load()
-	if err != nil {
-		return
-	}
-	t := store.Find(teamID)
-	if t == nil || t.Backup == nil {
-		return
-	}
 	a.emitBackup(teamID)
 	var last time.Time
-	_, err = backup.RunTeam(teamID, t.Backup.Folder, false, func(done, total int64) {
+	_, err := backup.RunTeam(teamID, nil, false, func(done, total int64) {
 		backupMu.Lock()
 		run.Done, run.Total = done, total
 		backupMu.Unlock()

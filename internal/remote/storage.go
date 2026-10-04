@@ -106,6 +106,32 @@ func Check(cfg Config) error {
 	return nil
 }
 
+// CheckBackup makes sure cfg can take a backup: it can be reached, and the
+// keys list, write and delete (no conditional writes needed: one member
+// writes there).
+func CheckBackup(cfg Config) error {
+	b, err := Open(cfg)
+	if err != nil {
+		return err
+	}
+	s, ok := b.(*S3Backend)
+	if !ok {
+		return errors.New("a backup goes to S3-compatible storage")
+	}
+	if _, err := s.list("check/", false); err != nil {
+		return explain(err)
+	}
+	key := "check/" + newCheckID()
+	r, err := s.put(key, []byte("check\n"), nil)
+	if err == nil && r.status != http.StatusOK {
+		err = s3Error(r)
+	}
+	if err != nil {
+		return explain(err)
+	}
+	return explain(s.delete(key))
+}
+
 // checkWrites writes, conditionally rewrites and removes a scratch object.
 func (b *S3Backend) checkWrites() error {
 	key := "check/" + newCheckID()

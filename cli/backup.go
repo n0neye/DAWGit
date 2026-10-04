@@ -22,7 +22,9 @@ import (
 const backupUsage = "usage: dawgit backup run [folder] [--team NAME] | dawgit backup status [--team NAME]"
 
 type backupRunJSON struct {
-	Team        string `json:"team"`
+	Team string `json:"team"`
+	// Kind: "folder" or "s3"; Folder: where (for "s3": address/bucket/folder).
+	Kind        string `json:"kind"`
 	Folder      string `json:"folder"`
 	Run         string `json:"run"` // the run's record: <folder>/runs/<run>.json
 	Keys        int    `json:"keys"`
@@ -34,7 +36,9 @@ type backupRunJSON struct {
 type backupStatusJSON struct {
 	Team      string `json:"team"`
 	Supported bool   `json:"supported"`
-	// This computer's backup folder (the app's), "" if none.
+	// Where this computer backs the team up (the app's choice): Kind
+	// "folder" or "s3", and the folder or address/bucket/folder; "" if nowhere.
+	Kind        string             `json:"kind,omitempty"`
 	Folder      string             `json:"folder"`
 	Paused      bool               `json:"paused,omitempty"`
 	LastSuccess string             `json:"last_success,omitempty"`
@@ -111,21 +115,25 @@ func backupTeam(name string) (*teams.Team, error) {
 }
 
 func backupRun(t *teams.Team, pos []string) error {
-	folder, claim := "", true
+	var d backup.Dest // nil: where the app backs the team up
+	claim := false
 	if len(pos) == 1 {
 		abs, err := filepath.Abs(pos[0])
 		if err != nil {
 			return err
 		}
-		folder = abs
-	} else if t.Backup != nil {
-		folder = t.Backup.Folder
-	} else {
-		return usageError("this computer has no backup folder for %q: give one (dawgit backup run <folder>)", t.Name)
+		// The app's own folder must be there already (an unplugged drive).
+		if t.Backup == nil || t.Backup.Storage != nil || !sameFolder(abs, t.Backup.Folder) {
+			d, claim = backup.Folder(abs), true
+		}
+	} else if t.Backup == nil {
+		return usageError("this computer doesn't back up %q: give a folder (dawgit backup run <folder>)", t.Name)
 	}
-	// The app's own folder must be there already (an unplugged drive).
-	if t.Backup != nil && sameFolder(folder, t.Backup.Folder) {
-		folder, claim = t.Backup.Folder, false
+	if d == nil {
+		var err error
+		if d, err = backup.DestOf(t.Backup); err != nil {
+			return err
+		}
 	}
 	var last time.Time
 	progress := func(done, total int64) {
@@ -134,14 +142,14 @@ func backupRun(t *teams.Team, pos []string) error {
 			fmt.Fprintf(os.Stderr, "  %d of %d MB\n", done>>20, total>>20)
 		}
 	}
-	rep, err := backup.RunTeam(t.ID, folder, claim, progress)
+	rep, err := backup.RunTeam(t.ID, d, claim, progress)
 	if err != nil {
 		return backupError(err)
 	}
-	out := backupRunJSON{Team: t.Name, Folder: folder, Run: rep.Run, Keys: rep.Keys, Copied: rep.Copied,
+	out := backupRunJSON{Team: t.Name, Kind: d.Kind(), Folder: d.Name(), Run: rep.Run, Keys: rep.Keys, Copied: rep.Copied,
 		CopiedBytes: rep.CopiedBytes, TotalBytes: rep.TotalBytes}
 	result("backup", out, func() {
-		fmt.Printf("backed up %q to %s: %d new files (%.1f MB); %d files (%.1f MB) in all\n", t.Name, folder,
+		fmt.Printf("backed up %q to %s: %d new files (%.1f MB); %d files (%.1f MB) in all\n", t.Name, d.Name(),
 			rep.Copied, float64(rep.CopiedBytes)/(1<<20), rep.Keys, float64(rep.TotalBytes)/(1<<20))
 	})
 	return nil
@@ -156,7 +164,7 @@ func backupError(err error) error {
 		err        error
 		code, hint string
 	}{
-		{backup.ErrMissing, "backup_folder_missing", "connect the drive (or NAS) the backup folder is on"},
+		{backup.ErrMissing, "backup_folder_missing", "connect the drive (or NAS) the backup folder is on; for a bucket, check it still holds the backup"},
 		{backup.ErrOtherTeam, "backup_folder_taken", "choose another folder"},
 		{backup.ErrNotEmpty, "backup_folder_not_empty", "choose an empty folder, or this team's earlier backup"},
 	} {
@@ -170,7 +178,10 @@ func backupError(err error) error {
 func backupStatus(t *teams.Team) error {
 	out := backupStatusJSON{Team: t.Name, Supported: t.Remote.IsStorage(), Members: []backupMemberJSON{}}
 	if b := t.Backup; b != nil {
-		out.Folder, out.Paused, out.Error = b.Folder, b.Paused, b.LastError
+		if d, err := backup.DestOf(b); err == nil {
+			out.Kind, out.Folder = d.Kind(), d.Name()
+		}
+		out.Paused, out.Error = b.Paused, b.LastError
 		out.LastSuccess, out.LastAttempt, out.Failing = rfc3339(b.LastSuccess), rfc3339(b.LastAttempt), backup.Failing(b)
 	}
 	if out.Supported {
@@ -191,7 +202,7 @@ func backupStatus(t *teams.Team) error {
 		}
 		switch b := t.Backup; {
 		case b == nil:
-			fmt.Println("this computer: no backup folder (set one in the app, or: dawgit backup run <folder>)")
+			fmt.Println("this computer: no backup (set one up in the app, or: dawgit backup run <folder>)")
 		default:
 			state := "never backed up"
 			if !b.LastSuccess.IsZero() {
@@ -200,7 +211,7 @@ func backupStatus(t *teams.Team) error {
 			if b.Paused {
 				state += ", paused"
 			}
-			fmt.Printf("this computer: %s (%s)\n", b.Folder, state)
+			fmt.Printf("this computer: %s (%s)\n", out.Folder, state)
 			if b.LastError != "" {
 				fmt.Printf("  last try failed: %s\n", b.LastError)
 			}

@@ -93,12 +93,13 @@ took from each side), `relinked` (sample paths rewritten for this computer),
 `can_keep_both`).
 
 `backup run [folder]` (back up the whole team's storage into a folder; only
-adds): `team`, `folder`, `run` (its record: `<folder>/runs/<run>.json`),
+adds): `team`, `kind` (`folder`, or `s3` for a bucket set up in the app),
+`folder` (where), `run` (its record: `<folder>/runs/<run>.json`),
 `keys`, `copied`, `copied_bytes`, `total_bytes`. Without a folder it uses
 the one chosen in the app. The first run can copy many gigabytes.
 
-`backup status`: `team`, `supported` (storage teams only), `folder` (this
-computer's, `""` if none), `last_success`, `last_attempt`, `error`,
+`backup status`: `team`, `supported` (storage teams only), `kind` and
+`folder` (where this computer backs up, `""` if nowhere), `last_success`, `last_attempt`, `error`,
 `failing`, `members` (who backs the team up: `name`, `last_success`,
 `failing`), `covered` (one of them did in the last 7 days).
 

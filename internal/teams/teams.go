@@ -51,12 +51,15 @@ type Team struct {
 
 // Backup is where and how this computer backs up a team (internal/backup).
 type Backup struct {
-	Folder      string    `json:"folder"`
-	Paused      bool      `json:"paused,omitempty"`
-	LastSuccess time.Time `json:"lastSuccess,omitempty"`
-	LastAttempt time.Time `json:"lastAttempt,omitempty"`
-	LastError   string    `json:"lastError,omitempty"`
-	Size        int64     `json:"size,omitempty"` // bytes, at the last success
+	// Where: a folder, or S3-compatible storage (its keys sealed like the
+	// team's).
+	Folder      string         `json:"folder,omitempty"`
+	Storage     *remote.Config `json:"storage,omitempty"`
+	Paused      bool           `json:"paused,omitempty"`
+	LastSuccess time.Time      `json:"lastSuccess,omitempty"`
+	LastAttempt time.Time      `json:"lastAttempt,omitempty"`
+	LastError   string         `json:"lastError,omitempty"`
+	Size        int64          `json:"size,omitempty"` // bytes, at the last success
 }
 
 type Store struct {
@@ -118,6 +121,15 @@ func Load() (*Store, error) {
 			}
 			*secret = plain
 		}
+		if b := s.Teams[i].Backup; b != nil && b.Storage != nil {
+			for _, secret := range []*string{&b.Storage.AccessKey, &b.Storage.SecretKey} {
+				plain, err := unsealSecret(*secret)
+				if err != nil {
+					plain = "" // the backup fails, saying the keys were refused
+				}
+				*secret = plain
+			}
+		}
 	}
 	return s, nil
 }
@@ -133,6 +145,12 @@ func (s *Store) Save() error {
 		t.Remote.Token = sealSecret(t.Remote.Token)
 		t.Remote.AccessKey = sealSecret(t.Remote.AccessKey)
 		t.Remote.SecretKey = sealSecret(t.Remote.SecretKey)
+		if t.Backup != nil && t.Backup.Storage != nil {
+			b, st := *t.Backup, *t.Backup.Storage
+			st.AccessKey, st.SecretKey = sealSecret(st.AccessKey), sealSecret(st.SecretKey)
+			b.Storage = &st
+			t.Backup = &b
+		}
 		sealed.Teams[i] = t
 	}
 	data, _ := json.MarshalIndent(&sealed, "", "  ")

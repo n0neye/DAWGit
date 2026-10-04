@@ -1,11 +1,12 @@
 // Package backup copies a team's storage into a folder (an external drive, a
-// NAS): every key as it is, at the same path, so the folder is the team's
-// storage as of the last run. Runs are incremental and never delete: what
-// the team's storage cleans up (a deleted project, say) stays in the backup.
+// NAS) or another bucket: every key as it is, at the same path, so the
+// backup is the team's storage as of the last run. Runs are incremental and
+// never delete: what the team's storage cleans up (a deleted project, say)
+// stays in the backup.
 //
 // Contents (objects/, chunked/, version records) never change once written:
 // copied once. The few small keys that do change (branches, members, the
-// team's name, workspaces) are copied again when they differ, first: the
+// team's name, workspaces) are copied again when they changed, first: the
 // team writes contents before it moves a branch, so every version a copied
 // branch names is in the backup by the end of the run. Each run also
 // records where every branch was (runs/<time>.json), to go back to any run.
@@ -16,9 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
-	"sort"
+	"io/fs"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -58,12 +57,15 @@ func immutable(key string) bool {
 		strings.Contains(key, "/snapshots/")
 }
 
-// Run backs up src into the folder dst.
-func Run(src Source, dst string, progress Progress) (*Report, error) {
-	if err := os.MkdirAll(filepath.Join(dst, ".tmp"), 0o755); err != nil {
+// Run backs up src into d (claimed for the team: see Claim).
+func Run(src Source, d Dest, progress Progress) (*Report, error) {
+	if err := d.Begin(); err != nil {
 		return nil, err
 	}
-	writeReadme(dst)
+	defer d.End()
+	if _, err := d.Read(readmeFile); errors.Is(err, fs.ErrNotExist) {
+		d.Write(readmeFile, []byte(readme))
+	}
 	rep := &Report{Run: time.Now().UTC().Format("20060102-150405")}
 
 	// What changes, first (see the package doc).
@@ -77,7 +79,7 @@ func Run(src Source, dst string, progress Progress) (*Report, error) {
 			changing = append(changing, it)
 		}
 	}
-	if err := copyAll(src, dst, changing, rep, progress, changed); err != nil {
+	if err := copyAll(src, d, changing, rep, progress, changed); err != nil {
 		return nil, err
 	}
 	// Then the contents: listed again, so what the copied branches name is in.
@@ -96,13 +98,12 @@ func Run(src Source, dst string, progress Progress) (*Report, error) {
 			contents = append(contents, it)
 		}
 	}
-	if err := copyAll(src, dst, contents, rep, progress, missing); err != nil {
+	if err := copyAll(src, d, contents, rep, progress, missing); err != nil {
 		return nil, err
 	}
-	if err := writeRun(dst, rep.Run); err != nil {
+	if err := writeRun(d, rep.Run, changing); err != nil {
 		return nil, err
 	}
-	os.RemoveAll(filepath.Join(dst, ".tmp"))
 	return rep, nil
 }
 
@@ -115,38 +116,38 @@ func skip(key string) bool {
 	return false
 }
 
-// local is where key goes in dst; "" for a key that isn't a plain path.
-func local(dst, key string) string {
+// plain: key is a plain relative path (it can't climb out of a folder).
+func plain(key string) bool {
 	if key == "" || strings.HasPrefix(key, "/") || strings.Contains(key, "\\") || strings.Contains(key, ":") {
-		return ""
+		return false
 	}
 	for _, part := range strings.Split(key, "/") {
 		if part == "" || part == "." || part == ".." {
-			return ""
+			return false
 		}
 	}
-	return filepath.Join(dst, filepath.FromSlash(key))
+	return true
 }
 
 // missing: copy contents not in the backup yet (or cut short).
-func missing(path string, it remote.Item) bool {
-	fi, err := os.Stat(path)
-	return err != nil || fi.Size() != it.Size
+func missing(d Dest, it remote.Item) bool {
+	size, _, ok := d.Stat(it.Key)
+	return !ok || size != it.Size
 }
 
-// changed: copy a changing key when it differs from the backup's copy.
-func changed(path string, it remote.Item) bool {
-	fi, err := os.Stat(path)
-	return err != nil || fi.Size() != it.Size || !fi.ModTime().Equal(it.Modified.Truncate(time.Second))
+// changed: copy a changing key when the team's copy is newer than the
+// backup's (or a different size).
+func changed(d Dest, it remote.Item) bool {
+	size, modified, ok := d.Stat(it.Key)
+	return !ok || size != it.Size || it.Modified.Truncate(time.Second).After(modified)
 }
 
-func copyAll(src Source, dst string, items []remote.Item, rep *Report, progress Progress,
-	need func(string, remote.Item) bool) error {
+func copyAll(src Source, d Dest, items []remote.Item, rep *Report, progress Progress,
+	need func(Dest, remote.Item) bool) error {
 	var todo []remote.Item
 	var total int64
 	for _, it := range items {
-		p := local(dst, it.Key)
-		if p != "" && need(p, it) {
+		if plain(it.Key) && need(d, it) {
 			todo = append(todo, it)
 			total += it.Size
 		}
@@ -164,18 +165,18 @@ func copyAll(src Source, dst string, items []remote.Item, rep *Report, progress 
 		go func() {
 			defer wg.Done()
 			for it := range ch {
-				n, err := copyKey(src, dst, it)
+				err := copyKey(src, d, it)
 				mu.Lock()
 				if err != nil && first == nil {
 					first = fmt.Errorf("%s: %w", it.Key, err)
 				}
 				if err == nil {
 					rep.Copied++
-					rep.CopiedBytes += n
+					rep.CopiedBytes += it.Size
 				}
 				mu.Unlock()
 				if progress != nil {
-					progress(done.Add(n), total)
+					progress(done.Add(it.Size), total)
 				}
 			}
 		}()
@@ -194,39 +195,42 @@ func copyAll(src Source, dst string, items []remote.Item, rep *Report, progress 
 	return first
 }
 
-// copyKey copies one key into dst through a temporary file (a run that
-// stops leaves no half file in place), keeping its time.
-func copyKey(src Source, dst string, it remote.Item) (int64, error) {
-	path := local(dst, it.Key)
+func copyKey(src Source, d Dest, it remote.Item) error {
 	body, err := src.Open(it.Key)
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer body.Close()
-	tmp, err := os.CreateTemp(filepath.Join(dst, ".tmp"), "copy-*")
-	if err != nil {
-		return 0, err
+	return d.Put(it.Key, &exact{r: body, left: it.Size}, it)
+}
+
+// exact reads exactly left bytes: fewer or more is an error, so a copy cut
+// short (or a key changed under it) never stands as a good one.
+type exact struct {
+	r    io.Reader
+	left int64
+}
+
+func (e *exact) Read(p []byte) (int, error) {
+	if e.left <= 0 {
+		var one [1]byte
+		if n, _ := e.r.Read(one[:]); n > 0 {
+			return 0, errors.New("longer than listed")
+		}
+		return 0, io.EOF
 	}
-	n, err := io.Copy(tmp, body)
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
+	if int64(len(p)) > e.left {
+		p = p[:e.left]
 	}
-	if err == nil && n != it.Size {
-		err = fmt.Errorf("got %d bytes of %d", n, it.Size)
+	n, err := e.r.Read(p)
+	e.left -= int64(n)
+	if err == io.EOF && e.left > 0 {
+		return n, io.ErrUnexpectedEOF
 	}
-	if err == nil {
-		err = os.MkdirAll(filepath.Dir(path), 0o755)
+	if err == io.EOF {
+		err = nil
 	}
-	if err == nil {
-		err = os.Rename(tmp.Name(), path)
-	}
-	if err != nil {
-		os.Remove(tmp.Name())
-		return 0, err
-	}
-	t := it.Modified.Truncate(time.Second)
-	os.Chtimes(path, t, t)
-	return n, nil
+	return n, err
 }
 
 // RunRecord is where every branch was at a run (runs/<time>.json).
@@ -235,69 +239,30 @@ type RunRecord struct {
 	Branches map[string]map[string]string `json:"branches"` // project id -> branch -> version
 }
 
-func writeRun(dst, run string) error {
+// writeRun records the branches as the backup has them now.
+func writeRun(d Dest, run string, changing []remote.Item) error {
 	rec := RunRecord{Time: run, Branches: map[string]map[string]string{}}
-	projects, _ := os.ReadDir(filepath.Join(dst, "projects"))
-	for _, p := range projects {
-		dir := filepath.Join(dst, "projects", p.Name(), "branches")
-		bs, _ := os.ReadDir(dir)
-		for _, b := range bs {
-			data, err := os.ReadFile(filepath.Join(dir, b.Name()))
-			if err != nil {
-				continue
-			}
-			if rec.Branches[p.Name()] == nil {
-				rec.Branches[p.Name()] = map[string]string{}
-			}
-			rec.Branches[p.Name()][b.Name()] = strings.TrimSpace(string(data))
+	for _, it := range changing {
+		parts := strings.Split(it.Key, "/") // projects/<id>/branches/<name>
+		if len(parts) != 4 || parts[0] != "projects" || parts[2] != "branches" {
+			continue
 		}
+		data, err := d.Read(it.Key)
+		if err != nil {
+			continue
+		}
+		if rec.Branches[parts[1]] == nil {
+			rec.Branches[parts[1]] = map[string]string{}
+		}
+		rec.Branches[parts[1]][parts[3]] = strings.TrimSpace(string(data))
 	}
 	data, _ := json.MarshalIndent(rec, "", "  ")
-	if err := os.MkdirAll(filepath.Join(dst, "runs"), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(filepath.Join(dst, "runs", run+".json"), data, 0o644)
+	return d.Write("runs/"+run+".json", data)
 }
 
-// Runs lists the runs in a backup, newest first.
-func Runs(dst string) ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(dst, "runs"))
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var out []string
-	for _, e := range entries {
-		if strings.HasSuffix(e.Name(), ".json") {
-			out = append(out, strings.TrimSuffix(e.Name(), ".json"))
-		}
-	}
-	sort.Sort(sort.Reverse(sort.StringSlice(out)))
-	return out, nil
-}
+const readmeFile = "README.txt"
 
-// Size is how many bytes the backup holds.
-func Size(dst string) int64 {
-	var n int64
-	filepath.WalkDir(dst, func(_ string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			if fi, err := d.Info(); err == nil {
-				n += fi.Size()
-			}
-		}
-		return nil
-	})
-	return n
-}
-
-func writeReadme(dst string) {
-	p := filepath.Join(dst, "README.txt")
-	if _, err := os.Stat(p); err == nil {
-		return
-	}
-	os.WriteFile(p, []byte(`This folder is a backup of a DAWGit team's storage, made by the DAWGit app.
+const readme = `This is a backup of a DAWGit team's storage, made by the DAWGit app.
 
 It holds every project of the team, with all its versions: the same files, at
 the same paths, as the team's storage (an S3 bucket such as Cloudflare R2).
@@ -307,13 +272,12 @@ runs/      where every branch was at each backup, to go back to any of them
 objects/   file contents (some compressed, some in pieces: read by DAWGit)
 projects/  each project's versions and branches
 
-To restore, copy this folder's contents (except runs/ and README.txt) into an
-empty bucket and connect DAWGit to it, or ask DAWGit to restore it.
+To restore, copy everything here (except runs/, README.txt and
+dawgit-backup.json) into an empty bucket and connect DAWGit to it.
 Don't change files here by hand.
-`), 0o644)
-}
+`
 
-// markFile says whose backup a folder is.
+// markFile says whose backup it is.
 const markFile = "dawgit-backup.json"
 
 type mark struct {
@@ -321,42 +285,45 @@ type mark struct {
 	Name string `json:"name"`
 }
 
-// ErrOtherTeam: the folder holds another team's backup.
-var ErrOtherTeam = errors.New("this folder holds another team's backup")
+// ErrOtherTeam: the place holds another team's backup.
+var ErrOtherTeam = errors.New("this holds another team's backup")
 
-// ErrNotEmpty: the folder has other things in it.
-var ErrNotEmpty = errors.New("choose an empty folder, or one with this team's backup")
+// ErrNotEmpty: the place has other things in it.
+var ErrNotEmpty = errors.New("choose an empty folder or bucket, or one with this team's backup")
 
-// Claim makes dst the backup folder of team teamID: an empty folder (made
-// if need be), or one already holding that team's backup.
-func Claim(dst, teamID, name string) error {
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return err
-	}
-	if data, err := os.ReadFile(filepath.Join(dst, markFile)); err == nil {
+// ErrMissing: the backup isn't there (a drive unplugged, a bucket emptied).
+var ErrMissing = errors.New("the backup isn't there")
+
+// Claim makes d team teamID's backup: an empty place (a folder is made if
+// need be), or one already holding that team's backup.
+func Claim(d Dest, teamID, name string) error {
+	if data, err := d.Read(markFile); err == nil {
 		var m mark
 		if json.Unmarshal(data, &m) == nil && m.Team == teamID {
 			return nil
 		}
 		return ErrOtherTeam
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
 	}
-	entries, err := os.ReadDir(dst)
+	empty, err := d.Empty()
 	if err != nil {
 		return err
 	}
-	for _, e := range entries {
-		// What Windows and macOS put in any folder.
-		if n := strings.ToLower(e.Name()); n != "desktop.ini" && n != ".ds_store" && n != "thumbs.db" {
-			return ErrNotEmpty
-		}
+	if !empty {
+		return ErrNotEmpty
 	}
 	data, _ := json.MarshalIndent(mark{Team: teamID, Name: name}, "", "  ")
-	return os.WriteFile(filepath.Join(dst, markFile), data, 0o644)
+	return d.Write(markFile, data)
 }
 
-// Claimed: dst is team teamID's backup folder (it may be unplugged).
-func Claimed(dst, teamID string) error {
-	data, err := os.ReadFile(filepath.Join(dst, markFile))
+// Claimed: d is team teamID's backup (ErrMissing if it isn't there: a
+// drive unplugged).
+func Claimed(d Dest, teamID string) error {
+	data, err := d.Read(markFile)
+	if errors.Is(err, fs.ErrNotExist) {
+		return ErrMissing
+	}
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 # Team backup
 
-Status: built (0.12). Teams on S3-compatible storage (R2, S3) only; teams
+Status: built (0.12; another bucket 0.12.2). Teams on S3-compatible storage (R2, S3) only; teams
 on a self-hosted server back up the server's data folder instead.
 
 ## Why
@@ -12,7 +12,8 @@ downloaded. A second copy on a drive or NAS one member owns covers that.
 
 ## What a backup is
 
-A folder holding the team's storage as it is: every key at the same path
+A folder (a drive, a NAS), or a folder of another bucket in any
+S3-compatible storage, holding the team's storage as it is: every key at the same path
 (`objects/ab/…`, `chunked/…`, `projects/<id>/snapshots/…`, `branches/…`,
 `members/…`, `team.json`, `setups/…`). Nothing is converted, so whatever
 reads storage can read a backup, and restoring is copying it back.
@@ -49,9 +50,25 @@ team writes contents before it moves a branch, so a run copies the changing
 keys first and then lists storage again for the contents. Every version a
 copied branch names is then in the backup by the end of the run.
 
-Each copy goes to `.tmp/` first and is renamed into place once its size
-checks out, eight at a time. A run that stops (the app closed, the drive
+Each copy is read for exactly the size the listing gave (shorter or longer
+fails), eight at a time. In a folder it goes to `.tmp/` first and is
+renamed into place; in a bucket a failed upload leaves nothing. A run that stops (the app closed, the drive
 pulled) leaves no half files; the next run picks up where it left off.
+
+## Into another bucket
+
+A bucket takes the same keys at the same paths. The differences:
+
+- A run lists the backup once at the start (cheaper than asking key by key)
+  and compares against that list.
+- A bucket can't keep the team's times on its copies; a changing key is
+  copied again when the team's copy is newer than the backup's (the time the
+  backup wrote it), which works for folders too.
+- It must not be the team's own storage, or a folder in it or above it: a
+  backup there would copy itself, and be lost with the team's storage.
+- Its keys are checked (list, write, delete; no conditional writes needed)
+  and kept in teams.json sealed like the team's. Keys of its own are best: a
+  leaked or lost team key then can't reach the backup.
 
 ## Schedule and who backs up
 
@@ -72,7 +89,7 @@ paths. With that:
 
 ## Not yet
 
-- Restoring from the app (today: copy the folder, minus `runs/` and
-  `README.txt`, into an empty bucket and join it with a connection code).
-- Another bucket as the destination.
+- Restoring from the app (today: copy the backup, minus `runs/`,
+  `README.txt` and `dawgit-backup.json`, into an empty bucket and join it
+  with a connection code).
 - Teams whose storage is a shared folder.
