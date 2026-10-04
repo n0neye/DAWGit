@@ -9,6 +9,7 @@
   import CodeBox from "./CodeBox.svelte";
   import IdentityForm from "./IdentityForm.svelte";
   import BackupSection from "./BackupSection.svelte";
+  import Fold from "./Fold.svelte";
 
   // One team's settings: its name, your name in it, the connection code for
   // teammates, how this computer reaches it (storage keys, or a server's
@@ -87,6 +88,12 @@
     }).catch((e) => (connError = errorText(e)));
     if (team.isStorage) api.TeamConnectionCode(id).then((c) => (code = c)).catch(() => (code = ""));
   });
+
+  // Folded to where it points; opened when the keys need entering again.
+  let connOpen = $state(untrack(() => team.keysUnreadable));
+  let where = $derived(!conn ? "" : conn.storage
+    ? `${conn.settings.endpoint.replace(/^https?:\/\//, "")} / ${conn.settings.bucket}${conn.settings.folder ? " / " + conn.settings.folder : ""}`
+    : conn.address);
 
   let changed = $derived(!!conn && !!saved && JSON.stringify(conn) !== JSON.stringify(saved));
 
@@ -186,16 +193,6 @@
     {/if}
   </section>
 
-  {#if team.canShareSetup}
-    <section>
-      <h3>{t("Your setup")}</h3>
-      <label class="share"><input type="checkbox" checked={shareSetup} onchange={(e) => toggleShare(e.currentTarget.checked)} />
-        {t("Share my setup with the team")}</label>
-      <p class="faint small">{t("Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")} {t("Turning it off removes it from the team's storage.")}</p>
-      {#if shareError}<p class="error">{shareError}</p>{/if}
-    </section>
-  {/if}
-
   {#if team.isStorage}
     <section>
       <h3>{t("Invite teammates")}</h3>
@@ -204,10 +201,22 @@
     </section>
   {/if}
 
+  {#if team.canShareSetup}
+    <section>
+      <h3>{t("Your setup")}</h3>
+      <label class="share"><input type="checkbox" checked={shareSetup} onchange={(e) => toggleShare(e.currentTarget.checked)} />
+        {t("Share my setup with the team")}</label>
+      <p class="faint small">{t("Your Ableton Live version and the names of your plugins and packs (never files), so a project check can tell who can open a project.")} {t("Turning it off removes it from the team's storage.")}</p>
+      {#if shareError}<p class="error">{shareError}</p>{/if}
+    </section>
+  {/if}
+
   <BackupSection teamId={team.id} />
 
-  <section>
-    <h3>{t("Connection")}</h3>
+  <Fold title={t("Connection")} warn={!!connError || team.keysUnreadable} bind:open={connOpen}>
+    {#snippet summary()}
+      {#if connError && !changed}⚠ {connError}{:else}{where}{/if}
+    {/snippet}
     {#if conn?.storage}
       <p class="faint small">{t("The bucket and key this computer uses. Change them after making a new key in Cloudflare (then send teammates the new code).")}</p>
       <div class="grid">
@@ -220,7 +229,7 @@
         <label for="t-sk">{t("Secret Access Key")}</label>
         <div class="row secret">
           <input id="t-sk" type={showSecret ? "text" : "password"} bind:value={conn.settings.secretKey} autocomplete="off" />
-          <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? "Hide" : "Show"}</button>
+          <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? t("Hide") : t("Show")}</button>
         </div>
         <label for="t-f">{t("Folder")}</label>
         <input id="t-f" bind:value={conn.settings.folder} spellcheck="false" />
@@ -235,18 +244,18 @@
         <label for="t-t">{t("Access token")}</label>
         <div class="row secret">
           <input id="t-t" type={showSecret ? "text" : "password"} bind:value={conn.token} autocomplete="off" />
-          <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? "Hide" : "Show"}</button>
+          <button class="ghost" onclick={() => (showSecret = !showSecret)}>{showSecret ? t("Hide") : t("Show")}</button>
         </div>
       </div>
     {/if}
     {#if connError}<p class="error small">{connError}</p>{/if}
     {#if changed}
       <div class="row btns">
-        <button class="primary" disabled={saving} onclick={saveConnection}>{saving ? "Checking…" : "Check & save"}</button>
+        <button class="primary" disabled={saving} onclick={saveConnection}>{saving ? t("Checking…") : t("Check & save")}</button>
         <button class="ghost" disabled={saving} onclick={() => { conn = structuredClone($state.snapshot(saved)) as Conn; connError = ""; }}>{t("Cancel")}</button>
       </div>
     {/if}
-  </section>
+  </Fold>
 
   {#if team.isStorage}
     <section>

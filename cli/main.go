@@ -56,6 +56,9 @@ advanced:
   backup run [folder] [--team NAME]      back up the whole team (every project and version) into
                                          a folder; only adds. Default: the app's backup folder
   backup status [--team NAME]            this computer's backup, and who else backs up the team
+  backup restore [folder] [--run TIME] [--preview]
+                                         bring back from a backup what the team's storage lacks
+                                         (deleted projects, lost files); never overwrites
   storage-cleanup [--delete]             files in the team's storage no version uses; --delete
                                          deletes those unused for a day (and a week old)
 

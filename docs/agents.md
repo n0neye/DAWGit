@@ -103,6 +103,12 @@ the one chosen in the app. The first run can copy many gigabytes.
 `failing`, `members` (who backs the team up: `name`, `last_success`,
 `failing`), `covered` (one of them did in the last 7 days).
 
+`backup restore [folder] [--run TIME] [--preview]`: `team`, `from`,
+`backup_of`, `run`, `runs` (newest first), `projects` (brought back whole:
+`id`, `name`, `versions`), `branches`, `files`, `bytes`, `restored` (files
+copied; `null` with `--preview`). It only adds to the team's storage; still,
+preview first and ask the user.
+
 ## Errors
 
 | exit | code | what to do |
@@ -122,6 +128,8 @@ the one chosen in the app. The first run can copy many gigabytes.
 | 1 | `files_not_here` | an old version's files are only in the team's storage |
 | 1 | `backup_folder_missing` | the backup folder isn't there: ask the user to connect the drive |
 | 1 | `backup_folder_not_empty` | `backup run` needs an empty folder or this team's backup |
+| 1 | `not_a_backup` | the folder holds no DAWGit backup |
+| 1 | `no_such_run` | `--run` names no run of that backup (`--preview` lists them) |
 | 1 | `backup_folder_taken` | the folder holds another team's backup |
 | 1 | `error` | anything else: show `message` to the user |
 

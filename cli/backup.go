@@ -19,7 +19,7 @@ import (
 // NAS or an agent: `dawgit backup run` backs up to the folder chosen in the
 // app; `dawgit backup run <folder>` to any folder.
 
-const backupUsage = "usage: dawgit backup run [folder] [--team NAME] | dawgit backup status [--team NAME]"
+const backupUsage = "usage: dawgit backup run [folder] | status | restore [folder] [--run TIME] [--preview]  [--team NAME]"
 
 type backupRunJSON struct {
 	Team string `json:"team"`
@@ -68,6 +68,8 @@ func cmdBackup(args []string) error {
 	}
 	fs := flag.NewFlagSet("backup", flag.ContinueOnError)
 	teamName := fs.String("team", "", "the team's name or id (default: this project's team, or the current one)")
+	run := fs.String("run", "", "restore as of this backup run (dawgit backup restore --preview lists them)")
+	preview := fs.Bool("preview", false, "restore: only say what would come back")
 	pos, err := parseArgs(fs, args[1:])
 	if err != nil {
 		return err
@@ -81,6 +83,8 @@ func cmdBackup(args []string) error {
 		return backupRun(t, pos)
 	case args[0] == "status" && len(pos) == 0:
 		return backupStatus(t)
+	case args[0] == "restore" && len(pos) <= 1:
+		return backupRestore(t, pos, *run, *preview)
 	}
 	return usageError(backupUsage)
 }
@@ -166,6 +170,8 @@ func backupError(err error) error {
 	}{
 		{backup.ErrMissing, "backup_folder_missing", "connect the drive (or NAS) the backup folder is on; for a bucket, check it still holds the backup"},
 		{backup.ErrOtherTeam, "backup_folder_taken", "choose another folder"},
+		{backup.ErrNotBackup, "not_a_backup", "give the folder a DAWGit backup went to"},
+		{backup.ErrNoRun, "no_such_run", "dawgit backup restore --preview lists the runs"},
 		{backup.ErrNotEmpty, "backup_folder_not_empty", "choose an empty folder, or this team's earlier backup"},
 	} {
 		if errors.Is(err, c.err) {
@@ -234,4 +240,90 @@ func orNever(s string) string {
 		return t.Local().Format("2006-01-02 15:04")
 	}
 	return s
+}
+
+type restoreJSON struct {
+	Team     string               `json:"team"`
+	From     string               `json:"from"`      // the backup: a folder, or a bucket's address
+	BackupOf string               `json:"backup_of"` // the team's name in the backup
+	Run      string               `json:"run"`       // "" for the latest
+	Runs     []string             `json:"runs"`      // newest first (UTC, 20061002-150405)
+	Projects []backup.PlanProject `json:"projects"`  // brought back whole
+	Branches int                  `json:"branches"`  // brought back in projects the team still has
+	Files    int                  `json:"files"`     // to copy
+	Bytes    int64                `json:"bytes"`     //
+	Restored *int                 `json:"restored"`  // files copied; null with --preview
+}
+
+// backupRestore: bring back from a backup (the folder given, or where the
+// app backs the team up) what the team's storage lacks; never overwrites.
+func backupRestore(t *teams.Team, pos []string, run string, preview bool) error {
+	var src backup.Dest
+	if len(pos) == 1 {
+		abs, err := filepath.Abs(pos[0])
+		if err != nil {
+			return err
+		}
+		src = backup.Folder(abs)
+	} else if t.Backup == nil {
+		return usageError("this computer doesn't back up %q: give the backup's folder (dawgit backup restore <folder>)", t.Name)
+	} else {
+		var err error
+		if src, err = backup.DestOf(t.Backup); err != nil {
+			return err
+		}
+	}
+	s3, err := backup.Storage(*t)
+	if err != nil {
+		return err
+	}
+	p, err := backup.MakePlan(src, s3, run)
+	if err != nil {
+		return backupError(err)
+	}
+	out := restoreJSON{Team: t.Name, From: src.Name(), BackupOf: p.Team, Run: p.Run, Runs: nonNil(p.Runs),
+		Projects: p.Projects, Branches: p.Branches, Files: p.Files, Bytes: p.Bytes}
+	if !preview && !p.Empty() {
+		var last time.Time
+		rep, err := backup.Restore(src, s3, p, func(done, total int64) {
+			if !jsonMode && total > 64<<20 && time.Since(last) > 2*time.Second {
+				last = time.Now()
+				fmt.Fprintf(os.Stderr, "  %d of %d MB\n", done>>20, total>>20)
+			}
+		})
+		if err != nil {
+			return err
+		}
+		out.Restored = &rep.Copied
+	} else if !preview {
+		zero := 0
+		out.Restored = &zero
+	}
+	result("backup", out, func() {
+		at := "the latest backup"
+		if p.Run != "" {
+			at = "the backup of " + p.Run + " (UTC)"
+		}
+		fmt.Printf("from %s, as of %s:\n", src.Name(), at)
+		if p.Empty() {
+			fmt.Printf("%q's storage has everything in it: nothing to restore\n", t.Name)
+			return
+		}
+		for _, pr := range p.Projects {
+			fmt.Printf("  project %-24s %d version(s)\n", pr.Name, pr.Versions)
+		}
+		if p.Branches > 0 {
+			fmt.Printf("  %d branch(es) in projects the team still has\n", p.Branches)
+		}
+		verb := "would copy"
+		if out.Restored != nil {
+			verb = "copied"
+		}
+		fmt.Printf("%s %d files (%.1f MB) into %q's storage; nothing there was changed or deleted\n", verb, p.Files,
+			float64(p.Bytes)/(1<<20), t.Name)
+		if preview && len(p.Runs) > 0 {
+			fmt.Printf("runs (for --run): %s\n", strings.Join(p.Runs, " "))
+		}
+	})
+	return nil
 }

@@ -347,3 +347,95 @@ func (a *App) emitBackup(teamID string) {
 		a.emit("backup", teamID)
 	}
 }
+
+// RestorePlan is what restoring a backup into the team's storage would
+// bring back (see backup.MakePlan).
+type RestorePlan struct {
+	Where    string               `json:"where"` // the backup: a folder, or a bucket's address
+	Team     string               `json:"team"`  // whose backup it is (the team's name then)
+	Run      string               `json:"run"`   // "" for the latest
+	Runs     []string             `json:"runs"`  // newest first, as 20261004-153000 (UTC)
+	Projects []backup.PlanProject `json:"projects"`
+	Branches int                  `json:"branches"`
+	Files    int                  `json:"files"`
+	Bytes    int64                `json:"bytes"`
+}
+
+// restoreSource: the folder given, or where this computer backs team t up.
+func restoreSource(t teams.Team, folder string) (backup.Dest, error) {
+	if folder != "" {
+		return backup.Folder(folder), nil
+	}
+	if t.Backup == nil {
+		return nil, errors.New("this computer doesn't back up this team: choose the backup's folder")
+	}
+	return backup.DestOf(t.Backup)
+}
+
+func (a *App) restoreParts(teamID, folder, run string) (backup.Dest, *backup.Plan, *teams.Team, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return nil, nil, nil, errors.New("unknown team")
+	}
+	src, err := restoreSource(*t, folder)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	s3, err := backup.Storage(*t)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	p, err := backup.MakePlan(src, s3, run)
+	if errors.Is(err, backup.ErrNotBackup) && folder == "" {
+		err = backup.ErrMissing // its drive is unplugged
+	}
+	return src, p, t, err
+}
+
+// RestorePlan says what restoring a backup (folder "": this computer's) as
+// of run ("": the latest) would bring back into team teamID's storage.
+func (a *App) RestorePlan(teamID, folder, run string) (*RestorePlan, error) {
+	src, p, _, err := a.restoreParts(teamID, folder, run)
+	if err != nil {
+		return nil, err
+	}
+	return &RestorePlan{Where: src.Name(), Team: p.Team, Run: p.Run, Runs: p.Runs, Projects: p.Projects,
+		Branches: p.Branches, Files: p.Files, Bytes: p.Bytes}, nil
+}
+
+// RestoreProgress is sent while a restore runs (event "restore").
+type RestoreProgress struct {
+	TeamID string `json:"teamId"`
+	Done   int64  `json:"done"`
+	Total  int64  `json:"total"`
+}
+
+// Restore brings back from a backup what team teamID's storage lacks (see
+// RestorePlan), never overwriting anything; it returns how many files it
+// copied.
+func (a *App) Restore(teamID, folder, run string) (int, error) {
+	src, p, t, err := a.restoreParts(teamID, folder, run)
+	if err != nil {
+		return 0, err
+	}
+	s3, err := backup.Storage(*t)
+	if err != nil {
+		return 0, err
+	}
+	var last time.Time
+	rep, err := backup.Restore(src, s3, p, func(done, total int64) {
+		if a.emit != nil && (time.Since(last) > 300*time.Millisecond || done == total) {
+			last = time.Now()
+			a.emit("restore", RestoreProgress{TeamID: teamID, Done: done, Total: total})
+		}
+	})
+	forgetNames(t.Remote.URL)
+	if rep == nil {
+		return 0, err
+	}
+	return rep.Copied, err
+}

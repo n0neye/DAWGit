@@ -62,4 +62,32 @@ func TestBackupCommand(t *testing.T) {
 	if exit, rep := run(t, a, "backup", "status", "--team", "nobody"); exit != 1 {
 		t.Fatalf("unknown team: %+v", rep)
 	}
+
+	// The project is deleted from the team: restore brings it back.
+	c, err := r.Client()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.(*remote.S3Backend).DeleteProject(r.Config.ProjectID)
+	exit, rep = run(t, a, "backup", "restore", dst, "--preview")
+	var rs restoreJSON
+	json.Unmarshal(rep.Result, &rs)
+	if exit != 0 || len(rs.Projects) != 1 || rs.Restored != nil || len(rs.Runs) == 0 {
+		t.Fatalf("restore --preview: %s %+v", rep.Result, rep.Error)
+	}
+	exit, rep = run(t, a, "backup", "restore", dst)
+	rs = restoreJSON{}
+	json.Unmarshal(rep.Result, &rs)
+	if exit != 0 || rs.Restored == nil || *rs.Restored != rs.Files {
+		t.Fatalf("restore: %s %+v", rep.Result, rep.Error)
+	}
+	if ps, _ := c.Projects(); len(ps) != 1 {
+		t.Errorf("projects after restore: %+v", ps)
+	}
+	if exit, rep := run(t, a, "backup", "restore", full); exit != 1 || rep.Error.Code != "not_a_backup" {
+		t.Fatalf("not a backup: %+v", rep.Error)
+	}
+	if exit, rep := run(t, a, "backup", "restore", dst, "--run", "nope"); exit != 1 || rep.Error.Code != "no_such_run" {
+		t.Fatalf("no such run: %+v", rep.Error)
+	}
 }
