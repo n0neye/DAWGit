@@ -135,3 +135,38 @@ func TestSignedUpdate(t *testing.T) {
 		t.Fatalf("unsigned release: %+v", r)
 	}
 }
+
+func TestNightlyOrder(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		less bool
+	}{
+		{"0.13.0-nightly.202610041530", "0.13.0", true},
+		{"0.13.0", "0.13.0-nightly.202610041530", false},
+		{"0.12.3", "0.13.0-nightly.202610041530", true},
+		{"0.13.0-nightly.202610041530", "0.13.0-nightly.202610051200", true},
+		{"0.13.0-nightly.202610051200", "0.13.0-nightly.202610041530", false},
+		{"0.13.0", "0.13.0", false},
+	} {
+		if Older(c.a, c.b) != c.less {
+			t.Errorf("Older(%s, %s) = %v", c.a, c.b, !c.less)
+		}
+	}
+}
+
+func TestSwitchTo(t *testing.T) {
+	var body string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(body)) }))
+	defer srv.Close()
+	body = `{"version": "0.12.3-nightly.202610041530", "download": "` + srv.URL + `/x.exe"}`
+	// Not newer than Stable 0.12.3, but it is the other channel.
+	if r, _ := FromFeed(srv.URL+"/nightly.json", "0.12.3"); r != nil {
+		t.Fatalf("a plain check doesn't go back: %+v", r)
+	}
+	if r, err := SwitchTo(srv.URL+"/nightly.json", "0.12.3"); err != nil || r == nil || r.Version != "0.12.3-nightly.202610041530" {
+		t.Fatalf("switch: %+v %v", r, err)
+	}
+	if r, _ := SwitchTo(srv.URL+"/nightly.json", "0.12.3-nightly.202610041530"); r != nil {
+		t.Fatalf("already on it: %+v", r)
+	}
+}

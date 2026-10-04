@@ -124,6 +124,9 @@ func (a *App) Overview() (*Overview, error) {
 	}
 	b, err := remote.Open(t.Remote)
 	if err == nil {
+		err = remote.CheckFeatures(b, t.Remote.URL)
+	}
+	if err == nil {
 		// Follow the team's name when whoever runs it renames it.
 		if info, err := b.Info(); err == nil && store.SyncName(t.ID, info.Name) && store.Save() == nil {
 			for i := range ov.Teams {
@@ -297,7 +300,7 @@ func (a *App) RenameTeamForEveryone(id, name string) error {
 	if err != nil {
 		return err
 	}
-	if err := b.SetInfo(remote.TeamInfo{Name: name}); err != nil {
+	if err := remote.Rename(b, name); err != nil {
 		return err
 	}
 	t.Name, t.CustomName = name, false

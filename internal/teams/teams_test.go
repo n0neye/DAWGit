@@ -118,3 +118,23 @@ func TestBackupKeysSealed(t *testing.T) {
 		t.Fatalf("read back: %+v %v", back.Teams[0].Backup, err)
 	}
 }
+
+// DAWGit Pro's settings come over on a first start, on the Nightly channel.
+func TestImportFromPro(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DAWGIT_CONFIG_DIR", filepath.Join(dir, "DAWGit"))
+	pro := filepath.Join(dir, "DAWGit Pro", "teams.json")
+	os.MkdirAll(filepath.Dir(pro), 0o700)
+	os.WriteFile(pro, []byte(`{"author":"Yi","teams":[{"id":"t1","name":"Band","remote":{"url":"s3+https://x/b/f"}}],"projects":{}}`), 0o600)
+	to := filepath.Join(Dir(), "teams.json")
+	if ok, err := importFrom(pro, to); !ok || err != nil {
+		t.Fatalf("import: %v %v", ok, err)
+	}
+	s, _ := Load()
+	if s.Author != "Yi" || len(s.Teams) != 1 || s.Channel != "nightly" {
+		t.Fatalf("imported: %+v", s)
+	}
+	if ok, _ := importFrom(pro, to); ok {
+		t.Error("only on a first start")
+	}
+}

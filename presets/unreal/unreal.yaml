@@ -1,0 +1,28 @@
+# Unreal Engine projects (the folder with the .uproject).
+name: unreal
+tool: Unreal Editor
+open:
+  files: ["*.uproject"]  # opened with the engine it is associated with
+detect: ["*.uproject"]
+ignore:
+  - /Binaries/          # built from Source
+  - /Intermediate/
+  - /Saved/             # logs, autosaves, local settings
+  - /DerivedDataCache/  # rebuilt from Content
+  - /.vs/
+  - /.idea/
+  - "/*.sln"            # generated project files
+  - Plugins/**/Binaries/
+  - Plugins/**/Intermediate/
+handlers:
+  - files: ["*.cpp", "*.h", "*.hpp", "*.inl", "*.cs", "*.ini", "*.uproject", "*.uplugin", "*.json", "*.txt",
+            "*.md", "*.usf", "*.ush", "*.py"]
+    merge: text
+running: unreal-editor
+kinds:
+  level: ["*.umap"]
+  asset: ["*.uasset"]
+  script: ["*.cpp", "*.h", "*.hpp", "*.cs", "*.usf", "*.ush", "*.py"]
+  image: ["*.png", "*.jpg", "*.jpeg", "*.tga", "*.psd", "*.af", "*.exr", "*.hdr"]
+  model: ["*.fbx", "*.obj"]
+  audio: ["*.wav", "*.ogg", "*.mp3"]

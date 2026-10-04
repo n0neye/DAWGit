@@ -958,5 +958,13 @@
 "Restoring… {done} of {total}": "復元中… {done} / {total}",
 "Restoring…": "復元中…",
 "Your Ableton Live version and the names of your plugins and packs (never files), so a project check can tell who can open a project.": "あなたの Ableton Live のバージョンと、プラグインやパックの名前（ファイルは含みません）。プロジェクトチェックで誰がプロジェクトを開けるかがわかります。",
-"Check & save": "確認して保存"
+"Check & save": "確認して保存",
+"Channel": "チャンネル",
+"Stable": "Stable",
+"Nightly": "Nightly",
+"Tested releases, for Ableton Live projects.": "テスト済みのリリース。Ableton Live プロジェクト向け。",
+"This Nightly stays until a Stable release is newer than it.": "Stable にこれより新しいリリースが出るまで、この Nightly のままです。",
+"The newest build, with what is still in testing: Unity, Unreal, code and design projects. Expect rough edges.": "テスト中の機能を含む最新ビルド：Unity、Unreal、コードやデザインのプロジェクト。粗い部分があります。",
+"Looking for the latest Nightly…": "最新の Nightly を探しています…",
+"The latest Nightly is offered as an update.": "最新の Nightly がアップデートとして提供されます。"
 }

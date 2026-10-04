@@ -573,7 +573,7 @@
 {#if appSettings}
   <AppSettings version={appVersion} {edition} {autostart} autoUpdate={updState.auto} {downloadDir} {update}
     checking={checkingNow} onautostart={toggleAutostart} onautoupdate={setAutoUpdate} oncheck={checkUpdateNow}
-    ondownloaddir={changeDownloadDir} onclose={() => (appSettings = false)} />
+    ondownloaddir={changeDownloadDir} onupdate={(u) => (update = u)} onclose={() => (appSettings = false)} />
 {/if}
 
 {#if settingsFor}

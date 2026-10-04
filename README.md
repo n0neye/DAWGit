@@ -44,6 +44,16 @@ The [team setup guide](docs/team-setup.md) has the details and everyday use.
 
 Feedback and bug reports are welcome in [Issues](../../issues).
 
+## How it's built
+
+DAWGit is developed with AI coding assistants (Claude), directed and reviewed by its maintainer: every change is read, tried and decided on by a person. Because it looks after people's work, it leans on checks rather than trust:
+
+- The merge and diff of Live sets are tested against a reference implementation (`python/`) on golden files; stored formats (content hashes, chunk boundaries, version records) have golden tests and never change in ways older versions can't read.
+- End-to-end tests run real teams against real cloud storage (save, update, conflicts, interrupted uploads, restores).
+- Nothing rewrites a project file while Live has it open, and nothing deletes a teammate's work: updates keep your uncommitted changes, storage cleanup and restores only touch what no version uses or what is missing.
+
+See [Building and development](docs/development.md) and the design notes in [docs/design](docs/design).
+
 ## License
 
 [MIT](LICENSE)

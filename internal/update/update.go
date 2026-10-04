@@ -159,13 +159,23 @@ func getJSON(client *http.Client, address, current string, out any) error {
 }
 
 // parse reads "1.2.3" or "v1.2.3" (anything after a "-" or "+" is ignored).
-func parse(s string) ([3]int, bool) {
+// ver is a version: its numbers, and a pre-release part ("nightly.<time>")
+// that sorts before the release itself ("0.13.0-nightly.x" < "0.13.0").
+type ver struct {
+	n   [3]int
+	pre string
+}
+
+func parse(s string) (ver, bool) {
+	var v ver
 	s = strings.TrimPrefix(strings.TrimSpace(s), "v")
-	if i := strings.IndexAny(s, "-+"); i >= 0 {
-		s = s[:i]
+	if i := strings.IndexByte(s, '+'); i >= 0 {
+		s = s[:i] // build metadata doesn't order
+	}
+	if i := strings.IndexByte(s, '-'); i >= 0 {
+		s, v.pre = s[:i], s[i+1:]
 	}
 	parts := strings.Split(s, ".")
-	var v [3]int
 	if len(parts) != 3 {
 		return v, false
 	}
@@ -174,19 +184,29 @@ func parse(s string) ([3]int, bool) {
 		if err != nil || n < 0 {
 			return v, false
 		}
-		v[i] = n
+		v.n[i] = n
 	}
 	return v, true
 }
 
-func less(a, b [3]int) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return a[i] < b[i]
+func less(a, b ver) bool {
+	for i := range a.n {
+		if a.n[i] != b.n[i] {
+			return a.n[i] < b.n[i]
 		}
 	}
-	return false
+	switch {
+	case a.pre == b.pre, a.pre == "":
+		return false
+	case b.pre == "":
+		return true
+	}
+	return a.pre < b.pre // nightly.<time>: the time sorts as text
 }
+
+// NightlyFeed is the Nightly channel's update feed (Stable's releases are
+// this repository's GitHub releases).
+const NightlyFeed = "https://pub-6c07cd503de64479a85784cfc3e37274.r2.dev/nightly.json"
 
 // Feed is an update feed's address for a build with extensions (set through
 // ext.SetUpdateFeed): a JSON file {"version", "download", "notes"} next to
@@ -204,7 +224,14 @@ type feedEntry struct {
 
 // FromFeed returns the feed's release when it is newer than current.
 // Its links must be on the feed's own site.
-func FromFeed(feedURL, current string) (*Release, error) {
+func FromFeed(feedURL, current string) (*Release, error) { return fromFeed(feedURL, current, false) }
+
+// SwitchTo returns the feed's release unless it is current: moving to
+// another channel (Stable to Nightly), where the release may not sort after
+// this one ("0.13.0-nightly.x" from 0.13.0).
+func SwitchTo(feedURL, current string) (*Release, error) { return fromFeed(feedURL, current, true) }
+
+func fromFeed(feedURL, current string, switching bool) (*Release, error) {
 	cur, ok := parse(current)
 	if !ok {
 		return nil, fmt.Errorf("bad current version %q", current)
@@ -229,7 +256,7 @@ func FromFeed(feedURL, current string) (*Release, error) {
 		return nil, fmt.Errorf("update feed: %w", err)
 	}
 	v, ok := parse(e.Version)
-	if !ok || !less(cur, v) {
+	if !ok || (!switching && !less(cur, v)) || v == cur {
 		return nil, nil
 	}
 	site := FeedSite(feedURL)

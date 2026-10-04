@@ -10,6 +10,7 @@ import (
 
 	"dawgit/internal/blob"
 	"dawgit/internal/manifest"
+	"dawgit/internal/profile"
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 )
@@ -131,6 +132,16 @@ func classify(err error) *cliError {
 	var ce *cliError
 	if errors.As(err, &ce) {
 		return ce
+	}
+	var nn *profile.NeedsNightly
+	if errors.As(err, &nn) {
+		return &cliError{Code: "needs_nightly", Exit: exitUpgrade, Err: err,
+			Hint: "the user must switch DAWGit to the Nightly channel (Settings → Updates)"}
+	}
+	var tf *remote.ErrTeamFeatures
+	if errors.As(err, &tf) {
+		return &cliError{Code: "team_needs_features", Exit: exitUpgrade, Err: err,
+			Hint: "the user must update DAWGit, or switch to the Nightly channel"}
 	}
 	var mc *project.MergeConflictError
 	if errors.As(err, &mc) {

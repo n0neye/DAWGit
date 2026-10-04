@@ -10,6 +10,7 @@ export {
     BackupInfo,
     Branch,
     Change,
+    ChannelInfo,
     Conflict,
     ConvertFormat,
     DownloadSize,

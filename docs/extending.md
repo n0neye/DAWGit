@@ -9,6 +9,7 @@ DAWGit can be built with extensions that live in another repository: more preset
 | `ext.RegisterPreset(yaml)` | A preset, in the format of [`internal/profile/presets`](../internal/profile/presets) and [profiles.md](profiles.md). | Detection, `presets:` in `.dawgit.yaml` |
 | `ext.RegisterMerge(name, fn)` | A merge handler: given base, yours and theirs, it returns the merged file, or reports that the changes collide (the file is then chosen whole). | A preset's `handlers: - merge: name` |
 | `ext.RegisterRunning(name, fn)` | A check of whether a tool has the project open. DAWGit doesn't rewrite files while it does. | A preset's `running: name` |
+| `ext.RegisterTeamFeature(name)` | A team feature this build understands: something a team turns on that changes what it stores. DAWGits without it stop before working with such a team. | [design/channels.md](design/channels.md) |
 | `ext.RegisterBackend(prefix, open)` | A kind of team backend for addresses starting with `prefix` (e.g. `rtdb+https://`). It implements `ext.Backend`, and optionally `ext.Capable` to offer features such as locks. | Team addresses and connection codes |
 
 The app reads a backend's capabilities (`Capabilities()`), so features that need them can appear only for teams whose backend offers them.

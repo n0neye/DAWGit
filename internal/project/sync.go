@@ -59,7 +59,14 @@ func (r *Repo) Client() (remote.Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Open(t.Remote)
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return nil, err
+	}
+	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 // SetRemote connects the project to a team: a server (address + token) or

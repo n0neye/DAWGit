@@ -90,6 +90,8 @@ func ValidMemberID(id string) bool { return validHex(id, 32) }
 // TeamInfo describes a team as its server or storage names it.
 type TeamInfo struct {
 	Name string `json:"name"`
+	// Features the team turned on (see CheckFeatures).
+	Features []string `json:"features,omitempty"`
 }
 
 // Config selects and configures a backend (stored in .dawgit/config.json).

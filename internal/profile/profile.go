@@ -227,6 +227,9 @@ func Parse(data []byte, root string) (*Profile, error) {
 			continue
 		}
 		preset, ok := builtin[name]
+		if kind := nightlyPresets[name]; !ok && kind != "" {
+			return Detect(root), fmt.Errorf("%s: presets: %w", FileName, &NeedsNightly{Kind: kind})
+		}
 		if !ok {
 			return Detect(root), fmt.Errorf("%s: presets: %q is not a preset DAWGit knows (known: %s)", FileName, name, strings.Join(Names(), ", "))
 		}
@@ -626,7 +629,7 @@ func (p *Profile) NeedsNewer(current string) string {
 
 func parseVersion(v string) ([3]int, error) {
 	var out [3]int
-	parts := strings.Split(strings.TrimPrefix(strings.TrimSpace(v), "v"), ".")
+	parts := strings.Split(strings.SplitN(strings.TrimPrefix(strings.TrimSpace(v), "v"), "-", 2)[0], ".")
 	if len(parts) == 0 || len(parts) > 3 {
 		return out, errors.New("bad version")
 	}

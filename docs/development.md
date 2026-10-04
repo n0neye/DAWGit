@@ -14,6 +14,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1   # -> dist\D
 
 The release number lives in `internal/version/version.go`; the build script reads it for the installer name and the file properties of `DAWGit.exe`.
 
+Two release lines come from `main`: Stable (the default build) and Nightly (`-tags nightly`; the build script's `-Channel nightly`), which adds the project kinds still in testing from `presets/`. Run their tests with `go test -tags nightly ./...` too. See [design/channels.md](design/channels.md).
+
 The desktop app is in `desktop/` (Go + Svelte 5 frontend in `desktop/frontend/`). After changing Go methods the frontend calls, regenerate the TypeScript bindings:
 
 ```
@@ -50,7 +52,9 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `internal/server` — self-hosted team server (files on disk, token auth, branch compare-and-swap)
 - `internal/remote` — the `Backend` interface with two implementations: the team server's HTTP API and S3-compatible object storage
 - `internal/teams` — per-user team store (`%APPDATA%\DAWGit\teams.json`): team addresses, credentials, project locations
-- `internal/version` — release number
+- `internal/version` — release number, channel (Stable or Nightly) and Nightly build stamp
+- `presets/` — project kinds still in testing (Unity, Unreal, code, design files); only Nightly builds import them
+- `cmd/publish` — publishes a Nightly installer and its signed feed to the releases bucket
 - `python/` — the original prototype, kept as the reference implementation
 - `SampleProjects/` — Ableton projects used as test fixtures (audio via Git LFS)
 

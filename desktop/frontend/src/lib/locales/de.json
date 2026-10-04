@@ -958,5 +958,13 @@
 "Restoring… {done} of {total}": "Wird wiederhergestellt… {done} von {total}",
 "Restoring…": "Wird wiederhergestellt…",
 "Your Ableton Live version and the names of your plugins and packs (never files), so a project check can tell who can open a project.": "Deine Ableton-Live-Version und die Namen deiner Plugins und Packs (nie Dateien), damit ein Projekt-Check sagen kann, wer ein Projekt öffnen kann.",
-"Check & save": "Prüfen & speichern"
+"Check & save": "Prüfen & speichern",
+"Channel": "Kanal",
+"Stable": "Stable",
+"Nightly": "Nightly",
+"Tested releases, for Ableton Live projects.": "Getestete Versionen, für Ableton-Live-Projekte.",
+"This Nightly stays until a Stable release is newer than it.": "Diese Nightly bleibt, bis eine Stable-Version neuer ist.",
+"The newest build, with what is still in testing: Unity, Unreal, code and design projects. Expect rough edges.": "Der neueste Build, mit dem, was noch getestet wird: Unity-, Unreal-, Code- und Design-Projekte. Mit Ecken und Kanten.",
+"Looking for the latest Nightly…": "Suche die neueste Nightly…",
+"The latest Nightly is offered as an update.": "Die neueste Nightly wird als Update angeboten."
 }

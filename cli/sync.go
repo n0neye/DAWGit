@@ -419,7 +419,7 @@ func cmdConnectionCode(args []string) error {
 		return err
 	}
 	if *name != "" {
-		if err := b.SetInfo(remote.TeamInfo{Name: *name}); err != nil {
+		if err := remote.Rename(b, *name); err != nil {
 			return fmt.Errorf("could not save the team name: %w", err)
 		}
 	}

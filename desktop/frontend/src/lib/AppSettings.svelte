@@ -6,7 +6,7 @@
   // DAWGit's own settings (not a project's or a team's): language, starting
   // with Windows, updates, where downloads go, and help.
   let { version, edition, autostart, autoUpdate, downloadDir, update, checking, onautostart, onautoupdate, oncheck,
-    ondownloaddir, onclose }: {
+    ondownloaddir, onupdate, onclose }: {
     version: string;
     edition: string;
     autostart: boolean;
@@ -18,6 +18,7 @@
     onautoupdate: (on: boolean) => void;
     oncheck: () => void;
     ondownloaddir: () => void;
+    onupdate: (u: Awaited<ReturnType<typeof api.SetChannel>>) => void; // after a channel switch
     onclose: () => void;
   } = $props();
 
@@ -25,6 +26,27 @@
   async function pickLanguage(code: string) {
     lang = code;
     await setLanguage(code);
+  }
+
+  // Where updates come from: Stable (tested releases), or Nightly (main as
+  // it is, with what's still in testing: Unity, Unreal…).
+  let channel = $state<{ build: string; chosen: string } | null>(null);
+  let switching = $state(false);
+  let channelError = $state("");
+  $effect(() => { api.Channel().then((c) => (channel = c)).catch(() => {}); });
+  async function pickChannel(ch: string) {
+    if (!channel || ch === channel.chosen) return;
+    switching = true;
+    channelError = "";
+    try {
+      const u = await api.SetChannel(ch);
+      channel = { ...channel, chosen: ch };
+      onupdate(u);
+    } catch (e) {
+      channelError = String((e as Error)?.message ?? e);
+    } finally {
+      switching = false;
+    }
   }
 
   const repo = "https://github.com/n0neye/DAWGit";
@@ -79,6 +101,27 @@
       {/if}
       <button class="small" onclick={oncheck} disabled={checking}>{checking ? t("Checking…") : t("Check for updates")}</button>
     </div>
+    {#if channel}
+      <div class="line">
+        <span class="label">{t("Channel")}</span>
+        <div class="seg" role="radiogroup" aria-label={t("Channel")}>
+          {#each ["stable", "nightly"] as ch}
+            <button role="radio" aria-checked={channel.chosen === ch} class:on={channel.chosen === ch} disabled={switching}
+              onclick={() => pickChannel(ch)}>{ch === "stable" ? t("Stable") : t("Nightly")}</button>
+          {/each}
+        </div>
+      </div>
+      <p class="hint">
+        {#if channel.chosen === "stable"}
+          {t("Tested releases, for Ableton Live projects.")}
+          {#if channel.build === "nightly"}{t("This Nightly stays until a Stable release is newer than it.")}{/if}
+        {:else}
+          {t("The newest build, with what is still in testing: Unity, Unreal, code and design projects. Expect rough edges.")}
+          {#if channel.build === "stable"}{switching ? t("Looking for the latest Nightly…") : t("The latest Nightly is offered as an update.")}{/if}
+        {/if}
+      </p>
+      {#if channelError}<p class="hint err">{channelError}</p>{/if}
+    {/if}
     <label class="check">
       <input type="checkbox" checked={autoUpdate} onchange={(e) => onautoupdate(e.currentTarget.checked)} />
       <span>{t("Install updates automatically")}
@@ -119,4 +162,11 @@
   .hint { display: block; color: var(--faint); font-size: 12px; margin-top: 2px; }
   .links { display: flex; flex-wrap: wrap; gap: 8px; }
   button.small { padding: 4px 10px; font-size: 12.5px; }
+  .seg { display: flex; }
+  .seg button { padding: 4px 12px; font-size: 13px; border-radius: 0; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; margin-left: -1px; }
+  .seg button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  p.hint { margin: 4px 0 10px; }
+  .err { color: var(--danger); }
 </style>

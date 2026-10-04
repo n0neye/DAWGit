@@ -120,6 +120,8 @@ preview first and ask the user.
 | 5 | `project_busy` | the DAWGit app or another command is using the project: try again in a moment |
 | 6 | `not_a_project` | not in a tracked folder: `dawgit init`, or `cd` into the project |
 | 6 | `newer_version_needed` | the team uses a newer DAWGit: the user must update |
+| 6 | `needs_nightly` | a Unity/Unreal (…) project: the user must switch DAWGit to the Nightly channel |
+| 6 | `team_needs_features` | the team turned on features this DAWGit lacks: update, or switch to Nightly |
 | 6 | `server_out_of_date` | the team's server needs updating |
 | 1 | `unsaved_changes` | save first (`dawgit save -m ...`); `update` keeps them unless you also have versions not shared |
 | 1 | `on_older_version` | an older version is checked out: `dawgit checkout latest` |

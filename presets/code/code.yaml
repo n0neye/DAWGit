@@ -1,0 +1,36 @@
+# Software projects: what git would track (the project's .gitignore files
+# are followed), merged line by line. Of low priority: a folder that is
+# also, say, a Unity project is that.
+name: code
+tool: your code editor
+priority: -2    # after tool and design presets: a .gitignore alone suggests code
+gitignore: true
+detect: [".git/", ".gitignore", "package.json", "go.mod", "Cargo.toml", "pyproject.toml", "requirements.txt",
+         "*.sln", "pom.xml", "build.gradle", "CMakeLists.txt", "Makefile"]
+ignore:
+  - node_modules/
+  - .venv/
+  - venv/
+  - __pycache__/
+  - "*.pyc"
+  - .pytest_cache/
+  - .mypy_cache/
+  - .gradle/
+  - .idea/
+  - .vs/
+  - .env          # secrets, by convention (.env.example stays)
+  - "*.swp"
+handlers:
+  - files: ["*.go", "*.js", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.jsx", "*.svelte", "*.vue", "*.py", "*.rb", "*.php",
+            "*.rs", "*.java", "*.kt", "*.kts", "*.swift", "*.c", "*.h", "*.cc", "*.cpp", "*.hpp", "*.cs", "*.fs",
+            "*.lua", "*.dart", "*.scala", "*.sh", "*.bash", "*.ps1", "*.bat", "*.sql", "*.html", "*.htm", "*.css",
+            "*.scss", "*.sass", "*.less", "*.json", "*.jsonc", "*.yaml", "*.yml", "*.toml", "*.ini", "*.cfg",
+            "*.conf", "*.xml", "*.md", "*.txt", "*.rst", "*.csv", "*.gradle", "*.cmake", "*.mk", "*.proto",
+            "*.graphql", "*.tf", "*.glsl", "*.hlsl", "*.shader", ".gitignore", ".gitattributes", ".editorconfig",
+            "Makefile", "Dockerfile", "*.env.example", "go.mod", "go.sum", "*.lock"]
+    merge: text
+kinds:
+  script: ["*.go", "*.js", "*.mjs", "*.ts", "*.tsx", "*.jsx", "*.svelte", "*.vue", "*.py", "*.rb", "*.php", "*.rs",
+           "*.java", "*.kt", "*.swift", "*.c", "*.h", "*.cc", "*.cpp", "*.hpp", "*.cs", "*.lua", "*.dart", "*.sh",
+           "*.ps1", "*.sql", "*.html", "*.css", "*.scss", "*.glsl", "*.hlsl", "*.shader"]
+  image: ["*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp", "*.ico"]

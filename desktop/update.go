@@ -71,15 +71,25 @@ func (a *App) CheckUpdate() (*UpdateInfo, error) {
 		return updateCache.info, nil
 	}
 	current := currentVersion()
-	feed := update.Feed
+	feed, switching := update.Feed, false
+	if feed == "" && chosenChannel() == "nightly" {
+		// From Stable, the first Nightly may sort before this version
+		// (0.13.0-nightly.x after 0.13.0): it is a switch, not an update.
+		feed, switching = update.NightlyFeed, version.Channel != "nightly"
+	}
 	if f := os.Getenv("DAWGIT_DEV_FEED"); f != "" {
 		feed = f // testing updates against a feed of one's own
 	}
 	var r *update.Release
 	var err error
-	if feed != "" {
+	switch {
+	case feed != "" && switching:
+		r, err = update.SwitchTo(feed, current)
+	case feed != "":
 		r, err = update.FromFeed(feed, current)
-	} else {
+	default:
+		// Stable. From a Nightly that waits for the next Stable release
+		// (0.13.0 after 0.13.0-nightly.x): never back to an older version.
 		r, err = update.Newer(update.ReleasesAPI, current)
 	}
 	if err != nil {
@@ -100,7 +110,52 @@ func currentVersion() string {
 	if v := os.Getenv("DAWGIT_DEV_VERSION"); v != "" {
 		return v
 	}
-	return version.Version
+	return version.Full()
+}
+
+// chosenChannel: the release line updates come from (Settings).
+func chosenChannel() string {
+	if store, err := teams.Load(); err == nil && store.Channel != "" {
+		return store.Channel
+	}
+	return version.Channel
+}
+
+// ChannelInfo is the update channel, for Settings.
+type ChannelInfo struct {
+	Build  string `json:"build"`  // this build's: "stable" or "nightly"
+	Chosen string `json:"chosen"` // where updates come from
+}
+
+// Channel says which release line this is and which one updates come from.
+func (a *App) Channel() ChannelInfo {
+	return ChannelInfo{Build: version.Channel, Chosen: chosenChannel()}
+}
+
+// SetChannel picks where updates come from, and checks there now. To
+// Nightly, its latest build is offered right away; back to Stable, this
+// Nightly stays until a Stable release is newer than it.
+func (a *App) SetChannel(channel string) (*UpdateInfo, error) {
+	if channel != "stable" && channel != "nightly" {
+		return nil, errors.New("unknown channel")
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	store.Channel = channel
+	if err := store.Save(); err != nil {
+		return nil, err
+	}
+	updateCache.Lock()
+	if updateCache.state.Stage != "downloading" {
+		updateCache.rel, updateCache.info, updateCache.state, updateCache.path = nil, nil, UpdateState{}, ""
+	}
+	updateCache.Unlock()
+	a.emitUpdate()
+	// Chosen either way; a check that fails (offline) is tried again later.
+	u, _ := a.CheckUpdateNow()
+	return u, nil
 }
 
 // DownloadUpdate fetches the newer release's installer and checks its
