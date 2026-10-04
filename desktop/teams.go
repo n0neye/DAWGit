@@ -44,6 +44,9 @@ type TeamSummary struct {
 	// AskShareSetup: the app should ask whether to share it (not chosen yet,
 	// e.g. a member from before the option).
 	AskShareSetup bool `json:"askShareSetup"`
+	// BackupFailing: this computer's backups of the team have failed for a
+	// while (see BackupInfo).
+	BackupFailing bool `json:"backupFailing"`
 }
 
 // TeamProject is a project as the sidebar shows it.
@@ -69,7 +72,8 @@ func teamSummary(t teams.Team) TeamSummary {
 	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
 		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable,
 		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage(),
-		AskShareSetup: t.Remote.IsStorage() && t.MemberID != "" && !t.SetupAsked && !t.ShareSetup}
+		AskShareSetup: t.Remote.IsStorage() && t.MemberID != "" && !t.SetupAsked && !t.ShareSetup,
+		BackupFailing: backupFailing(t.Backup)}
 }
 
 func folderProject(root, status string) TeamProject {

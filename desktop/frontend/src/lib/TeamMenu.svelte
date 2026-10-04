@@ -30,6 +30,23 @@
       toast(errorText(e), "error");
     }
   }
+  // No one has backed up the team lately: suggested, until put off for a
+  // week (asked again when the team settings close: one may be set up).
+  let remindBackup = $state(false);
+  $effect(() => {
+    const id = current?.memberId && current.isStorage && !settingsFor ? current.id : "";
+    remindBackup = false;
+    if (id) api.BackupReminder(id).then((r) => { if (current?.id === id) remindBackup = r; }).catch(() => {});
+  });
+  async function hushBackup(team: TeamSummary) {
+    remindBackup = false;
+    try {
+      await api.HushBackupReminder(team.id);
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
+  }
+
   const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
 
   async function select(id: string) {
@@ -112,6 +129,18 @@
       ☺ {tr("Choose your name in {team}", { team: current.name })}
     </button>
   {/if}
+  {#if current?.backupFailing}
+    <button class="backup warn" onclick={() => (settingsFor = current!)}>
+      ⚠ {tr("Backups of {team} keep failing on this computer. Have a look", { team: current.name })} ›</button>
+  {:else if current && remindBackup}
+    <div class="backup">
+      <button class="go" onclick={() => (settingsFor = current!)}>
+        <span>⛁ {tr("No one backs up {team} yet", { team: current.name })}</span>
+        <span class="faint">{tr("Set up a backup to a drive or NAS")} ›</span>
+      </button>
+      <button class="ghost x" title={tr("Remind me in a week")} onclick={() => hushBackup(current!)}>✕</button>
+    </div>
+  {/if}
   {#if open}
     <div class="menu" role="menu">
       {#each overview.teams as t (t.id)}
@@ -185,6 +214,11 @@
 
 <style>
   .team-menu { position: relative; margin-bottom: 10px; }
+  .backup { display: flex; align-items: flex-start; gap: 4px; width: 100%; margin-top: 6px; padding: 6px 8px; border-radius: 6px;
+    background: var(--panel); font-size: 12px; text-align: left; line-height: 1.4; }
+  .backup.warn { display: block; background: var(--warn-bg); color: var(--warn); }
+  .backup .go { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 0; background: none; text-align: left; font-size: 12px; color: var(--text); }
+  .backup .x { padding: 0 5px; line-height: 16px; color: var(--muted); }
   .current {
     width: 100%; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto;
     text-align: left; padding: 8px 10px; background: var(--panel); border-radius: 8px;

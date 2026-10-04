@@ -66,6 +66,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 		a.startWatch(root)
 	}
 	go a.shareSetups(ctx)
+	go a.backUpOnSchedule(ctx)
 	return nil
 }
 

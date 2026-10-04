@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"dawgit/internal/remote"
 	"dawgit/internal/version"
@@ -38,10 +39,24 @@ type Team struct {
 	// SetupAsked: the user chose whether to share it (on or off); until
 	// then the app asks once.
 	SetupAsked bool `json:"setupAsked,omitempty"`
+	// Backup: this computer backs up the team's storage (nil: it doesn't).
+	Backup *Backup `json:"backup,omitempty"`
+	// BackupHushed: when the user last put off the reminder to set one up.
+	BackupHushed time.Time `json:"backupHushed,omitempty"`
 	// KeysUnreadable: the team's keys were sealed by another Windows user
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.
 	KeysUnreadable bool `json:"-"`
+}
+
+// Backup is where and how this computer backs up a team (internal/backup).
+type Backup struct {
+	Folder      string    `json:"folder"`
+	Paused      bool      `json:"paused,omitempty"`
+	LastSuccess time.Time `json:"lastSuccess,omitempty"`
+	LastAttempt time.Time `json:"lastAttempt,omitempty"`
+	LastError   string    `json:"lastError,omitempty"`
+	Size        int64     `json:"size,omitempty"` // bytes, at the last success
 }
 
 type Store struct {
