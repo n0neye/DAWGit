@@ -35,6 +35,9 @@ type Team struct {
 	// ShareSetup: this computer shares its setup (Live versions, plugins,
 	// packs: names only) with the team, for project checks.
 	ShareSetup bool `json:"shareSetup,omitempty"`
+	// SetupAsked: the user chose whether to share it (on or off); until
+	// then the app asks once.
+	SetupAsked bool `json:"setupAsked,omitempty"`
 	// KeysUnreadable: the team's keys were sealed by another Windows user
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.

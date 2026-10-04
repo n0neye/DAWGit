@@ -41,6 +41,9 @@ type TeamSummary struct {
 	// CanShareSetup: the team's storage keeps setups (a server doesn't yet).
 	ShareSetup    bool `json:"shareSetup"`
 	CanShareSetup bool `json:"canShareSetup"`
+	// AskShareSetup: the app should ask whether to share it (not chosen yet,
+	// e.g. a member from before the option).
+	AskShareSetup bool `json:"askShareSetup"`
 }
 
 // TeamProject is a project as the sidebar shows it.
@@ -65,7 +68,8 @@ type Overview struct {
 func teamSummary(t teams.Team) TeamSummary {
 	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
 		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable,
-		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage()}
+		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage(),
+		AskShareSetup: t.Remote.IsStorage() && t.MemberID != "" && !t.SetupAsked && !t.ShareSetup}
 }
 
 func folderProject(root, status string) TeamProject {
