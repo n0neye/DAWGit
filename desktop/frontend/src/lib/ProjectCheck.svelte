@@ -223,6 +223,7 @@
   .issues li.note { color: var(--text); }
   .issues li.note :global(svg) { color: var(--note); }
   .link.strong { font-weight: 600; }
+  .issues .link { white-space: nowrap; flex: none; }
   .link { border: none; background: transparent; color: var(--accent); padding: 0 0 0 4px; font-size: 12px; cursor: pointer; }
   .list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; padding: 8px 10px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }
