@@ -53,6 +53,9 @@ advanced:
                                          leftovers no version uses)
   verify [--repair]                      check the history: every version and stored file;
                                          --repair brings back what it can
+  backup run [folder] [--team NAME]      back up the whole team (every project and version) into
+                                         a folder; only adds. Default: the app's backup folder
+  backup status [--team NAME]            this computer's backup, and who else backs up the team
   storage-cleanup [--delete]             files in the team's storage no version uses; --delete
                                          deletes those unused for a day (and a week old)
 
@@ -65,8 +68,8 @@ set commands:
   version                                show the DAWGit version
 
 for programs and AI agents:
-  --json                                 status, log, save, update, merge, version: one JSON
-                                         object on stdout; errors with fixed codes
+  --json                                 status, log, save, update, merge, backup, version: one
+                                         JSON object on stdout; errors with fixed codes
   help agents [--snippet]                how AI agents use DAWGit (or lines for a project's
                                          AGENTS.md)
 `
@@ -121,6 +124,8 @@ func Run(args []string) int {
 		err = cmdGC()
 	case "verify":
 		code, err = cmdVerify(rest)
+	case "backup":
+		err = cmdBackup(rest)
 	case "storage-cleanup":
 		err = cmdStorageCleanup(rest)
 	case "profile":

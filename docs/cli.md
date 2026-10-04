@@ -82,6 +82,18 @@ dawgit verify --repair   # bring back what can be: from the project folder or th
 
 The app does the same from a project's ⋯ menu in the sidebar (**Check project…**). A file damaged here (a failing disk, say) comes back from a file in the project folder with the same content, or from the team's storage; what has no copy left anywhere is listed with the version it's in.
 
+## Backing up the team
+
+```
+dawgit backup run                   # back up to this computer's backup folder (chosen in the app)
+dawgit backup run D:\Backups\Band   # ...or to any folder: empty, or this team's earlier backup
+dawgit backup status                # this computer's backup, and who else backs up the team
+```
+
+`--team NAME` picks the team; otherwise it is the team of the project you're in, or the current one. A backup holds every project of the team with all its versions, as the team's storage keeps them. Runs only copy what is new and never delete: what the team deleted stays in the backup. Each run records where every branch was (`runs/<time>.json`).
+
+Or in the app: the team's settings (⚙) → **Backup**. The app backs up once a day while it is open. Works on teams that use S3 or R2 storage. See [design/backup.md](design/backup.md).
+
 ## Cleaning up the team's storage
 
 ```

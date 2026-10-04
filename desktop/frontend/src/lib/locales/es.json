@@ -920,5 +920,11 @@
 "Backups of {team} keep failing on this computer. Have a look": "Las copias de {team} siguen fallando en este equipo. Échale un vistazo",
 "No one backs up {team} yet": "Nadie hace copia de {team} todavía",
 "Set up a backup to a drive or NAS": "Configura una copia en un disco o NAS",
-"Remind me in a week": "Recuérdamelo en una semana"
+"Remind me in a week": "Recuérdamelo en una semana",
+"Back up your team": "Haz una copia de tu equipo",
+"Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.": "Todo está en tu almacenamiento, pero una segunda copia en tu propio disco o NAS protege el trabajo del equipo si alguna vez se pierden el bucket o sus claves. Una vez al día mientras DAWGit está abierto, copia lo nuevo, y nunca borra nada de la copia.",
+"Backing up to {folder}": "Copiando en {folder}",
+"The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.": "La primera copia lo copia todo y puede tardar; sigue en segundo plano. Cámbialo cuando quieras en los ajustes del equipo (⚙) › Copia de seguridad.",
+"Only one member needs to do this. You can also set it up later in the team's settings (⚙) › Backup.": "Basta con que lo haga un miembro. También puedes configurarlo más tarde en los ajustes del equipo (⚙) › Copia de seguridad.",
+"Set up later": "Configurar más tarde"
 }

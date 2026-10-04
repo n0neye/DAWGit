@@ -920,5 +920,11 @@
 "Backups of {team} keep failing on this computer. Have a look": "이 컴퓨터에서 {team} 백업이 계속 실패하고 있습니다. 확인해 보세요",
 "No one backs up {team} yet": "아직 아무도 {team}을(를) 백업하지 않습니다",
 "Set up a backup to a drive or NAS": "드라이브나 NAS로 백업 설정",
-"Remind me in a week": "일주일 후에 다시 알림"
+"Remind me in a week": "일주일 후에 다시 알림",
+"Back up your team": "팀 백업하기",
+"Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.": "모든 것이 스토리지에 있지만, 내 드라이브나 NAS에 사본을 하나 더 두면 버킷이나 키를 잃어도 팀의 작업은 안전합니다. DAWGit이 열려 있는 동안 하루에 한 번 새로운 것만 복사하며, 백업에서 아무것도 삭제하지 않습니다.",
+"Backing up to {folder}": "{folder}에 백업 중",
+"The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.": "첫 백업은 모든 것을 복사하므로 시간이 걸릴 수 있으며, 백그라운드에서 계속됩니다. 언제든 팀 설정(⚙) › 백업에서 바꿀 수 있습니다.",
+"Only one member needs to do this. You can also set it up later in the team's settings (⚙) › Backup.": "팀에서 한 명만 설정하면 됩니다. 나중에 팀 설정(⚙) › 백업에서 설정할 수도 있습니다.",
+"Set up later": "나중에 설정"
 }
