@@ -67,7 +67,7 @@
   <p class="faint small">{t("Shown next to the versions you commit. If you change it later, it changes on all your versions, for everyone in the team.")}</p>
   {#if sharing}
     <label class="share"><input type="checkbox" bind:checked={share} /> {t("Share my setup with the team")}</label>
-    <p class="faint small">{t("Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. You can change this in the team's settings.")}</p>
+    <p class="faint small">{t("Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")} {t("You can change this in the team's settings.")}</p>
   {/if}
   {#if error}<p class="error">{error}</p>{/if}
   <div class="row actions">

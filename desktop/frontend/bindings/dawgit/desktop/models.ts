@@ -1640,6 +1640,12 @@ export class TeamSummary {
     "shareSetup": boolean;
     "canShareSetup": boolean;
 
+    /**
+     * AskShareSetup: the app should ask whether to share it (not chosen yet,
+     * e.g. a member from before the option).
+     */
+    "askShareSetup": boolean;
+
     /** Creates a new TeamSummary instance. */
     constructor($$source: Partial<TeamSummary> = {}) {
         if (!("id" in $$source)) {
@@ -1668,6 +1674,9 @@ export class TeamSummary {
         }
         if (!("canShareSetup" in $$source)) {
             this["canShareSetup"] = false;
+        }
+        if (!("askShareSetup" in $$source)) {
+            this["askShareSetup"] = false;
         }
 
         Object.assign(this, $$source);

@@ -16,6 +16,20 @@
   let identityFor = $state<TeamSummary | null>(null);
 
   let current = $derived(overview.teams.find((t) => t.id === overview.currentTeam));
+  // Sharing your setup not chosen yet (a member from before the option, or
+  // back on a team): asked once.
+  let answered = $state<Record<string, boolean>>({});
+  let shareAsk = $derived(!identityFor && !connecting && current?.askShareSetup && !answered[current.id] ? current : null);
+  async function answerShare(team: TeamSummary, on: boolean) {
+    answered[team.id] = true;
+    try {
+      await api.SetShareSetup(team.id, on);
+      if (on) toast(tr("Your setup is shared with {team}", { team: team.name }), "ok");
+      await reload();
+    } catch (e) {
+      toast(errorText(e), "error");
+    }
+  }
   const hostOf = (t: TeamSummary) => t.address.replace(/^https?:\/\//, "");
 
   async function select(id: string) {
@@ -118,6 +132,18 @@
     </div>
   {/if}
 </div>
+
+{#if shareAsk}
+  {@const t = shareAsk}
+  <Modal title={tr("Share your setup with {team}?", { team: t.name })} onclose={() => answerShare(t, false)}>
+    <p>{tr("Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")}</p>
+    <p class="muted">{tr("You can change this in the team's settings.")}</p>
+    {#snippet footer()}
+      <button onclick={() => answerShare(t, false)}>{tr("Not now")}</button>
+      <button class="primary" onclick={() => answerShare(t, true)}>{tr("Share")}</button>
+    {/snippet}
+  </Modal>
+{/if}
 
 {#if identityFor}
   {@const t = identityFor}

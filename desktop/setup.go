@@ -90,7 +90,7 @@ func (a *App) SetShareSetup(teamID string, on bool) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	t.ShareSetup = on
+	t.ShareSetup, t.SetupAsked = on, true
 	if err := store.Save(); err != nil {
 		return err
 	}

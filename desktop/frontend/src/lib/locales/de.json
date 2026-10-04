@@ -825,7 +825,6 @@
 "Can this computer open it? DAWGit looked:": "Kann dieser Computer es öffnen? DAWGit hat nachgesehen:",
 "OK": "OK",
 "Share my setup with the team": "Mein Setup mit dem Team teilen",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. You can change this in the team's settings.": "Deine Live-Version sowie Namen und Versionen deiner Plugins und Packs (keine Dateien, keine Ordner), damit die Projektprüfung erkennt, ob Teammitglieder ein Projekt öffnen können. In den Team-Einstellungen änderbar.",
 "{name} can open it (Live {version})": "{name} kann es öffnen (Live {version})",
 "has Live {version}, older than {need}": "hat Live {version}, älter als {need}",
 "no Live found": "kein Live gefunden",
@@ -837,7 +836,6 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "Noch teilt kein Teammitglied sein Setup, daher kann DAWGit nicht sagen, ob sie es öffnen können. Sie können es in den Team-Einstellungen einschalten.",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "Dein Setup ist nicht geteilt: Schalte es in den Team-Einstellungen ein, damit die Prüfungen deines Teams dich einschließen.",
 "Your setup": "Dein Setup",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "Deine Live-Version sowie Namen und Versionen deiner Plugins und Packs (keine Dateien, keine Ordner), damit die Projektprüfung erkennt, ob Teammitglieder ein Projekt öffnen können. Ausschalten entfernt es aus dem Team-Speicher.",
 "Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "Deine noch nicht committeten Änderungen bleiben, wie sie sind, weiterhin nicht committet. Wo ihr beide dasselbe geändert habt, wählst du, was bleibt.",
 "Updated to the team's latest version: nothing of yours was left to commit": "Auf die neueste Version des Teams aktualisiert: Von dir war nichts mehr zu committen",
 "The team's versions were taken in first; yours comes after them": "Die Versionen des Teams wurden zuerst übernommen; deine folgt danach",
@@ -865,5 +863,11 @@
 "{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "{n} Sample fehlt. Am besten vor dem Teilen in Live wiederfinden (File › Manage Files), damit das Team dasselbe hört.",
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "{n} Samples fehlen. Am besten vor dem Teilen in Live wiederfinden (File › Manage Files), damit das Team dasselbe hört.",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "{n} Sample fehlt. Finde es vor dem nächsten Teilen in Live (File › Manage Files).",
-"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "{n} Samples fehlen. Finde sie vor dem nächsten Teilen in Live (File › Manage Files)."
+"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "{n} Samples fehlen. Finde sie vor dem nächsten Teilen in Live (File › Manage Files).",
+"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "Welche Versionen deiner Kreativ-Apps du hast (Ableton Live, Unity, Unreal Engine…) sowie Namen und Versionen deiner Plugins und Packs. Keine Dateien, keine Ordner. So erkennt die Projektprüfung, ob Teammitglieder ein Projekt öffnen können.",
+"You can change this in the team's settings.": "In den Team-Einstellungen änderbar.",
+"Your setup is shared with {team}": "Dein Setup wird mit {team} geteilt",
+"Share your setup with {team}?": "Dein Setup mit {team} teilen?",
+"Share": "Teilen",
+"Turning it off removes it from the team's storage.": "Ausschalten entfernt es aus dem Team-Speicher."
 }

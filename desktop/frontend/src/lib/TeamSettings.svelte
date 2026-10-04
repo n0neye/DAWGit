@@ -181,7 +181,7 @@
       <h3>{t("Your setup")}</h3>
       <label class="share"><input type="checkbox" checked={shareSetup} onchange={(e) => toggleShare(e.currentTarget.checked)} />
         {t("Share my setup with the team")}</label>
-      <p class="faint small">{t("Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.")}</p>
+      <p class="faint small">{t("Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")} {t("Turning it off removes it from the team's storage.")}</p>
       {#if shareError}<p class="error">{shareError}</p>{/if}
     </section>
   {/if}

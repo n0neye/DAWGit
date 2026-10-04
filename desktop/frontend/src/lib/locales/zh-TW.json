@@ -825,7 +825,6 @@
 "Can this computer open it? DAWGit looked:": "這台電腦能打開嗎？DAWGit 看了一下：",
 "OK": "好",
 "Share my setup with the team": "和團隊分享我的環境",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. You can change this in the team's settings.": "你的 Live 版本，以及 plugin 和 Pack 的名稱與版本（不含檔案和資料夾），讓專案體檢能判斷隊友打不打得開專案。之後可以在團隊設定裡更改。",
 "{name} can open it (Live {version})": "{name} 打得開（Live {version}）",
 "has Live {version}, older than {need}": "Live 是 {version}，比 {need} 舊",
 "no Live found": "找不到 Live",
@@ -837,7 +836,6 @@
 "No teammate shares their setup yet, so DAWGit can't tell whether they can open it. They can turn it on in the team's settings.": "還沒有隊友分享環境，所以 DAWGit 無法判斷他們打不打得開。他們可以在團隊設定裡開啟。",
 "Your setup isn't shared with the team: turn it on in the team's settings so teammates' checks include you.": "你的環境沒有分享給團隊：在團隊設定裡開啟，隊友的體檢才會把你算進去。",
 "Your setup": "我的環境",
-"Your Live version and the names and versions of your plugins and packs (no files, no folders), so a project check can tell whether teammates can open a project. Turning it off removes it from the team's storage.": "你的 Live 版本，以及 plugin 和 Pack 的名稱與版本（不含檔案和資料夾），讓專案體檢能判斷隊友打不打得開專案。關閉時會從團隊空間刪除。",
 "Your uncommitted changes stay as they are, still uncommitted. Where you both changed the same thing, you choose what to keep.": "你未 commit 的改動會保持原樣，仍然是未 commit。你們改到同一個地方時，由你選擇要保留哪個。",
 "Updated to the team's latest version: nothing of yours was left to commit": "已更新到團隊最新版本：你這邊沒有剩下要 commit 的改動",
 "The team's versions were taken in first; yours comes after them": "已先帶入團隊的版本，你的版本接在後面",
@@ -865,5 +863,11 @@
 "{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 個取樣。建議分享前先在 Live 找回（File › Manage Files），隊友聽到的才會一樣。",
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 個取樣。建議分享前先在 Live 找回（File › Manage Files），隊友聽到的才會一樣。",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。",
-"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。"
+"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。",
+"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "你裝了哪些創作軟體、版本為何（Ableton Live、Unity、Unreal Engine…），以及 plugin 和 Pack 的名稱與版本。不含任何檔案或資料夾。這樣專案體檢就能判斷隊友打不打得開專案。",
+"You can change this in the team's settings.": "之後可以在團隊設定裡更改。",
+"Your setup is shared with {team}": "已和 {team} 分享你的環境",
+"Share your setup with {team}?": "要和 {team} 分享你的環境嗎？",
+"Share": "分享",
+"Turning it off removes it from the team's storage.": "關閉時會從團隊空間刪除。"
 }
