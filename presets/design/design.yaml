@@ -1,0 +1,39 @@
+# Design, 3D and video projects: Photoshop, Affinity, Blender, Cinema 4D,
+# Maya, DaVinci Resolve and Resolume files, often several in one folder.
+# Leaves out what these programs write for themselves (backups, caches,
+# proxies) and doesn't rewrite a file one of them has open. After the
+# tools' own project folders (Unity's has .psd files too), before code.
+name: design
+tool: your apps
+priority: -1
+# In the folder or one folder down (Art/, Renders/…).
+detect: ["*.psd", "*.psb", "*.af", "*.afphoto", "*.afdesign", "*.afpub", "*.blend", "*.c4d", "*.ma", "*.mb",
+         "*.drp", "*.drt", "*.avc",
+         "*/*.psd", "*/*.psb", "*/*.af", "*/*.afphoto", "*/*.afdesign", "*/*.afpub", "*/*.blend", "*/*.c4d", "*/*.ma",
+         "*/*.mb", "*/*.drp", "*/*.avc"]
+open:
+  files: ["*.psd", "*.psb", "*.af", "*.afphoto", "*.afdesign", "*.afpub", "*.blend", "*.c4d", "*.ma", "*.mb", "*.avc"]
+ignore:
+  # Blender: numbered backups (.blend1, .blend2…) and saves in progress
+  - "*.blend[0-9]"
+  - "*.blend[0-9][0-9]"
+  - "*.blend@"
+  # Maya: incremental saves, material swatches
+  - incrementalSave/
+  - "*.swatches"
+  # Cinema 4D: backup copies
+  - "*_backup_[0-9]*.c4d"
+  # DaVinci Resolve: caches it makes again from the media
+  - CacheClip/
+  - OptimizedMedia/
+  - ProxyMedia/
+  - "*.tmp"
+running: design-apps
+kinds:
+  design: ["*.psd", "*.psb", "*.af", "*.afphoto", "*.afdesign", "*.afpub", "*.ai", "*.svg"]
+  model: ["*.blend", "*.c4d", "*.ma", "*.mb", "*.fbx", "*.obj", "*.glb", "*.gltf", "*.abc", "*.usd", "*.usda",
+          "*.usdz", "*.stl", "*.ply"]
+  scene: ["*.drp", "*.drt", "*.avc"]
+  image: ["*.png", "*.jpg", "*.jpeg", "*.tif", "*.tiff", "*.tga", "*.exr", "*.hdr", "*.webp", "*.gif", "*.bmp"]
+  video: ["*.mp4", "*.mov", "*.webm", "*.mkv", "*.avi", "*.mxf", "*.braw", "*.r3d", "*.m4v"]
+  audio: ["*.wav", "*.aif", "*.aiff", "*.mp3", "*.flac", "*.ogg", "*.m4a"]

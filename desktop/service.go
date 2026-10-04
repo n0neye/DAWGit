@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -49,7 +50,7 @@ func NewApp() *App {
 func (a *App) ServiceName() string { return "App" }
 
 // Version is the DAWGit release number.
-func (a *App) Version() string { return version.Version }
+func (a *App) Version() string { return version.Full() }
 
 // Edition names a build with extensions ("" for the public app).
 func (a *App) Edition() string { return version.Edition }
@@ -58,6 +59,9 @@ func (a *App) Edition() string { return version.Edition }
 // teams, so notices keep coming whichever team is selected).
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.migrateLegacyConfig()
+	if ok, err := teams.ImportFromPro(); ok {
+		log.Printf("settings imported from DAWGit Pro (err: %v)", err)
+	}
 	store, err := teams.Load()
 	if err != nil {
 		return nil

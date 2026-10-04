@@ -18,6 +18,11 @@ Unicode true
 ; A build with extensions passes its own name (/DAPP="DAWGit Pro") and
 ; welcome line (/DTAGLINE=...): it installs next to the public app, with its
 ; own folder, shortcuts and uninstall entry.
+; NUMVER: the version as numbers only, for Windows' file properties (a
+; Nightly's VERSION is 0.13.0-nightly.<time>).
+!ifndef NUMVER
+  !define NUMVER "${VERSION}"
+!endif
 !ifndef APP
   !define APP "DAWGit"
 !endif
@@ -34,11 +39,11 @@ InstallDirRegKey HKCU "${UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
-VIProductVersion "${VERSION}.0"
+VIProductVersion "${NUMVER}.0"
 VIAddVersionKey "ProductName" "${APP}"
 VIAddVersionKey "FileDescription" "${APP} Setup"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "FileVersion" "${NUMVER}"
 VIAddVersionKey "CompanyName" "${APP}"
 VIAddVersionKey "LegalCopyright" "(c) 2026 ${APP}"
 

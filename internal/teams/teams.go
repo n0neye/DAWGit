@@ -74,6 +74,10 @@ type Store struct {
 	// ManualUpdates: DAWGit doesn't install updates on its own (it still
 	// downloads them and offers them).
 	ManualUpdates bool `json:"manualUpdates,omitempty"`
+	// Channel: the release line updates come from, "stable" or "nightly";
+	// "" for the one this build is from. Stable and Nightly share this file:
+	// what either writes, the other reads.
+	Channel string `json:"channel,omitempty"`
 
 	path string
 }
@@ -350,4 +354,45 @@ func (s *Store) RemoveLocal(root string) {
 		}
 	}
 	s.Local = out
+}
+
+// ImportFromPro gives a first start without settings DAWGit Pro's (its
+// users move to DAWGit's Nightly channel): teams, keys, where projects are,
+// names. Nothing happens once this computer has DAWGit settings, or with
+// DAWGIT_CONFIG_DIR set.
+func ImportFromPro() (bool, error) {
+	if os.Getenv("DAWGIT_CONFIG_DIR") != "" || version.Edition != "" {
+		return false, nil
+	}
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return false, nil
+	}
+	return importFrom(filepath.Join(base, "DAWGit Pro", "teams.json"), filepath.Join(Dir(), "teams.json"))
+}
+
+func importFrom(from, to string) (bool, error) {
+	if _, err := os.Stat(to); !errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	data, err := os.ReadFile(from)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
+		return false, err
+	}
+	// Keys stay sealed as they are: same Windows user, same computer.
+	if err := os.WriteFile(to, data, 0o600); err != nil {
+		return false, err
+	}
+	s, err := Load()
+	if err != nil {
+		return true, err
+	}
+	s.Channel = "nightly"
+	return true, s.Save()
 }

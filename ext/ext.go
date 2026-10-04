@@ -110,3 +110,8 @@ var ErrNotFound = remote.ErrNotFound
 func RegisterBackend(prefix string, open func(Config) (Backend, error)) {
 	remote.Register(prefix, open)
 }
+
+// RegisterTeamFeature says this build understands a team feature: what a
+// team turns on that changes what it stores. DAWGits that don't register it
+// stop before working with a team that has it on (see remote.CheckFeatures).
+func RegisterTeamFeature(name string) { remote.RegisterFeature(name) }

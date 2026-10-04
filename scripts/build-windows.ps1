@@ -4,16 +4,28 @@
 #
 # The version comes from internal/version/version.go. -MinVersion 0.9.0
 # makes versions before it update before they go on (a new version format).
+# -Channel nightly builds the Nightly channel: with the features still in
+# testing (the nightly build tag), versioned 0.13.0-nightly.<UTC time>; it
+# is published with cmd/publish (nightly.json), Stable to GitHub releases.
 # Needs: Go, Node.js (npm), NSIS (makensis), the release signing key
 # (dawgit-release keygen). Output: dist\ (the installer and update.json)
-param([string]$MinVersion = "")
+param([string]$MinVersion = "", [ValidateSet("stable", "nightly")][string]$Channel = "stable")
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $src = Get-Content (Join-Path $root "internal\version\version.go") -Raw
 if ($src -notmatch 'Version = "(\d+\.\d+\.\d+)"') { throw "no version in internal/version/version.go" }
-$Version = $Matches[1]
-Write-Host "DAWGit $Version"
+$NumVersion = $Matches[1]
+$Version = $NumVersion
+$tags = "production"
+$xflags = ""
+if ($Channel -eq "nightly") {
+  $Build = "nightly." + (Get-Date).ToUniversalTime().ToString("yyyyMMddHHmm")
+  $Version = "$NumVersion-$Build"
+  $tags = "production,nightly"
+  $xflags = " -X dawgit/internal/version.Build=$Build"
+}
+Write-Host "DAWGit $Version ($Channel)"
 $desktop = Join-Path $root "desktop"
 $dist = Join-Path $root "dist"
 Remove-Item -Recurse -Force $dist -ErrorAction SilentlyContinue
@@ -40,10 +52,10 @@ Step "Windows resources (icon, manifest, version info)"
 Push-Location $desktop
 # info.json with this version filled in (file properties of DAWGit.exe).
 $info = Get-Content build/windows/info.json -Raw | ConvertFrom-Json
-$info.fixed.file_version = "$Version.0"
-$info.fixed.product_version = "$Version.0"
+$info.fixed.file_version = "$NumVersion.0"
+$info.fixed.product_version = "$NumVersion.0"
 $info.info."0409".ProductVersion = $Version
-$info.info."0409".FileVersion = $Version
+$info.info."0409".FileVersion = $NumVersion
 $infoFile = Join-Path $env:TEMP "dawgit-info.json"
 [IO.File]::WriteAllText($infoFile, ($info | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding $false))
 wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest `
@@ -51,8 +63,8 @@ wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/wi
 Remove-Item $infoFile
 
 Step "desktop app"
-$ldflags = "-w -s -H windowsgui"
-go build -tags production -trimpath -buildvcs=false -ldflags="$ldflags" -o "$dist\DAWGit.exe" ./cmd/dawgit-desktop; Check "desktop build"
+$ldflags = "-w -s -H windowsgui$xflags"
+go build -tags $tags -trimpath -buildvcs=false -ldflags="$ldflags" -o "$dist\DAWGit.exe" ./cmd/dawgit-desktop; Check "desktop build"
 Remove-Item cmd/dawgit-desktop/wails_windows_amd64.syso
 Pop-Location
 
@@ -60,12 +72,12 @@ Step "command line tool"
 Push-Location $root
 # In bin\: Windows file names ignore case, so dawgit.exe and DAWGit.exe
 # cannot share a folder.
-go build -trimpath -buildvcs=false -ldflags="-w -s" -o "$dist\bin\dawgit.exe" ./cmd/dawgit; Check "cli build"
+go build -tags $tags -trimpath -buildvcs=false -ldflags="-w -s$xflags" -o "$dist\bin\dawgit.exe" ./cmd/dawgit; Check "cli build"
 Pop-Location
 
 Step "installer"
 Push-Location (Join-Path $desktop "build\windows")
-& $makensis /V2 "/DVERSION=$Version" "/DDIST=$dist" installer.nsi; Check "makensis"
+& $makensis /V2 "/DVERSION=$Version" "/DNUMVER=$NumVersion" "/DDIST=$dist" installer.nsi; Check "makensis"
 Pop-Location
 
 # The release's manifest (dist\update.json, uploaded with the installer):

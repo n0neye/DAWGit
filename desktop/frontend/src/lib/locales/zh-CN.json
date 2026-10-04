@@ -958,5 +958,13 @@
 "Restoring… {done} of {total}": "还原中…{done} / {total}",
 "Restoring…": "还原中…",
 "Your Ableton Live version and the names of your plugins and packs (never files), so a project check can tell who can open a project.": "你的 Ableton Live 版本，以及插件和音色包的名称（不含任何文件），让项目检查能看出谁打得开项目。",
-"Check & save": "检查并保存"
+"Check & save": "检查并保存",
+"Channel": "更新渠道",
+"Stable": "Stable",
+"Nightly": "Nightly",
+"Tested releases, for Ableton Live projects.": "经过测试的正式版，适用于 Ableton Live 项目。",
+"This Nightly stays until a Stable release is newer than it.": "会保持当前这个 Nightly，直到有比它新的 Stable 版本。",
+"The newest build, with what is still in testing: Unity, Unreal, code and design projects. Expect rough edges.": "最新的构建，包含仍在测试中的功能：Unity、Unreal、代码与设计项目。可能还有不少粗糙之处。",
+"Looking for the latest Nightly…": "正在寻找最新的 Nightly…",
+"The latest Nightly is offered as an update.": "最新的 Nightly 会以更新的方式提供。"
 }

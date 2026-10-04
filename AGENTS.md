@@ -12,6 +12,11 @@ and a Windows desktop app (`desktop/`, Wails v3 + Svelte 5). A private build
 adds extensions through `ext/`; keep `cli` and `desktop` usable as libraries
 (no `os.Exit` outside `cli.Main`).
 
+Two release lines come from `main`: Stable, and Nightly (`-tags nightly`),
+which adds the project kinds still in testing from `presets/`. Anything
+that changes what a team stores must be a team feature (see
+[docs/design/channels.md](docs/design/channels.md)).
+
 [docs/development.md](docs/development.md) has the layout and how to build;
 `docs/design/` has the design notes (storage backends, tree manifests,
 chunked big files).
@@ -22,6 +27,7 @@ chunked big files).
 go build ./...
 go vet ./...
 go test ./...                          # no network needed
+go test -tags nightly ./...            # the Nightly build too
 cd desktop/frontend && npx svelte-check   # after any UI change
 ```
 

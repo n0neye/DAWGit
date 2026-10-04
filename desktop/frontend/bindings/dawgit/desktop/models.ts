@@ -246,6 +246,41 @@ export class Change {
     }
 }
 
+/**
+ * ChannelInfo is the update channel, for Settings.
+ */
+export class ChannelInfo {
+    /**
+     * this build's: "stable" or "nightly"
+     */
+    "build": string;
+
+    /**
+     * where updates come from
+     */
+    "chosen": string;
+
+    /** Creates a new ChannelInfo instance. */
+    constructor($$source: Partial<ChannelInfo> = {}) {
+        if (!("build" in $$source)) {
+            this["build"] = "";
+        }
+        if (!("chosen" in $$source)) {
+            this["chosen"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ChannelInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ChannelInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ChannelInfo($$parsedSource as Partial<ChannelInfo>);
+    }
+}
+
 export class Conflict {
     "key": string;
     "file": string;

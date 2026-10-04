@@ -51,7 +51,7 @@ func (a *App) CreateStorageTeam(s remote.Storage, name string) (TeamSummary, err
 		return TeamSummary{}, err
 	}
 	if name = strings.TrimSpace(name); info.Name == "" && name != "" {
-		if err := b.SetInfo(remote.TeamInfo{Name: name}); err != nil {
+		if err := remote.Rename(b, name); err != nil {
 			return TeamSummary{}, err
 		}
 		info.Name = name

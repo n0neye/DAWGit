@@ -152,7 +152,7 @@ func Run(args []string) int {
 	case "-h", "--help", "help":
 		err = cmdHelp(rest)
 	case "version", "--version", "-v":
-		result("version", map[string]string{"name": version.Name(), "version": version.Version,
+		result("version", map[string]string{"name": version.Name(), "version": version.Full(), "channel": version.Channel,
 			"display": version.Display()}, func() { fmt.Println("dawgit " + version.Display()) })
 	case "path":
 		err = cmdPath(rest)

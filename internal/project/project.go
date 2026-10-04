@@ -74,6 +74,9 @@ func Init(root, author string) (*Repo, error) {
 		return nil, fmt.Errorf("%s is already a dawgit project", root)
 	}
 	if !looksLikeProject(root) {
+		if kind := profile.NightlyKind(root); kind != "" {
+			return nil, &profile.NeedsNightly{Kind: kind}
+		}
 		return nil, fmt.Errorf("%s does not look like a project DAWGit knows (for Ableton Live: a .als file or "+
 			"\"Ableton Project Info\"; or add a %s)", root, profile.FileName)
 	}
