@@ -94,3 +94,27 @@ func TestSecretsSealed(t *testing.T) {
 		}
 	}
 }
+
+// A backup bucket's keys are sealed too.
+func TestBackupKeysSealed(t *testing.T) {
+	t.Setenv("DAWGIT_CONFIG_DIR", t.TempDir())
+	s, _ := Load()
+	tm := s.Upsert(remote.Config{URL: "s3+https://x.r2.cloudflarestorage.com/team/dawgit", AccessKey: "a", SecretKey: "b"}, "")
+	tm.Backup = &Backup{Storage: &remote.Config{URL: "s3+https://y.example.com/vault/band", AccessKey: "AKIDBACKUP",
+		SecretKey: "backupSecretK7MDENG"}}
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(Dir(), "teams.json"))
+	if runtime.GOOS == "windows" && (strings.Contains(string(data), "backupSecretK7MDENG") || strings.Contains(string(data), "AKIDBACKUP")) {
+		t.Fatalf("backup keys in the clear:\n%s", data)
+	}
+	if tm.Backup.Storage.SecretKey != "backupSecretK7MDENG" {
+		t.Fatal("saving must not change the keys in memory")
+	}
+	back, err := Load()
+	if err != nil || back.Teams[0].Backup.Storage.SecretKey != "backupSecretK7MDENG" ||
+		back.Teams[0].Backup.Storage.AccessKey != "AKIDBACKUP" {
+		t.Fatalf("read back: %+v %v", back.Teams[0].Backup, err)
+	}
+}

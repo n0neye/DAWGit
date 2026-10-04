@@ -3,6 +3,7 @@
   import Tx from "./Tx.svelte";
   import { api, errorText, type TeamSummary } from "./api";
   import CodeBox from "./CodeBox.svelte";
+  import BackupBucket from "./BackupBucket.svelte";
 
   // Create a team on S3-compatible storage. Cloudflare R2 comes with a step
   // by step guide; any other S3-compatible storage takes the same fields.
@@ -32,6 +33,13 @@
   let backupFolder = $state("");
   let backupProblem = $state("");
   let backupBusy = $state(false);
+  let bucketForm = $state(false);
+
+  async function bucketChosen() {
+    bucketForm = false;
+    const info = await api.BackupInfo(created!.team.id).catch(() => null);
+    backupFolder = info?.folder || "…";
+  }
 
   async function afterCode() {
     const team = created!.team;
@@ -97,7 +105,7 @@
 {#if created && backupStep}
   <div class="done">
     <h3 class="step-h">{t("Back up your team")}</h3>
-    <p>{t("Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.")}</p>
+    <p>{t("Everything is in your storage, but a second copy on your own drive, a NAS or another bucket keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.")}</p>
     {#if backupFolder}
       <p class="ok">✓ {t("Backing up to {folder}", { folder: backupFolder })}</p>
       <p class="faint small">{t("The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.")}</p>
@@ -116,10 +124,14 @@
         <button class="primary" onclick={() => onconnected(created!.team)}>{t("Continue")}</button>
       {:else}
         <button onclick={() => onconnected(created!.team)} disabled={backupBusy}>{t("Set up later")}</button>
+        <button onclick={() => (bucketForm = true)} disabled={backupBusy}>{t("Another bucket…")}</button>
         <button class="primary" onclick={chooseBackup} disabled={backupBusy}>{t("Choose a backup folder…")}</button>
       {/if}
     </div>
   </div>
+{#if bucketForm}
+  <BackupBucket teamId={created.team.id} onclose={() => (bucketForm = false)} ondone={bucketChosen} />
+{/if}
 {:else if created}
   <div class="done">
     <p class="ok">✓ {t("Storage checked — “{team}” is ready.", { team: created.team.name })}</p>

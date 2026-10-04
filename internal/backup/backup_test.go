@@ -37,7 +37,7 @@ func TestBackup(t *testing.T) {
 	b.PutBackupStatus(strings.Repeat("9", 32), remote.BackupStatus{Kind: "folder"})
 
 	dst := t.TempDir()
-	rep, err := Run(b, dst, nil)
+	rep, err := Run(b, Folder(dst), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestBackup(t *testing.T) {
 
 	// Again: nothing new, nothing copied.
 	time.Sleep(1100 * time.Millisecond) // runs are named by the second
-	rep, err = Run(b, dst, nil)
+	rep, err = Run(b, Folder(dst), nil)
 	if err != nil || rep.Copied != 0 {
 		t.Fatalf("second run %+v %v", rep, err)
 	}
@@ -68,7 +68,7 @@ func TestBackup(t *testing.T) {
 	b.UpdateBranch(pid, "main", v1, v2)
 	fake.Delete("band", "team/objects/"+h[:2]+"/"+h[2:])
 	time.Sleep(1100 * time.Millisecond)
-	rep, err = Run(b, dst, nil)
+	rep, err = Run(b, Folder(dst), nil)
 	if err != nil || rep.Copied != 3 {
 		t.Fatalf("third run %+v %v", rep, err)
 	}
@@ -79,11 +79,11 @@ func TestBackup(t *testing.T) {
 	if !strings.Contains(string(branch), v2) {
 		t.Errorf("branch %q", branch)
 	}
-	runs, _ := Runs(dst)
+	runs, _ := os.ReadDir(filepath.Join(dst, "runs"))
 	if len(runs) != 3 {
 		t.Fatalf("runs %v", runs)
 	}
-	first, _ := os.ReadFile(filepath.Join(dst, "runs", runs[2]+".json"))
+	first, _ := os.ReadFile(filepath.Join(dst, "runs", runs[0].Name()))
 	if !strings.Contains(string(first), v1) {
 		t.Errorf("the first run records the first version: %s", first)
 	}
@@ -91,11 +91,11 @@ func TestBackup(t *testing.T) {
 
 func TestLocalPaths(t *testing.T) {
 	for _, bad := range []string{"", "../x", "a/../../x", "/abs", "C:/x", `a\b`, "a//b"} {
-		if local("D", bad) != "" {
+		if plain(bad) {
 			t.Errorf("%q accepted", bad)
 		}
 	}
-	if local("D", "objects/ab/cd") == "" {
+	if !plain("objects/ab/cd") {
 		t.Error("plain key refused")
 	}
 }
@@ -107,20 +107,20 @@ func sum(s string) string {
 
 func TestClaim(t *testing.T) {
 	dir := t.TempDir()
-	if err := Claim(filepath.Join(dir, "new"), "t1", "Band"); err != nil {
+	if err := Claim(Folder(filepath.Join(dir, "new")), "t1", "Band"); err != nil {
 		t.Fatal(err)
 	}
-	if err := Claim(filepath.Join(dir, "new"), "t1", "Band"); err != nil {
+	if err := Claim(Folder(filepath.Join(dir, "new")), "t1", "Band"); err != nil {
 		t.Error("its own folder again:", err)
 	}
-	if err := Claim(filepath.Join(dir, "new"), "t2", "Other"); err != ErrOtherTeam {
+	if err := Claim(Folder(filepath.Join(dir, "new")), "t2", "Other"); err != ErrOtherTeam {
 		t.Error("another team's:", err)
 	}
 	os.WriteFile(filepath.Join(dir, "song.als"), nil, 0o644)
-	if err := Claim(dir, "t1", "Band"); err != ErrNotEmpty {
+	if err := Claim(Folder(dir), "t1", "Band"); err != ErrNotEmpty {
 		t.Error("a folder with things in it:", err)
 	}
-	if Claimed(filepath.Join(dir, "new"), "t1") != nil || Claimed(dir, "t1") == nil {
+	if Claimed(Folder(filepath.Join(dir, "new")), "t1") != nil || Claimed(Folder(dir), "t1") != ErrMissing {
 		t.Error("Claimed")
 	}
 }

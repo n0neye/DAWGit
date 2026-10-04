@@ -2,8 +2,9 @@ package backup
 
 import (
 	"errors"
-	"io/fs"
+	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"dawgit/internal/remote"
@@ -12,7 +13,7 @@ import (
 
 // Backing up a team this computer is connected to: the app does it daily
 // (desktop/backup.go), `dawgit backup` on demand. Both note the result in
-// teams.json (when the folder is the team's backup folder there) and in the
+// teams.json (when it went where the app backs the team up) and in the
 // team's storage (backups/<member>.json: times only, no paths), so the
 // other members know the team is covered.
 
@@ -23,9 +24,6 @@ const (
 	// without a backup (a drive unplugged for a day is normal).
 	FailingAfter = 3 * 24 * time.Hour
 )
-
-// ErrMissing: the backup folder isn't there (a drive unplugged?).
-var ErrMissing = errors.New("the backup folder isn't there")
 
 // Storage is team t's storage, if it can be backed up.
 func Storage(t teams.Team) (*remote.S3Backend, error) {
@@ -49,11 +47,41 @@ func Failing(b *teams.Backup) bool {
 		(b.LastSuccess.IsZero() || time.Since(b.LastSuccess) > FailingAfter)
 }
 
-// RunTeam backs up team teamID into folder. claim: the folder may be new
-// (empty, or made); otherwise it must already hold the team's backup, so an
-// unplugged drive fails with ErrMissing instead of filling the folder it
-// mounts on.
-func RunTeam(teamID, folder string, claim bool, progress Progress) (*Report, error) {
+// DestOf is where b backs up to.
+func DestOf(b *teams.Backup) (Dest, error) {
+	if b.Storage != nil {
+		return Bucket(*b.Storage)
+	}
+	if b.Folder == "" {
+		return nil, errors.New("no backup folder")
+	}
+	return Folder(b.Folder), nil
+}
+
+// Overlaps: storage cfg is (in) the team's own storage, or holds it: a
+// backup there would copy itself, or be lost with the team's storage.
+func Overlaps(cfg remote.Config, t teams.Team) bool {
+	a, ok1 := remote.StorageOf(cfg)
+	b, ok2 := remote.StorageOf(t.Remote)
+	if !ok1 || !ok2 || !strings.EqualFold(hostOf(a.Endpoint), hostOf(b.Endpoint)) || a.Bucket != b.Bucket {
+		return false
+	}
+	pa, pb := strings.Trim(a.Folder, "/")+"/", strings.Trim(b.Folder, "/")+"/"
+	return strings.HasPrefix(pa, pb) || strings.HasPrefix(pb, pa)
+}
+
+func hostOf(endpoint string) string {
+	if u, err := url.Parse(endpoint); err == nil {
+		return u.Host
+	}
+	return endpoint
+}
+
+// RunTeam backs up team teamID into d (nil: where this computer backs it
+// up). claim: d may be new (empty: claimed now); otherwise it must already
+// hold the team's backup, so an unplugged drive fails with ErrMissing
+// instead of filling the folder it mounts on.
+func RunTeam(teamID string, d Dest, claim bool, progress Progress) (*Report, error) {
 	store, err := teams.Load()
 	if err != nil {
 		return nil, err
@@ -63,6 +91,14 @@ func RunTeam(teamID, folder string, claim bool, progress Progress) (*Report, err
 		return nil, errors.New("unknown team")
 	}
 	team := *t
+	if d == nil {
+		if t.Backup == nil {
+			return nil, errors.New("this computer doesn't back up this team")
+		}
+		if d, err = DestOf(t.Backup); err != nil {
+			return nil, err
+		}
+	}
 	started := time.Now()
 	rep, err := func() (*Report, error) {
 		s3, err := Storage(team)
@@ -70,22 +106,31 @@ func RunTeam(teamID, folder string, claim bool, progress Progress) (*Report, err
 			return nil, err
 		}
 		if claim {
-			err = Claim(folder, team.ID, team.Name)
-		} else if err = Claimed(folder, team.ID); errors.Is(err, fs.ErrNotExist) {
-			err = ErrMissing
+			err = Claim(d, team.ID, team.Name)
+		} else {
+			err = Claimed(d, team.ID)
 		}
 		if err != nil {
 			return nil, err
 		}
-		return Run(s3, folder, progress)
+		return Run(s3, d, progress)
 	}()
-	note(teamID, folder, started, rep, err)
+	note(teamID, d, started, rep, err)
 	return rep, err
+}
+
+// isConfigured: d is where b backs up.
+func isConfigured(b *teams.Backup, d Dest) bool {
+	if b == nil {
+		return false
+	}
+	c, err := DestOf(b)
+	return err == nil && c.Kind() == d.Kind() && strings.EqualFold(c.Name(), d.Name())
 }
 
 // note records a run: in teams.json, read again (the settings may have
 // changed meanwhile), and in the team's storage.
-func note(teamID, folder string, started time.Time, rep *Report, runErr error) {
+func note(teamID string, d Dest, started time.Time, rep *Report, runErr error) {
 	store, err := teams.Load()
 	if err != nil {
 		return
@@ -95,9 +140,10 @@ func note(teamID, folder string, started time.Time, rep *Report, runErr error) {
 		return
 	}
 	b := t.Backup
-	if b == nil || b.Folder != folder {
-		// A folder of its own (dawgit backup): only the team hears of it.
-		b = &teams.Backup{Folder: folder}
+	if !isConfigured(b, d) {
+		// A place of its own (dawgit backup run <folder>): only the team
+		// hears of it.
+		b = &teams.Backup{}
 	} else {
 		defer store.Save()
 	}
@@ -105,7 +151,7 @@ func note(teamID, folder string, started time.Time, rep *Report, runErr error) {
 	if runErr == nil {
 		b.LastSuccess, b.LastError = started, ""
 		if rep != nil {
-			b.Size = Size(folder)
+			b.Size = d.Size()
 		}
 	} else {
 		b.LastError = runErr.Error()
@@ -119,7 +165,7 @@ func note(teamID, folder string, started time.Time, rep *Report, runErr error) {
 		if b.LastSuccess.After(last) {
 			last = b.LastSuccess
 		}
-		s3.PutBackupStatus(t.MemberID, remote.BackupStatus{Kind: "folder",
+		s3.PutBackupStatus(t.MemberID, remote.BackupStatus{Kind: d.Kind(),
 			LastSuccess: last, LastAttempt: b.LastAttempt, Failing: Failing(b)})
 	}
 }
@@ -136,7 +182,11 @@ func Announce(t teams.Team) error {
 	if err != nil {
 		return err
 	}
-	return s3.PutBackupStatus(t.MemberID, remote.BackupStatus{Kind: "folder",
+	kind := "folder"
+	if b.Storage != nil {
+		kind = "s3"
+	}
+	return s3.PutBackupStatus(t.MemberID, remote.BackupStatus{Kind: kind,
 		LastSuccess: b.LastSuccess, LastAttempt: b.LastAttempt, Failing: Failing(b)})
 }
 

@@ -31,8 +31,11 @@ export class BackupInfo {
     "supported": boolean;
 
     /**
-     * "" when this computer doesn't back up
+     * Kind: "folder" or "s3"; Folder: where (the folder, or the storage's
+     * address, bucket and folder; no keys); "" when this computer doesn't
+     * back up.
      */
+    "kind": string;
     "folder": string;
     "paused": boolean;
     "running": boolean;
@@ -69,6 +72,9 @@ export class BackupInfo {
     constructor($$source: Partial<BackupInfo> = {}) {
         if (!("supported" in $$source)) {
             this["supported"] = false;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
         }
         if (!("folder" in $$source)) {
             this["folder"] = "";
@@ -117,10 +123,10 @@ export class BackupInfo {
      * Creates a new BackupInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): BackupInfo {
-        const $$createField12_0 = $$createType1;
+        const $$createField13_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("others" in $$parsedSource) {
-            $$parsedSource["others"] = $$createField12_0($$parsedSource["others"]);
+            $$parsedSource["others"] = $$createField13_0($$parsedSource["others"]);
         }
         return new BackupInfo($$parsedSource as Partial<BackupInfo>);
     }

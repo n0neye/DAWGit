@@ -46,11 +46,30 @@ func (b *S3Backend) Open(key string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+// Put writes size bytes from r at key (a backup into another bucket). The
+// body goes unsigned; the backup checks sizes afterwards.
+func (b *S3Backend) Put(key string, r io.Reader, size int64) error {
+	if size > multipartThreshold {
+		return b.putMultipart(key, r, size)
+	}
+	resp, err := b.do("PUT", key, nil, r, size, unsignedPayload, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, _ := io.ReadAll(resp.Body)
+		return s3Error(&s3Response{status: resp.StatusCode, body: data})
+	}
+	io.Copy(io.Discard, resp.Body)
+	return nil
+}
+
 // BackupStatus is what a member's backup of the team last did, kept in the
 // team's storage so everyone knows the team has one (where it goes stays on
 // that member's computer).
 type BackupStatus struct {
-	Kind        string    `json:"kind"` // "folder"
+	Kind        string    `json:"kind"` // "folder", "s3"
 	LastSuccess time.Time `json:"lastSuccess"`
 	LastAttempt time.Time `json:"lastAttempt"`
 	Failing     bool      `json:"failing"` // the last attempt failed

@@ -70,7 +70,7 @@ The **⋯** menu next to a project: **Pin to top**, **Open in Live** (or the pro
 
 ## Back up the team
 
-The team's storage holds everything, but one member should keep a second copy on a drive or NAS, in case the bucket or its keys are ever lost. Creating a team ends with this suggestion; later, it's in the team's settings (⚙) → **Backup** → **Choose a backup folder…** (an empty folder, or the team's earlier backup).
+The team's storage holds everything, but one member should keep a second copy on a drive or NAS, in case the bucket or its keys are ever lost. Creating a team ends with this suggestion; later, it's in the team's settings (⚙) → **Backup** → **Choose a backup folder…** (an empty folder, or the team's earlier backup) or **Another bucket…**: any S3-compatible storage other than the team's own (a bucket in another Cloudflare account, Backblaze B2, Wasabi, a NAS running MinIO). Give it keys of its own, so a lost or leaked team key can't reach the backup too.
 
 - DAWGit copies what's new once a day while it is open (the first time: everything, in the background). It never deletes anything from the backup.
 - If the drive isn't connected, it tries again later; after a few days without a backup, the sidebar says so.
