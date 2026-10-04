@@ -8,6 +8,7 @@
   import KeptSamples from "./KeptSamples.svelte";
   import CodeBox from "./CodeBox.svelte";
   import IdentityForm from "./IdentityForm.svelte";
+  import BackupSection from "./BackupSection.svelte";
 
   // One team's settings: its name, your name in it, the connection code for
   // teammates, how this computer reaches it (storage keys, or a server's
@@ -202,6 +203,8 @@
       {#if code}<CodeBox {code} />{/if}
     </section>
   {/if}
+
+  <BackupSection teamId={team.id} />
 
   <section>
     <h3>{t("Connection")}</h3>

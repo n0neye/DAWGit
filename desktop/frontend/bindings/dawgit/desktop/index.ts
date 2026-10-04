@@ -7,6 +7,7 @@ export {
 };
 
 export {
+    BackupInfo,
     Branch,
     Change,
     Conflict,
@@ -15,6 +16,7 @@ export {
     FileVersion,
     FoundProject,
     IgnoreOption,
+    MemberBackup,
     Overview,
     PresetOption,
     Preview,
