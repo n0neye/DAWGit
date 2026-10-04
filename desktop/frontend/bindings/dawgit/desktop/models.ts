@@ -1017,6 +1017,67 @@ export class RulesInfo {
     }
 }
 
+/**
+ * SampleSpot is a sample the project's sets use that is missing or only in
+ * DAWGit's hidden .dawgit folder (see project.SampleSpots).
+ */
+export class SampleSpot {
+    "path": string;
+    "name": string;
+    "size": number;
+    "missing": boolean;
+
+    /**
+     * in .dawgit: gone with it
+     */
+    "kept": boolean;
+
+    /**
+     * missing, and DAWGit has a copy
+     */
+    "restorable": boolean;
+    "sets": string[];
+
+    /** Creates a new SampleSpot instance. */
+    constructor($$source: Partial<SampleSpot> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
+        }
+        if (!("kept" in $$source)) {
+            this["kept"] = false;
+        }
+        if (!("restorable" in $$source)) {
+            this["restorable"] = false;
+        }
+        if (!("sets" in $$source)) {
+            this["sets"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SampleSpot instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SampleSpot {
+        const $$createField6_0 = $$createType2;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sets" in $$parsedSource) {
+            $$parsedSource["sets"] = $$createField6_0($$parsedSource["sets"]);
+        }
+        return new SampleSpot($$parsedSource as Partial<SampleSpot>);
+    }
+}
+
 export class SetTrackChange {
     "id": string;
 

@@ -394,6 +394,12 @@ export class SampleReport {
      */
     "missing": string[];
 
+    /**
+     * Restorable: missing samples DAWGit has a copy of (it can bring them
+     * back into the project).
+     */
+    "restorable": number;
+
     /** Creates a new SampleReport instance. */
     constructor($$source: Partial<SampleReport> = {}) {
         if (!("inProject" in $$source)) {
@@ -413,6 +419,9 @@ export class SampleReport {
         }
         if (!("missing" in $$source)) {
             this["missing"] = [];
+        }
+        if (!("restorable" in $$source)) {
+            this["restorable"] = 0;
         }
 
         Object.assign(this, $$source);
