@@ -860,6 +860,10 @@
 "Not on this computer: {plugins}": "Absent de cet ordinateur : {plugins}",
 "Your setup isn't shared with the team": "Votre configuration n'est pas partagée avec l'équipe",
 "Or later, from the Changes tab: you can leave files out first.": "Ou plus tard, depuis l'onglet Changes : vous pouvez d'abord écarter des fichiers.",
-"{n} sample missing: fine to keep working, Live plays without it": "{n} sample manquant : vous pouvez continuer, Live joue sans lui",
-"{n} samples missing: fine to keep working, Live plays without them": "{n} samples manquants : vous pouvez continuer, Live joue sans eux"
+"{n} sample missing in the shared version. Whoever saved it may still have it: they can find it in Live and share again.": "{n} sample manque dans la version partagée. La personne qui l'a enregistrée l'a peut-être encore : elle peut le retrouver dans Live et partager à nouveau.",
+"{n} samples missing in the shared version. Whoever saved them may still have them: they can find them in Live and share again.": "{n} samples manquent dans la version partagée. La personne qui l'a enregistrée les a peut-être encore : elle peut les retrouver dans Live et partager à nouveau.",
+"{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "{n} sample manquant. Mieux vaut le retrouver dans Live avant de partager (File › Manage Files), pour que l'équipe entende la même chose.",
+"{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "{n} samples manquants. Mieux vaut les retrouver dans Live avant de partager (File › Manage Files), pour que l'équipe entende la même chose.",
+"{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "{n} sample manquant. Retrouvez-le dans Live (File › Manage Files) avant le prochain partage.",
+"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "{n} samples manquants. Retrouvez-les dans Live (File › Manage Files) avant le prochain partage."
 }

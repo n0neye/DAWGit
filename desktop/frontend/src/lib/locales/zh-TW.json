@@ -860,6 +860,10 @@
 "Not on this computer: {plugins}": "這台電腦沒有：{plugins}",
 "Your setup isn't shared with the team": "你的環境沒有分享給團隊",
 "Or later, from the Changes tab: you can leave files out first.": "或稍後在 Changes 分頁 commit：可以先排除不要的檔案。",
-"{n} sample missing: fine to keep working, Live plays without it": "缺 {n} 個取樣：不影響使用，Live 播放時會略過",
-"{n} samples missing: fine to keep working, Live plays without them": "缺 {n} 個取樣：不影響使用，Live 播放時會略過"
+"{n} sample missing in the shared version. Whoever saved it may still have it: they can find it in Live and share again.": "分享的版本少了 {n} 個取樣。存檔的人可能還有這個檔案，可以請對方在 Live 找回後重新分享。",
+"{n} samples missing in the shared version. Whoever saved them may still have them: they can find them in Live and share again.": "分享的版本少了 {n} 個取樣。存檔的人可能還有這些檔案，可以請對方在 Live 找回後重新分享。",
+"{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 個取樣。建議分享前先在 Live 找回（File › Manage Files），隊友聽到的才會一樣。",
+"{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 個取樣。建議分享前先在 Live 找回（File › Manage Files），隊友聽到的才會一樣。",
+"{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。",
+"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。"
 }

@@ -130,7 +130,11 @@
         <li><CheckIcon name="alert" size={14} />{t("Ableton Live not found on this computer")}</li>
       {/if}
       {#if s?.missing.length}
-        <li class="note"><CheckIcon name="alert" size={14} />{tn(s.missing.length, "{n} sample missing: fine to keep working, Live plays without it", "{n} samples missing: fine to keep working, Live plays without them")}
+        <li class="note"><CheckIcon name="alert" size={14} />{mode === "downloaded"
+          ? tn(s.missing.length, "{n} sample missing in the shared version. Whoever saved it may still have it: they can find it in Live and share again.", "{n} samples missing in the shared version. Whoever saved them may still have them: they can find them in Live and share again.")
+          : mode === "added"
+          ? tn(s.missing.length, "{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.", "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.")
+          : tn(s.missing.length, "{n} sample missing. Find it in Live (File › Manage Files) before your next share.", "{n} samples missing. Find them in Live (File › Manage Files) before your next share.")}
           <button class="link" onclick={() => toggle("missing")}>{open === "missing" ? t("Hide") : t("Show")}</button></li>
       {/if}
       {#if here && pluginsMissing.length}

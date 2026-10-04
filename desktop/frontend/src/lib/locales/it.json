@@ -860,6 +860,10 @@
 "Not on this computer: {plugins}": "Non su questo computer: {plugins}",
 "Your setup isn't shared with the team": "La tua configurazione non è condivisa con il team",
 "Or later, from the Changes tab: you can leave files out first.": "Oppure più tardi, dalla scheda Changes: puoi prima escludere dei file.",
-"{n} sample missing: fine to keep working, Live plays without it": "Manca {n} sample: puoi continuare a lavorare, Live suona senza",
-"{n} samples missing: fine to keep working, Live plays without them": "Mancano {n} sample: puoi continuare a lavorare, Live suona senza"
+"{n} sample missing in the shared version. Whoever saved it may still have it: they can find it in Live and share again.": "Manca {n} sample nella versione condivisa. Chi l'ha salvata forse ce l'ha ancora: può ritrovarlo in Live e condividere di nuovo.",
+"{n} samples missing in the shared version. Whoever saved them may still have them: they can find them in Live and share again.": "Mancano {n} sample nella versione condivisa. Chi l'ha salvata forse li ha ancora: può ritrovarli in Live e condividere di nuovo.",
+"{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "Manca {n} sample. Meglio ritrovarlo in Live prima di condividere (File › Manage Files), così il team sente lo stesso.",
+"{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "Mancano {n} sample. Meglio ritrovarli in Live prima di condividere (File › Manage Files), così il team sente lo stesso.",
+"{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "Manca {n} sample. Ritrovalo in Live (File › Manage Files) prima della prossima condivisione.",
+"{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "Mancano {n} sample. Ritrovali in Live (File › Manage Files) prima della prossima condivisione."
 }
