@@ -4,7 +4,7 @@
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
   import { api, ago, errorText, formatBytes, type State, type Result, type Preview, type Conflict, type TeamSummary,
-    type Progress, type Version, type RuleSuggestion } from "./api";
+    type Progress, type Version, type RuleSuggestion, type SampleSpot } from "./api";
   import { toast } from "./notify.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
@@ -131,6 +131,32 @@
     if (!st.head) askFirstVersion();
     else if (st.remoteUrl) shareAsk = true; // versions already: share them now or later
   });
+  // Samples the sets use that are missing (and DAWGit has a copy of): offered
+  // back, into Samples/Imported. Read again when the project changes.
+  let spots = $state<SampleSpot[]>([]);
+  let spotsDismissed = $state(-1); // the count "Later" was said to
+  $effect(() => {
+    root; refreshKey; st?.head; st?.changes.length;
+    api.SampleSpots(root).then((s) => (spots = s ?? [])).catch(() => (spots = []));
+  });
+  let restorable = $derived(spots.filter((s) => s.restorable).length);
+  let missingSamples = $derived(spots.filter((s) => s.missing).length);
+  let restored = false;
+  const restoreAction: Action = {
+    name: "restore",
+    call: (_res, force) => api.BringSamplesIn(root, true, false, force),
+    done: (r) => {
+      restored = true;
+      const n = Number(r.log[0] ?? 0);
+      toast(tn(n, "Restored {n} sample into the project: commit to share it", "Restored {n} samples into the project: commit to share them") + reopen(), "ok", 9000);
+    },
+  };
+  async function restoreSamples(thenCommit = false) {
+    restored = false;
+    await run(restoreAction);
+    if (restored && thenCommit) commit(true);
+  }
+
   // Just downloaded, or asked for: the project's check.
   let checkOpen = $state<"" | "downloaded" | "check">("");
   $effect(() => {
@@ -296,7 +322,7 @@
       // about (e.g. a Unity asset without its .meta): say so first.
       const leaving = st?.changes.filter((c) => c.status === "untracked").map((c) => c.path) ?? [];
       const warnings = (await api.CommitWarnings(root).catch(() => [])) ?? [];
-      if (leaving.length || warnings.length) {
+      if (leaving.length || warnings.length || restorable) {
         untrackedConfirm = leaving;
         commitWarnings = warnings;
         return;
@@ -782,6 +808,16 @@
       </div>
     {/if}
 
+    {#if restorable && spotsDismissed !== restorable}
+      <div class="banner warn">
+        <div>⚠ {tn(missingSamples, "{n} sample of this project is missing.", "{n} samples of this project are missing.")}
+          {tn(restorable, "DAWGit has a copy.", "DAWGit has copies of {n}.")}</div>
+        <button class="ghost" onclick={() => (spotsDismissed = restorable)} disabled={!!busy}>{t("Later")}</button>
+        <button class="primary" onclick={() => restoreSamples()} disabled={!!busy}
+          title={t("Copies them into Samples/Imported and points the sets there")}>{t("Restore from DAWGit")}</button>
+      </div>
+    {/if}
+
     {#if st.rules.error}
       <div class="banner warn">
         <div>⚠ {st.rules.error}</div>
@@ -865,7 +901,7 @@
   {#if checkOpen}
     <Modal title={checkOpen === "downloaded" ? t("“{name}” is downloaded", { name: st.name }) : t("Project check")} onclose={() => (checkOpen = "")}>
       {#if checkOpen === "downloaded"}<p>{t("Can this computer open it? DAWGit looked:")}</p>{/if}
-      <ProjectCheck {root} mode={checkOpen} />
+      <ProjectCheck {root} mode={checkOpen} onrestore={() => { checkOpen = ""; restoreSamples(); }} />
       {#snippet footer()}
         <button class="primary" onclick={() => (checkOpen = "")}>{t("OK")}</button>
       {/snippet}
@@ -975,7 +1011,11 @@
 
   {#if untrackedConfirm}
     {@const files = untrackedConfirm}
-    <Modal title={commitWarnings.length ? t("Before you commit") : t("No longer tracked")} onclose={() => (untrackedConfirm = null)}>
+    <Modal title={commitWarnings.length || restorable ? t("Before you commit") : t("No longer tracked")} onclose={() => (untrackedConfirm = null)}>
+      {#if restorable}
+        <p class="restore-note">⚠ {tn(missingSamples, "{n} sample is missing.", "{n} samples are missing.")}
+          {tn(restorable, "DAWGit has a copy: restore it into the project first, so the team hears the same.", "DAWGit has copies of {n}: restore them into the project first, so the team hears the same.")}</p>
+      {/if}
       {#if commitWarnings.length}
         <ul class="warnings">
           {#each commitWarnings.slice(0, 12) as w}<li>⚠ {w}</li>{/each}
@@ -992,8 +1032,13 @@
       {/if}
       {#snippet footer()}
         <button onclick={() => (untrackedConfirm = null)}>{t("Cancel")}</button>
-        <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>
-          {commitWarnings.length ? t("Commit anyway") : t("Commit")}</button>
+        {#if restorable}
+          <button onclick={() => { untrackedConfirm = null; commit(true); }}>{t("Commit without them")}</button>
+          <button class="primary" onclick={() => { untrackedConfirm = null; restoreSamples(true); }}>{t("Restore and commit")}</button>
+        {:else}
+          <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>
+            {commitWarnings.length ? t("Commit anyway") : t("Commit")}</button>
+        {/if}
       {/snippet}
     </Modal>
   {/if}
@@ -1144,6 +1189,7 @@
   /* nothing to commit yet (no message, no changes): outlined, still easy to see */
   .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
   .small { font-size: 12px; margin: 10px 0 0; }
+  .restore-note { color: #f0d9a8; }
   .keep { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }

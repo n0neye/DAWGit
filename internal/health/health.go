@@ -64,6 +64,9 @@ type SampleReport struct {
 	PackRefs      int        `json:"packRefs"` // from packs: each computer needs the pack
 	Packs         []PackLine `json:"packs"`
 	Missing       []string   `json:"missing"` // not found: saved as missing
+	// Restorable: missing samples DAWGit has a copy of (it can bring them
+	// back into the project).
+	Restorable int `json:"restorable"`
 }
 
 // PackLine is a pack the sets use; Here: "yes", "no" or "unknown".

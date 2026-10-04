@@ -6,6 +6,7 @@
   import ProgressBar from "./lib/ProgressBar.svelte";
   import { toast } from "./lib/notify.svelte";
   import ProjectView from "./lib/ProjectView.svelte";
+  import KeptSamples from "./lib/KeptSamples.svelte";
   import Onboarding from "./lib/Onboarding.svelte";
   import TeamMenu from "./lib/TeamMenu.svelte";
   import VerifyDialog from "./lib/VerifyDialog.svelte";
@@ -24,6 +25,8 @@
   let autostart = $state(false);
   let rowMenu = $state(""); // key of the project whose ⋯ menu is open
   let confirmDelete = $state<TeamProject | null>(null);
+  // A project about to leave DAWGit: teammates' samples are offered into it first.
+  let leaving = $state<{ roots: string[]; go: () => void } | null>(null);
   let checking = $state<TeamProject | null>(null); // Check project…
   let deleteWord = $state("");
   const rowKey = (p: TeamProject) => p.root || p.id;
@@ -291,6 +294,12 @@
     toast(t("Unlinked “{name}”: the folder and its versions are untouched", { name: p.name }), "info");
     selected = {};
     await reload();
+  }
+
+  function leaveThenDelete(p: TeamProject) {
+    confirmDelete = null;
+    if (p.root) leaving = { roots: [p.root], go: () => deleteFromTeam(p) };
+    else deleteFromTeam(p);
   }
 
   async function deleteFromTeam(p: TeamProject) {
@@ -574,7 +583,7 @@
     onrenamed={async () => { const key = rowKey(p); await reload(); refreshKey++; settingsFor = entries.find((e) => rowKey(e) === key) ?? null; }}
     oncheck={() => { checking = closeSettings(); }}
     ondelete={() => { const q = closeSettings(); deleteWord = ""; confirmDelete = q; }}
-    onunlink={() => forget(closeSettings())}
+    onunlink={() => { const q = closeSettings(); leaving = { roots: [q.root], go: () => forget(q) }; }}
     onlocate={() => locate(closeSettings())} />
 {/if}
 
@@ -590,12 +599,17 @@
       : "This removes the project and all its versions from {team}, for everyone in the team. Copies already on someone's computer are not touched.", { team: current?.name ?? "" })}</p>
     <label for="delete-word">{t("Type {name} to confirm", { name: p.name })}</label>
     <input id="delete-word" class="confirm-input" bind:value={deleteWord} autocomplete="off"
-      onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) deleteFromTeam(p); }} />
+      onkeydown={(e) => { if (e.key === "Enter" && deleteWord.trim() === p.name) leaveThenDelete(p); }} />
     {#snippet footer()}
       <button onclick={() => (confirmDelete = null)}>{t("Cancel")}</button>
-      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => deleteFromTeam(p)}>{t("Delete")}</button>
+      <button class="danger" disabled={deleteWord.trim() !== p.name} onclick={() => leaveThenDelete(p)}>{t("Delete")}</button>
     {/snippet}
   </Modal>
+{/if}
+
+{#if leaving}
+  {@const l = leaving}
+  <KeptSamples roots={l.roots} oncancel={() => (leaving = null)} onproceed={() => { leaving = null; l.go(); }} />
 {/if}
 
 {#if update?.required}

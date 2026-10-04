@@ -179,7 +179,8 @@
 
 {#if settingsFor}
   {@const t = overview.teams.find((x) => x.id === settingsFor!.id) ?? settingsFor}
-  <TeamSettings team={t} author={overview.author} {reload} onclose={() => (settingsFor = null)} />
+  <TeamSettings team={t} author={overview.author} {reload} onclose={() => (settingsFor = null)}
+    roots={t.id === overview.currentTeam ? overview.projects.filter((p) => p.root && p.status === "downloaded").map((p) => p.root) : []} />
 {/if}
 
 <style>

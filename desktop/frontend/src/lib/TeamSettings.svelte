@@ -5,14 +5,16 @@
   import { api, errorText, type TeamSummary } from "./api";
   import { toast } from "./notify.svelte";
   import Modal from "./Modal.svelte";
+  import KeptSamples from "./KeptSamples.svelte";
   import CodeBox from "./CodeBox.svelte";
   import IdentityForm from "./IdentityForm.svelte";
 
   // One team's settings: its name, your name in it, the connection code for
   // teammates, how this computer reaches it (storage keys, or a server's
   // address), and disconnecting.
-  let { team, author = "", reload, onclose }: {
+  let { team, author = "", reload, onclose, roots = [] }: {
     team: TeamSummary;
+    roots?: string[]; // its projects on this computer (kept under Local when leaving)
     author?: string; // this computer's name, suggested when you have none here
     reload: () => Promise<void>;
     onclose: () => void;
@@ -125,6 +127,13 @@
     } finally {
       saving = false;
     }
+  }
+
+  // Leaving with the projects kept: teammates' samples go into them first.
+  let keeping = $state(false);
+  function disconnectAsked() {
+    if (keepProjects && roots.length) keeping = true;
+    else disconnect();
   }
 
   async function disconnect() {
@@ -297,10 +306,14 @@
     {/if}
     {#snippet footer()}
       <button onclick={() => (confirmDisconnect = false)} disabled={leaving}>{t("Cancel")}</button>
-      <button class="danger" onclick={disconnect} disabled={leaving}>
+      <button class="danger" onclick={disconnectAsked} disabled={leaving}>
         {leaving ? (fullHistory ? t("Downloading…") : t("Disconnecting…")) : t("Disconnect")}</button>
     {/snippet}
   </Modal>
+
+{#if keeping}
+  <KeptSamples {roots} oncancel={() => (keeping = false)} onproceed={() => { keeping = false; disconnect(); }} />
+{/if}
 {/if}
 
 <style>

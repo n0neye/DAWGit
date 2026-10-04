@@ -10,7 +10,10 @@
   // in a line each; the long explanations are in the tiles' tooltips.
   // mode: "added" (before the first version: what teammates will need),
   // "downloaded" (can this computer open it?), or "check" (any time).
-  let { root, mode = "check" }: { root: string; mode?: "added" | "downloaded" | "check" } = $props();
+  let { root, mode = "check", onrestore }: {
+    root: string; mode?: "added" | "downloaded" | "check";
+    onrestore?: () => void; // bring back the missing samples DAWGit has copies of
+  } = $props();
 
   let report = $state<Report | null>(null);
   let err = $state("");
@@ -135,6 +138,7 @@
           : mode === "added"
           ? tn(s.missing.length, "{n} sample missing. Best found in Live before you share (File › Manage Files), so the team hears the same.", "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.")
           : tn(s.missing.length, "{n} sample missing. Find it in Live (File › Manage Files) before your next share.", "{n} samples missing. Find them in Live (File › Manage Files) before your next share.")}
+          {#if onrestore && s.restorable}<button class="link strong" onclick={onrestore}>{tn(s.restorable, "Restore it from DAWGit", "Restore {n} from DAWGit")}</button>{/if}
           <button class="link" onclick={() => toggle("missing")}>{open === "missing" ? t("Hide") : t("Show")}</button></li>
       {/if}
       {#if here && pluginsMissing.length}
@@ -218,6 +222,8 @@
   .issues li.soft, .issues li.soft :global(svg) { color: var(--faint); }
   .issues li.note { color: var(--text); }
   .issues li.note :global(svg) { color: var(--note); }
+  .link.strong { font-weight: 600; }
+  .issues .link { white-space: nowrap; flex: none; }
   .link { border: none; background: transparent; color: var(--accent); padding: 0 0 0 4px; font-size: 12px; cursor: pointer; }
   .list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; padding: 8px 10px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }
