@@ -864,10 +864,10 @@
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 個取樣。建議分享前先在 Live 找回（File › Manage Files），隊友聽到的才會一樣。",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。",
 "{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "缺 {n} 個取樣。建議下次分享前在 Live 找回（File › Manage Files）。",
-"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "你裝了哪些創作軟體、版本為何（Ableton Live、Unity、Unreal Engine…），以及 plugin 和 Pack 的名稱與版本。不含任何檔案或資料夾。這樣專案體檢就能判斷隊友打不打得開專案。",
 "You can change this in the team's settings.": "之後可以在團隊設定裡更改。",
 "Your setup is shared with {team}": "已和 {team} 分享你的環境",
 "Share your setup with {team}?": "要和 {team} 分享你的環境嗎？",
 "Share": "分享",
-"Turning it off removes it from the team's storage.": "關閉時會從團隊空間刪除。"
+"Turning it off removes it from the team's storage.": "關閉時會從團隊空間刪除。",
+"Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "你裝了哪些創作軟體、版本為何（例如 Ableton Live），以及 plugin 和 Pack 的名稱與版本。不含任何檔案或資料夾。這樣專案體檢就能判斷隊友打不打得開專案。"
 }

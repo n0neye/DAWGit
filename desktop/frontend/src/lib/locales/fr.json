@@ -864,10 +864,10 @@
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "{n} samples manquants. Mieux vaut les retrouver dans Live avant de partager (File › Manage Files), pour que l'équipe entende la même chose.",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "{n} sample manquant. Retrouvez-le dans Live (File › Manage Files) avant le prochain partage.",
 "{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "{n} samples manquants. Retrouvez-les dans Live (File › Manage Files) avant le prochain partage.",
-"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "Les versions de vos applications de création (Ableton Live, Unity, Unreal Engine…) et les noms et versions de vos plugins et packs. Aucun fichier ni dossier. La vérification du projet peut alors dire si les membres peuvent l'ouvrir.",
 "You can change this in the team's settings.": "Modifiable dans les réglages de l'équipe.",
 "Your setup is shared with {team}": "Votre configuration est partagée avec {team}",
 "Share your setup with {team}?": "Partager votre configuration avec {team} ?",
 "Share": "Partager",
-"Turning it off removes it from the team's storage.": "La désactiver la retire du stockage de l'équipe."
+"Turning it off removes it from the team's storage.": "La désactiver la retire du stockage de l'équipe.",
+"Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "Les versions de vos applications de création (comme Ableton Live) et les noms et versions de vos plugins et packs. Aucun fichier ni dossier. La vérification du projet peut alors dire si les membres peuvent l'ouvrir."
 }

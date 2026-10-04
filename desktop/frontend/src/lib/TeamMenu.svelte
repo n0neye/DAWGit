@@ -136,7 +136,7 @@
 {#if shareAsk}
   {@const t = shareAsk}
   <Modal title={tr("Share your setup with {team}?", { team: t.name })} onclose={() => answerShare(t, false)}>
-    <p>{tr("Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")}</p>
+    <p>{tr("Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.")}</p>
     <p class="muted">{tr("You can change this in the team's settings.")}</p>
     {#snippet footer()}
       <button onclick={() => answerShare(t, false)}>{tr("Not now")}</button>

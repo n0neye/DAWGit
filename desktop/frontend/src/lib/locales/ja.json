@@ -864,10 +864,10 @@
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "サンプルが {n} 個ありません。共有する前に Live で見つけるのがおすすめです（File › Manage Files）。チームにも同じ音で届きます。",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "サンプルが {n} 個ありません。次に共有する前に Live で見つけてください（File › Manage Files）。",
 "{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "サンプルが {n} 個ありません。次に共有する前に Live で見つけてください（File › Manage Files）。",
-"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "使っている制作アプリとそのバージョン（Ableton Live、Unity、Unreal Engine…）、プラグインと Pack の名前とバージョン。ファイルやフォルダーは含みません。プロジェクトのチェックで、チームメイトがプロジェクトを開けるかが分かります。",
 "You can change this in the team's settings.": "チームの設定で変更できます。",
 "Your setup is shared with {team}": "{team} と環境を共有しました",
 "Share your setup with {team}?": "{team} と環境を共有しますか？",
 "Share": "共有",
-"Turning it off removes it from the team's storage.": "オフにするとチームのストレージから削除されます。"
+"Turning it off removes it from the team's storage.": "オフにするとチームのストレージから削除されます。",
+"Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "使っている制作アプリとそのバージョン（Ableton Live など）、プラグインと Pack の名前とバージョン。ファイルやフォルダーは含みません。プロジェクトのチェックで、チームメイトがプロジェクトを開けるかが分かります。"
 }

@@ -864,10 +864,10 @@
 "{n} samples missing. Best found in Live before you share (File › Manage Files), so the team hears the same.": "缺 {n} 个采样。建议分享前先在 Live 找回（File › Manage Files），队友听到的才会一样。",
 "{n} sample missing. Find it in Live (File › Manage Files) before your next share.": "缺 {n} 个采样。建议下次分享前在 Live 找回（File › Manage Files）。",
 "{n} samples missing. Find them in Live (File › Manage Files) before your next share.": "缺 {n} 个采样。建议下次分享前在 Live 找回（File › Manage Files）。",
-"Which versions of your creative apps you have (Ableton Live, Unity, Unreal Engine…) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "你装了哪些创作软件、什么版本（Ableton Live、Unity、Unreal Engine…），以及插件和 Pack 的名称与版本。不含任何文件或文件夹。这样项目体检就能判断队友能不能打开项目。",
 "You can change this in the team's settings.": "之后可以在团队设置里更改。",
 "Your setup is shared with {team}": "已和 {team} 分享你的环境",
 "Share your setup with {team}?": "要和 {team} 分享你的环境吗？",
 "Share": "分享",
-"Turning it off removes it from the team's storage.": "关闭时会从团队空间删除。"
+"Turning it off removes it from the team's storage.": "关闭时会从团队空间删除。",
+"Which versions of your creative apps you have (such as Ableton Live) and the names and versions of your plugins and packs. No files or folders. A project check can then tell whether teammates can open a project.": "你装了哪些创作软件、什么版本（例如 Ableton Live），以及插件和 Pack 的名称与版本。不含任何文件或文件夹。这样项目体检就能判断队友能不能打开项目。"
 }
