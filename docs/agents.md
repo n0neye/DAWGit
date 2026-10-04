@@ -12,7 +12,7 @@ is no separate commit and push.
 
 ## Rules
 
-- **Use `--json`** with `status`, `log`, `save`, `update` and `merge`, and
+- **Use `--json`** with `status`, `log`, `save`, `update`, `merge` and `backup`, and
   read the result, not the text.
 - **Commands never wait for an answer.** When one is needed they stop with
   an error code (below). Never pipe answers into DAWGit.
@@ -92,6 +92,16 @@ took from each side), `relinked` (sample paths rewritten for this computer),
 (incoming), `changes`, `conflicts` (`key`, `file`, `unit`, `description`,
 `can_keep_both`).
 
+`backup run [folder]` (back up the whole team's storage into a folder; only
+adds): `team`, `folder`, `run` (its record: `<folder>/runs/<run>.json`),
+`keys`, `copied`, `copied_bytes`, `total_bytes`. Without a folder it uses
+the one chosen in the app. The first run can copy many gigabytes.
+
+`backup status`: `team`, `supported` (storage teams only), `folder` (this
+computer's, `""` if none), `last_success`, `last_attempt`, `error`,
+`failing`, `members` (who backs the team up: `name`, `last_success`,
+`failing`), `covered` (one of them did in the last 7 days).
+
 ## Errors
 
 | exit | code | what to do |
@@ -109,6 +119,9 @@ took from each side), `relinked` (sample paths rewritten for this computer),
 | 1 | `unshared_versions` | `dawgit save -m ...` shares them |
 | 1 | `not_connected` | the project is not in a team (`save` still saves locally) |
 | 1 | `files_not_here` | an old version's files are only in the team's storage |
+| 1 | `backup_folder_missing` | the backup folder isn't there: ask the user to connect the drive |
+| 1 | `backup_folder_not_empty` | `backup run` needs an empty folder or this team's backup |
+| 1 | `backup_folder_taken` | the folder holds another team's backup |
 | 1 | `error` | anything else: show `message` to the user |
 
 Codes are stable; messages are for people and may change.

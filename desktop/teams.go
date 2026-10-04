@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"dawgit/internal/backup"
 	"dawgit/internal/health"
 	"dawgit/internal/liveenv"
 	"dawgit/internal/project"
@@ -73,7 +74,7 @@ func teamSummary(t teams.Team) TeamSummary {
 		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable,
 		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage(),
 		AskShareSetup: t.Remote.IsStorage() && t.MemberID != "" && !t.SetupAsked && !t.ShareSetup,
-		BackupFailing: backupFailing(t.Backup)}
+		BackupFailing: backup.Failing(t.Backup)}
 }
 
 func folderProject(root, status string) TeamProject {
@@ -223,6 +224,9 @@ func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
 	forgetNames(t.Remote.URL)
 	if t.ShareSetup {
 		go shareSetup(*t, health.SetupFrom(liveenv.Read(), time.Now()))
+	}
+	if t.Backup != nil { // set up before the name (creating a team)
+		go backup.Announce(*t)
 	}
 	return teamSummary(*t), nil
 }

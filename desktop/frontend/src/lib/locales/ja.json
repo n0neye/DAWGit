@@ -920,5 +920,11 @@
 "Backups of {team} keep failing on this computer. Have a look": "このコンピューターでの {team} のバックアップが失敗し続けています。確認してください",
 "No one backs up {team} yet": "{team} をバックアップしている人はまだいません",
 "Set up a backup to a drive or NAS": "ドライブや NAS へのバックアップを設定",
-"Remind me in a week": "1 週間後に通知"
+"Remind me in a week": "1 週間後に通知",
+"Back up your team": "チームをバックアップ",
+"Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.": "すべてはストレージにありますが、自分のドライブや NAS にもう 1 つコピーを置いておけば、バケットやキーを失ってもチームの作品は守られます。DAWGit を開いている間、1 日 1 回新しい分をコピーし、バックアップから何かを削除することはありません。",
+"Backing up to {folder}": "{folder} にバックアップ中",
+"The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.": "最初のバックアップはすべてをコピーするため時間がかかることがあります。バックグラウンドで続きます。チーム設定（⚙）› バックアップ でいつでも変更できます。",
+"Only one member needs to do this. You can also set it up later in the team's settings (⚙) › Backup.": "チームで 1 人が設定すれば十分です。あとでチーム設定（⚙）› バックアップ から設定することもできます。",
+"Set up later": "あとで設定"
 }

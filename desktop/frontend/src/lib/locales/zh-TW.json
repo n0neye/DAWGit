@@ -920,5 +920,11 @@
 "Backups of {team} keep failing on this computer. Have a look": "這台電腦備份 {team} 一直失敗，去看看",
 "No one backs up {team} yet": "還沒有人備份 {team}",
 "Set up a backup to a drive or NAS": "設定備份到硬碟或 NAS",
-"Remind me in a week": "一週後再提醒我"
+"Remind me in a week": "一週後再提醒我",
+"Back up your team": "備份你的團隊",
+"Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.": "所有東西都在你的雲端空間裡，但在自己的硬碟或 NAS 另存一份，萬一 bucket 或金鑰遺失，團隊的作品也不會不見。DAWGit 開著時每天一次，只複製新的部分，而且備份裡的東西永遠不會被刪除。",
+"Backing up to {folder}": "正在備份到 {folder}",
+"The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.": "第一次備份會複製全部內容，可能要一段時間，會在背景繼續進行。之後隨時可以在團隊設定（⚙）› 備份 裡更改。",
+"Only one member needs to do this. You can also set it up later in the team's settings (⚙) › Backup.": "團隊裡只要一個人設定就夠了。也可以之後在團隊設定（⚙）› 備份 裡設定。",
+"Set up later": "稍後設定"
 }

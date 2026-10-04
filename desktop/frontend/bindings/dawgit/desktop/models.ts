@@ -59,9 +59,11 @@ export class BackupInfo {
     "size": number;
 
     /**
-     * Others: the team's other members who back it up.
+     * Others: the team's other members who back it up; Covered: one of
+     * them did lately.
      */
     "others": MemberBackup[];
+    "covered": boolean;
 
     /** Creates a new BackupInfo instance. */
     constructor($$source: Partial<BackupInfo> = {}) {
@@ -103,6 +105,9 @@ export class BackupInfo {
         }
         if (!("others" in $$source)) {
             this["others"] = [];
+        }
+        if (!("covered" in $$source)) {
+            this["covered"] = false;
         }
 
         Object.assign(this, $$source);

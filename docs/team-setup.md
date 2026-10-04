@@ -68,6 +68,15 @@ The **⋯** menu next to a project: **Pin to top**, **Open in Live** (or the pro
 - **Unlink folder** — DAWGit stops listing the folder here; nothing is deleted.
 - **Delete from the team…** — delete it for everyone (you type its name to confirm). Copies already on someone's computer are kept.
 
+## Back up the team
+
+The team's storage holds everything, but one member should keep a second copy on a drive or NAS, in case the bucket or its keys are ever lost. Creating a team ends with this suggestion; later, it's in the team's settings (⚙) → **Backup** → **Choose a backup folder…** (an empty folder, or the team's earlier backup).
+
+- DAWGit copies what's new once a day while it is open (the first time: everything, in the background). It never deletes anything from the backup.
+- If the drive isn't connected, it tries again later; after a few days without a backup, the sidebar says so.
+- Everyone sees who backs up the team in **Backup**. While nobody has backed it up in the last week, the sidebar suggests it (✕ puts it off for a week).
+- From the command line (e.g. a scheduled task on a NAS): `dawgit backup run <folder>`.
+
 ## Everyday use
 
 - Work in Live as usual and press **Ctrl+S**. Your changes appear under **Changes**, track by track.

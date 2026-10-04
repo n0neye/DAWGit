@@ -6,7 +6,8 @@
 
   // Create a team on S3-compatible storage. Cloudflare R2 comes with a step
   // by step guide; any other S3-compatible storage takes the same fields.
-  // DAWGit checks it all, then hands out the connection code for teammates.
+  // DAWGit checks it all, then hands out the connection code for teammates,
+  // and suggests backing the team up (unless a member already does).
   let { onconnected, oncreated }: {
     onconnected: (t: TeamSummary) => void;
     oncreated?: () => void; // the team exists; the code is on screen
@@ -25,6 +26,41 @@
   let busy = $state(false);
   let error = $state("");
   let created = $state<{ team: TeamSummary; code: string } | null>(null);
+
+  // After the code: the backup step.
+  let backupStep = $state(false);
+  let backupFolder = $state("");
+  let backupProblem = $state("");
+  let backupBusy = $state(false);
+
+  async function afterCode() {
+    const team = created!.team;
+    try {
+      const info = await api.BackupInfo(team.id);
+      if (info?.supported && !info.covered && !info.folder) {
+        backupStep = true;
+        return;
+      }
+    } catch {
+      // can't tell: no backup step; Team Settings has it
+    }
+    onconnected(team);
+  }
+
+  async function chooseBackup() {
+    backupProblem = error = "";
+    backupBusy = true;
+    try {
+      const dir = await api.ChooseFolder(t("Choose a backup folder"));
+      if (!dir) return;
+      backupProblem = await api.SetBackupFolder(created!.team.id, dir);
+      if (!backupProblem) backupFolder = dir;
+    } catch (e) {
+      error = errorText(e);
+    } finally {
+      backupBusy = false;
+    }
+  }
 
   let ready = $derived(!!(endpoint.trim() && bucket.trim() && accessKey.trim() && secretKey.trim() && name.trim()));
 
@@ -58,7 +94,33 @@
   <input id="s-name" bind:value={name} placeholder={t("e.g. Night Shift")} />
 {/snippet}
 
-{#if created}
+{#if created && backupStep}
+  <div class="done">
+    <h3 class="step-h">{t("Back up your team")}</h3>
+    <p>{t("Everything is in your storage, but a second copy on your own drive or NAS keeps the team's work safe if the bucket or its keys are ever lost. Once a day while DAWGit is open, it copies what's new, and it never deletes anything from the backup.")}</p>
+    {#if backupFolder}
+      <p class="ok">✓ {t("Backing up to {folder}", { folder: backupFolder })}</p>
+      <p class="faint small">{t("The first backup copies everything and can take a while; it carries on in the background. Change it any time in the team's settings (⚙) › Backup.")}</p>
+    {:else}
+      <p class="faint small">{t("Only one member needs to do this. You can also set it up later in the team's settings (⚙) › Backup.")}</p>
+    {/if}
+    {#if backupProblem === "other-team"}
+      <p class="error small">{t("That folder holds another team's backup. Choose another one.")}</p>
+    {:else if backupProblem === "not-empty"}
+      <p class="error small">{t("That folder has other things in it. Choose an empty folder (or make a new one), or this team's earlier backup.")}</p>
+    {/if}
+    {#if error}<p class="error small">{error}</p>{/if}
+    <div class="row actions">
+      <span class="spacer"></span>
+      {#if backupFolder}
+        <button class="primary" onclick={() => onconnected(created!.team)}>{t("Continue")}</button>
+      {:else}
+        <button onclick={() => onconnected(created!.team)} disabled={backupBusy}>{t("Set up later")}</button>
+        <button class="primary" onclick={chooseBackup} disabled={backupBusy}>{t("Choose a backup folder…")}</button>
+      {/if}
+    </div>
+  </div>
+{:else if created}
   <div class="done">
     <p class="ok">✓ {t("Storage checked — “{team}” is ready.", { team: created.team.name })}</p>
     {#if created.team.name !== name.trim()}
@@ -69,7 +131,7 @@
     <p class="faint small">{t("The code contains the storage key: send it privately (a direct message, not a public channel). You can copy it again later from the ⚙ next to the team in the Team menu.")}</p>
     <div class="row actions">
       <span class="spacer"></span>
-      <button class="primary" onclick={() => onconnected(created!.team)}>{t("Continue")}</button>
+      <button class="primary" onclick={afterCode}>{t("Continue")}</button>
     </div>
   </div>
 {:else}
@@ -177,4 +239,6 @@
   .small { font-size: 12px; }
   .ok { color: var(--accent); font-weight: 600; margin-top: 0; }
   .done p { margin: 0 0 10px; }
+  .step-h { margin: 0 0 10px; font-size: 15px; }
+  .done .small { font-size: 12.5px; }
 </style>
