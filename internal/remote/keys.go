@@ -65,6 +65,22 @@ func (b *S3Backend) Put(key string, r io.Reader, size int64) error {
 	return nil
 }
 
+// PutNew writes data at key unless something is there already (restoring
+// never overwrites what the team has); created says whether it wrote.
+func (b *S3Backend) PutNew(key string, data []byte) (bool, error) {
+	r, err := b.put(key, data, http.Header{"If-None-Match": {"*"}})
+	if err != nil {
+		return false, err
+	}
+	switch r.status {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusPreconditionFailed, http.StatusConflict:
+		return false, nil
+	}
+	return false, s3Error(r)
+}
+
 // BackupStatus is what a member's backup of the team last did, kept in the
 // team's storage so everyone knows the team has one (where it goes stays on
 // that member's computer).

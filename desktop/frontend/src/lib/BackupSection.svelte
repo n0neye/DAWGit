@@ -4,6 +4,8 @@
   import { api, ago, errorText, formatBytes } from "./api";
   import Modal from "./Modal.svelte";
   import BackupBucket from "./BackupBucket.svelte";
+  import Fold from "./Fold.svelte";
+  import RestoreDialog from "./RestoreDialog.svelte";
 
   // Backing up the whole team (every project, every version) to a folder on
   // a drive or NAS, once a day while DAWGit runs (desktop/backup.go).
@@ -16,6 +18,7 @@
   let confirmStop = $state(false);
   let changing = $state(false); // choosing another place
   let bucketForm = $state(false);
+  let restoring = $state(false);
 
   async function load() {
     try {
@@ -57,11 +60,33 @@
   }
 
   const others = $derived(info?.others ?? []);
+  let open = $state(false);
+  // Opened by what needs a choice here (a problem picking a place).
+  $effect(() => { if (problem || error) open = true; });
 </script>
 
+{#snippet summary()}
+  {#if info?.running}
+    {info.total > 0
+      ? t("Backing up… {done} of {total}", { done: formatBytes(info.done), total: formatBytes(info.total) })
+      : t("Backing up…")}
+  {:else if !info?.folder}
+    {others.length
+      ? (others[0].lastSuccess
+        ? t("{name} backs up the team (last {when})", { name: others[0].name, when: ago(others[0].lastSuccess) })
+        : t("{name} backs up the team (no backup yet)", { name: others[0].name }))
+      : t("Not set up")}
+  {:else if info.failing}
+    ⚠ {t("Backups keep failing")}
+  {:else if info.paused}
+    {t("Paused")} · {info.folder}
+  {:else}
+    {info.lastSuccess ? t("Last backup {when}", { when: ago(info.lastSuccess) }) : t("No backup yet.")} · {info.folder}
+  {/if}
+{/snippet}
+
 {#if info?.supported}
-  <section>
-    <h3>{t("Backup")}</h3>
+  <Fold title={t("Backup")} {summary} warn={info.failing || (!info.folder && !info.covered)} bind:open>
     {#if !info.folder}
       <p class="faint small">{t("Keep a copy of the whole team — every project, every version — on a drive, a NAS or another bucket. Once a day while DAWGit is open, it copies what's new. Nothing is ever deleted from the backup.")}</p>
     {:else}
@@ -110,12 +135,17 @@
         <button class="ghost" disabled={info.running} onclick={() => (changing = true)}>{t("Change…")}</button>
         <button class="ghost" disabled={info.running} onclick={() => (confirmStop = true)}>{t("Stop backing up")}</button>
       {/if}
+      {#if !changing}<button class="ghost" onclick={() => (restoring = true)}>{t("Restore…")}</button>{/if}
     </div>
-  </section>
+  </Fold>
 {/if}
 
 {#if bucketForm}
   <BackupBucket {teamId} onclose={() => (bucketForm = false)} ondone={() => { bucketForm = false; changing = false; problem = ""; load(); }} />
+{/if}
+
+{#if restoring}
+  <RestoreDialog {teamId} hasBackup={!!info?.folder} onclose={() => (restoring = false)} ondone={() => (restoring = false)} />
 {/if}
 
 {#if confirmStop}
@@ -129,10 +159,8 @@
 {/if}
 
 <style>
-  section { margin-bottom: 18px; }
-  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
   .small { font-size: 12.5px; }
-  section > p { margin: 0 0 8px; }
+  p { margin: 0 0 8px; }
   .folder { font-family: var(--mono, monospace); user-select: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .btns { gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .btns button { padding: 5px 10px; font-size: 13px; }

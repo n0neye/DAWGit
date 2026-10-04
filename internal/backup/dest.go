@@ -34,6 +34,9 @@ type Dest interface {
 	Empty() (bool, error)
 	// Size: bytes the backup holds.
 	Size() int64
+	// List and Open read the backup back (restoring).
+	List() ([]remote.Item, error)
+	Open(key string) (io.ReadCloser, error)
 }
 
 // --- a folder ---
@@ -124,6 +127,34 @@ func (f *folder) Size() int64 {
 	})
 	return n
 }
+
+func (f *folder) List() ([]remote.Item, error) {
+	if _, err := os.Stat(f.dir); err != nil {
+		return nil, err
+	}
+	var out []remote.Item
+	err := filepath.WalkDir(f.dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(f.dir, path)
+		if d.IsDir() {
+			if rel == ".tmp" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return err
+		}
+		out = append(out, remote.Item{Key: filepath.ToSlash(rel), Size: fi.Size(), Modified: fi.ModTime()})
+		return nil
+	})
+	return out, err
+}
+
+func (f *folder) Open(key string) (io.ReadCloser, error) { return os.Open(f.path(key)) }
 
 // --- a bucket ---
 
@@ -238,4 +269,14 @@ func (b *bucket) Size() int64 {
 		n += it.Size
 	}
 	return n
+}
+
+func (b *bucket) List() ([]remote.Item, error) { return b.s3.List("") }
+
+func (b *bucket) Open(key string) (io.ReadCloser, error) {
+	r, err := b.s3.Open(key)
+	if errors.Is(err, remote.ErrNotFound) {
+		return nil, fs.ErrNotExist
+	}
+	return r, err
 }

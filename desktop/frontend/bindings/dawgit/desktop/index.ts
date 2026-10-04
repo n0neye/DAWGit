@@ -22,6 +22,7 @@ export {
     Preview,
     ProjectFile,
     ProjectInfo,
+    RestorePlan,
     Result,
     RuleItem,
     RuleNode,

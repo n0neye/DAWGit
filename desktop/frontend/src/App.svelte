@@ -608,8 +608,9 @@
 {/if}
 
 {#if leaving}
-  {@const l = leaving}
-  <KeptSamples roots={l.roots} oncancel={() => (leaving = null)} onproceed={() => { leaving = null; l.go(); }} />
+  <!-- go is taken before leaving is cleared: an {@const} of it would clear too. -->
+  <KeptSamples roots={leaving.roots} oncancel={() => (leaving = null)}
+    onproceed={() => { const go = leaving?.go; leaving = null; go?.(); }} />
 {/if}
 
 {#if update?.required}

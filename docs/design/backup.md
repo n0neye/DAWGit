@@ -1,6 +1,6 @@
 # Team backup
 
-Status: built (0.12; another bucket 0.12.2). Teams on S3-compatible storage (R2, S3) only; teams
+Status: built (0.12; another bucket 0.12.2; restore 0.12.3). Teams on S3-compatible storage (R2, S3) only; teams
 on a self-hosted server back up the server's data folder instead.
 
 ## Why
@@ -87,9 +87,28 @@ paths. With that:
 - A member's own failures are only shown after 3 days without a backup: a
   drive unplugged for a day is normal.
 
+## Restoring
+
+Back into the team's storage (Team Settings → Backup → Restore…, or
+`dawgit backup restore`), from this computer's backup or any backup folder:
+
+- Only what the storage lacks is copied, and nothing is overwritten
+  (records and branches go up with `If-None-Match: *`), so a restore can't
+  undo a teammate's work. Branches the team still has stay where they are.
+- Order: contents, then version records (`project.json` last, so a project
+  shows up whole), branches last: a branch never names a version whose
+  files aren't back yet.
+- As of a run: projects made after it stay out, and missing branches come
+  back where the run record has them. Contents are always welcome (they are
+  addressed by hash).
+- A preview (the plan) lists the projects coming back, with versions, the
+  branches in projects the team still has, and the bytes to copy.
+- A whole team lost: set up a new team on a new, empty bucket, then restore
+  into it; the team's name stays the new one, members come back.
+
+Not restored: `runs/`, `README.txt`, `dawgit-backup.json`, `gc/`,
+`backups/`.
+
 ## Not yet
 
-- Restoring from the app (today: copy the backup, minus `runs/`,
-  `README.txt` and `dawgit-backup.json`, into an empty bucket and join it
-  with a connection code).
 - Teams whose storage is a shared folder.

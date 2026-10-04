@@ -77,6 +77,12 @@ The team's storage holds everything, but one member should keep a second copy on
 - Everyone sees who backs up the team in **Backup**. While nobody has backed it up in the last week, the sidebar suggests it (✕ puts it off for a week).
 - From the command line (e.g. a scheduled task on a NAS): `dawgit backup run <folder>`.
 
+### Restoring
+
+The team's settings (⚙) → **Backup** → **Restore…** compares the backup with the team's storage and lists what would come back: deleted projects (with their versions), branches, lost files. It only adds what the storage lacks, so nothing a teammate did since is undone. **As of** picks an earlier day's backup instead of the latest.
+
+If the team's bucket itself is gone (deleted, or its keys lost): create a new bucket and a new team on it (**Create a team**), then **Restore…** from the backup's folder into it, and send teammates the new connection code.
+
 ## Everyday use
 
 - Work in Live as usual and press **Ctrl+S**. Your changes appear under **Changes**, track by track.
