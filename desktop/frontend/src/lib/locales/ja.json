@@ -859,5 +859,7 @@
 "{n} samples missing": "サンプル {n} 個が見つかりません",
 "Not on this computer: {plugins}": "このコンピューターにありません：{plugins}",
 "Your setup isn't shared with the team": "あなたの環境はチームと共有されていません",
-"Or later, from the Changes tab: you can leave files out first.": "あとで Changes タブからでも：先に不要なファイルを外せます。"
+"Or later, from the Changes tab: you can leave files out first.": "あとで Changes タブからでも：先に不要なファイルを外せます。",
+"{n} sample missing: fine to keep working, Live plays without it": "サンプル {n} 個が見つかりません：このまま使えます。Live はそれなしで再生します",
+"{n} samples missing: fine to keep working, Live plays without them": "サンプル {n} 個が見つかりません：このまま使えます。Live はそれなしで再生します"
 }

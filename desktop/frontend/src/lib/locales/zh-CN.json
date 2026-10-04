@@ -859,5 +859,7 @@
 "{n} samples missing": "缺 {n} 个采样",
 "Not on this computer: {plugins}": "这台电脑没有：{plugins}",
 "Your setup isn't shared with the team": "你的环境没有分享给团队",
-"Or later, from the Changes tab: you can leave files out first.": "或稍后在 Changes 页提交：可以先排除不需要的文件。"
+"Or later, from the Changes tab: you can leave files out first.": "或稍后在 Changes 页提交：可以先排除不需要的文件。",
+"{n} sample missing: fine to keep working, Live plays without it": "缺 {n} 个采样：不影响使用，Live 播放时会跳过",
+"{n} samples missing: fine to keep working, Live plays without them": "缺 {n} 个采样：不影响使用，Live 播放时会跳过"
 }

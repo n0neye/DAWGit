@@ -33,9 +33,11 @@
   let team = $derived(report?.team ?? []);
   const teamFine = (m: (typeof team)[number]) => m.opens === "yes" && !m.missingPlugins.length && !m.missingPacks.length;
 
-  type Mark = "ok" | "warn" | "info";
+  // note: worth knowing, nothing to fix first (old projects often miss a
+  // sample); warn: needs doing before it plays right here.
+  type Mark = "ok" | "warn" | "note" | "info";
   let liveMark = $derived<Mark>(!here ? "info" : live?.opens === "yes" ? "ok" : "warn");
-  let sampleMark = $derived<Mark>(s?.missing.length || (here && packsMissing.length) ? "warn" : "ok");
+  let sampleMark = $derived<Mark>(here && packsMissing.length ? "warn" : s?.missing.length ? "note" : "ok");
   let pluginMark = $derived<Mark>(!live?.plugins.length ? "ok" : !here || !live.pluginsKnown ? "info" : pluginsMissing.length ? "warn" : "ok");
   let teamMark = $derived<Mark>(!team.length ? "info" : team.every(teamFine) ? "ok" : "warn");
   const initials = (n: string) => n.split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase();
@@ -43,7 +45,8 @@
 
 {#snippet mark(m: Mark)}
   {#if m === "ok"}<span class="badge ok"><CheckIcon name="check" size={11} /></span>
-  {:else if m === "warn"}<span class="badge warn">!</span>{/if}
+  {:else if m === "warn"}<span class="badge warn">!</span>
+  {:else if m === "note"}<span class="badge note">!</span>{/if}
 {/snippet}
 
 <div class="check">
@@ -77,7 +80,7 @@
             {#if s?.inProject}<span title={tn(s.inProject, "{n} sample in the project folder", "{n} samples in the project folder")}><CheckIcon name="folder" size={12} />{s.inProject}</span>{/if}
             {#if s?.external}<span title={tn(s.external, "{n} sample from elsewhere on this computer ({size}): DAWGit keeps it with the versions", "{n} samples from elsewhere on this computer ({size}): DAWGit keeps them with the versions", { size: formatBytes(s.externalBytes) })}><CheckIcon name="link" size={12} />{s.external}</span>{/if}
             {#if s?.packRefs}<span title={s.packs.map((p) => p.name).join(", ")}><CheckIcon name="package" size={12} />{s.packRefs}</span>{/if}
-            {#if s?.missing.length}<span class="bad" title={tn(s.missing.length, "{n} sample can't be found: the sets will play without it", "{n} samples can't be found: the sets will play without them")}><CheckIcon name="x" size={12} />{s.missing.length}</span>{/if}
+            {#if s?.missing.length}<span class="note" title={tn(s.missing.length, "{n} sample can't be found: the sets will play without it", "{n} samples can't be found: the sets will play without them")}><CheckIcon name="x" size={12} />{s.missing.length}</span>{/if}
           </span>
         </button>
 
@@ -127,7 +130,7 @@
         <li><CheckIcon name="alert" size={14} />{t("Ableton Live not found on this computer")}</li>
       {/if}
       {#if s?.missing.length}
-        <li><CheckIcon name="alert" size={14} />{tn(s.missing.length, "{n} sample missing", "{n} samples missing")}
+        <li class="note"><CheckIcon name="alert" size={14} />{tn(s.missing.length, "{n} sample missing: fine to keep working, Live plays without it", "{n} samples missing: fine to keep working, Live plays without them")}
           <button class="link" onclick={() => toggle("missing")}>{open === "missing" ? t("Hide") : t("Show")}</button></li>
       {/if}
       {#if here && pluginsMissing.length}
@@ -180,7 +183,7 @@
 </div>
 
 <style>
-  .check { margin: 6px 0 10px; }
+  .check { margin: 6px 0 10px; --note: #f0d65c; }
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; }
   .tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; min-width: 0;
     border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--muted); font: inherit; text-align: center; }
@@ -196,9 +199,10 @@
     align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
   .badge.ok { background: rgba(63, 195, 169, .18); color: var(--accent); }
   .badge.warn { background: var(--warn); color: #1b1407; }
+  .badge.note { background: rgba(240, 214, 92, .2); color: var(--note); }
   .chips { display: flex; gap: 6px; font-size: 11px; color: var(--faint); }
   .chips span { display: inline-flex; align-items: center; gap: 2px; }
-  .chips .bad { color: var(--warn); }
+  .chips .note { color: var(--note); }
   .faces { display: flex; margin: 1px 0 2px; }
   .face { width: 22px; height: 22px; border-radius: 50%; margin-left: -4px; border: 2px solid var(--panel); background: #2f5e55;
     color: #d9f3ec; font-size: 9.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
@@ -208,6 +212,8 @@
   .issues li { display: flex; align-items: center; gap: 6px; color: #f0d9a8; }
   .issues li :global(svg) { color: var(--warn); flex: none; }
   .issues li.soft, .issues li.soft :global(svg) { color: var(--faint); }
+  .issues li.note { color: var(--text); }
+  .issues li.note :global(svg) { color: var(--note); }
   .link { border: none; background: transparent; color: var(--accent); padding: 0 0 0 4px; font-size: 12px; cursor: pointer; }
   .list { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; padding: 8px 10px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }

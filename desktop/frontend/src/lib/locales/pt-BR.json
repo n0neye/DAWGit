@@ -859,5 +859,7 @@
 "{n} samples missing": "Faltam {n} samples",
 "Not on this computer: {plugins}": "Não está neste computador: {plugins}",
 "Your setup isn't shared with the team": "Sua configuração não está compartilhada com a equipe",
-"Or later, from the Changes tab: you can leave files out first.": "Ou depois, na aba Changes: dá para deixar arquivos de fora antes."
+"Or later, from the Changes tab: you can leave files out first.": "Ou depois, na aba Changes: dá para deixar arquivos de fora antes.",
+"{n} sample missing: fine to keep working, Live plays without it": "Falta {n} sample: dá para continuar trabalhando, o Live toca sem ele",
+"{n} samples missing: fine to keep working, Live plays without them": "Faltam {n} samples: dá para continuar trabalhando, o Live toca sem eles"
 }
