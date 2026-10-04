@@ -878,8 +878,8 @@
         ? t(isLive ? "Commit a first version now and share it with {team}, samples included?" : "Commit a first version now and share it with {team}?", { team: st.teamName || t("the team") })
         : t("Commit a first version now?")}</p>
       <ProjectCheck {root} mode="added" />
-      <p class="muted">{tn(st.changes.length, "Or later: first look through the {n} file and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.",
-        "Or later: first look through the {n} files and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.")}{st.remoteUrl ? " " + t("Your team sees the project once it's committed.") : ""}</p>
+      <p class="muted later" title={tn(st.changes.length, "Or later: first look through the {n} file and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.",
+        "Or later: first look through the {n} files and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.")}>{t("Or later, from the Changes tab: you can leave files out first.")}</p>
       <label for="first-msg">{t("Message")}</label>
       <input id="first-msg" bind:value={message} onkeydown={(e) => { if (e.key === "Enter" && message.trim()) { firstAsk = false; commit(); } }} />
       {#snippet footer()}

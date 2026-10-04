@@ -843,5 +843,21 @@
 "The team's versions were taken in first; yours comes after them": "先にチームのバージョンを取り込み、あなたのバージョンはその後に続きます",
 "You're up to date. Your changes are kept, still uncommitted": "最新の状態です。変更はそのまま残っていて、まだコミットされていません",
 "Your uncommitted changes stay as they are.": "コミットしていない変更はそのまま残ります。",
-"Combined with the team's versions": "チームのバージョンと合わせました"
+"Combined with the team's versions": "チームのバージョンと合わせました",
+"here {version}": "ここは {version}",
+"Samples the sets use: in the project, elsewhere (kept by DAWGit), from Live packs (not uploaded), missing": "セットが使うサンプル：プロジェクト内、別の場所（DAWGit が保管）、Live Pack（アップロードされない）、見つからないもの",
+"Samples": "サンプル",
+"Plugins": "プラグイン",
+"{n} missing here": "{n} 個不足",
+"all here": "すべてあり",
+"Teammates who share their setup: can they open it?": "環境を共有しているチームメイト：開けますか？",
+"Teammates": "チームメイト",
+"First upload": "最初のアップロード",
+"Update Live to {need} or newer": "Live を {need} 以降に更新してください",
+"Ableton Live not found on this computer": "このコンピューターに Ableton Live が見つかりません",
+"{n} sample missing": "サンプル {n} 個が見つかりません",
+"{n} samples missing": "サンプル {n} 個が見つかりません",
+"Not on this computer: {plugins}": "このコンピューターにありません：{plugins}",
+"Your setup isn't shared with the team": "あなたの環境はチームと共有されていません",
+"Or later, from the Changes tab: you can leave files out first.": "あとで Changes タブからでも：先に不要なファイルを外せます。"
 }

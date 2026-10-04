@@ -843,5 +843,21 @@
 "The team's versions were taken in first; yours comes after them": "已先带入团队的版本，你的版本接在后面",
 "You're up to date. Your changes are kept, still uncommitted": "已是最新版本。你的改动都保留着，仍未提交",
 "Your uncommitted changes stay as they are.": "你未提交的改动会保持原样。",
-"Combined with the team's versions": "与团队的版本合并"
+"Combined with the team's versions": "与团队的版本合并",
+"here {version}": "这台 {version}",
+"Samples the sets use: in the project, elsewhere (kept by DAWGit), from Live packs (not uploaded), missing": "set 用到的采样：项目内、其他位置（DAWGit 保存）、来自 Live Pack（不上传）、找不到的",
+"Samples": "采样",
+"Plugins": "插件",
+"{n} missing here": "缺 {n} 个",
+"all here": "都已安装",
+"Teammates who share their setup: can they open it?": "分享了环境的队友：他们能打开吗？",
+"Teammates": "队友",
+"First upload": "首次上传",
+"Update Live to {need} or newer": "请把 Live 更新到 {need} 或更新版本",
+"Ableton Live not found on this computer": "这台电脑上找不到 Ableton Live",
+"{n} sample missing": "缺 {n} 个采样",
+"{n} samples missing": "缺 {n} 个采样",
+"Not on this computer: {plugins}": "这台电脑没有：{plugins}",
+"Your setup isn't shared with the team": "你的环境没有分享给团队",
+"Or later, from the Changes tab: you can leave files out first.": "或稍后在 Changes 页提交：可以先排除不需要的文件。"
 }

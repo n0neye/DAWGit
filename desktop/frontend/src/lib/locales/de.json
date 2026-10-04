@@ -843,5 +843,21 @@
 "The team's versions were taken in first; yours comes after them": "Die Versionen des Teams wurden zuerst übernommen; deine folgt danach",
 "You're up to date. Your changes are kept, still uncommitted": "Du bist auf dem neuesten Stand. Deine Änderungen bleiben erhalten, noch nicht committet",
 "Your uncommitted changes stay as they are.": "Deine noch nicht committeten Änderungen bleiben, wie sie sind.",
-"Combined with the team's versions": "Mit den Versionen des Teams kombiniert"
+"Combined with the team's versions": "Mit den Versionen des Teams kombiniert",
+"here {version}": "hier {version}",
+"Samples the sets use: in the project, elsewhere (kept by DAWGit), from Live packs (not uploaded), missing": "Samples der Sets: im Projekt, anderswo (von DAWGit aufbewahrt), aus Live-Packs (nicht hochgeladen), fehlend",
+"Samples": "Samples",
+"Plugins": "Plugins",
+"{n} missing here": "{n} fehlen hier",
+"all here": "alle hier",
+"Teammates who share their setup: can they open it?": "Teammitglieder, die ihr Setup teilen: Können sie es öffnen?",
+"Teammates": "Team",
+"First upload": "Erster Upload",
+"Update Live to {need} or newer": "Aktualisiere Live auf {need} oder neuer",
+"Ableton Live not found on this computer": "Kein Ableton Live auf diesem Computer gefunden",
+"{n} sample missing": "{n} Sample fehlt",
+"{n} samples missing": "{n} Samples fehlen",
+"Not on this computer: {plugins}": "Nicht auf diesem Computer: {plugins}",
+"Your setup isn't shared with the team": "Dein Setup ist nicht mit dem Team geteilt",
+"Or later, from the Changes tab: you can leave files out first.": "Oder später im Tab Changes: Du kannst vorher Dateien auslassen."
 }

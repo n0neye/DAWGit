@@ -843,5 +843,21 @@
 "The team's versions were taken in first; yours comes after them": "팀의 버전을 먼저 가져왔고, 내 버전은 그 뒤에 이어집니다",
 "You're up to date. Your changes are kept, still uncommitted": "최신 상태입니다. 변경은 그대로 남아 있고 아직 커밋되지 않았습니다",
 "Your uncommitted changes stay as they are.": "커밋하지 않은 변경은 그대로 남습니다.",
-"Combined with the team's versions": "팀의 버전과 합침"
+"Combined with the team's versions": "팀의 버전과 합침",
+"here {version}": "여기 {version}",
+"Samples the sets use: in the project, elsewhere (kept by DAWGit), from Live packs (not uploaded), missing": "세트가 쓰는 샘플: 프로젝트 안, 다른 위치(DAWGit이 보관), Live Pack(업로드 안 됨), 찾을 수 없음",
+"Samples": "샘플",
+"Plugins": "플러그인",
+"{n} missing here": "{n}개 없음",
+"all here": "모두 있음",
+"Teammates who share their setup: can they open it?": "환경을 공유한 팀원: 열 수 있나요?",
+"Teammates": "팀원",
+"First upload": "첫 업로드",
+"Update Live to {need} or newer": "Live를 {need} 이상으로 업데이트하세요",
+"Ableton Live not found on this computer": "이 컴퓨터에서 Ableton Live를 찾을 수 없습니다",
+"{n} sample missing": "샘플 {n}개 없음",
+"{n} samples missing": "샘플 {n}개 없음",
+"Not on this computer: {plugins}": "이 컴퓨터에 없음: {plugins}",
+"Your setup isn't shared with the team": "내 환경이 팀과 공유되지 않음",
+"Or later, from the Changes tab: you can leave files out first.": "나중에 Changes 탭에서 해도 됩니다: 먼저 파일을 뺄 수 있습니다."
 }
