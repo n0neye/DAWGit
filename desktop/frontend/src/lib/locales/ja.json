@@ -1000,5 +1000,8 @@
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit はこのバージョンを誰が作ったか判断できないため（先にチームで名前を選んでください）、履歴に残ります。新しいバージョンで取り消します。",
 "Godot project": "Godot プロジェクト",
 "{team} can't be reached right now: download it once it's back.": "今は {team} に接続できません。戻ったらダウンロードしてください。",
-"Checking {team}…": "{team} を確認しています…"
+"Checking {team}…": "{team} を確認しています…",
+"Don't change the project yet": "まだプロジェクトを変更しないでください",
+"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit がこのバージョンのためにプロジェクトのファイルを読み込んでいます。終わるまで {tool} で保存しないでください。すぐに終わり、その後のアップロードは待つ必要はありません。",
+"It's in the history: you can keep working in {tool} while it uploads.": "履歴に入りました。アップロード中も {tool} で作業を続けられます。"
 }

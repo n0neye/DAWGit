@@ -1000,5 +1000,8 @@
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit non riesce a capire chi ha fatto questa versione (scegli prima il tuo nome nel team), quindi resta nella cronologia: una nuova versione la annulla.",
 "Godot project": "Progetto Godot",
 "{team} can't be reached right now: download it once it's back.": "{team} non è raggiungibile ora: scaricalo quando torna disponibile.",
-"Checking {team}…": "Controllo di {team}…"
+"Checking {team}…": "Controllo di {team}…",
+"Don't change the project yet": "Non modificare ancora il progetto",
+"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit sta leggendo i file del progetto per la versione. Aspetta che finisca prima di salvare in {tool}: ci vuole un attimo, e il caricamento dopo non richiede di aspettare.",
+"It's in the history: you can keep working in {tool} while it uploads.": "È nella cronologia: puoi continuare a lavorare in {tool} mentre viene caricato."
 }

@@ -8,13 +8,19 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 const mocks = vi.hoisted(() => {
   const fns: Record<string, ReturnType<typeof vi.fn>> = {};
   const api = new Proxy(fns, { get: (o, k: string) => (o[k] ??= vi.fn(async () => null)) });
-  return { fns, api, toast: vi.fn() };
+  // Events the page listens to ("progress", "files"), to send in tests.
+  const handlers: Record<string, ((ev: { data: unknown }) => void)[]> = {};
+  return { fns, api, toast: vi.fn(), handlers };
 });
 const { api, toast } = mocks;
 vi.mock("./api", async (orig) => ({ ...(await orig<typeof import("./api")>()), api: mocks.api }));
 vi.mock("./notify.svelte", () => ({ toast: mocks.toast }));
 vi.mock("@wailsio/runtime", async (orig) => ({ ...(await orig<typeof import("@wailsio/runtime")>()),
-  Events: { On: () => () => {} } }));
+  Events: { On: (name: string, fn: (ev: { data: unknown }) => void) => {
+    (mocks.handlers[name] ??= []).push(fn);
+    return () => { mocks.handlers[name] = mocks.handlers[name].filter((f) => f !== fn); };
+  } } }));
+const emit = (name: string, data: unknown) => (mocks.handlers[name] ?? []).forEach((fn) => fn({ data }));
 
 import ProjectView from "./ProjectView.svelte";
 
@@ -243,6 +249,20 @@ describe("ProjectView: an older version without a team", () => {
     api.KeepThisVersion.mockResolvedValue(result("kept"));
     await fireEvent.click(screen.getByRole("button", { name: "Make it the latest" }));
     await waitFor(() => expect(api.KeepThisVersion).toHaveBeenCalledWith(ROOT, "Old one again", {}));
+  });
+});
+
+describe("ProjectView: while a version is made", () => {
+  it("covers the page while it reads the files, then says to go on working", async () => {
+    await show({ changes: [change("Song.als")] });
+    emit("progress", { root: ROOT, stage: "storing", done: 1, total: 3 });
+    await screen.findByText(/Don't change the project yet/);
+    expect(screen.getByText(/Wait to save in Live until this is done/)).toBeTruthy();
+    emit("progress", { root: ROOT, stage: "uploading", done: 1, total: 3, bytes: 10, totalBytes: 100 });
+    await screen.findByText(/you can keep working in Live while it uploads/);
+    expect(screen.queryByText(/Don't change the project yet/)).toBeNull();
+    emit("progress", { root: ROOT, stage: "done", done: 0, total: 0 });
+    await waitFor(() => expect(screen.queryByText(/keep working in Live/)).toBeNull());
   });
 });
 
