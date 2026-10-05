@@ -291,7 +291,16 @@
   // Changes left out of the next commit (unticked in the Changes list),
   // per project; a commit starts over with all ticked.
   let excluded = $state<Record<string, boolean>>({});
-  $effect.pre(() => { root; excluded = {}; });
+  // Cleared for another project only: an effect can run again for other
+  // reasons (it did on every key typed in the commit box, ticking all the
+  // changes back just before a commit).
+  let excludedFor = untrack(() => root);
+  $effect.pre(() => {
+    if (root !== excludedFor) {
+      excludedFor = root;
+      excluded = {};
+    }
+  });
   let leftOut = $derived(st?.changes.filter((c) => excluded[c.path]).length ?? 0);
   // The commit shortcut as the keyboard says it.
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
