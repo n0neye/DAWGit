@@ -25,7 +25,9 @@ func TestUnityPreset(t *testing.T) {
 	}
 	for path, ignored := range map[string]bool{
 		"Library": true, "Library/ArtifactDB": true, "Game.sln": true, "Temp": true, "UserSettings": true, ".utmp": true,
-		"Assets/Player.cs": false, "Assets/Player.cs.meta": false, "Assets/Library/x.png": false,
+		"Assets/Player.cs": false, "Android/game.apk": true, "Assets/Models/a.blend1": true, "Assets/Tool/Tool.csproj": true,
+		"Assets/StreamingAssets/aa/catalog.json": true, "Assets/StreamingAssets/movie.mp4": false, "Assets/InitTestScene12.unity": true,
+		"Assets/Scenes/Main.unity": false, "Assets/Store/pack.unitypackage": false, "Logs/x.log": true, "Assets/Player.cs.meta": false, "Assets/Library/x.png": false,
 	} {
 		if got := rules.Ignored(path, filepath.Ext(path) == "" && path != "Library/ArtifactDB" || path == ".utmp"); got != ignored {
 			t.Errorf("%s: ignored = %v", path, got)
