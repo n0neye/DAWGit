@@ -24,10 +24,10 @@ func TestUnityPreset(t *testing.T) {
 		t.Fatalf("applied: %+v", a)
 	}
 	for path, ignored := range map[string]bool{
-		"Library": true, "Library/ArtifactDB": true, "Game.sln": true, "Temp": true, "UserSettings": true,
+		"Library": true, "Library/ArtifactDB": true, "Game.sln": true, "Temp": true, "UserSettings": true, ".utmp": true,
 		"Assets/Player.cs": false, "Assets/Player.cs.meta": false, "Assets/Library/x.png": false,
 	} {
-		if got := rules.Ignored(path, filepath.Ext(path) == "" && path != "Library/ArtifactDB"); got != ignored {
+		if got := rules.Ignored(path, filepath.Ext(path) == "" && path != "Library/ArtifactDB" || path == ".utmp"); got != ignored {
 			t.Errorf("%s: ignored = %v", path, got)
 		}
 	}

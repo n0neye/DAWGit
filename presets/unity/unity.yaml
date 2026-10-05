@@ -13,6 +13,7 @@ ignore:
   - /Logs/
   - /UserSettings/   # per-person editor layout
   - /MemoryCaptures/
+  - /.utmp/          # Unity 6's temporary files (Android builds)
   - /Build/
   - /Builds/
   - /.vs/
