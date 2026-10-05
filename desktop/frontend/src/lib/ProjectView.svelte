@@ -11,7 +11,6 @@
   import EditsSummary from "./EditsSummary.svelte";
   import ProjectHeader from "./ProjectHeader.svelte";
   import ProjectBanners from "./ProjectBanners.svelte";
-  import HoldOverlay from "./HoldOverlay.svelte";
   import RuleSuggestion from "./RuleSuggestion.svelte";
   import { takenBackText } from "./teamText";
   import UndoDialog from "./UndoDialog.svelte";
@@ -278,7 +277,9 @@
 
   // The tool the project is made with: Live gets its own words.
   let isLive = $derived(st?.tool === "Ableton Live");
-  let toolName = $derived(isLive ? "Live" : st?.tool ? t(st.tool) : t("your app"));
+  // While a version's files are read (looking for changes, adding them to
+  // the history), the changes are dimmed: they're being taken as they are.
+  let reading = $derived(progress?.stage === "scanning" || progress?.stage === "storing");
   // What to do after DAWGit changed the project's files.
   const reopen = () => (st?.tool === "Ableton Live" ? " — " + t("reopen the set in Live")
     : st?.tool ? " — " + t("switch back to {tool} to load the changes", { tool: t(st.tool) }) : "");
@@ -612,9 +613,6 @@
   </div>
 {:else}
   <div class="view">
-    {#if progress && (progress.stage === "scanning" || progress.stage === "storing")}
-      <HoldOverlay p={progress} tool={toolName} team={st.teamName || undefined} />
-    {/if}
     <ProjectHeader {st} {refreshing} onswitch={switchTo} onmerge={openMergePreview} onnewbranch={() => (newBranch = "")}
       {onsettings} oncheck={() => (checkOpen = "check")} onrefresh={refresh} />
 
@@ -634,7 +632,7 @@
       <button class:on={tab === "history"} onclick={() => (tab = "history")}>{t("History")}</button>
     </nav>
 
-    <main class:flush={tab === "changes"}>
+    <main class:flush={tab === "changes"} class:reading inert={reading}>
       {#if tab === "changes"}
         {#snippet summary()}<EditsSummary st={st!} />{/snippet}
         {#snippet commitBox()}<CommitBox st={st!} bind:message {busy} {leftOut} oncommit={() => commit()} />{/snippet}
@@ -772,7 +770,7 @@
 {/if}
 
 <style>
-  .view { position: relative; display: flex; flex-direction: column; height: 100%; }
+  .view { display: flex; flex-direction: column; height: 100%; }
   .pad { padding: 24px; }
   /* Same place as the loaded header's title, so nothing jumps. */
   .preparing { padding: 18px 24px; max-width: 600px; }
@@ -789,6 +787,7 @@
   .count { margin-left: 4px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; }
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
+  main.reading { opacity: .45; transition: opacity .2s; }
   main.flush { padding: 0; overflow: hidden; min-height: 0; }
 
 </style>

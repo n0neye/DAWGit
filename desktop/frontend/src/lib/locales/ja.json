@@ -1001,12 +1001,11 @@
 "Godot project": "Godot プロジェクト",
 "{team} can't be reached right now: download it once it's back.": "今は {team} に接続できません。戻ったらダウンロードしてください。",
 "Checking {team}…": "{team} を確認しています…",
-"Don't change the project yet": "まだプロジェクトを変更しないでください",
-"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit がこのバージョンのためにプロジェクトのファイルを読み込んでいます。終わるまで {tool} で保存しないでください。すぐに終わり、その後のアップロードは待つ必要はありません。",
 "It's in the history: you can keep working in {tool} while it uploads.": "履歴に入りました。アップロード中も {tool} で作業を続けられます。",
 "A bucket": "バケット",
 "Choose the backup's folder or bucket": "バックアップのフォルダーまたはバケットを選択",
 "Bucket…": "バケット…",
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "バックアップのある場所：キーはそのバケットを読めれば十分です。この復元にだけ使い、保存しません。",
-"Look in this bucket": "このバケットを確認"
+"Look in this bucket": "このバケットを確認",
+"Don't save in {tool} until this step is done.": "この手順が終わるまで {tool} で保存しないでください。"
 }
