@@ -22,6 +22,10 @@
   import ConfirmDialog from "./ConfirmDialog.svelte";
   import LiveBlockedDialog from "./LiveBlockedDialog.svelte";
   import CommitCheckDialog from "./CommitCheckDialog.svelte";
+  import PromptDialog from "./PromptDialog.svelte";
+  import LeaveChangesDialog from "./LeaveChangesDialog.svelte";
+  import FirstVersionDialog from "./FirstVersionDialog.svelte";
+  import ShareVersionsDialog from "./ShareVersionsDialog.svelte";
 
   // firstShare: the project was just added (to a team, or this computer).
   // With no versions yet, it asks whether to commit (and share) a first one
@@ -740,17 +744,7 @@
   </div>
 
   {#if shareAsk}
-    <Modal title={t("Share “{name}” with {team}?", { name: st.name, team: st.teamName || t("the team") })} onclose={() => (shareAsk = false)}>
-      <p>{isLive ? tn(st.history.length, "Upload its {n} version now, samples included?", "Upload its {n} versions now, samples included?")
-        : tn(st.history.length, "Upload its {n} version now?", "Upload its {n} versions now?")}</p>
-      <ProjectCheck {root} mode="added" />
-      <p class="muted">{t("Or later: first look through the files and ignore the folders or files you don't need (right-click › Ignore), then share from the banner at the top. Your team sees the project once it's shared.")}{st.changes.length
-          ? " " + tn(st.changes.length, "The {n} uncommitted change stays in Changes either way.", "The {n} uncommitted changes stay in Changes either way.") : ""}</p>
-      {#snippet footer()}
-        <button onclick={() => (shareAsk = false)}>{t("Later")}</button>
-        <button class="primary" onclick={shareVersions}>{t("Share now")}</button>
-      {/snippet}
-    </Modal>
+    <ShareVersionsDialog {st} onshare={shareVersions} onclose={() => (shareAsk = false)} />
   {/if}
 
   {#if checkOpen}
@@ -764,21 +758,7 @@
   {/if}
 
   {#if firstAsk}
-    <Modal title={t("“{name}” is added", { name: st.name })} onclose={() => (firstAsk = false)}>
-      <p>{st.remoteUrl
-        ? t(isLive ? "Commit a first version now and share it with {team}, samples included?" : "Commit a first version now and share it with {team}?", { team: st.teamName || t("the team") })
-        : t("Commit a first version now?")}</p>
-      <ProjectCheck {root} mode="added" />
-      <p class="muted later" title={tn(st.changes.length, "Or later: first look through the {n} file and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.",
-        "Or later: first look through the {n} files and ignore the folders or files you don't need (right-click › Ignore), then commit from the Changes tab.")}>{t("Or later, from the Changes tab: you can leave files out first.")}</p>
-      <label for="first-msg">{t("Message")}</label>
-      <input id="first-msg" bind:value={message} onkeydown={(e) => { if (e.key === "Enter" && message.trim()) { firstAsk = false; commit(); } }} />
-      {#snippet footer()}
-        <button onclick={() => (firstAsk = false)}>{t("Later")}</button>
-        <button class="primary" disabled={!message.trim()} onclick={() => { firstAsk = false; commit(); }}>
-          {st?.remoteUrl ? t("Commit & Share now") : t("Commit now")}</button>
-      {/snippet}
-    </Modal>
+    <FirstVersionDialog {st} bind:message onclose={() => (firstAsk = false)} oncommit={() => { firstAsk = false; commit(); }} />
   {/if}
 
   {#if combine}
@@ -859,26 +839,8 @@
 
   {#if leaving}
     {@const l = leaving}
-    <Modal title={l.target ? t("Go to an older version") : t("Back to the latest version")} onclose={() => (leaving = null)}>
-      <p>{tn(st.changes.length, "You have {n} uncommitted change.", "You have {n} uncommitted changes.")}
-        {l.target ? t("Going to another version replaces the files in the project folder.") : t("Going back replaces the files in the project folder.")}</p>
-      {#if !st.olderVersion}
-        <label for="lm">{t("Commit them first as")}</label>
-        <input id="lm" bind:value={l.message} placeholder={t("What did you change?")} />
-      {:else}
-        <p class="muted">{st.remoteUrl ? t("Changes made on an older version can be kept by starting a new branch from here first.")
-          : t("Changes made on an older version can be kept by starting a new branch from here or making it the latest version first.")}</p>
-      {/if}
-      {#snippet footer()}
-        <button onclick={() => (leaving = null)}>{t("Cancel")}</button>
-        <button class="danger" onclick={discardThenGo}>{t("Discard changes")}</button>
-        {#if !st!.olderVersion}
-          <button class="primary" disabled={!l.message.trim()} onclick={commitThenGo}>
-            {st!.remoteUrl ? t("Commit & share, then go") : t("Commit, then go")}
-          </button>
-        {/if}
-      {/snippet}
-    </Modal>
+    <LeaveChangesDialog changes={st.changes.length} latest={!l.target} older={!!st.olderVersion} team={!!st.remoteUrl}
+      bind:message={l.message} oncommit={commitThenGo} ondiscard={discardThenGo} onclose={() => (leaving = null)} />
   {/if}
 
   {#if undoing}
@@ -887,27 +849,17 @@
   {/if}
 
   {#if keepOpen !== null}
-    <Modal title={t("Make this the latest version")} onclose={() => (keepOpen = null)}>
-      <p class="muted">{t("The older version you are on (with any changes you made) becomes a new version on top of the latest one. Nothing in the history is lost.")}</p>
-      <label for="km">{t("Describe it")}</label>
-      <input id="km" bind:value={keepOpen} />
-      {#snippet footer()}
-        <button onclick={() => (keepOpen = null)}>{t("Cancel")}</button>
-        <button class="primary" disabled={!keepOpen?.trim() || !!busy} onclick={keepThisVersion}>{t("Make it the latest")}</button>
-      {/snippet}
-    </Modal>
+    <PromptDialog title={t("Make this the latest version")} label={t("Describe it")} confirm={t("Make it the latest")}
+      text={t("The older version you are on (with any changes you made) becomes a new version on top of the latest one. Nothing in the history is lost.")}
+      bind:value={() => keepOpen ?? "", (v) => (keepOpen = v)} busy={!!busy}
+      onconfirm={keepThisVersion} onclose={() => (keepOpen = null)} />
   {/if}
 
   {#if newBranch !== null}
-    <Modal title={t("New branch")} onclose={() => (newBranch = null)}>
-      <p class="muted">{t("A branch is your own line of versions (e.g. to try an idea). The team keeps working on “{branch}”; merge back when you're happy.", { branch: st.branch })}</p>
-      <label for="bn">{t("Branch name")}</label>
-      <input id="bn" bind:value={newBranch} placeholder="yi-chorus-idea" />
-      {#snippet footer()}
-        <button onclick={() => (newBranch = null)}>{t("Cancel")}</button>
-        <button class="primary" disabled={!newBranch?.trim() || busy === "branch"} onclick={createBranch}>{t("Create")}</button>
-      {/snippet}
-    </Modal>
+    <PromptDialog title={t("New branch")} label={t("Branch name")} placeholder="yi-chorus-idea" confirm={t("Create")}
+      text={t("A branch is your own line of versions (e.g. to try an idea). The team keeps working on “{branch}”; merge back when you're happy.", { branch: st.branch })}
+      bind:value={() => newBranch ?? "", (v) => (newBranch = v)} busy={busy === "branch"}
+      onconfirm={createBranch} onclose={() => (newBranch = null)} />
   {/if}
 {/if}
 

@@ -52,14 +52,14 @@ const result = (action: string, over: Record<string, unknown> = {}) => ({
   action, log: [], relinked: [], conflicts: [], liveRunning: false, openSet: "", keptWork: false, takenBack: [], ...over,
 });
 
-async function show(over: Record<string, unknown> = {}) {
+async function show(over: Record<string, unknown> = {}, props: Record<string, unknown> = {}) {
   const st = state(over);
   api.State.mockResolvedValue(st);
   // The Changes list shows the changed files.
   api.ProjectFiles.mockResolvedValue(st.changes.map((c) => ({ path: c.path, status: c.status, size: 1, kind: "other",
     live: "", from: "", edited: false, preview: false, video: false, model: false })));
   const onchanged = vi.fn();
-  render(ProjectView, { root: ROOT, refreshKey: 0, teams: [], onchanged, onsettings: vi.fn() });
+  render(ProjectView, { root: ROOT, refreshKey: 0, teams: [], onchanged, onsettings: vi.fn(), ...props });
   await screen.findByRole("heading", { name: "Song" });
   return { onchanged };
 }
@@ -210,6 +210,39 @@ describe("ProjectView: versions", () => {
     await screen.findByText(/Removes it from the history, yours and the team's/);
     await fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Undo commit" }));
     await waitFor(() => expect(api.TakeBackVersion).toHaveBeenCalledWith(ROOT, "h1", true));
+  });
+});
+
+describe("ProjectView: a project just added", () => {
+  it("asks to commit and share a first version", async () => {
+    const onfirstshared = vi.fn();
+    await show({ head: "", latest: "", history: [], changes: [change("Song.als", "added")] }, { firstShare: true, onfirstshared });
+    await screen.findByText("“Song” is added");
+    expect(onfirstshared).toHaveBeenCalled();
+    api.Save.mockResolvedValue(result("published"));
+    await fireEvent.click(screen.getByRole("button", { name: "Commit & Share now" }));
+    await waitFor(() => expect(api.Save).toHaveBeenCalledWith(ROOT, "First version", false, {}, false, []));
+  });
+
+  it("asks to share the versions of a project that joined a team", async () => {
+    await show({ unshared: true }, { firstShare: true });
+    await screen.findByText("Share “Song” with Band?");
+    api.ShareVersions.mockResolvedValue(result("published"));
+    await fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Share now" }));
+    await waitFor(() => expect(api.ShareVersions).toHaveBeenCalledWith(ROOT));
+  });
+});
+
+describe("ProjectView: an older version without a team", () => {
+  it("makes it the latest version, described", async () => {
+    await show({ remoteUrl: "", teamName: "", olderVersion: version("h0", "old one") });
+    await fireEvent.click(screen.getByRole("button", { name: "Make this the latest…" }));
+    const box = screen.getByLabelText("Describe it") as HTMLInputElement;
+    expect(box.value).toBe("Back to “old one”");
+    await fireEvent.input(box, { target: { value: "Old one again" } });
+    api.KeepThisVersion.mockResolvedValue(result("kept"));
+    await fireEvent.click(screen.getByRole("button", { name: "Make it the latest" }));
+    await waitFor(() => expect(api.KeepThisVersion).toHaveBeenCalledWith(ROOT, "Old one again", {}));
   });
 });
 
