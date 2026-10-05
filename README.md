@@ -48,7 +48,7 @@ Feedback and bug reports are welcome in [Issues](../../issues).
 
 DAWGit is developed with AI coding assistants (Claude), directed and reviewed by its maintainer: every change is read, tried and decided on by a person. Because it looks after people's work, it leans on checks rather than trust:
 
-- The merge and diff of Live sets are tested against a reference implementation (`python/`) on golden files; stored formats (content hashes, chunk boundaries, version records) have golden tests and never change in ways older versions can't read.
+- The merge and diff of Live sets are pinned by golden files (made by an independent first implementation); stored formats (content hashes, chunk boundaries, version records) have golden tests and never change in ways older versions can't read.
 - End-to-end tests run real teams against real cloud storage (save, update, conflicts, interrupted uploads, restores).
 - Nothing rewrites a project file while Live has it open, and nothing deletes a teammate's work: updates keep your uncommitted changes, storage cleanup and restores only touch what no version uses or what is missing.
 

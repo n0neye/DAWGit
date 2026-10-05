@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"dawgit/internal/manifest"
-	"dawgit/internal/remote"
 	"dawgit/internal/teams"
 )
 
@@ -18,7 +17,7 @@ type RemoteSize struct {
 // SizeOnTeam reads the size of a team project's latest version (one small
 // request for the branches, one for the version record).
 func SizeOnTeam(t *teams.Team, projectID string) (RemoteSize, error) {
-	c, err := remote.Open(t.Remote)
+	c, err := t.Open()
 	if err != nil {
 		return RemoteSize{}, err
 	}

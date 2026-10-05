@@ -138,7 +138,7 @@ func (a *App) SetBackupFolder(teamID, folder string) (string, error) {
 	if _, err := backup.Storage(*t); err != nil {
 		return "", err
 	}
-	return a.useBackup(store, t, backup.Folder(folder), teams.Backup{Folder: folder})
+	return a.useBackup(t, backup.Folder(folder), teams.Backup{Folder: folder})
 }
 
 // SetBackupStorage makes S3-compatible storage (another bucket, or a folder
@@ -171,7 +171,7 @@ func (a *App) SetBackupStorage(teamID string, s remote.Storage) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	return a.useBackup(store, t, d, teams.Backup{Storage: &cfg})
+	return a.useBackup(t, d, teams.Backup{Storage: &cfg})
 }
 
 // BackupStorage is this computer's backup storage for team teamID, to edit
@@ -193,7 +193,7 @@ func (a *App) BackupStorage(teamID string) (*remote.Storage, error) {
 }
 
 // useBackup claims d for team t and backs up there from now on.
-func (a *App) useBackup(store *teams.Store, t *teams.Team, d backup.Dest, b teams.Backup) (string, error) {
+func (a *App) useBackup(t *teams.Team, d backup.Dest, b teams.Backup) (string, error) {
 	switch err := backup.Claim(d, t.ID, t.Name); {
 	case errors.Is(err, backup.ErrOtherTeam):
 		return "other-team", nil
@@ -202,13 +202,15 @@ func (a *App) useBackup(store *teams.Store, t *teams.Team, d backup.Dest, b team
 	case err != nil:
 		return "", err
 	}
-	if old := t.Backup; old != nil {
-		if c, err := backup.DestOf(old); err == nil && c.Kind() == d.Kind() && c.Name() == d.Name() {
-			b.LastSuccess, b.LastAttempt, b.Size = old.LastSuccess, old.LastAttempt, old.Size
+	if _, err := updateTeam(t.ID, func(_ *teams.Store, t *teams.Team) error {
+		if old := t.Backup; old != nil {
+			if c, err := backup.DestOf(old); err == nil && c.Kind() == d.Kind() && c.Name() == d.Name() {
+				b.LastSuccess, b.LastAttempt, b.Size = old.LastSuccess, old.LastAttempt, old.Size
+			}
 		}
-	}
-	t.Backup = &b
-	if err := store.Save(); err != nil {
+		t.Backup = &b
+		return nil
+	}); err != nil {
 		return "", err
 	}
 	go a.backUp(t.ID)
@@ -222,34 +224,27 @@ func (a *App) BackUpNow(teamID string) {
 
 // PauseBackup stops (or restarts) the daily backups of team teamID.
 func (a *App) PauseBackup(teamID string, paused bool) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	t := store.Find(teamID)
-	if t == nil || t.Backup == nil {
-		return errors.New("this team isn't backed up on this computer")
-	}
-	t.Backup.Paused = paused
-	return store.Save()
+	_, err := updateTeam(teamID, func(_ *teams.Store, t *teams.Team) error {
+		if t.Backup == nil {
+			return errors.New("this team isn't backed up on this computer")
+		}
+		t.Backup.Paused = paused
+		return nil
+	})
+	return err
 }
 
 // StopBackup: this computer no longer backs up team teamID. The backup
 // folder is left as it is.
 func (a *App) StopBackup(teamID string) error {
-	store, err := teams.Load()
+	t, err := updateTeam(teamID, func(_ *teams.Store, t *teams.Team) error {
+		t.Backup = nil
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	t := store.Find(teamID)
-	if t == nil {
-		return errors.New("unknown team")
-	}
-	t.Backup = nil
-	if err := store.Save(); err != nil {
-		return err
-	}
-	if s3, err := backup.Storage(*t); err == nil && t.MemberID != "" {
+	if s3, err := backup.Storage(t); err == nil && t.MemberID != "" {
 		s3.DeleteBackupStatus(t.MemberID)
 	}
 	return nil
@@ -272,16 +267,11 @@ func (a *App) BackupReminder(teamID string) bool {
 
 // HushBackupReminder puts the reminder off for a week.
 func (a *App) HushBackupReminder(teamID string) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	t := store.Find(teamID)
-	if t == nil {
-		return errors.New("unknown team")
-	}
-	t.BackupHushed = time.Now()
-	return store.Save()
+	_, err := updateTeam(teamID, func(_ *teams.Store, t *teams.Team) error {
+		t.BackupHushed = time.Now()
+		return nil
+	})
+	return err
 }
 
 // backUpOnSchedule backs up every team due, while the app runs.

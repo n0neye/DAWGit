@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"dawgit/internal/jsonx"
 )
 
 type Client struct {
@@ -27,6 +29,20 @@ func New(baseURL, token string) *Client {
 type Project struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Project) UnmarshalJSON(b []byte) error {
+	type plain Project
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Project) MarshalJSON() ([]byte, error) {
+	type plain Project
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // ErrConflict means the branch moved since it was read.

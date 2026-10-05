@@ -15,16 +15,17 @@ import (
 	"dawgit/internal/diff"
 )
 
-// Golden data comes from the Python reference implementation:
-//
-//	cd python && python -m tests.make_golden
+// Golden data (testdata/golden) was made by the original Python prototype of
+// diff and merge; it is the specification now: the Go code must keep
+// producing exactly it. Change it only on purpose, with the reason in the
+// commit.
 var goldenDir = filepath.Join("..", "..", "testdata", "golden")
 var repoRoot = filepath.Join("..", "..")
 
 func requireGolden(t *testing.T) {
 	t.Helper()
 	if _, err := os.Stat(goldenDir); err != nil {
-		t.Skip("no golden data; run: cd python && python -m tests.make_golden")
+		t.Fatal("testdata/golden is missing")
 	}
 }
 

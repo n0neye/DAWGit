@@ -18,6 +18,8 @@ import (
 	"strings"
 	"time"
 
+	"dawgit/internal/flock"
+	"dawgit/internal/jsonx"
 	"dawgit/internal/remote"
 	"dawgit/internal/version"
 )
@@ -47,6 +49,20 @@ type Team struct {
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.
 	KeysUnreadable bool `json:"-"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Team) UnmarshalJSON(b []byte) error {
+	type plain Team
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Team) MarshalJSON() ([]byte, error) {
+	type plain Team
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // Backup is where and how this computer backs up a team (internal/backup).
@@ -60,6 +76,20 @@ type Backup struct {
 	LastAttempt time.Time      `json:"lastAttempt,omitempty"`
 	LastError   string         `json:"lastError,omitempty"`
 	Size        int64          `json:"size,omitempty"` // bytes, at the last success
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Backup) UnmarshalJSON(b []byte) error {
+	type plain Backup
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Backup) MarshalJSON() ([]byte, error) {
+	type plain Backup
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 type Store struct {
@@ -79,7 +109,22 @@ type Store struct {
 	// what either writes, the other reads.
 	Channel string `json:"channel,omitempty"`
 
-	path string
+	path   string
+	locked bool // inside Update: the lock is held
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Store) UnmarshalJSON(b []byte) error {
+	type plain Store
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Store) MarshalJSON() ([]byte, error) {
+	type plain Store
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // Dir is where DAWGit keeps per-user settings.
@@ -138,9 +183,44 @@ func Load() (*Store, error) {
 	return s, nil
 }
 
+// Update changes the store without losing anyone's change: it takes the
+// settings lock, reads the store fresh, lets fn change it and saves it (an
+// error from fn saves nothing). The app, the command line tool and
+// background work (backups, setups) all change teams.json; a plain Load and
+// Save could write back an old copy over another's change.
+func Update(fn func(*Store) error) (*Store, error) {
+	if err := os.MkdirAll(Dir(), 0o700); err != nil {
+		return nil, err
+	}
+	unlock, err := flock.Lock(filepath.Join(Dir(), "teams.lock"), 15*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	s, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	s.locked = true
+	defer func() { s.locked = false }()
+	if err := fn(s); err != nil {
+		return nil, err
+	}
+	return s, s.Save()
+}
+
+// Save writes the store as it is. To change it, use Update: Save alone
+// writes back whatever this copy holds, even over a newer change.
 func (s *Store) Save() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
 		return err
+	}
+	if !s.locked {
+		unlock, err := flock.Lock(filepath.Join(filepath.Dir(s.path), "teams.lock"), 15*time.Second)
+		if err != nil {
+			return err
+		}
+		defer unlock()
 	}
 	// Secrets sealed in the file, plain in memory.
 	sealed := *s
@@ -231,6 +311,20 @@ func (s *Store) SyncName(id, teamName string) bool {
 	}
 	t.Name = teamName
 	return true
+}
+
+// SyncTeamName records the name a team gives itself now (see SyncName),
+// saving only when it changed; it says whether it did.
+func SyncTeamName(id, teamName string) bool {
+	if s, err := Load(); err != nil || !s.SyncName(id, teamName) {
+		return false
+	}
+	changed := false
+	Update(func(s *Store) error {
+		changed = s.SyncName(id, teamName)
+		return nil
+	})
+	return changed
 }
 
 // Rename names a team on this computer only. An empty name goes back to the
@@ -389,10 +483,24 @@ func importFrom(from, to string) (bool, error) {
 	if err := os.WriteFile(to, data, 0o600); err != nil {
 		return false, err
 	}
-	s, err := Load()
+	_, err = Update(func(s *Store) error {
+		s.Channel = "nightly"
+		return nil
+	})
+	return true, err
+}
+
+// Open connects to the team: its backend, checked for the team's features
+// (a team that turned on one this build lacks fails with
+// *remote.ErrTeamFeatures). Everything that works with a connected team
+// opens it here.
+func (t Team) Open() (remote.Backend, error) {
+	b, err := remote.Open(t.Remote)
 	if err != nil {
-		return true, err
+		return nil, err
 	}
-	s.Channel = "nightly"
-	return true, s.Save()
+	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
+		return nil, err
+	}
+	return b, nil
 }

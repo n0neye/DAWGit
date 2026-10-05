@@ -1,0 +1,49 @@
+# Checks every push and pull request: the Go code (Stable and Nightly
+# builds), the frontend, and that every UI text is translated. The end-to-end
+# tests against real storage are run by hand (they need storage keys).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/frontend/package-lock.json
+
+      # The desktop app embeds the built frontend, so it comes first.
+      - name: Frontend
+        working-directory: desktop/frontend
+        run: |
+          npm ci
+          npm run build
+          npx svelte-check --threshold error
+          node scripts/i18n-check.mjs
+
+      - name: gofmt
+        shell: bash
+        run: test -z "$(gofmt -l $(git ls-files '*.go'))"
+
+      - name: go vet
+        run: |
+          go vet ./...
+          go vet -tags nightly ./...
+
+      - name: Tests
+        run: go test ./...
+
+      - name: Tests (Nightly)
+        run: go test -tags nightly ./...

@@ -49,13 +49,13 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `internal/teamwatch` — background watcher: backs up unsaved work, teammates' edits (soft locks), new versions
 - `internal/livecheck` — detects a running Live before rewriting sets
 - `internal/manifest` — version manifest shared by client and server
-- `internal/server` — self-hosted team server (files on disk, token auth, branch compare-and-swap)
+- `internal/server` — self-hosted team server (files on disk, token auth, branch compare-and-swap); frozen: no new features
 - `internal/remote` — the `Backend` interface with two implementations: the team server's HTTP API and S3-compatible object storage
 - `internal/teams` — per-user team store (`%APPDATA%\DAWGit\teams.json`): team addresses, credentials, project locations
 - `internal/version` — release number, channel (Stable or Nightly) and Nightly build stamp
 - `presets/` — project kinds still in testing (Unity, Unreal, code, design files); only Nightly builds import them
 - `cmd/publish` — publishes a Nightly installer and its signed feed to the releases bucket
-- `python/` — the original prototype, kept as the reference implementation
+- `testdata/golden` — the expected output of diff and merge (made by the original Python prototype; now the specification)
 - `SampleProjects/` — Ableton projects used as test fixtures (audio via Git LFS)
 
 ## Tests
@@ -69,17 +69,7 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
   ```
 
   It has been run against Versity S3 Gateway and Cloudflare R2.
-- Merge output is checked in Ableton Live by hand: `python -m tests.make_live_samples` (in `python/`) writes `MergeTest-*.als` files to open in Live.
-
-### Python reference implementation
-
-`python/` holds the original prototype. The Go port must stay output-identical to it:
-
-```
-cd python
-python -m unittest discover -s tests -t .        # reference tests
-python -m tests.make_golden                      # writes ../testdata/golden for Go differential tests
-```
+- Diff and merge must keep producing `testdata/golden` exactly (`go test ./internal/merge`). The golden data came from the original Python prototype (removed in 0.13); change it only on purpose.
 
 `go test ./internal/merge` compares Go merge/diff/validate output byte-for-byte against the golden data (skipped when absent).
 

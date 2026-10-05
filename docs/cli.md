@@ -14,6 +14,8 @@ The same as **Create a team** in the app, for scripts: checks that the key can r
 
 ## Self-hosted team server (advanced)
 
+> The team server keeps working but gets no new features (storage teams do: compression, big-file pieces, backups, setup sharing). For a team of your own, prefer team storage.
+
 Instead of storage, a team can run its own server on a computer or NAS that is on while the team works. The app does not offer this when creating a team; members of such a team join by pasting the server address where the app asks for a connection code, then entering the token.
 
 ```

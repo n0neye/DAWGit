@@ -97,8 +97,14 @@ func (a *App) Overview() (*Overview, error) {
 	// Every project is a team's (0.9): with "local" or no team picked, the
 	// first team is shown.
 	if store.Find(store.Current) == nil && len(store.Teams) > 0 {
-		store.Current = store.Teams[0].ID
-		store.Save()
+		if s, err := teams.Update(func(s *teams.Store) error {
+			if s.Find(s.Current) == nil && len(s.Teams) > 0 {
+				s.Current = s.Teams[0].ID
+			}
+			return nil
+		}); err == nil {
+			store = s
+		}
 	}
 	ov := &Overview{Author: store.Author, CurrentTeam: store.Current, Teams: []TeamSummary{},
 		Projects: []TeamProject{}}
@@ -122,13 +128,10 @@ func (a *App) Overview() (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
-	b, err := remote.Open(t.Remote)
-	if err == nil {
-		err = remote.CheckFeatures(b, t.Remote.URL)
-	}
+	b, err := t.Open()
 	if err == nil {
 		// Follow the team's name when whoever runs it renames it.
-		if info, err := b.Info(); err == nil && store.SyncName(t.ID, info.Name) && store.Save() == nil {
+		if info, err := b.Info(); err == nil && teams.SyncTeamName(t.ID, info.Name) {
 			for i := range ov.Teams {
 				if ov.Teams[i].ID == t.ID {
 					ov.Teams[i].Name = info.Name
@@ -161,12 +164,29 @@ func (a *App) Overview() (*Overview, error) {
 }
 
 func (a *App) SetAuthor(name string) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	store.Author = strings.TrimSpace(name)
-	return store.Save()
+	_, err := teams.Update(func(s *teams.Store) error {
+		s.Author = strings.TrimSpace(name)
+		return nil
+	})
+	return err
+}
+
+// updateTeam changes team id in the settings (see teams.Update) and returns
+// it as saved.
+func updateTeam(id string, fn func(*teams.Store, *teams.Team) error) (teams.Team, error) {
+	var out teams.Team
+	_, err := teams.Update(func(s *teams.Store) error {
+		t := s.Find(id)
+		if t == nil {
+			return errors.New("unknown team")
+		}
+		if err := fn(s, t); err != nil {
+			return err
+		}
+		out = *t
+		return nil
+	})
+	return out, err
 }
 
 // TeamMembers lists a team's members (to pick yourself on a new computer).
@@ -179,7 +199,7 @@ func (a *App) TeamMembers(teamID string) ([]remote.Member, error) {
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -209,29 +229,32 @@ func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
 	if !remote.ValidMemberID(memberID) {
 		return TeamSummary{}, errors.New("invalid member id")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return TeamSummary{}, err
 	}
-	if err := b.PutMember(remote.Member{ID: memberID, Name: name}); err != nil &&
+	if err := remote.RenameMember(b, memberID, name); err != nil &&
 		!errors.Is(err, remote.ErrOldServer) { // old server: the name still goes with new versions
 		return TeamSummary{}, err
 	}
-	t.MemberID, t.MemberName = memberID, name
-	if store.Author == "" {
-		store.Author = name
-	}
-	if err := store.Save(); err != nil {
+	saved, err := updateTeam(teamID, func(s *teams.Store, t *teams.Team) error {
+		t.MemberID, t.MemberName = memberID, name
+		if s.Author == "" {
+			s.Author = name
+		}
+		return nil
+	})
+	if err != nil {
 		return TeamSummary{}, err
 	}
-	forgetNames(t.Remote.URL)
-	if t.ShareSetup {
-		go shareSetup(*t, health.SetupFrom(liveenv.Read(), time.Now()))
+	forgetNames(saved.Remote.URL)
+	if saved.ShareSetup {
+		go shareSetup(saved, health.SetupFrom(liveenv.Read(), time.Now()))
 	}
-	if t.Backup != nil { // set up before the name (creating a team)
-		go backup.Announce(*t)
+	if saved.Backup != nil { // set up before the name (creating a team)
+		go backup.Announce(saved)
 	}
-	return teamSummary(*t), nil
+	return teamSummary(saved), nil
 }
 
 // ConnectTeam adds a team (server address + token, or a connection code) and
@@ -248,37 +271,28 @@ func (a *App) ConnectTeam(address, token string) (TeamSummary, error) {
 }
 
 func (a *App) SelectTeam(id string) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	if store.Find(id) == nil {
-		return errors.New("unknown team")
-	}
-	store.Current = id
-	return store.Save()
+	_, err := updateTeam(id, func(s *teams.Store, _ *teams.Team) error {
+		s.Current = id
+		return nil
+	})
+	return err
 }
 
 func (a *App) RenameTeam(id, name string) error {
-	store, err := teams.Load()
+	t, err := updateTeam(id, func(s *teams.Store, _ *teams.Team) error {
+		return s.Rename(id, name)
+	})
 	if err != nil {
 		return err
 	}
-	t := store.Find(id)
-	if t == nil {
-		return errors.New("unknown team")
-	}
-	if err := store.Rename(t.ID, name); err != nil {
-		return err
-	}
 	if !t.CustomName { // back to the team's own name
-		if b, err := remote.Open(t.Remote); err == nil {
+		if b, err := t.Open(); err == nil {
 			if info, err := b.Info(); err == nil {
-				store.SyncName(t.ID, info.Name)
+				teams.SyncTeamName(id, info.Name)
 			}
 		}
 	}
-	return store.Save()
+	return nil
 }
 
 // RenameTeamForEveryone changes the team's own name, on its server or
@@ -296,15 +310,18 @@ func (a *App) RenameTeamForEveryone(id, name string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return err
 	}
 	if err := remote.Rename(b, name); err != nil {
 		return err
 	}
-	t.Name, t.CustomName = name, false
-	return store.Save()
+	_, err = updateTeam(id, func(_ *teams.Store, t *teams.Team) error {
+		t.Name, t.CustomName = name, false
+		return nil
+	})
+	return err
 }
 
 // RemoveTeam disconnects this computer from a team. With keepProjects its
@@ -323,30 +340,43 @@ func (a *App) RemoveTeam(id string, keepProjects, fullHistory bool) error {
 		}
 		a.stopWatch(root)
 		if keepProjects {
-			if err := a.detach(store, root, fullHistory); err != nil {
+			if err := a.detach(root, fullHistory); err != nil {
 				return err
 			}
 		}
 	}
-	store.Remove(id)
-	return store.Save()
+	_, err = teams.Update(func(s *teams.Store) error {
+		s.Remove(id)
+		return nil
+	})
+	return err
 }
 
 // detach makes a downloaded team project one kept on this computer only:
 // the project forgets the team's address (keeping its id, so it can be
 // reconnected) and is listed under Local. Its current version is made
 // complete here first, and with fullHistory every older one too (else those
-// keep needing the team's storage). The caller saves the store.
-func (a *App) detach(store *teams.Store, root string, fullHistory bool) error {
+// keep needing the team's storage). The downloads happen before the
+// settings are changed (they can take long).
+func (a *App) detach(root string, fullHistory bool) error {
 	a.stopWatch(root)
+	unlisted := func(local string) error {
+		_, err := teams.Update(func(s *teams.Store) error {
+			for key, p := range s.Projects {
+				if p == root {
+					delete(s.Projects, key)
+				}
+			}
+			if local != "" {
+				s.AddLocal(local)
+			}
+			return nil
+		})
+		return err
+	}
 	r, unlock, err := a.open(root)
 	if err != nil {
-		for key, p := range store.Projects {
-			if p == root {
-				delete(store.Projects, key)
-			}
-		}
-		return nil // the folder is gone: nothing to keep
+		return unlisted("") // the folder is gone: nothing to keep
 	}
 	defer unlock()
 	if r.Config.Remote != nil {
@@ -354,17 +384,11 @@ func (a *App) detach(store *teams.Store, root string, fullHistory bool) error {
 			return fmt.Errorf("%s: %w", filepath.Base(root), err)
 		}
 	}
-	for key, p := range store.Projects {
-		if p == root {
-			delete(store.Projects, key)
-		}
-	}
 	r.Config.Remote = nil
 	if err := r.SaveConfig(); err != nil {
 		return err
 	}
-	store.AddLocal(r.Root)
-	return nil
+	return unlisted(r.Root)
 }
 
 // FoundProject is a project on this computer that belongs to a team.
@@ -384,7 +408,7 @@ func (a *App) TeamProjectsHere(teamID string) ([]FoundProject, error) {
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +478,7 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 	if t == nil {
 		return TeamProject{}, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return TeamProject{}, err
 	}
@@ -554,12 +578,10 @@ func (a *App) LocateProject(teamID, projectID, folder string) (TeamProject, erro
 	if r.Config.ProjectID != projectID {
 		return TeamProject{}, errors.New("that folder holds a different project")
 	}
-	store, err := teams.Load()
-	if err != nil {
-		return TeamProject{}, err
-	}
-	store.SetProjectRoot(teamID, projectID, r.Root)
-	if err := store.Save(); err != nil {
+	if _, err := teams.Update(func(s *teams.Store) error {
+		s.SetProjectRoot(teamID, projectID, r.Root)
+		return nil
+	}); err != nil {
 		return TeamProject{}, err
 	}
 	a.startWatch(r.Root)
@@ -569,17 +591,16 @@ func (a *App) LocateProject(teamID, projectID, folder string) (TeamProject, erro
 // ForgetProject removes a project from the list (the folder is untouched).
 func (a *App) ForgetProject(root string) error {
 	a.stopWatch(root)
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	for key, r := range store.Projects {
-		if r == root {
-			delete(store.Projects, key)
+	_, err := teams.Update(func(s *teams.Store) error {
+		for key, r := range s.Projects {
+			if r == root {
+				delete(s.Projects, key)
+			}
 		}
-	}
-	store.RemoveLocal(root)
-	return store.Save()
+		s.RemoveLocal(root)
+		return nil
+	})
+	return err
 }
 
 // DeleteProjectFromTeam removes a project from the team's server or storage
@@ -594,25 +615,25 @@ func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return err
 	}
 	// Deleted for everyone: first bring what isn't here yet (the copy here is
 	// kept under Local with its whole history).
 	if root := store.ProjectRoot(teamID, projectID); root != "" {
-		if err := a.detach(store, root, true); err != nil {
-			return err
-		}
-		if err := store.Save(); err != nil {
+		if err := a.detach(root, true); err != nil {
 			return err
 		}
 	}
 	if err := b.DeleteProject(projectID); err != nil {
 		return err
 	}
-	store.ForgetProject(teamID, projectID)
-	return store.Save()
+	_, err = teams.Update(func(s *teams.Store) error {
+		s.ForgetProject(teamID, projectID)
+		return nil
+	})
+	return err
 }
 
 // ServerProjects lists a team's projects before connecting (onboarding).
@@ -649,20 +670,18 @@ func (a *App) migrateLegacyConfig() {
 			continue
 		}
 		if t, err := r.Team(); err == nil {
-			if store, err := teams.Load(); err == nil {
-				store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
-				store.Save()
-			}
+			teams.Update(func(s *teams.Store) error {
+				s.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
+				return nil
+			})
 		}
 	}
-	store, err := teams.Load()
-	if err != nil {
-		return
-	}
-	for _, root := range local {
-		store.AddLocal(root)
-	}
-	if store.Save() == nil {
+	if _, err := teams.Update(func(s *teams.Store) error {
+		for _, root := range local {
+			s.AddLocal(root)
+		}
+		return nil
+	}); err == nil {
 		os.Rename(configPath(), configPath()+".migrated")
 	}
 }

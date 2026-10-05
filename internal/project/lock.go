@@ -4,6 +4,8 @@ import (
 	"errors"
 	"path/filepath"
 	"time"
+
+	"dawgit/internal/flock"
 )
 
 // ErrBusy: another DAWGit (the app, the command line, another edition) is
@@ -14,21 +16,9 @@ var ErrBusy = errors.New("another DAWGit window or command is working on this pr
 // function is called (or this program ends), waiting up to wait for one
 // that has it. Within one program, callers take turns themselves.
 func (r *Repo) Lock(wait time.Duration) (func(), error) {
-	path := filepath.Join(r.Dir, "lock")
-	deadline := time.Now().Add(wait)
-	for {
-		unlock, err := lockFile(path)
-		if err == nil {
-			return unlock, nil
-		}
-		if !errors.Is(err, errLocked) {
-			return nil, err
-		}
-		if time.Now().After(deadline) {
-			return nil, ErrBusy
-		}
-		time.Sleep(100 * time.Millisecond)
+	unlock, err := flock.Lock(filepath.Join(r.Dir, "lock"), wait)
+	if errors.Is(err, flock.ErrBusy) {
+		return nil, ErrBusy
 	}
+	return unlock, err
 }
-
-var errLocked = errors.New("locked")

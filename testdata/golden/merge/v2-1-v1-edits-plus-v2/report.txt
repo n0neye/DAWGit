@@ -1,0 +1,9 @@
+  MidiTrack "2-Basic Saturated Bass": took theirs
+  MidiTrack "3-Vital": took theirs
+  AudioTrack "4-80s Beat 90 bpm": took theirs
+  GroupTrack "MIDI Tracks": added from theirs (id 15 also used by ours, renumbered)
+  AudioTrack "5 Bounce + Reverb": took theirs
+  ReturnTrack "A-Reverb": kept ours
+  MidiTrack "2-Basic Saturated Bass": took theirs' group/output
+  MidiTrack "3-Vital": took theirs' group/output
+  renumbered 36 colliding automation/modulation target id(s)

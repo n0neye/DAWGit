@@ -1,0 +1,5 @@
+  MidiTrack "2-Basic Saturated Bass": kept ours
+  MidiTrack "3-Vital": took theirs
+  GroupTrack "MIDI": added from theirs
+  MidiTrack "1-Basic Saturated Bass": took theirs' group/output
+  MidiTrack "3-Vital": took theirs' group/output

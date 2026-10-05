@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -49,6 +50,15 @@ func (e *ErrTeamFeatures) Error() string {
 		"the Nightly channel (Settings → Updates)", strings.Join(e.Missing, ", "))
 }
 
+// Supports fails with *ErrTeamFeatures when the team (its info) uses
+// features this build doesn't know: before connecting to it.
+func Supports(info TeamInfo) error {
+	if m := Missing(info); len(m) > 0 {
+		return &ErrTeamFeatures{Missing: m}
+	}
+	return nil
+}
+
 // featureChecks remembers recent checks (per team address): a team's
 // features rarely change, and every operation opens the team.
 var featureChecks sync.Map // url -> time.Time of a check that passed
@@ -64,8 +74,8 @@ func CheckFeatures(b Backend, url string) error {
 	if err != nil {
 		return nil
 	}
-	if m := Missing(info); len(m) > 0 {
-		return &ErrTeamFeatures{Missing: m}
+	if err := Supports(info); err != nil {
+		return err
 	}
 	featureChecks.Store(url, time.Now())
 	return nil
@@ -93,4 +103,38 @@ func EnableFeature(b Backend, name string) error {
 	}
 	info.Features = append(info.Features, name)
 	return b.SetInfo(info)
+}
+
+// RenameProject renames a project for the team, keeping the rest of its
+// record (fields a newer DAWGit may have added).
+func RenameProject(b Backend, pid, name string) error {
+	ps, err := b.Projects()
+	if err != nil {
+		return err
+	}
+	p := Project{ID: pid}
+	for _, q := range ps {
+		if q.ID == pid {
+			p = q
+		}
+	}
+	p.Name = name
+	return b.PutProject(p)
+}
+
+// RenameMember adds a member or renames one, keeping the rest of their
+// record.
+func RenameMember(b Backend, id, name string) error {
+	ms, err := b.Members()
+	if err != nil && !errors.Is(err, ErrOldServer) {
+		return err
+	}
+	m := Member{ID: id}
+	for _, q := range ms {
+		if q.ID == id {
+			m = q
+		}
+	}
+	m.Name = name
+	return b.PutMember(m)
 }

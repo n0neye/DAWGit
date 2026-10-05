@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestStorageConfig(t *testing.T) {
 			continue
 		}
 		back, ok := StorageOf(cfg)
-		if again, _ := back.Config(); !ok || again != cfg {
+		if again, _ := back.Config(); !ok || !reflect.DeepEqual(again, cfg) {
 			t.Errorf("round trip: %+v -> %+v", cfg, back)
 		}
 	}

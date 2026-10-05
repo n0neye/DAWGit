@@ -50,22 +50,25 @@ func (a *App) CreateStorageTeam(s remote.Storage, name string) (TeamSummary, err
 	if err != nil {
 		return TeamSummary{}, err
 	}
+	if err := remote.Supports(info); err != nil {
+		return TeamSummary{}, err
+	}
 	if name = strings.TrimSpace(name); info.Name == "" && name != "" {
 		if err := remote.Rename(b, name); err != nil {
 			return TeamSummary{}, err
 		}
 		info.Name = name
 	}
-	store, err := teams.Load()
-	if err != nil {
+	var t teams.Team
+	if _, err := teams.Update(func(s *teams.Store) error {
+		u := s.Upsert(cfg, info.Name)
+		s.Current = u.ID
+		t = *u
+		return nil
+	}); err != nil {
 		return TeamSummary{}, err
 	}
-	t := store.Upsert(cfg, info.Name)
-	store.Current = t.ID
-	if err := store.Save(); err != nil {
-		return TeamSummary{}, err
-	}
-	return teamSummary(*t), nil
+	return teamSummary(t), nil
 }
 
 // TeamConnectionSettings returns how this computer reaches a team, keys
@@ -124,15 +127,24 @@ func (a *App) UpdateTeamConnection(teamID string, c TeamConnection) (TeamSummary
 		return TeamSummary{}, errors.New("another team on this computer already uses that address")
 	}
 	oldURL := t.Remote.URL
-	t.Remote = cfg
+	teamName := ""
 	if b, err := remote.Open(cfg); err == nil {
 		if info, err := b.Info(); err == nil {
-			store.SyncName(t.ID, info.Name)
+			teamName = info.Name
 		}
 	}
-	if err := store.Save(); err != nil {
+	saved, err := updateTeam(teamID, func(s *teams.Store, t *teams.Team) error {
+		if other := s.FindByURL(cfg.URL); other != nil && other.ID != t.ID {
+			return errors.New("another team on this computer already uses that address")
+		}
+		t.Remote = cfg
+		s.SyncName(t.ID, teamName)
+		return nil
+	})
+	if err != nil {
 		return TeamSummary{}, err
 	}
+	t = &saved
 	if teams.NormalizeURL(oldURL) != teams.NormalizeURL(cfg.URL) {
 		for key, root := range store.Projects {
 			if strings.HasPrefix(key, teamID+"/") {
@@ -184,7 +196,7 @@ func (a *App) CleanUpStorage(teamID string, remove bool) (*StorageCleanup, error
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}

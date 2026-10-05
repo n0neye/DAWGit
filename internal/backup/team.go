@@ -30,7 +30,7 @@ func Storage(t teams.Team) (*remote.S3Backend, error) {
 	if !t.Remote.IsStorage() {
 		return nil, errors.New("only teams that keep their work in storage (R2, S3) can be backed up")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -131,35 +131,43 @@ func isConfigured(b *teams.Backup, d Dest) bool {
 // note records a run: in teams.json, read again (the settings may have
 // changed meanwhile), and in the team's storage.
 func note(teamID string, d Dest, started time.Time, rep *Report, runErr error) {
-	store, err := teams.Load()
-	if err != nil {
-		return
+	var size int64
+	if runErr == nil && rep != nil {
+		size = d.Size() // can take a while: not while holding the settings
 	}
-	t := store.Find(teamID)
-	if t == nil {
-		return
-	}
-	b := t.Backup
-	if !isConfigured(b, d) {
-		// A place of its own (dawgit backup run <folder>): only the team
-		// hears of it.
-		b = &teams.Backup{}
-	} else {
-		defer store.Save()
-	}
-	b.LastAttempt = started
-	if runErr == nil {
-		b.LastSuccess, b.LastError = started, ""
-		if rep != nil {
-			b.Size = d.Size()
+	record := func(b *teams.Backup) {
+		b.LastAttempt = started
+		if runErr == nil {
+			b.LastSuccess, b.LastError = started, ""
+			if rep != nil {
+				b.Size = size
+			}
+		} else {
+			b.LastError = runErr.Error()
 		}
-	} else {
-		b.LastError = runErr.Error()
+	}
+	var t teams.Team
+	b := &teams.Backup{} // a place of its own (dawgit backup run <folder>): only the team hears of it
+	if _, err := teams.Update(func(store *teams.Store) error {
+		found := store.Find(teamID)
+		if found == nil {
+			return errors.New("unknown team")
+		}
+		if isConfigured(found.Backup, d) {
+			record(found.Backup)
+			b = found.Backup
+		} else {
+			record(b)
+		}
+		t = *found
+		return nil
+	}); err != nil {
+		return
 	}
 	if errors.Is(runErr, ErrOtherTeam) || errors.Is(runErr, ErrNotEmpty) || t.MemberID == "" {
 		return // nothing was backed up, or no one to note it for
 	}
-	if s3, err := Storage(*t); err == nil {
+	if s3, err := Storage(t); err == nil {
 		s, _ := s3.BackupStatuses()
 		last := s[t.MemberID].LastSuccess
 		if b.LastSuccess.After(last) {

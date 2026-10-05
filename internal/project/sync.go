@@ -30,21 +30,25 @@ func (r *Repo) Team() (*teams.Team, error) {
 	if r.Config.Remote == nil || r.Config.Remote.URL == "" {
 		return nil, ErrNoRemote
 	}
-	store, err := teams.Load()
-	if err != nil {
-		return nil, err
-	}
 	cfg := *r.Config.Remote
 	if cfg.Token != "" || cfg.AccessKey != "" || cfg.SecretKey != "" {
-		t := store.Upsert(cfg, "")
-		store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
-		if err := store.Save(); err != nil {
+		var url string
+		if _, err := teams.Update(func(store *teams.Store) error {
+			t := store.Upsert(cfg, "")
+			store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
+			url = t.Remote.URL
+			return nil
+		}); err != nil {
 			return nil, err
 		}
-		r.Config.Remote = &RemoteConfig{URL: t.Remote.URL}
+		r.Config.Remote = &RemoteConfig{URL: url}
 		if err := r.SaveConfig(); err != nil {
 			return nil, err
 		}
+	}
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
 	}
 	t := store.FindByURL(cfg.URL)
 	if t == nil {
@@ -59,14 +63,7 @@ func (r *Repo) Client() (remote.Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := remote.Open(t.Remote)
-	if err != nil {
-		return nil, err
-	}
-	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
-		return nil, err
-	}
-	return b, nil
+	return t.Open()
 }
 
 // SetRemote connects the project to a team: a server (address + token) or
@@ -82,12 +79,10 @@ func (r *Repo) SetRemote(address, token string) error {
 
 // JoinTeam makes the project belong to t (already in the team store).
 func (r *Repo) JoinTeam(t *teams.Team) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
-	if err := store.Save(); err != nil {
+	if _, err := teams.Update(func(store *teams.Store) error {
+		store.SetProjectRoot(t.ID, r.Config.ProjectID, r.Root)
+		return nil
+	}); err != nil {
 		return err
 	}
 	r.Config.Remote = &RemoteConfig{URL: t.Remote.URL}
@@ -110,16 +105,18 @@ func Connect(address, token string) (*teams.Team, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := remote.Supports(info); err != nil {
+		return nil, err
+	}
 	if _, err := b.Projects(); err != nil {
 		return nil, err
 	}
-	store, err := teams.Load()
+	var id string
+	store, err := teams.Update(func(store *teams.Store) error {
+		id = store.Upsert(cfg, info.Name).ID
+		return nil
+	})
 	if err != nil {
-		return nil, err
-	}
-	t := store.Upsert(cfg, info.Name)
-	id := t.ID
-	if err := store.Save(); err != nil {
 		return nil, err
 	}
 	return store.Find(id), nil
@@ -983,7 +980,7 @@ func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error
 // nil.
 func CloneFromTeam(t *teams.Team, project, dir, author string, onProgress func(Progress)) (*Repo, *Manifest, error) {
 	cfg := t.Remote
-	c, err := remote.Open(cfg)
+	c, err := t.Open()
 	if err != nil {
 		return nil, nil, err
 	}

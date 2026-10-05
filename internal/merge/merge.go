@@ -13,8 +13,8 @@
 // collide are renumbered (with their envelope references), dangling automation
 // is dropped and NextPointeeId is advanced.
 //
-// This is a port of python/dawgit/merge.py and must produce byte-identical
-// output; keep the two in step.
+// It began as a port of the Python prototype; its output is pinned by the
+// golden tests (testdata/golden), byte for byte.
 package merge
 
 import (
