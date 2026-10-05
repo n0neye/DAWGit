@@ -155,3 +155,60 @@ func TestCollectGarbageKeepsPieces(t *testing.T) {
 		t.Errorf("markers left: %v", keys)
 	}
 }
+
+// A file a cleanup took stays in the trash for a while: reading it takes it
+// back (should the cleanup have been wrong); after that it's gone.
+func TestCleanupTrash(t *testing.T) {
+	fake := s3test.New("band")
+	defer fake.Close()
+	b, _ := NewS3(fake.URL, "band", "team", "auto", "k", "s")
+	clock := time.Now().Add(-30 * 24 * time.Hour)
+	defer func() { gcNow = time.Now }()
+	gcNow = func() time.Time { return clock }
+	fake.Clock = func() time.Time { return clock }
+	sum := sha256.Sum256([]byte("old take"))
+	h := hex.EncodeToString(sum[:])
+	b.PutObject(h, bytes.NewReader([]byte("old take")))
+	clean := func(after time.Duration) *GCReport {
+		clock = clock.Add(after)
+		rep, err := b.CollectGarbage(true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rep
+	}
+	read := func() (string, error) {
+		r, err := b.GetObject(h)
+		if err != nil {
+			return "", err
+		}
+		defer r.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		return buf.String(), nil
+	}
+	clean(8 * 24 * time.Hour) // marked
+	if rep := clean(25 * time.Hour); rep.Deleted != 1 {
+		t.Fatalf("not taken: %+v", rep)
+	}
+	if _, ok := fake.Object("band", "team/"+objectKey(h)); ok {
+		t.Fatal("still in place")
+	}
+	if got, err := read(); err != nil || got != "old take" {
+		t.Fatalf("from the trash: %q %v", got, err)
+	}
+	if _, ok := fake.Object("band", "team/"+objectKey(h)); !ok {
+		t.Fatal("reading it didn't put it back")
+	}
+	// Back in place it's new again: taken a week on, and the trash emptied
+	// once that is old.
+	clean(8 * 24 * time.Hour)
+	clean(25 * time.Hour)
+	if _, ok := fake.Object("band", "team/"+objectKey(h)); ok {
+		t.Fatal("not taken again")
+	}
+	clean(trashLife + time.Hour)
+	if _, err := read(); err == nil {
+		t.Fatal("still there after the trash's time")
+	}
+}

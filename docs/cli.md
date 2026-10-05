@@ -108,7 +108,7 @@ dawgit storage-cleanup            # files in the team's storage no version of an
 dawgit storage-cleanup --delete   # delete those that are due
 ```
 
-Or in the app: the team's settings (⚙) → **Storage cleanup**. Deleted projects and uploads that stopped leave files behind. A file is deleted only once a cleanup has found it unused a day before and it is at least a week old; files a teammate's share in progress relies on are never deleted. Works on teams that use S3 or R2 storage.
+Or in the app: the team's settings (⚙) → **Storage cleanup**. Deleted projects and uploads that stopped leave files behind. A file is deleted only once a cleanup has found it unused a day before and it is at least a week old; files a teammate's share in progress relies on are never deleted. Deleted files go to a trash in the storage for two weeks first: should a cleanup ever be wrong, DAWGit takes a file back from there when it's needed (and `dawgit verify --repair` does for a whole project). Works on teams that use S3 or R2 storage.
 
 ## Working with Live Sets directly
 

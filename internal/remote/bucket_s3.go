@@ -267,6 +267,20 @@ func (s *s3Bucket) Put(key string, r io.Reader, size int64, sum, cond string) er
 	return nil
 }
 
+func (s *s3Bucket) Copy(src, dst string) error {
+	source := "/" + s.bucket + "/" + s.prefix + src
+	h := http.Header{"x-amz-copy-source": {(&url.URL{Path: source}).EscapedPath()}}
+	r, err := s.call("PUT", dst, nil, nil, h)
+	if err != nil {
+		return err
+	}
+	// Copying can fail with 200 and an error in the body.
+	if r.status != http.StatusOK || bytes.Contains(r.body, []byte("<Error>")) {
+		return s3Error(r)
+	}
+	return nil
+}
+
 func (s *s3Bucket) Delete(key, cond string) error {
 	r, err := s.call("DELETE", key, nil, nil, condHeader(cond))
 	if err != nil {
