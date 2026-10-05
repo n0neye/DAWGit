@@ -965,6 +965,11 @@ export class Result {
      */
     "keptWork": boolean;
 
+    /**
+     * TakenBack: versions a teammate took back, taken out here too.
+     */
+    "takenBack": Version[];
+
     /** Creates a new Result instance. */
     constructor($$source: Partial<Result> = {}) {
         if (!("action" in $$source)) {
@@ -988,6 +993,9 @@ export class Result {
         if (!("keptWork" in $$source)) {
             this["keptWork"] = false;
         }
+        if (!("takenBack" in $$source)) {
+            this["takenBack"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -999,6 +1007,7 @@ export class Result {
         const $$createField1_0 = $$createType4;
         const $$createField2_0 = $$createType4;
         const $$createField3_0 = $$createType16;
+        const $$createField7_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("log" in $$parsedSource) {
             $$parsedSource["log"] = $$createField1_0($$parsedSource["log"]);
@@ -1008,6 +1017,9 @@ export class Result {
         }
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField3_0($$parsedSource["conflicts"]);
+        }
+        if ("takenBack" in $$parsedSource) {
+            $$parsedSource["takenBack"] = $$createField7_0($$parsedSource["takenBack"]);
         }
         return new Result($$parsedSource as Partial<Result>);
     }
@@ -1566,6 +1578,11 @@ export class State {
     "changes": Change[];
     "myEdits": project$0.TrackEdit[];
     "incoming": Version[];
+
+    /**
+     * TakenBack: versions here a teammate took back (Update takes them out).
+     */
+    "takenBack": Version[];
     "history": Version[];
     "branches": Branch[];
 
@@ -1640,6 +1657,9 @@ export class State {
         if (!("incoming" in $$source)) {
             this["incoming"] = [];
         }
+        if (!("takenBack" in $$source)) {
+            this["takenBack"] = [];
+        }
         if (!("history" in $$source)) {
             this["history"] = [];
         }
@@ -1662,7 +1682,8 @@ export class State {
         const $$createField21_0 = $$createType35;
         const $$createField22_0 = $$createType12;
         const $$createField23_0 = $$createType12;
-        const $$createField24_0 = $$createType37;
+        const $$createField24_0 = $$createType12;
+        const $$createField25_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rules" in $$parsedSource) {
             $$parsedSource["rules"] = $$createField0_0($$parsedSource["rules"]);
@@ -1685,11 +1706,14 @@ export class State {
         if ("incoming" in $$parsedSource) {
             $$parsedSource["incoming"] = $$createField22_0($$parsedSource["incoming"]);
         }
+        if ("takenBack" in $$parsedSource) {
+            $$parsedSource["takenBack"] = $$createField23_0($$parsedSource["takenBack"]);
+        }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField23_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField24_0($$parsedSource["history"]);
         }
         if ("branches" in $$parsedSource) {
-            $$parsedSource["branches"] = $$createField24_0($$parsedSource["branches"]);
+            $$parsedSource["branches"] = $$createField25_0($$parsedSource["branches"]);
         }
         return new State($$parsedSource as Partial<State>);
     }
@@ -1768,6 +1792,78 @@ export class StorageCleanup {
 }
 
 /**
+ * TakeBack says whether the latest version can be taken back instead:
+ * gone from the history, its changes uncommitted here (see
+ * project.PlanTakeBack).
+ */
+export class TakeBack {
+    "ok": boolean;
+
+    /**
+     * Why not: older-version | not-latest | not-yours | merge | first |
+     * has-it | on-branch; "" when OK.
+     */
+    "why": string;
+
+    /**
+     * names of who has it
+     */
+    "haveIt": string[];
+
+    /**
+     * other branches that have it
+     */
+    "branches": string[];
+
+    /**
+     * Shared: the team has it (else it is only here). FeatureOff: taking it
+     * back turns taking back on for the team.
+     */
+    "shared": boolean;
+    "featureOff": boolean;
+
+    /** Creates a new TakeBack instance. */
+    constructor($$source: Partial<TakeBack> = {}) {
+        if (!("ok" in $$source)) {
+            this["ok"] = false;
+        }
+        if (!("why" in $$source)) {
+            this["why"] = "";
+        }
+        if (!("haveIt" in $$source)) {
+            this["haveIt"] = [];
+        }
+        if (!("branches" in $$source)) {
+            this["branches"] = [];
+        }
+        if (!("shared" in $$source)) {
+            this["shared"] = false;
+        }
+        if (!("featureOff" in $$source)) {
+            this["featureOff"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TakeBack instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TakeBack {
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("haveIt" in $$parsedSource) {
+            $$parsedSource["haveIt"] = $$createField2_0($$parsedSource["haveIt"]);
+        }
+        if ("branches" in $$parsedSource) {
+            $$parsedSource["branches"] = $$createField3_0($$parsedSource["branches"]);
+        }
+        return new TakeBack($$parsedSource as Partial<TakeBack>);
+    }
+}
+
+/**
  * TeamConnection is how this computer reaches a team: storage fields, or a
  * server address and token.
  */
@@ -1818,6 +1914,11 @@ export class TeamPart {
     "incoming": Version[];
 
     /**
+     * see State.TakenBack
+     */
+    "takenBack": Version[];
+
+    /**
      * all branches, with the team's
      */
     "history": Version[];
@@ -1849,6 +1950,9 @@ export class TeamPart {
         if (!("incoming" in $$source)) {
             this["incoming"] = [];
         }
+        if (!("takenBack" in $$source)) {
+            this["takenBack"] = [];
+        }
         if (!("history" in $$source)) {
             this["history"] = [];
         }
@@ -1872,8 +1976,9 @@ export class TeamPart {
         const $$createField2_0 = $$createType37;
         const $$createField3_0 = $$createType12;
         const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType3;
-        const $$createField7_0 = $$createType39;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType3;
+        const $$createField8_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("branches" in $$parsedSource) {
             $$parsedSource["branches"] = $$createField2_0($$parsedSource["branches"]);
@@ -1881,14 +1986,17 @@ export class TeamPart {
         if ("incoming" in $$parsedSource) {
             $$parsedSource["incoming"] = $$createField3_0($$parsedSource["incoming"]);
         }
+        if ("takenBack" in $$parsedSource) {
+            $$parsedSource["takenBack"] = $$createField4_0($$parsedSource["takenBack"]);
+        }
         if ("history" in $$parsedSource) {
-            $$parsedSource["history"] = $$createField4_0($$parsedSource["history"]);
+            $$parsedSource["history"] = $$createField5_0($$parsedSource["history"]);
         }
         if ("olderVersion" in $$parsedSource) {
-            $$parsedSource["olderVersion"] = $$createField5_0($$parsedSource["olderVersion"]);
+            $$parsedSource["olderVersion"] = $$createField6_0($$parsedSource["olderVersion"]);
         }
         if ("capabilities" in $$parsedSource) {
-            $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
+            $$parsedSource["capabilities"] = $$createField8_0($$parsedSource["capabilities"]);
         }
         return new TeamPart($$parsedSource as Partial<TeamPart>);
     }
@@ -2192,6 +2300,12 @@ export class UndoPlan {
     "blocked": string[];
     "conflicts": Conflict[];
 
+    /**
+     * Error: why it can't be undone with a new version ("" when it can).
+     */
+    "error": string;
+    "takeBack": TakeBack;
+
     /** Creates a new UndoPlan instance. */
     constructor($$source: Partial<UndoPlan> = {}) {
         if (!("changed" in $$source)) {
@@ -2202,6 +2316,12 @@ export class UndoPlan {
         }
         if (!("conflicts" in $$source)) {
             this["conflicts"] = [];
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+        if (!("takeBack" in $$source)) {
+            this["takeBack"] = (new TakeBack());
         }
 
         Object.assign(this, $$source);
@@ -2214,6 +2334,7 @@ export class UndoPlan {
         const $$createField0_0 = $$createType4;
         const $$createField1_0 = $$createType4;
         const $$createField2_0 = $$createType16;
+        const $$createField4_0 = $$createType42;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("changed" in $$parsedSource) {
             $$parsedSource["changed"] = $$createField0_0($$parsedSource["changed"]);
@@ -2223,6 +2344,9 @@ export class UndoPlan {
         }
         if ("conflicts" in $$parsedSource) {
             $$parsedSource["conflicts"] = $$createField2_0($$parsedSource["conflicts"]);
+        }
+        if ("takeBack" in $$parsedSource) {
+            $$parsedSource["takeBack"] = $$createField4_0($$parsedSource["takeBack"]);
         }
         return new UndoPlan($$parsedSource as Partial<UndoPlan>);
     }
@@ -2421,7 +2545,7 @@ export class VerifyResult {
      * Creates a new VerifyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): VerifyResult {
-        const $$createField3_0 = $$createType43;
+        const $$createField3_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("problems" in $$parsedSource) {
             $$parsedSource["problems"] = $$createField3_0($$parsedSource["problems"]);
@@ -2560,5 +2684,6 @@ const $$createType38 = remote$0.Storage.createFrom;
 const $$createType39 = remote$0.Capabilities.createFrom;
 const $$createType40 = textdiff$0.Hunk.createFrom;
 const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = VerifyProblem.createFrom;
-const $$createType43 = $Create.Array($$createType42);
+const $$createType42 = TakeBack.createFrom;
+const $$createType43 = VerifyProblem.createFrom;
+const $$createType44 = $Create.Array($$createType43);

@@ -983,5 +983,19 @@
 "A later version changed {n} of the same things: you'll choose what to keep.": "Eine spätere Version hat {n} der gleichen Stellen geändert: du wählst, was bleibt.",
 "Later versions changed {n} of the same things: you'll choose what to keep.": "Spätere Versionen haben {n} der gleichen Stellen geändert: du wählst, was bleibt.",
 "You have uncommitted changes in files this undo changes. Commit or discard them first:": "In Dateien, die dieses Rückgängigmachen ändert, gibt es nicht committete Änderungen. Committe oder verwirf sie zuerst:",
-"Your other uncommitted changes stay as they are.": "Deine anderen nicht committeten Änderungen bleiben, wie sie sind."
+"Your other uncommitted changes stay as they are.": "Deine anderen nicht committeten Änderungen bleiben, wie sie sind.",
+"{who} took back “{version}”.": "{who} hat „{version}“ zurückgenommen.",
+"{who} took back {n} versions.": "{who} hat {n} Versionen zurückgenommen.",
+"It's taken out of your files too.": "Sie ist auch aus deinen Dateien entfernt.",
+"“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.": "„{version}“ ist aus dem Verlauf verschwunden, deinem und dem des Teams. Ihre Änderungen sind wieder bei deinen nicht committeten Änderungen.",
+"“{version}” is gone from the history. Its changes are back in your uncommitted changes.": "„{version}“ ist aus dem Verlauf verschwunden. Ihre Änderungen sind wieder bei deinen nicht committeten Änderungen.",
+"Get updates to take it out of your files too.": "Hol die Updates, um sie auch aus deinen Dateien zu entfernen.",
+"{who} already has this version, so it stays in the history: a new version takes it back.": "{who} hat diese Version schon, deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück.",
+"The branch {branch} has this version too, so it stays in the history: a new version takes it back.": "Der Branch {branch} hat diese Version auch, deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück.",
+"It's a teammate's version, so it stays in the history: a new version takes it back.": "Es ist die Version eines Teammitglieds, deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück.",
+"Removes it from the history, yours and the team's. Its changes come back as uncommitted changes, so you can fix them and commit again.": "Entfernt sie aus dem Verlauf, deinem und dem des Teams. Ihre Änderungen werden wieder nicht committete Änderungen, damit du sie korrigieren und neu committen kannst.",
+"Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "Entfernt sie aus dem Verlauf. Ihre Änderungen werden wieder nicht committete Änderungen, damit du sie korrigieren und neu committen kannst.",
+"This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Damit wird das Zurücknehmen von Versionen für das Team eingeschaltet: Teammitglieder mit einem älteren DAWGit werden gebeten, es zu aktualisieren.",
+"Keep it in the history instead": "Stattdessen im Verlauf behalten",
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit kann nicht erkennen, wer diese Version gemacht hat (wähle zuerst deinen Namen im Team), deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück."
 }

@@ -600,6 +600,9 @@ func (r *Repo) Incoming() (bool, error) {
 		return false, err
 	}
 	remoteHead := branches[r.BranchName()]
+	if taken, err := r.takenBack(c, branches); err != nil || len(taken) > 0 {
+		return len(taken) > 0, err // taking them out rewrites files too
+	}
 	if remoteHead == "" || remoteHead == r.Latest() {
 		return false, nil
 	}
@@ -623,6 +626,8 @@ type SyncResult struct {
 	// KeptWork: uncommitted changes were kept through the update (still
 	// uncommitted, merged with the team's versions).
 	KeptWork bool
+	// TakenBack: versions a teammate took back, taken out here too.
+	TakenBack []*Manifest
 }
 
 // Update brings the workspace up to date with the server branch: a fast
@@ -643,7 +648,17 @@ func (r *Repo) Update(opts MergeOptions) (*SyncResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.integrate(c, branches[r.BranchName()], opts, "Merge versions from the team", true)
+	if res, err := r.dropTakenBack(c, branches, opts); err != nil || res != nil {
+		return res, err
+	}
+	target := branches[r.BranchName()]
+	if target != "" {
+		if err := r.fetchSnapshots(c, target); err != nil {
+			return nil, err
+		}
+		r.noteTeamHead(c, target)
+	}
+	return r.integrate(c, target, opts, "Merge versions from the team", true)
 }
 
 // integrate brings version target (and its history) into the workspace: a
@@ -836,6 +851,7 @@ func (r *Repo) catchUp(c remote.Backend, opts MergeOptions) (*SyncResult, error)
 	if changes, err := r.Status(); err != nil || len(changes) == 0 {
 		return nil, err
 	}
+	r.noteTeamHead(c, target)
 	return r.updateKeepingWork(c, head, target, opts, &SyncResult{From: head, To: head})
 }
 
@@ -853,9 +869,21 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 		if err != nil && !errors.Is(err, remote.ErrNotFound) {
 			return nil, err
 		}
+		if taken, err := r.dropTakenBack(c, branches, opts); err != nil {
+			return nil, err
+		} else if taken != nil {
+			res.TakenBack = append(res.TakenBack, taken.TakenBack...)
+			res.MergeLog = append(res.MergeLog, taken.MergeLog...)
+			res.Relinked = append(res.Relinked, taken.Relinked...)
+			res.KeptWork = res.KeptWork || taken.KeptWork
+			continue
+		}
 		remoteHead := branches[r.BranchName()]
 		if remoteHead == r.Head() {
-			if res.Action == "" {
+			r.noteTeamHead(c, remoteHead)
+			if res.Action == "" && len(res.TakenBack) > 0 {
+				res.Action, res.To = "taken-back", remoteHead
+			} else if res.Action == "" {
 				res.Action = "up-to-date"
 			}
 			return res, nil
@@ -900,6 +928,7 @@ func (r *Repo) Share(opts MergeOptions) (*SyncResult, error) {
 		if err != nil {
 			return nil, err
 		}
+		r.noteTeamHead(c, r.Head())
 		res.Action, res.To = "published", r.Head()
 		return res, nil
 	}
@@ -940,26 +969,8 @@ func (r *Repo) replayOnto(c remote.Backend, target string, opts MergeOptions) (l
 	if err != nil {
 		return nil, false, err
 	}
-	for _, m := range ours {
-		base, err := r.Load(m.Parents[0])
-		if err != nil {
-			return nil, false, err
-		}
-		r.knowSizes(onto, base)
-		if err := r.fetchObjects(c, setHashes(onto, base)); err != nil {
-			return nil, false, err
-		}
-		next, l, err := r.mergeManifests(base, m, onto, opts)
-		if err != nil {
-			return nil, false, err // nothing changed yet: the versions are where they were
-		}
-		next.Parents, next.Message, next.Author, next.AuthorID, next.Time =
-			[]string{onto.ID}, m.Message, m.Author, m.AuthorID, m.Time
-		if err := r.save(next); err != nil {
-			return nil, false, err
-		}
-		log = append(log, l...)
-		onto = next
+	if onto, log, err = r.replay(c, ours, onto, opts); err != nil {
+		return nil, false, err // nothing changed yet: the versions are where they were
 	}
 	r.knowSizes(onto)
 	if err := r.fetchObjects(c, onto.Objects()); err != nil {
@@ -969,6 +980,35 @@ func (r *Repo) replayOnto(c remote.Backend, target string, opts MergeOptions) (l
 		return nil, false, err
 	}
 	return log, true, nil
+}
+
+// replay puts versions (oldest first, each with one parent) after onto,
+// each merged with what came before it, keeping their messages, authors and
+// times; it returns the last. Only new versions are stored.
+func (r *Repo) replay(c remote.Backend, ours []*Manifest, onto *Manifest, opts MergeOptions) (*Manifest, []string, error) {
+	var log []string
+	for _, m := range ours {
+		base, err := r.Load(m.Parents[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		r.knowSizes(onto, base)
+		if err := r.fetchObjects(c, setHashes(onto, base)); err != nil {
+			return nil, nil, err
+		}
+		next, l, err := r.mergeManifests(base, m, onto, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+		next.Parents, next.Message, next.Author, next.AuthorID, next.Time =
+			[]string{onto.ID}, m.Message, m.Author, m.AuthorID, m.Time
+		if err := r.save(next); err != nil {
+			return nil, nil, err
+		}
+		log = append(log, l...)
+		onto = next
+	}
+	return onto, log, nil
 }
 
 // Clone connects to a team (address + token, or a connection code) and

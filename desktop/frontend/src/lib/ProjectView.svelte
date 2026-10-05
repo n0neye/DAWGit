@@ -243,6 +243,10 @@
     refreshing = false;
   }
 
+  // "Yi took back “x”": versions a teammate took back.
+  const takenBackText = (vs: Version[]) => tn(vs.length, "{who} took back “{version}”.", "{who} took back {n} versions.",
+    { who: [...new Set(vs.map((v) => v.author))].join(", "), version: vs[0]?.message || vs[0]?.short || "" });
+
   let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
   // The team's new versions to tell about: a merge only combines the others.
   let news = $derived.by(() => {
@@ -265,6 +269,7 @@
         conflicts = { items: r.conflicts, run: a, force }; // keep a "Live is closed" confirmation
       } else {
         a.done(r);
+        if (r.takenBack?.length) toast(takenBackText(r.takenBack) + " " + t("It's taken out of your files too.") + reopen(), "info", 10000);
         if (r.relinked.length) toast(tn(r.relinked.length, "Relinked {n} sample path for this computer", "Relinked {n} sample paths for this computer"), "info");
       }
     } catch (e) {
@@ -283,6 +288,7 @@
         "saved-locally": t("Version committed on this computer (not shared with a team)"),
         "fast-forward": t("Updated to the team's latest version: nothing of yours was left to commit"),
         "nothing": t("Nothing changed since your last version"),
+        "taken-back": t("Nothing changed since your last version"),
       };
       toast(text[r.action] ?? t("Version committed"), r.action === "nothing" ? "info" : "ok");
       if (r.log.length && r.action === "published") toast(t("The team's versions were taken in first; yours comes after them") + reopen(), "info", 9000);
@@ -456,7 +462,7 @@
     name: "update",
     call: (res, force) => api.Update(root, res, force),
     done: (r) => {
-      if (r.action === "fast-forward" || r.action === "merged") {
+      if (r.action === "fast-forward" || r.action === "merged" || r.action === "taken-back") {
         toast((r.keptWork ? t("You're up to date. Your changes are kept, still uncommitted") : t("You're up to date")) + reopen(), "ok", 8000);
         if (r.action === "merged") toast(t("Your versions and the team's were combined. Commit a version to share the result."), "info", 9000);
       } else toast(t("Already up to date"), "info");
@@ -594,17 +600,25 @@
   // Undo commit: asked first (UndoDialog), then done like a save: Live
   // closed, conflicts with later versions decided.
   let undoing = $state<Version | null>(null);
-  function undoCommit(v: Version, msg: string) {
+  function undoCommit(v: Version, msg: string, takeBack: boolean) {
     undoing = null;
+    const version = v.message || v.short;
+    if (takeBack) {
+      run({
+        name: "undo",
+        call: () => api.TakeBackVersion(root, v.id, true),
+        done: (r) => toast(r.action === "taken-back"
+          ? t("“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.", { version })
+          : t("“{version}” is gone from the history. Its changes are back in your uncommitted changes.", { version }), "ok", 9000),
+      });
+      return;
+    }
     run({
       name: "undo",
       message: msg,
       call: (res, force) => api.UndoCommit(root, v.id, msg, res, force),
-      done: (r) => {
-        const version = v.message || v.short;
-        toast((r.action === "saved-locally" ? t("Undone: a new version takes back “{version}”", { version })
-          : t("Undone and shared: a new version takes back “{version}”", { version })) + reopen(), "ok", 8000);
-      },
+      done: (r) => toast((r.action === "saved-locally" ? t("Undone: a new version takes back “{version}”", { version })
+        : t("Undone and shared: a new version takes back “{version}”", { version })) + reopen(), "ok", 8000),
     });
   }
 
@@ -815,6 +829,18 @@
         {/if}
         {#if !(st.remoteUrl && st.changes.length)}
           <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>{t("Back to latest")}</button>
+        {/if}
+      </div>
+    {/if}
+    {#if st.takenBack?.length && !st.incoming.length}
+      <div class="banner info">
+        <div>
+          {takenBackText(st.takenBack)}
+          <span class="muted">{t("Get updates to take it out of your files too.")}</span>
+          {#if st.changes.length && !st.olderVersion}<span class="keep">{t("Your uncommitted changes stay as they are.")}</span>{/if}
+        </div>
+        {#if !st.olderVersion}
+          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>{t("Get updates")}</button>
         {/if}
       </div>
     {/if}
@@ -1132,7 +1158,7 @@
 
   {#if undoing}
     {@const v = undoing}
-    <UndoDialog {root} version={v} onclose={() => (undoing = null)} onundo={(msg) => undoCommit(v, msg)} />
+    <UndoDialog {root} version={v} onclose={() => (undoing = null)} onundo={(msg, takeBack) => undoCommit(v, msg, takeBack)} />
   {/if}
 
   {#if keepOpen !== null}

@@ -353,7 +353,7 @@ func (a *App) State(root string) (*State, error) {
 	}
 	st := &State{Root: r.Root, Name: r.Config.Name, Author: r.Config.Author, Branch: r.BranchName(),
 		Head: r.Head(), LiveRunning: toolOpen(r) != "",
-		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, History: []Version{},
+		Changes: []Change{}, MyEdits: []project.TrackEdit{}, Incoming: []Version{}, TakenBack: []Version{}, History: []Version{},
 		Branches: []Branch{}}
 	if st.Name == "" {
 		st.Name = filepath.Base(r.Root)
@@ -416,7 +416,7 @@ func (a *App) State(root string) (*State, error) {
 		return nil, err
 	}
 	sw.lap("log")
-	st.Branches, st.Incoming, st.History = part.Branches, part.Incoming, part.History
+	st.Branches, st.Incoming, st.TakenBack, st.History = part.Branches, part.Incoming, part.TakenBack, part.History
 	if part.OlderVersion != nil {
 		st.OlderVersion = part.OlderVersion
 	}
@@ -429,7 +429,8 @@ type TeamPart struct {
 	Offline      string    `json:"offline"`
 	Branches     []Branch  `json:"branches"`
 	Incoming     []Version `json:"incoming"`
-	History      []Version `json:"history"` // all branches, with the team's
+	TakenBack    []Version `json:"takenBack"` // see State.TakenBack
+	History      []Version `json:"history"`   // all branches, with the team's
 	OlderVersion *Version  `json:"olderVersion"`
 	// Unshared: this branch has versions here and none on the team yet (the
 	// project was added and not shared).
@@ -475,7 +476,7 @@ func (a *App) TeamState(root string) (*TeamPart, error) {
 // teamPart works out the team's side from a fetched view (nil: none), with
 // no network except, when fetchNames, the member list (cached a minute).
 func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool) (*TeamPart, error) {
-	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}}
+	part := &TeamPart{Online: view != nil, Branches: []Branch{}, Incoming: []Version{}, TakenBack: []Version{}}
 	part.Unshared = view != nil && view.Heads[r.BranchName()] == "" && r.Head() != ""
 	tips := map[string][]string{}
 	if view != nil {
@@ -490,6 +491,9 @@ func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool)
 		}
 		if in, err := r.IncomingFrom(view.Heads); err == nil {
 			part.Incoming = toVersions(in, nil)
+		}
+		if tb, err := r.TakenBackFrom(view.Heads); err == nil {
+			part.TakenBack = toVersions(tb, nil)
 		}
 	}
 	// The whole tree: every branch (including the team's versions of this
@@ -526,6 +530,7 @@ func (a *App) teamPart(r *project.Repo, view *project.TeamView, fetchNames bool)
 		}
 		renameAuthors(names, part.History)
 		renameAuthors(names, part.Incoming)
+		renameAuthors(names, part.TakenBack)
 		for _, b := range part.Branches {
 			if b.Latest != nil {
 				if n := names[b.Latest.AuthorID]; n != "" {
@@ -623,9 +628,10 @@ func conflictResult(err error) (*Result, error) {
 }
 
 func syncResult(res *project.SyncResult) *Result {
-	out := &Result{Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}}
+	out := &Result{Log: []string{}, Relinked: []string{}, Conflicts: []Conflict{}, TakenBack: []Version{}}
 	if res != nil {
 		out.Action, out.Log, out.Relinked, out.KeptWork = res.Action, nonNil(res.MergeLog), nonNil(res.Relinked), res.KeptWork
+		out.TakenBack = toVersions(res.TakenBack, nil)
 	}
 	return out
 }
@@ -1011,24 +1017,90 @@ type UndoPlan struct {
 	Changed   []string   `json:"changed"`
 	Blocked   []string   `json:"blocked"`
 	Conflicts []Conflict `json:"conflicts"`
+	// Error: why it can't be undone with a new version ("" when it can).
+	Error    string   `json:"error"`
+	TakeBack TakeBack `json:"takeBack"`
 }
 
-// PlanUndo says what undoing version id would do.
+// TakeBack says whether the latest version can be taken back instead:
+// gone from the history, its changes uncommitted here (see
+// project.PlanTakeBack).
+type TakeBack struct {
+	OK bool `json:"ok"`
+	// Why not: older-version | not-latest | not-yours | who | merge | first |
+	// has-it | on-branch; "" when OK.
+	Why      string   `json:"why"`
+	HaveIt   []string `json:"haveIt"`   // names of who has it
+	Branches []string `json:"branches"` // other branches that have it
+	// Shared: the team has it (else it is only here). FeatureOff: taking it
+	// back turns taking back on for the team.
+	Shared     bool `json:"shared"`
+	FeatureOff bool `json:"featureOff"`
+}
+
+// PlanUndo says what undoing version id would do: with a new version, or
+// by taking it back.
 func (a *App) PlanUndo(root, id string) (*UndoPlan, error) {
 	r, unlock, err := a.open(root)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
-	plan, err := r.PlanUndo(id, opts(nil))
-	var c *project.MergeConflictError
-	if errors.As(err, &c) {
-		return &UndoPlan{Changed: []string{}, Blocked: []string{}, Conflicts: toConflicts(c.Conflicts)}, nil
-	}
+	out := &UndoPlan{Changed: []string{}, Blocked: []string{}, Conflicts: []Conflict{},
+		TakeBack: TakeBack{HaveIt: []string{}, Branches: []string{}}}
+	tb, err := r.PlanTakeBack(id)
 	if err != nil {
 		return nil, err
 	}
-	return &UndoPlan{Changed: nonNil(plan.Changed), Blocked: nonNil(plan.Blocked), Conflicts: []Conflict{}}, nil
+	out.TakeBack.OK, out.TakeBack.Why, out.TakeBack.Shared, out.TakeBack.FeatureOff = tb.OK, tb.Why, tb.Shared, tb.FeatureOff
+	out.TakeBack.Branches = nonNil(tb.Branches)
+	if len(tb.HaveIt) > 0 {
+		names := a.memberNames(r)
+		for _, m := range tb.HaveIt {
+			if names[m] != "" {
+				m = names[m]
+			} else {
+				m = "?"
+			}
+			out.TakeBack.HaveIt = append(out.TakeBack.HaveIt, m)
+		}
+	}
+	plan, err := r.PlanUndo(id, opts(nil))
+	var c *project.MergeConflictError
+	switch {
+	case errors.As(err, &c):
+		out.Conflicts = toConflicts(c.Conflicts)
+	case err != nil && !tb.OK:
+		return nil, err
+	case err != nil:
+		out.Error = err.Error()
+	default:
+		out.Changed, out.Blocked = nonNil(plan.Changed), nonNil(plan.Blocked)
+	}
+	return out, nil
+}
+
+// TakeBackVersion takes back the latest version id: gone from the history
+// (and the team's, when it was shared), its changes stay in the files,
+// uncommitted. turnOn turns taking back on for the team when it isn't.
+// Action "taken-back", or "taken-back-locally" when it wasn't shared.
+func (a *App) TakeBackVersion(root, id string, turnOn bool) (*Result, error) {
+	defer a.tidyLater(root)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	p, err := r.TakeBack(id, turnOn)
+	if err != nil {
+		return nil, err
+	}
+	out := syncResult(nil)
+	out.Action = "taken-back"
+	if !p.Shared {
+		out.Action = "taken-back-locally"
+	}
+	return out, nil
 }
 
 // UndoCommit makes a version that takes back version id's changes (keeping

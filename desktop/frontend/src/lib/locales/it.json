@@ -983,5 +983,19 @@
 "A later version changed {n} of the same things: you'll choose what to keep.": "Una versione successiva ha cambiato {n} delle stesse cose: sceglierai cosa tenere.",
 "Later versions changed {n} of the same things: you'll choose what to keep.": "Versioni successive hanno cambiato {n} delle stesse cose: sceglierai cosa tenere.",
 "You have uncommitted changes in files this undo changes. Commit or discard them first:": "Hai modifiche non confermate in file che questo annullamento cambia. Confermale o scartale prima:",
-"Your other uncommitted changes stay as they are.": "Le altre modifiche non confermate restano come sono."
+"Your other uncommitted changes stay as they are.": "Le altre modifiche non confermate restano come sono.",
+"{who} took back “{version}”.": "{who} ha ritirato “{version}”.",
+"{who} took back {n} versions.": "{who} ha ritirato {n} versioni.",
+"It's taken out of your files too.": "È stata tolta anche dai tuoi file.",
+"“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.": "“{version}” è sparita dalla cronologia, la tua e quella del team. Le sue modifiche sono tornate tra le tue modifiche non confermate.",
+"“{version}” is gone from the history. Its changes are back in your uncommitted changes.": "“{version}” è sparita dalla cronologia. Le sue modifiche sono tornate tra le tue modifiche non confermate.",
+"Get updates to take it out of your files too.": "Scarica gli aggiornamenti per toglierla anche dai tuoi file.",
+"{who} already has this version, so it stays in the history: a new version takes it back.": "{who} ha già questa versione, quindi resta nella cronologia: una nuova versione la annulla.",
+"The branch {branch} has this version too, so it stays in the history: a new version takes it back.": "Il branch {branch} ha anche questa versione, quindi resta nella cronologia: una nuova versione la annulla.",
+"It's a teammate's version, so it stays in the history: a new version takes it back.": "È la versione di un compagno, quindi resta nella cronologia: una nuova versione la annulla.",
+"Removes it from the history, yours and the team's. Its changes come back as uncommitted changes, so you can fix them and commit again.": "La toglie dalla cronologia, la tua e quella del team. Le sue modifiche tornano non confermate, così puoi correggerle e confermarle di nuovo.",
+"Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "La toglie dalla cronologia. Le sue modifiche tornano non confermate, così puoi correggerle e confermarle di nuovo.",
+"This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Questo attiva il ritiro delle versioni per il team: ai compagni con un DAWGit più vecchio verrà chiesto di aggiornarlo.",
+"Keep it in the history instead": "Tienila invece nella cronologia",
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit non riesce a capire chi ha fatto questa versione (scegli prima il tuo nome nel team), quindi resta nella cronologia: una nuova versione la annulla."
 }
