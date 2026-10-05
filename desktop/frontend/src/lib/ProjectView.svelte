@@ -11,6 +11,7 @@
   import EditsSummary from "./EditsSummary.svelte";
   import ProjectHeader from "./ProjectHeader.svelte";
   import ProjectBanners from "./ProjectBanners.svelte";
+  import HoldOverlay from "./HoldOverlay.svelte";
   import RuleSuggestion from "./RuleSuggestion.svelte";
   import { takenBackText } from "./teamText";
   import UndoDialog from "./UndoDialog.svelte";
@@ -277,6 +278,7 @@
 
   // The tool the project is made with: Live gets its own words.
   let isLive = $derived(st?.tool === "Ableton Live");
+  let toolName = $derived(isLive ? "Live" : st?.tool ? t(st.tool) : t("your app"));
   // What to do after DAWGit changed the project's files.
   const reopen = () => (st?.tool === "Ableton Live" ? " — " + t("reopen the set in Live")
     : st?.tool ? " — " + t("switch back to {tool} to load the changes", { tool: t(st.tool) }) : "");
@@ -610,6 +612,9 @@
   </div>
 {:else}
   <div class="view">
+    {#if progress && (progress.stage === "scanning" || progress.stage === "storing")}
+      <HoldOverlay p={progress} tool={toolName} team={st.teamName || undefined} />
+    {/if}
     <ProjectHeader {st} {refreshing} onswitch={switchTo} onmerge={openMergePreview} onnewbranch={() => (newBranch = "")}
       {onsettings} oncheck={() => (checkOpen = "check")} onrefresh={refresh} />
 
@@ -767,7 +772,7 @@
 {/if}
 
 <style>
-  .view { display: flex; flex-direction: column; height: 100%; }
+  .view { position: relative; display: flex; flex-direction: column; height: 100%; }
   .pad { padding: 24px; }
   /* Same place as the loaded header's title, so nothing jumps. */
   .preparing { padding: 18px 24px; max-width: 600px; }

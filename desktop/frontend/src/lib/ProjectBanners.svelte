@@ -47,7 +47,14 @@
 </script>
 
 {#if progress}
-  <div class="banner info"><ProgressBar p={progress} team={st.teamName || undefined} /></div>
+  <div class="banner info">
+    <div class="col">
+      <ProgressBar p={progress} team={st.teamName || undefined} />
+      {#if progress.stage === "checking" || progress.stage === "uploading"}
+        <span class="go">✓ {t("It's in the history: you can keep working in {tool} while it uploads.", { tool: st.tool === "Ableton Live" ? "Live" : st.tool ? t(st.tool) : t("your app") })}</span>
+      {/if}
+    </div>
+  </div>
 {:else if busy === "first-share"}
   <div class="banner info"><div>{t("Sharing “{name}” with the team…", { name: st.name })}</div></div>
 {/if}
@@ -164,5 +171,7 @@
   .banner.info { background: #1d2c38; border: 1px solid #2c4557; }
   .banner.older { background: #2a2536; border: 1px solid #463c5c; }
   .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
+  .col { display: flex; flex-direction: column; gap: 6px; }
+  .go { font-size: 12.5px; color: var(--accent); }
   .keep { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 </style>

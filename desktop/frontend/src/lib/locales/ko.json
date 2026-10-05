@@ -1000,5 +1000,8 @@
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit이 이 버전을 누가 만들었는지 알 수 없어(먼저 팀에서 이름을 선택하세요) 기록에 남습니다. 새 버전으로 되돌립니다.",
 "Godot project": "Godot 프로젝트",
 "{team} can't be reached right now: download it once it's back.": "지금은 {team}에 연결할 수 없습니다. 다시 연결되면 다운로드하세요.",
-"Checking {team}…": "{team} 확인 중…"
+"Checking {team}…": "{team} 확인 중…",
+"Don't change the project yet": "아직 프로젝트를 바꾸지 마세요",
+"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit이 이 버전을 위해 프로젝트 파일을 읽고 있습니다. 끝날 때까지 {tool}에서 저장하지 마세요. 금방 끝나며, 그다음 업로드는 기다릴 필요가 없습니다.",
+"It's in the history: you can keep working in {tool} while it uploads.": "기록에 들어갔습니다. 업로드하는 동안 {tool}에서 계속 작업할 수 있습니다."
 }

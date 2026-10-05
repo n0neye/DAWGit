@@ -1000,5 +1000,8 @@
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit 無法判斷這個版本是誰做的（請先在團隊中選擇你的名字），所以它會留在歷史紀錄中：改用新版本把它撤回。",
 "Godot project": "Godot 專案",
 "{team} can't be reached right now: download it once it's back.": "目前連不到 {team}：等它恢復後再下載。",
-"Checking {team}…": "正在檢查 {team}…"
+"Checking {team}…": "正在檢查 {team}…",
+"Don't change the project yet": "先不要修改專案",
+"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit 正在讀取這個版本的專案檔案。請等這一步完成後再在 {tool} 存檔：這只需要一下子，之後的上傳不用等。",
+"It's in the history: you can keep working in {tool} while it uploads.": "已存進歷史紀錄：上傳的同時你可以繼續在 {tool} 工作。"
 }
