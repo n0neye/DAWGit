@@ -26,11 +26,13 @@ type OpenFunc func(root, rel string) error
 // Change is a file changed since the version the project is on.
 type Change struct {
 	Path   string // relative, slash separated
-	Status string // added | modified | deleted | untracked
+	Status string // added | modified | deleted | untracked | unchanged
 }
 
 // CheckFunc looks at what is about to be committed and returns warnings
-// (shown before committing; the user may go on).
+// (shown before committing; the user may go on). It gets the changes and
+// the files committed before that stay as they are ("unchanged"), so it
+// can check the whole project.
 type CheckFunc func(root string, changes []Change) []string
 
 var (

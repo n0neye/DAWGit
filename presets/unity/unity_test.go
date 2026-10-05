@@ -44,27 +44,37 @@ func TestUnityPreset(t *testing.T) {
 
 func TestMetaCheck(t *testing.T) {
 	root := t.TempDir()
-	write := func(rel string) {
-		os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755)
-		os.WriteFile(filepath.Join(root, rel), []byte("x"), 0o644)
-	}
-	write("Assets/ok.png")
-	write("Assets/ok.png.meta")
-	write("Assets/new.png") // no .meta yet
-	write("Assets/orphan.wav.meta")
-	write("Assets/kept.mat") // its .meta was deleted
-	write("Assets/gone.fbx.meta")
+	os.MkdirAll(filepath.Join(root, "Assets", "Empty"), 0o755)
+	c := func(p, status string) ext.Change { return ext.Change{Path: p, Status: status} }
 	got := checkMeta(root, []ext.Change{
-		{Path: "Assets/ok.png", Status: "added"}, {Path: "Assets/ok.png.meta", Status: "added"},
-		{Path: "Assets/new.png", Status: "added"},
-		{Path: "Assets/orphan.wav.meta", Status: "added"},
-		{Path: "Assets/kept.mat.meta", Status: "deleted"},
-		{Path: "Assets/gone.fbx", Status: "deleted"},
-		{Path: "Packages/manifest.json", Status: "modified"},
+		c("Assets/ok.png", "added"), c("Assets/ok.png.meta", "added"),
+		c("Assets/new.png", "added"), // no .meta yet
+		c("Assets/orphan.wav.meta", "added"),
+		c("Assets/kept.mat", "unchanged"), c("Assets/kept.mat.meta", "deleted"),
+		c("Assets/gone.fbx", "deleted"), c("Assets/gone.fbx.meta", "unchanged"),
+		c("Assets/old.png", "unchanged"),                                           // committed without one before
+		c("Assets/Empty.meta", "added"),                                            // an empty folder's
+		c("Assets/Art/a.png", "modified"), c("Assets/Art/a.png.meta", "unchanged"), // the folder has none
+		// Not imported by Unity: no .meta needed.
+		c("Assets/.sample.json", "added"), c("Assets/LICENSE~", "added"), c("Assets/x.tmp", "added"),
+		c("Assets/Docs~/readme.md", "added"), c("Assets/.hidden/a.png", "added"), c("Assets/CVS/Entries", "added"),
+		// A package's files have one; the package folder and Packages/*.json don't.
+		c("Packages/manifest.json", "modified"),
+		c("Packages/com.me.tool/package.json", "unchanged"), c("Packages/com.me.tool/package.json.meta", "unchanged"),
+		c("Packages/com.me.tool/Samples~/s.cs", "added"),
+		c("Packages/com.me.tool/Runtime.meta", "unchanged"), c("Packages/com.me.tool/Runtime/t.cs", "added"),
 	})
-	want := []string{"new.png has no .meta", "orphan.wav.meta has no asset", "kept.mat.meta is deleted", "gone.fbx is deleted but its .meta"}
+	want := []string{
+		"gone.fbx is deleted but its .meta",
+		"kept.mat.meta is deleted",
+		"new.png has no .meta yet",
+		"old.png has no .meta: open",
+		"orphan.wav.meta has no asset",
+		"Runtime/t.cs has no .meta yet",
+		"folder Assets/Art has no .meta",
+	}
 	if len(got) != len(want) {
-		t.Fatalf("warnings: %q", got)
+		t.Fatalf("warnings:\n%s", strings.Join(got, "\n"))
 	}
 	for i, w := range want {
 		if !strings.Contains(got[i], w) {

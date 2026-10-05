@@ -317,6 +317,22 @@ func (a *App) CommitWarnings(root string) ([]string, error) {
 		}
 		list = append(list, handlers.Change{Path: c.Path, Status: c.Status})
 	}
+	// The rest of the project, as committed before.
+	if head := r.Head(); head != "" {
+		m, err := r.Load(head)
+		if err != nil {
+			return nil, err
+		}
+		changed := map[string]bool{}
+		for _, c := range changes {
+			changed[c.Path], changed[c.From] = true, true
+		}
+		for _, f := range m.Files {
+			if !changed[f.Path] {
+				list = append(list, handlers.Change{Path: f.Path, Status: "unchanged"})
+			}
+		}
+	}
 	for _, name := range names {
 		if check := handlers.Check(name); check != nil {
 			out = append(out, check(root, list)...)
