@@ -43,6 +43,6 @@ func TestLiveProbe(t *testing.T) {
 	}
 	titles, err := liveWindowTitles()
 	t.Logf("titles %q (err %v)", titles, err)
-	t.Logf("fixture project open set: %q", OpenSet(filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project")))
+	t.Logf("fixture project open set: %q", OpenSet(filepath.Join("..", "..", "testdata", "live")))
 	t.Logf("repo root open set: %q", OpenSet(filepath.Join("..", "..")))
 }

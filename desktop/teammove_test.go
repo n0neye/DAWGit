@@ -16,7 +16,7 @@ func newSong(t *testing.T) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "Song Project")
 	os.MkdirAll(root, 0o755)
-	data, err := os.ReadFile(filepath.Join("..", "SampleProjects", "SampleAbletonProject Project", "SampleAbletonProject_v2.als"))
+	data, err := os.ReadFile(filepath.Join("..", "testdata", "live", "SampleAbletonProject_v2.als"))
 	if err != nil {
 		t.Fatal(err)
 	}

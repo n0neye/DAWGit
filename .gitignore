@@ -37,8 +37,6 @@ MergeTest-*.als
 # Release output
 /dist/
 
-# Third-party sample used by the fixtures: kept locally, not redistributed
-/SampleProjects/ExternalSamples/*.wav
 
 # local dev servers for the browser preview
 .claude/launch.json

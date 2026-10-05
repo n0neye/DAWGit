@@ -13,7 +13,7 @@ import (
 	"dawgit/internal/server"
 )
 
-var fixtures = filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project")
+var fixtures = filepath.Join("..", "..", "testdata", "live")
 
 func copyFile(t *testing.T, src, dst string) {
 	t.Helper()

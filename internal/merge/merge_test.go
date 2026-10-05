@@ -11,7 +11,7 @@ import (
 
 // Native tests on real fixtures; they do not need the Python golden data.
 
-var project = filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project")
+var project = filepath.Join("..", "..", "testdata", "live")
 
 func fixture(t *testing.T, name string) *als.LiveSet {
 	t.Helper()

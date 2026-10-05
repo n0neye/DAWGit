@@ -11,7 +11,7 @@ import (
 	"dawgit/internal/als"
 )
 
-var fixtureProject = filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project")
+var fixtureProject = filepath.Join("..", "..", "testdata", "live")
 
 // newProject copies the v2 fixture (without backups) into a temp folder.
 func newProject(t *testing.T) string {

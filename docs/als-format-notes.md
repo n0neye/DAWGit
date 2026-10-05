@@ -1,6 +1,6 @@
 # .als format notes
 
-Findings from Live 12.3.1 sets (`SampleProjects/`). Verify against other Live versions before relying on them.
+Findings from Live 12.3.1 sets (`testdata/live/`). Verify against other Live versions before relying on them.
 
 ## Container
 - gzip-compressed UTF-8 XML, CRLF line endings, tab indentation.
