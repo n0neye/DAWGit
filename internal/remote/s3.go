@@ -452,11 +452,17 @@ func (s *BucketBackend) MarkChunked(hash string) error {
 	return s.put(chunkedDir+hash, nil)
 }
 
+// GetObject reads a file's stored bytes; one a storage cleanup moved to the
+// trash comes back from there (see CollectGarbage).
 func (s *BucketBackend) GetObject(hash string) (io.ReadCloser, error) {
 	if !validHex(hash, 64) {
 		return nil, ErrNotFound
 	}
-	return s.b.Open(objectKey(hash))
+	r, err := s.b.Open(objectKey(hash))
+	if errors.Is(err, ErrNotFound) && s.fromTrash(objectKey(hash)) == nil {
+		return s.b.Open(objectKey(hash))
+	}
+	return r, err
 }
 
 func (s *BucketBackend) PutWorkspace(pid, wsid string, state any) error {

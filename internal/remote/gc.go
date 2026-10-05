@@ -28,6 +28,10 @@ import (
 //     before the version that uses them.
 //   - Unused files are first marked (gc/candidates.json), and deleted only
 //     by a cleanup at least confirmAfter later, if still unused.
+//   - Deleting moves a file to the trash (gc/trash/: a copy within the
+//     storage, then the delete), where it stays trashLife: should a cleanup
+//     ever be wrong, reading the file takes it back (GetObject), and
+//     `dawgit verify --repair` does so for a whole project.
 //   - A big file may be kept as pieces (a chunk list, marked chunked/<hash>):
 //     its pieces are used for as long as the list is stored, used or not, so
 //     a share relying on a list that is there keeps its pieces too. Pieces
@@ -35,6 +39,7 @@ import (
 
 const (
 	leaseLife    = 14 * 24 * time.Hour
+	trashLife    = 14 * 24 * time.Hour
 	minAge       = 7 * 24 * time.Hour
 	confirmAfter = 24 * time.Hour
 
@@ -44,6 +49,7 @@ const (
 	gcProjectsDir  = "projects/"
 	gcSnapshotsDir = "snapshots/"
 	chunkedDir     = "chunked/"
+	trashDir       = "gc/trash/"
 )
 
 var gcNow = time.Now // tests move time on
@@ -193,8 +199,18 @@ func (s *BucketBackend) CollectGarbage(remove bool) (*GCReport, error) {
 		}
 	}
 	if remove {
-		if err := parallelN(checks, doomed, s.delete); err != nil {
+		if err := parallelN(checks, doomed, s.toTrash); err != nil {
 			return nil, err
+		}
+		// The trash keeps files for a while, not for ever.
+		trash, err := listAll(s.b, trashDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, it := range trash {
+			if now.Sub(it.Modified) > trashLife {
+				s.delete(it.Key)
+			}
 		}
 		for _, l := range stale {
 			s.delete(l)
@@ -314,4 +330,18 @@ func (s *BucketBackend) chunkList(h string) (*chunk.List, error) {
 		return nil, err
 	}
 	return chunk.Parse(text)
+}
+
+// toTrash moves key to the trash: copied there first, then deleted, so a
+// copy that fails deletes nothing.
+func (s *BucketBackend) toTrash(key string) error {
+	if err := s.b.Copy(key, trashDir+key); err != nil {
+		return err
+	}
+	return s.delete(key)
+}
+
+// fromTrash puts key back from the trash (a cleanup took it, wrongly).
+func (s *BucketBackend) fromTrash(key string) error {
+	return s.b.Copy(trashDir+key, key)
 }

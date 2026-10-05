@@ -28,6 +28,9 @@ type Bucket interface {
 	// anything else only if key still has that etag; ErrPrecondition when
 	// the condition doesn't hold.
 	Put(key string, r io.Reader, size int64, sum, cond string) error
+	// Copy copies src to dst within the storage (nothing goes through the
+	// computer). ErrNotFound when src is absent.
+	Copy(src, dst string) error
 	// Delete removes key (absent is fine); cond as in Put ("" or an etag).
 	Delete(key, cond string) error
 	// List calls page with the keys under prefix, in key order, a page at

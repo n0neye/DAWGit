@@ -98,6 +98,18 @@ func (b *Bucket) Put(key string, r io.Reader, size int64, sum, cond string) erro
 	return nil
 }
 
+func (b *Bucket) Copy(src, dst string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	e, ok := b.keys[src]
+	if !ok {
+		return remote.ErrNotFound
+	}
+	b.next++
+	b.keys[dst] = &entry{data: bytes.Clone(e.data), etag: `"` + strconv.Itoa(b.next) + `"`, modified: time.Now()}
+	return nil
+}
+
 func (b *Bucket) Delete(key, cond string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()

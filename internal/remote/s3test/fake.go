@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -159,6 +160,24 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 		}
 	case "PUT":
 		data, _ := io.ReadAll(r.Body)
+		// Copying within storage: the body is the source object's.
+		if src := r.Header.Get("x-amz-copy-source"); src != "" {
+			p, _ := url.PathUnescape(strings.TrimPrefix(src, "/"))
+			from := strings.SplitN(p, "/", 2)
+			var so *object
+			if len(from) == 2 {
+				so = s.buckets[from[0]][from[1]]
+			}
+			if so == nil {
+				xmlError(w, http.StatusNotFound, "NoSuchKey")
+				return
+			}
+			o := &object{data: append([]byte(nil), so.data...), etag: so.etag, modified: s.now()}
+			bucket[key] = o
+			w.Header().Set("ETag", o.etag)
+			fmt.Fprintf(w, "<CopyObjectResult><ETag>%s</ETag></CopyObjectResult>", o.etag)
+			return
+		}
 		if h := r.Header.Get("x-amz-content-sha256"); h != "UNSIGNED-PAYLOAD" {
 			sum := sha256.Sum256(data)
 			if hex.EncodeToString(sum[:]) != h {
