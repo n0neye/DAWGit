@@ -1,6 +1,6 @@
 # Team backup
 
-Status: built (0.12; another bucket 0.12.2; restore 0.12.3). Teams on S3-compatible storage (R2, S3) only; teams
+Status: built (0.12; another bucket 0.12.2; restore 0.12.3; from any backup bucket 0.13.12). Teams on S3-compatible storage (R2, S3) only; teams
 on a self-hosted server back up the server's data folder instead.
 
 ## Why
@@ -90,7 +90,10 @@ paths. With that:
 ## Restoring
 
 Back into the team's storage (Team Settings → Backup → Restore…, or
-`dawgit backup restore`), from this computer's backup or any backup folder:
+`dawgit backup restore`), from this computer's backup, any backup folder,
+or any backup bucket other than the team's own storage (a teammate's,
+say: its address and keys are given for the restore, read-only keys are
+enough, and they aren't kept; the CLI takes them as a connection code):
 
 - Only what the storage lacks is copied, and nothing is overwritten
   (records and branches go up with `If-None-Match: *`), so a restore can't

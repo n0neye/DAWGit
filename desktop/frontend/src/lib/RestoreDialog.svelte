@@ -3,11 +3,14 @@
   import { Events } from "@wailsio/runtime";
   import { api, errorText, formatBytes } from "./api";
   import Modal from "./Modal.svelte";
+  import StorageFields, { type StorageValue } from "./StorageFields.svelte";
   import { toast } from "./notify.svelte";
 
   // Bring back from a backup what the team's storage lacks: deleted
   // projects, lost files, or a whole team (into a new, empty bucket the team
-  // was set up on). Only adds; never changes or deletes anything.
+  // was set up on). Only adds; never changes or deletes anything. The backup:
+  // this computer's, a folder, or a bucket (a teammate's backup; its keys
+  // are used for this restore only).
   let { teamId, hasBackup, onclose, ondone }: {
     teamId: string;
     hasBackup: boolean; // this computer backs the team up (the default source)
@@ -17,6 +20,10 @@
 
   type Plan = Awaited<ReturnType<typeof api.RestorePlan>>;
   let folder = $state(""); // "" = this computer's backup
+  let fromBucket = $state(false); // the bucket below instead
+  let storage = $state<StorageValue>({ endpoint: "", bucket: "", folder: "dawgit-backup", region: "", accessKey: "", secretKey: "" });
+  let bucketReady = $derived(!!(storage.endpoint.trim() && storage.bucket.trim() && storage.accessKey.trim() && storage.secretKey.trim()));
+  const source = () => ({ folder: fromBucket ? "" : folder, storage: fromBucket ? storage : null });
   let run = $state("");
   let plan = $state<Plan>(null);
   let loading = $state(false);
@@ -29,7 +36,7 @@
     loading = true;
     error = "";
     try {
-      plan = await api.RestorePlan(teamId, folder, run);
+      plan = await api.RestorePlan(teamId, source(), run);
     } catch (e) {
       plan = null;
       error = errorText(e);
@@ -50,6 +57,7 @@
     const dir = await api.ChooseFolder(t("Choose the backup's folder")).catch(() => "");
     if (!dir) return;
     folder = dir;
+    fromBucket = false;
     run = "";
     load();
   }
@@ -58,7 +66,7 @@
     busy = true;
     error = "";
     try {
-      const n = await api.Restore(teamId, folder, run);
+      const n = await api.Restore(teamId, source(), run);
       toast(tn(n, "Restored {n} file", "Restored {n} files"), "ok");
       ondone();
     } catch (e) {
@@ -82,9 +90,19 @@
 
   <div class="row src">
     <span class="label">{t("Backup")}</span>
-    <span class="where" title={plan?.where ?? folder}>{plan?.where ?? (folder || (hasBackup ? "…" : t("Choose the backup's folder")))}</span>
+    <span class="where" title={plan?.where ?? folder}>{plan?.where ?? (fromBucket ? t("A bucket") : folder || (hasBackup ? "…" : t("Choose the backup's folder or bucket")))}</span>
     <button class="ghost" disabled={busy} onclick={chooseFolder}>{t("Choose folder…")}</button>
+    <button class="ghost" class:on={fromBucket} disabled={busy}
+      onclick={() => { fromBucket = !fromBucket; plan = null; error = ""; run = ""; if (!fromBucket && (folder || hasBackup)) load(); }}>{t("Bucket…")}</button>
   </div>
+
+  {#if fromBucket}
+    <div class="bucket">
+      <StorageFields bind:value={storage} id="rb" />
+      <p class="faint small">{t("Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.")}</p>
+      <button disabled={busy || loading || !bucketReady} onclick={() => { run = ""; load(); }}>{loading ? t("Checking…") : t("Look in this bucket")}</button>
+    </div>
+  {/if}
 
   {#if plan}
     {#if plan.runs.length}
@@ -145,4 +163,7 @@
   .bar { height: 4px; border-radius: 2px; background: var(--panel); overflow: hidden; margin: 10px 0 4px; }
   .bar div { height: 100%; background: var(--accent); transition: width .3s; }
   .error { color: var(--danger); user-select: text; }
+  .bucket { margin: 4px 0 12px; padding: 4px 12px 12px; border-radius: 8px; background: var(--panel); }
+  .bucket p { margin: 0 0 8px; }
+  button.on { color: var(--accent); }
 </style>

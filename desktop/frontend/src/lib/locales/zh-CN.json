@@ -1003,5 +1003,10 @@
 "Checking {team}…": "正在检查 {team}…",
 "Don't change the project yet": "先不要修改项目",
 "DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit 正在读取这个版本的项目文件。请等这一步完成后再在 {tool} 保存：这只需要一会儿，之后的上传不用等。",
-"It's in the history: you can keep working in {tool} while it uploads.": "已存入历史记录：上传的同时你可以继续在 {tool} 工作。"
+"It's in the history: you can keep working in {tool} while it uploads.": "已存入历史记录：上传的同时你可以继续在 {tool} 工作。",
+"A bucket": "一个 bucket",
+"Choose the backup's folder or bucket": "选择备份所在的文件夹或 bucket",
+"Bucket…": "Bucket…",
+"Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "备份所在的位置：密钥只需要能读取那个 bucket。只用于这次还原，不会保存。",
+"Look in this bucket": "查看这个 bucket"
 }

@@ -95,11 +95,12 @@ dawgit backup run D:\Backups\Band   # ...or to any folder: empty, or this team's
 dawgit backup status                # this computer's backup, and who else backs up the team
 dawgit backup restore --preview     # what restoring would bring back (and the runs to pick from)
 dawgit backup restore [folder] [--run 20261004-153000]
+dawgit backup restore <connection code>   # a backup in a bucket (dawgit connection-code makes the code)
 ```
 
 `--team NAME` picks the team; otherwise it is the team of the project you're in, or the current one. A backup holds every project of the team with all its versions, as the team's storage keeps them. Runs only copy what is new and never delete: what the team deleted stays in the backup. Each run records where every branch was (`runs/<time>.json`).
 
-Or in the app: the team's settings (⚙) → **Backup**: a folder (a drive, a NAS), or **Another bucket…** (any S3-compatible storage, with its own keys; not the team's own storage). The app backs up once a day while it is open. Works on teams that use S3 or R2 storage. `restore` copies back only what the team's storage lacks (deleted projects, lost files, or everything into a new, empty bucket) and never changes or deletes anything there; `--run` restores as of an earlier backup run (projects made later stay out; branches the team still has stay as they are). See [design/backup.md](design/backup.md).
+Or in the app: the team's settings (⚙) → **Backup**: a folder (a drive, a NAS), or **Another bucket…** (any S3-compatible storage, with its own keys; not the team's own storage). The app backs up once a day while it is open. Works on teams that use S3 or R2 storage. `restore` copies back only what the team's storage lacks (deleted projects, lost files, or everything into a new, empty bucket) and never changes or deletes anything there. It restores from this computer's backup, a folder, or a backup bucket (also one this computer doesn't back up to, e.g. a teammate's: in the app **Restore… → Bucket…**; its keys only need to read it and aren't kept); `--run` restores as of an earlier backup run (projects made later stay out; branches the team still has stay as they are). See [design/backup.md](design/backup.md).
 
 ## Cleaning up the team's storage
 
