@@ -966,5 +966,7 @@
 "This Nightly stays until a Stable release is newer than it.": "이보다 새로운 Stable 릴리스가 나올 때까지 이 Nightly를 유지합니다.",
 "The newest build, with what is still in testing: Unity, Unreal, code and design projects. Expect rough edges.": "테스트 중인 기능이 포함된 최신 빌드: Unity, Unreal, 코드 및 디자인 프로젝트. 다듬어지지 않은 부분이 있을 수 있습니다.",
 "Looking for the latest Nightly…": "최신 Nightly를 찾는 중…",
-"The latest Nightly is offered as an update.": "최신 Nightly가 업데이트로 제공됩니다."
+"The latest Nightly is offered as an update.": "최신 Nightly가 업데이트로 제공됩니다.",
+"Log files": "로그 파일",
+"What DAWGit did, to attach to a report. Keys and connection codes are left out.": "DAWGit이 한 일을 기록한 것으로, 문제 보고에 첨부할 수 있습니다. 키와 연결 코드는 들어가지 않습니다."
 }

@@ -63,6 +63,8 @@
       "",
       "**Steps to see it again**",
       "1. ",
+      "",
+      "**Log** (Settings › Help › Log files: attach dawgit.log; keys and connection codes are left out of it)",
     ].join("\n");
     api.OpenURL(`${repo}/issues/new?body=${encodeURIComponent(body)}`);
   }
@@ -136,6 +138,7 @@
       <button onclick={() => api.OpenURL(`${repo}#getting-started`)}>{t("Guide")} ↗</button>
       <button onclick={() => api.OpenURL(`${repo}/releases`)}>{t("What's new")} ↗</button>
       <button onclick={reportIssue}>{t("Report an issue")} ↗</button>
+      <button onclick={() => api.ShowLogFolder()} title={t("What DAWGit did, to attach to a report. Keys and connection codes are left out.")}>{t("Log files")}</button>
     </div>
   </section>
 

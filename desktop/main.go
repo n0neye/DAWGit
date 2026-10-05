@@ -5,6 +5,7 @@
 package desktop
 
 import (
+	"dawgit/internal/applog"
 	"dawgit/internal/version"
 	"embed"
 	"log"
@@ -26,6 +27,10 @@ var trayIcon []byte
 // Run starts the app and returns when it quits (extensions register what
 // they add first).
 func Run() {
+	if err := applog.Setup(logDir()); err != nil {
+		log.Printf("log file: %v", err)
+	}
+	log.Printf("%s %s (%s) starting", version.Name(), version.Full(), version.Channel)
 	svc := NewApp()
 	ns := notifications.New()
 

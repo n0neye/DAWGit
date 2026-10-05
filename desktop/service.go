@@ -325,6 +325,12 @@ func (a *App) ShowFolder(root string) error {
 	return shellOpen(root)
 }
 
+// logDir is where the app's log is kept (see package applog).
+func logDir() string { return filepath.Join(teams.Dir(), "logs") }
+
+// ShowLogFolder opens the folder of the app's log (to attach to a report).
+func (a *App) ShowLogFolder() error { return shellOpen(logDir()) }
+
 // --- state ---
 
 func (a *App) State(root string) (*State, error) {
