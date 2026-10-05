@@ -1001,11 +1001,11 @@
 "Godot project": "Godot 프로젝트",
 "{team} can't be reached right now: download it once it's back.": "지금은 {team}에 연결할 수 없습니다. 다시 연결되면 다운로드하세요.",
 "Checking {team}…": "{team} 확인 중…",
-"It's in the history: you can keep working in {tool} while it uploads.": "기록에 들어갔습니다. 업로드하는 동안 {tool}에서 계속 작업할 수 있습니다.",
 "A bucket": "버킷",
 "Choose the backup's folder or bucket": "백업 폴더 또는 버킷 선택",
 "Bucket…": "버킷…",
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "백업이 있는 곳: 키는 그 버킷을 읽을 수만 있으면 됩니다. 이번 복원에만 쓰고 저장하지 않습니다.",
 "Look in this bucket": "이 버킷 확인",
-"Don't save in {tool} until this step is done.": "이 단계가 끝날 때까지 {tool}에서 저장하지 마세요."
+"Don't change the project's files until this step is done.": "이 단계가 끝날 때까지 프로젝트 파일을 바꾸지 마세요.",
+"It's in the history: you can keep working while it uploads.": "기록에 들어갔습니다. 업로드하는 동안 계속 작업할 수 있습니다."
 }

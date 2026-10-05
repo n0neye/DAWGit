@@ -1001,11 +1001,11 @@
 "Godot project": "Godot 專案",
 "{team} can't be reached right now: download it once it's back.": "目前連不到 {team}：等它恢復後再下載。",
 "Checking {team}…": "正在檢查 {team}…",
-"It's in the history: you can keep working in {tool} while it uploads.": "已存進歷史紀錄：上傳的同時你可以繼續在 {tool} 工作。",
 "A bucket": "一個 bucket",
 "Choose the backup's folder or bucket": "選擇備份所在的資料夾或 bucket",
 "Bucket…": "Bucket…",
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "備份所在的位置：金鑰只需要能讀取那個 bucket。只用在這次還原，不會保存。",
 "Look in this bucket": "查看這個 bucket",
-"Don't save in {tool} until this step is done.": "這一步完成前，先不要在 {tool} 存檔。"
+"Don't change the project's files until this step is done.": "這一步完成前，先不要修改專案檔案。",
+"It's in the history: you can keep working while it uploads.": "已存進歷史紀錄：上傳的同時可以繼續工作。"
 }
