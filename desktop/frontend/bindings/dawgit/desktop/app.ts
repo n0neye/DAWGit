@@ -412,6 +412,17 @@ export function KeepThisVersion(root: string, message: string, resolutions: { [_
 }
 
 /**
+ * LocalOverview is Overview without asking the team (no network): what the
+ * app shows at once while Overview asks it, which can take a while when the
+ * team can't be reached.
+ */
+export function LocalOverview(): $CancellablePromise<$models.Overview | null> {
+    return $Call.ByID(1440948577).then(($result: any) => {
+        return $$createType23($result);
+    });
+}
+
+/**
  * LocateProject points a team project at a folder that was moved.
  */
 export function LocateProject(teamID: string, projectID: string, folder: string): $CancellablePromise<$models.TeamProject> {

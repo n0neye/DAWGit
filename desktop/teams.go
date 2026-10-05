@@ -67,6 +67,10 @@ type Overview struct {
 	CurrentTeam string        `json:"currentTeam"`
 	Projects    []TeamProject `json:"projects"` // of the current team
 	TeamError   string        `json:"teamError"`
+	// TeamChecked: the team was asked (its projects not downloaded here are
+	// listed, TeamError says if it couldn't be reached); LocalOverview
+	// doesn't ask it.
+	TeamChecked bool `json:"teamChecked"`
 	// ProImported: DAWGit Pro's teams were just brought over; say so once
 	// (DismissProNotice).
 	ProImported bool `json:"proImported"`
@@ -100,7 +104,14 @@ func folderProject(root, status string) TeamProject {
 }
 
 // Overview is everything the sidebar and onboarding need.
-func (a *App) Overview() (*Overview, error) {
+func (a *App) Overview() (*Overview, error) { return a.overview(true) }
+
+// LocalOverview is Overview without asking the team (no network): what the
+// app shows at once while Overview asks it, which can take a while when the
+// team can't be reached.
+func (a *App) LocalOverview() (*Overview, error) { return a.overview(false) }
+
+func (a *App) overview(askTeam bool) (*Overview, error) {
 	a.migrateLegacyConfig()
 	store, err := teams.Load()
 	if err != nil {
@@ -140,6 +151,11 @@ func (a *App) Overview() (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
+	if !askTeam {
+		sortProjects(ov.Projects)
+		return ov, nil
+	}
+	ov.TeamChecked = true
 	b, err := t.Open()
 	if err == nil {
 		// Follow the team's name when whoever runs it renames it.
@@ -169,10 +185,12 @@ func (a *App) Overview() (*Overview, error) {
 			}
 		}
 	}
-	sort.SliceStable(ov.Projects, func(i, j int) bool {
-		return strings.ToLower(ov.Projects[i].Name) < strings.ToLower(ov.Projects[j].Name)
-	})
+	sortProjects(ov.Projects)
 	return ov, nil
+}
+
+func sortProjects(ps []TeamProject) {
+	sort.SliceStable(ps, func(i, j int) bool { return strings.ToLower(ps[i].Name) < strings.ToLower(ps[j].Name) })
 }
 
 func (a *App) SetAuthor(name string) error {

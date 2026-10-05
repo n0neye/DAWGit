@@ -91,6 +91,9 @@
     reloading = true;
     lastReload = Date.now();
     try {
+      // At first from this computer alone, at once: asking the team can
+      // take a while (offline, storage down), and it fills in after.
+      if (!overview) overview = await api.LocalOverview();
       overview = await api.Overview();
       if (overview?.proImported) {
         // Once: DAWGit Pro's teams came over (it becomes the Nightly channel).
@@ -437,6 +440,8 @@
         </div>
         {#if current && overview.teamError}
           <div class="offline" title={overview.teamError}>● {current.isStorage ? t("Storage not reachable") : t("Server not reachable")}</div>
+        {:else if current && !overview.teamChecked}
+          <div class="offline checking">● {t("checking…")}</div>
         {/if}
         <ul>
           {#each entries as p (p.root || p.id)}
@@ -688,6 +693,7 @@
   .confirm-input { width: 100%; margin-top: 6px; }
   .empty { padding: 6px 10px; font-size: 13px; }
   .offline { font-size: 12px; color: var(--danger); padding: 0 8px 4px; }
+  .offline.checking { color: var(--faint); }
   .add { width: 100%; margin: 8px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 0; padding: 5px 10px; line-height: 1.3; }
   .add .hint { font-size: 11px; color: var(--faint); font-weight: 400; }
   .pad { padding: 0 8px; }
