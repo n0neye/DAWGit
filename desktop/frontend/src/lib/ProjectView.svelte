@@ -1,10 +1,10 @@
 <script lang="ts">
   import { t, tn } from "./i18n.svelte";
   import { untrack } from "svelte";
-  import { Events } from "@wailsio/runtime";
   import { api, ago, errorText, formatBytes, type State, type Result, type Preview, type Conflict, type TeamSummary,
     type Progress, type Version, type RuleSuggestion as Suggestion, type SampleSpot } from "./api";
   import { toast } from "./notify.svelte";
+  import { watchProject } from "./projectWatch.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
   import CommitBox from "./CommitBox.svelte";
@@ -169,70 +169,9 @@
     firstAsk = true;
   }
 
-  // The team's side (new versions, branches) is refreshed every minute (and
-  // when the agent reports new versions)...
-  $effect(() => {
-    const t = setInterval(() => { if (!busy) load(); }, 60000);
-    return () => clearInterval(t);
-  });
-
-  // ...but a Ctrl+S in Live shows up within a couple of seconds: the set's
-  // size and time are checked every second, and the changes are read once the
-  // file has stopped changing.
-  $effect(() => {
-    const r = root;
-    let sig = "", pending = "";
-    const t = setInterval(async () => {
-      if (busy) return;
-      let s: string;
-      try {
-        s = await api.Signature(r);
-      } catch {
-        return;
-      }
-      if (!sig || s === sig) {
-        sig = s;
-        pending = "";
-      } else if (s !== pending) {
-        pending = s;
-      } else {
-        sig = s;
-        pending = "";
-        load();
-      }
-    }, 1000);
-    return () => clearInterval(t);
-  });
-
-  // Other files (samples added, converted, edited elsewhere) show up as soon
-  // as the folder watcher sees them.
-  $effect(() => {
-    const r = root;
-    api.WatchFiles(r);
-    const off = Events.On("files", (ev: { data: { root: string } }) => {
-      if (ev.data.root === r && !busy) load();
-    });
-    return () => {
-      off();
-      api.UnwatchFiles(r);
-    };
-  });
-
-  $effect(() => {
-    const r = root;
-    let timer: ReturnType<typeof setTimeout>;
-    const off = Events.On("progress", (ev: { data: Progress }) => {
-      if (ev.data.root !== r) return;
-      progress = ev.data.stage === "done" ? null : ev.data;
-      // In case the final event is missed (e.g. the window reloaded).
-      clearTimeout(timer);
-      timer = setTimeout(() => (progress = null), 10 * 60000);
-    });
-    return () => {
-      off();
-      clearTimeout(timer);
-    };
-  });
+  // Read again every minute (the team's side), when a set is saved or files
+  // change; how a long step is going.
+  watchProject(() => root, () => !!busy, load, (p) => (progress = p));
 
   async function refresh() {
     refreshing = true;
