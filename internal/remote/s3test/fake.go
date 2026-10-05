@@ -47,6 +47,12 @@ type Server struct {
 	Flaky      int
 	flaky      int
 	lastFailed string
+	// CutAfter: after this many writes (PUT, POST, DELETE) every request
+	// fails, for good (as if the computer lost its connection or DAWGit
+	// stopped mid-way); 0: never. Writes counts them.
+	CutAfter, Writes int
+	// WriteLog lists the writes in order ("PUT key"), for tests to read.
+	WriteLog []string
 	// Clock is when objects are written (time.Now when nil): tests set it
 	// to make objects old.
 	Clock func() time.Time
@@ -86,6 +92,15 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.Requests[r.Method]++
+	if r.Method == "PUT" || r.Method == "POST" || r.Method == "DELETE" {
+		s.Writes++
+		s.WriteLog = append(s.WriteLog, r.Method+" "+r.URL.Path)
+	}
+	if s.CutAfter > 0 && s.Writes > s.CutAfter {
+		io.Copy(io.Discard, r.Body)
+		xmlError(w, http.StatusBadRequest, "ConnectionCut")
+		return
+	}
 	if s.Flaky > 0 {
 		// Never the same request twice running: requests retried in step
 		// would otherwise keep landing on the failing turn.
