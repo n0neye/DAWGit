@@ -19,3 +19,6 @@
 *.go text eol=lf
 go.mod text eol=lf
 go.sum text eol=lf
+
+# Test fixtures stay in plain git (no LFS needed to run the tests)
+testdata/**/*.wav -filter -diff -merge -text

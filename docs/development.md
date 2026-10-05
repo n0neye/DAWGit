@@ -56,7 +56,7 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `presets/` — project kinds still in testing (Unity, Unreal, code, design files); only Nightly builds import them
 - `cmd/publish` — publishes a Nightly installer and its signed feed to the releases bucket
 - `testdata/golden` — the expected output of diff and merge (made by the original Python prototype; now the specification)
-- `SampleProjects/` — Ableton projects used as test fixtures (audio via Git LFS)
+- `testdata/live/` — sets saved by Ableton Live 12.3.1 (a project, its Backup folder, two hand-made branches): the fixtures, read byte for byte
 
 ## Tests
 

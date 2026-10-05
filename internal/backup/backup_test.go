@@ -69,7 +69,7 @@ func TestBackup(t *testing.T) {
 	fake.Delete("band", "team/objects/"+h[:2]+"/"+h[2:])
 	time.Sleep(1100 * time.Millisecond)
 	rep, err = Run(b, Folder(dst), nil)
-	if err != nil || rep.Copied != 3 {
+	if err != nil || rep.Copied != 4 { // the object, the version, the branch and its log record
 		t.Fatalf("third run %+v %v", rep, err)
 	}
 	if _, err := os.Stat(filepath.Join(dst, "objects", h[:2], h[2:])); err != nil {

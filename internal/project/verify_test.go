@@ -163,7 +163,7 @@ func TestStorageCleanupKeepsSharedProject(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := remote.Open(cfg)
-	rep, err := b.(*remote.S3Backend).CollectGarbage(true)
+	rep, err := b.(*remote.BucketBackend).CollectGarbage(true)
 	if err != nil {
 		t.Fatal(err)
 	}

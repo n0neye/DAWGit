@@ -412,7 +412,7 @@ func cmdStorageCleanup(args []string) error {
 	if err != nil {
 		return err
 	}
-	s3, ok := c.(*remote.S3Backend)
+	s3, ok := c.(*remote.BucketBackend)
 	if !ok {
 		return errors.New("cleanup works on teams that use S3 or R2 storage")
 	}

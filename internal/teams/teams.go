@@ -502,5 +502,8 @@ func (t Team) Open() (remote.Backend, error) {
 	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
 		return nil, err
 	}
+	if a, ok := b.(interface{ SetActor(string) }); ok {
+		a.SetActor(t.MemberID) // the branch log says who
+	}
 	return b, nil
 }

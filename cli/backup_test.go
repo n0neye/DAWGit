@@ -68,7 +68,7 @@ func TestBackupCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.(*remote.S3Backend).DeleteProject(r.Config.ProjectID)
+	c.(*remote.BucketBackend).DeleteProject(r.Config.ProjectID)
 	exit, rep = run(t, a, "backup", "restore", dst, "--preview")
 	var rs restoreJSON
 	json.Unmarshal(rep.Result, &rs)

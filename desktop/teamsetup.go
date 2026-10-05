@@ -200,7 +200,7 @@ func (a *App) CleanUpStorage(teamID string, remove bool) (*StorageCleanup, error
 	if err != nil {
 		return nil, err
 	}
-	s3, ok := b.(*remote.S3Backend)
+	s3, ok := b.(*remote.BucketBackend)
 	if !ok {
 		return nil, errors.New("cleanup works on teams that use S3 or R2 storage")
 	}

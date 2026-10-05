@@ -122,6 +122,32 @@ To avoid asking musicians for an endpoint, bucket and two keys, the desktop app 
 
 Deleting data is optional and never automatic. A later `dawgit gc` can remove objects that are not reachable from any branch, version or workspace backup, and that are older than a grace period, so that uploads in progress are never collected.
 
+## Two layers: Bucket and BucketBackend (0.13)
+
+Storage teams are built in two layers, so a new way to reach storage gets
+every feature at once:
+
+- **`Bucket`** (`internal/remote/bucket.go`): keys and bytes only. Get (with
+  an etag), Open, Exists, Put (optionally checked against a SHA-256, and
+  conditional: only if absent, or only if the etag still holds), Delete,
+  List (in key order, a page at a time, from a key) and Folders. It knows
+  nothing about DAWGit. Implementations: `s3Bucket` (signed S3 requests,
+  multipart for big objects, retries for small requests); later the hosted
+  service's brokered access (presigned URLs, branch moves through its API).
+- **`BucketBackend`** (`internal/remote/s3.go`, `gc.go`, `keys.go`):
+  everything a team stores, written once on top of a Bucket: projects,
+  versions, branches (compare-and-swap through conditional writes), members,
+  workspaces, compressed and chunked contents, setups, backup records,
+  cleanup with leases. Backups and restores (`internal/backup`) read and
+  write through it too.
+
+Every branch move is also recorded (`projects/<pid>/branchlog/<time>-<random>.json`:
+branch, from, to, member, time), one new key per move, after the move
+succeeded: storage itself keeps only where branches are now.
+
+The team server (`dawgit serve`, `remote.Client`) implements `Backend`
+directly and is frozen: it doesn't get the features above.
+
 ## Hosted service mode (possible later)
 
 A hosted deployment splits the work:

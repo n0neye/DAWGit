@@ -9,6 +9,7 @@ import (
 
 	"dawgit/internal/remote"
 	"dawgit/internal/remote/backendtest"
+	"dawgit/internal/remote/membucket"
 	"dawgit/internal/remote/s3test"
 )
 
@@ -82,4 +83,12 @@ func TestSetups(t *testing.T) {
 	if b.PutSetup("../x", nil) == nil {
 		t.Error("bad id")
 	}
+}
+
+// Every Bucket gets the whole team layer: the contract holds over one kept
+// in memory too.
+func TestMemoryBucketContract(t *testing.T) {
+	mb := membucket.New()
+	mb.PageSize = 2
+	backendtest.Run(t, remote.NewBucketBackend(mb))
 }

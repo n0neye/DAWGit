@@ -11,7 +11,7 @@ import (
 
 func fixtures(t *testing.T) []string {
 	t.Helper()
-	root := filepath.Join("..", "..", "SampleProjects")
+	root := filepath.Join("..", "..", "testdata", "live")
 	var files []string
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && filepath.Ext(p) == ".als" &&

@@ -6,7 +6,7 @@ import (
 )
 
 func TestPluginRefs(t *testing.T) {
-	s, err := Load(filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project", "SampleAbletonProject_v2.als"))
+	s, err := Load(filepath.Join("..", "..", "testdata", "live", "SampleAbletonProject_v2.als"))
 	if err != nil {
 		t.Skip(err)
 	}

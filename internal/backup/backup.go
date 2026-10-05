@@ -26,7 +26,7 @@ import (
 	"dawgit/internal/remote"
 )
 
-// Source is a team's storage, read key by key (remote.S3Backend).
+// Source is a team's storage, read key by key (remote.BucketBackend).
 type Source interface {
 	List(prefix string) ([]remote.Item, error)
 	Open(key string) (io.ReadCloser, error)
@@ -54,7 +54,7 @@ var skipped = []string{"gc/", "backups/"}
 // immutable: written once, never changed.
 func immutable(key string) bool {
 	return strings.HasPrefix(key, "objects/") || strings.HasPrefix(key, "chunked/") ||
-		strings.Contains(key, "/snapshots/")
+		strings.Contains(key, "/snapshots/") || strings.Contains(key, "/branchlog/")
 }
 
 // Run backs up src into d (claimed for the team: see Claim).

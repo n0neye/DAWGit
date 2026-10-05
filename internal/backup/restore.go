@@ -25,7 +25,7 @@ import (
 //
 // Branches go last, so none ever names a version whose files aren't back.
 
-// Target is the team's storage, written to (remote.S3Backend).
+// Target is the team's storage, written to (remote.BucketBackend).
 type Target interface {
 	List(prefix string) ([]remote.Item, error)
 	Put(key string, r io.Reader, size int64) error

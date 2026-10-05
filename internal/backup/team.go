@@ -26,7 +26,7 @@ const (
 )
 
 // Storage is team t's storage, if it can be backed up.
-func Storage(t teams.Team) (*remote.S3Backend, error) {
+func Storage(t teams.Team) (*remote.BucketBackend, error) {
 	if !t.Remote.IsStorage() {
 		return nil, errors.New("only teams that keep their work in storage (R2, S3) can be backed up")
 	}
@@ -34,7 +34,7 @@ func Storage(t teams.Team) (*remote.S3Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	s3, ok := b.(*remote.S3Backend)
+	s3, ok := b.(*remote.BucketBackend)
 	if !ok {
 		return nil, errors.New("this team's storage can't be backed up")
 	}

@@ -508,3 +508,31 @@ func (r *Repo) storedSetDiff(oldHash, newHash string) *diff.SetDiff {
 	diffCache.put(key, d)
 	return d
 }
+
+// ErrNoBranchLog: the team's storage doesn't keep a branch log (a team
+// server).
+var ErrNoBranchLog = errors.New("this team's storage doesn't keep a log of branch moves")
+
+// BranchLog lists how the team's branch name ("" for all) moved, oldest
+// first, and the members' names by id (for BranchMove.By).
+func (r *Repo) BranchLog(name string) ([]remote.BranchMove, map[string]string, error) {
+	c, err := r.Client()
+	if err != nil {
+		return nil, nil, err
+	}
+	l, ok := c.(remote.BranchLogger)
+	if !ok {
+		return nil, nil, ErrNoBranchLog
+	}
+	moves, err := l.BranchLog(r.Config.ProjectID, name)
+	if err != nil {
+		return nil, nil, err
+	}
+	names := map[string]string{}
+	if ms, err := c.Members(); err == nil {
+		for _, m := range ms {
+			names[m.ID] = m.Name
+		}
+	}
+	return moves, names, nil
+}

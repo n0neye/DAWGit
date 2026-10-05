@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreatorOf(t *testing.T) {
-	set := filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project", "SampleAbletonProject_v3.als")
+	set := filepath.Join("..", "..", "testdata", "live", "SampleAbletonProject_v3.als")
 	if _, err := os.Stat(set); err != nil {
 		t.Skip("fixture not present")
 	}

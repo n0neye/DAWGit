@@ -77,7 +77,7 @@ type BodyStore interface {
 	MarkChunked(hash string) error
 }
 
-var _ BodyStore = (*S3Backend)(nil)
+var _ BodyStore = (*BucketBackend)(nil)
 
 // Member is a person in the team. Versions record the member's id, so a new
 // display name applies to everything they did.

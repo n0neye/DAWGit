@@ -1,12 +1,12 @@
 package remote
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -100,8 +100,8 @@ func Check(cfg Config) error {
 	if _, err := b.Projects(); err != nil {
 		return explain(err)
 	}
-	if s, ok := b.(*S3Backend); ok {
-		return explain(s.checkWrites())
+	if s, ok := b.(*BucketBackend); ok {
+		return explain(checkWrites(s.b))
 	}
 	return nil
 }
@@ -114,47 +114,38 @@ func CheckBackup(cfg Config) error {
 	if err != nil {
 		return err
 	}
-	s, ok := b.(*S3Backend)
+	s, ok := b.(*BucketBackend)
 	if !ok {
 		return errors.New("a backup goes to S3-compatible storage")
 	}
-	if _, err := s.list("check/", false); err != nil {
+	if _, err := listKeys(s.b, "check/"); err != nil {
 		return explain(err)
 	}
 	key := "check/" + newCheckID()
-	r, err := s.put(key, []byte("check\n"), nil)
-	if err == nil && r.status != http.StatusOK {
-		err = s3Error(r)
-	}
-	if err != nil {
+	if err := s.put(key, []byte("check\n")); err != nil {
 		return explain(err)
 	}
 	return explain(s.delete(key))
 }
 
 // checkWrites writes, conditionally rewrites and removes a scratch object.
-func (b *S3Backend) checkWrites() error {
+func checkWrites(b Bucket) error {
 	key := "check/" + newCheckID()
-	defer b.delete(key)
-	create := http.Header{"If-None-Match": {"*"}}
-	r, err := b.put(key, []byte("check\n"), create)
-	if err != nil {
+	defer b.Delete(key, "")
+	put := func(data string) error {
+		return b.Put(key, bytes.NewReader([]byte(data)), int64(len(data)), "", "*")
+	}
+	if err := put("check\n"); err != nil {
 		return err
 	}
-	if r.status != http.StatusOK {
-		return s3Error(r)
-	}
-	if r, err = b.put(key, []byte("again\n"), create); err != nil {
-		return err
-	}
-	switch r.status {
-	case http.StatusPreconditionFailed, http.StatusConflict:
-	case http.StatusOK:
+	switch err := put("again\n"); {
+	case errors.Is(err, ErrPrecondition):
+	case err == nil:
 		return errNoConditional
 	default:
-		return s3Error(r)
+		return err
 	}
-	if err := b.delete(key); err != nil {
+	if err := b.Delete(key, ""); err != nil {
 		return fmt.Errorf("could not remove a test file (the key needs permission to delete): %w", err)
 	}
 	return nil

@@ -55,20 +55,16 @@ type Leaser interface {
 	Lease(hashes []string) (release func(), err error)
 }
 
-var _ Leaser = (*S3Backend)(nil)
+var _ Leaser = (*BucketBackend)(nil)
 
-func (b *S3Backend) Lease(hashes []string) (func(), error) {
+func (s *BucketBackend) Lease(hashes []string) (func(), error) {
 	id := make([]byte, 12)
 	rand.Read(id)
 	key := leasesDir + hex.EncodeToString(id)
-	r, err := b.put(key, []byte(strings.Join(hashes, "\n")), nil)
-	if err != nil {
+	if err := s.put(key, []byte(strings.Join(hashes, "\n"))); err != nil {
 		return nil, err
 	}
-	if r.status != 200 {
-		return nil, s3Error(r)
-	}
-	return func() { b.delete(key) }, nil
+	return func() { s.delete(key) }, nil
 }
 
 // GCReport is what a cleanup found and did.
@@ -86,64 +82,64 @@ type GCReport struct {
 
 // CollectGarbage finds the files no version uses and marks them; with
 // remove it also deletes those marked at least a day before.
-func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
+func (s *BucketBackend) CollectGarbage(remove bool) (*GCReport, error) {
 	now := gcNow()
 	rep := &GCReport{}
-	used, err := b.usedFiles(rep)
+	used, err := s.usedFiles(rep)
 	if err != nil {
 		return nil, err
 	}
 	// Leases: files shares in progress rely on.
 	var stale []string
-	leases, err := b.listAll(leasesDir)
+	leases, err := listAll(s.b, leasesDir)
 	if err != nil {
 		return nil, err
 	}
 	for _, l := range leases {
-		if now.Sub(l.modified) > leaseLife {
-			stale = append(stale, l.key)
+		if now.Sub(l.Modified) > leaseLife {
+			stale = append(stale, l.Key)
 			continue
 		}
-		r, err := b.get(l.key)
+		data, err := s.get(l.Key)
 		if errors.Is(err, ErrNotFound) {
 			continue // released meanwhile
 		}
 		if err != nil {
 			return nil, err
 		}
-		for _, h := range strings.Fields(string(r.body)) {
+		for _, h := range strings.Fields(string(data)) {
 			used[h] = true
 		}
 	}
 	rep.Used = len(used)
 
-	stored, err := b.listAll(gcObjectsDir)
+	stored, err := listAll(s.b, gcObjectsDir)
 	if err != nil {
 		return nil, err
 	}
 	rep.Stored = len(stored)
 	isStored := map[string]bool{}
 	for _, it := range stored {
-		isStored[strings.ReplaceAll(strings.TrimPrefix(it.key, gcObjectsDir), "/", "")] = true
+		isStored[strings.ReplaceAll(strings.TrimPrefix(it.Key, gcObjectsDir), "/", "")] = true
 	}
 	// Pieces of the files kept as chunk lists.
-	markers, err := b.listAll(chunkedDir)
+	markers, err := listAll(s.b, chunkedDir)
 	if err != nil {
 		return nil, err
 	}
 	var lists, staleMarkers []string
 	for _, m := range markers {
-		h := strings.TrimPrefix(m.key, chunkedDir)
+		h := strings.TrimPrefix(m.Key, chunkedDir)
 		switch {
 		case isStored[h]:
 			lists = append(lists, h)
-		case now.Sub(m.modified) >= minAge: // the list was deleted (or never made it)
-			staleMarkers = append(staleMarkers, m.key)
+		case now.Sub(m.Modified) >= minAge: // the list was deleted (or never made it)
+			staleMarkers = append(staleMarkers, m.Key)
 		}
 	}
 	var mu sync.Mutex
 	err = parallelN(checks, lists, func(h string) error {
-		l, err := b.chunkList(h)
+		l, err := s.chunkList(h)
 		if err != nil {
 			return fmt.Errorf("a big file's list of pieces %s can't be read (%w): storage not cleaned up", h[:10], err)
 		}
@@ -159,15 +155,15 @@ func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
 	}
 	rep.Used = len(used)
 	marked := map[string]time.Time{} // hash: first found unused
-	if r, err := b.get(candidatesKey); err == nil {
-		json.Unmarshal(r.body, &marked)
+	if data, err := s.get(candidatesKey); err == nil {
+		json.Unmarshal(data, &marked)
 	} else if !errors.Is(err, ErrNotFound) {
 		return nil, err
 	}
 	nextMarked := map[string]time.Time{}
 	var doomed []string
 	for _, it := range stored {
-		h := strings.ReplaceAll(strings.TrimPrefix(it.key, gcObjectsDir), "/", "")
+		h := strings.ReplaceAll(strings.TrimPrefix(it.Key, gcObjectsDir), "/", "")
 		if used[h] || len(h) != 64 {
 			continue
 		}
@@ -175,21 +171,21 @@ func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
 		if !ok {
 			since = now
 		}
-		if now.Sub(it.modified) >= minAge && now.Sub(since) >= confirmAfter {
+		if now.Sub(it.Modified) >= minAge && now.Sub(since) >= confirmAfter {
 			rep.Due++
-			rep.DueBytes += it.size
+			rep.DueBytes += it.Size
 			if remove {
-				doomed = append(doomed, it.key)
+				doomed = append(doomed, it.Key)
 				rep.Deleted++
-				rep.DeletedBytes += it.size
+				rep.DeletedBytes += it.Size
 				continue
 			}
 		}
 		nextMarked[h] = since
 		rep.Waiting++
-		rep.WaitingBytes += it.size
+		rep.WaitingBytes += it.Size
 		ready := since.Add(confirmAfter)
-		if old := it.modified.Add(minAge); old.After(ready) {
+		if old := it.Modified.Add(minAge); old.After(ready) {
 			ready = old
 		}
 		if rep.NextCleanup.IsZero() || ready.Before(rep.NextCleanup) {
@@ -197,31 +193,27 @@ func (b *S3Backend) CollectGarbage(remove bool) (*GCReport, error) {
 		}
 	}
 	if remove {
-		if err := parallelN(checks, doomed, b.delete); err != nil {
+		if err := parallelN(checks, doomed, s.delete); err != nil {
 			return nil, err
 		}
 		for _, l := range stale {
-			b.delete(l)
+			s.delete(l)
 		}
 		for _, m := range staleMarkers {
-			b.delete(m)
+			s.delete(m)
 		}
 	}
 	data, _ := json.Marshal(nextMarked)
-	r, err := b.put(candidatesKey, data, nil)
-	if err != nil {
+	if err := s.put(candidatesKey, data); err != nil {
 		return nil, err
-	}
-	if r.status != 200 {
-		return nil, s3Error(r)
 	}
 	return rep, nil
 }
 
 // usedFiles reads every version record of every project (also projects
 // being created or deleted) and the folder lists they name.
-func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
-	dirs, err := b.list(gcProjectsDir, true)
+func (s *BucketBackend) usedFiles(rep *GCReport) (map[string]bool, error) {
+	dirs, err := s.b.Folders(gcProjectsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -230,14 +222,14 @@ func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
 	var roots []string
 	var keys []string
 	for _, dir := range dirs {
-		ks, err := b.list(dir+gcSnapshotsDir, false)
+		ks, err := s.list(dir + gcSnapshotsDir)
 		if err != nil {
 			return nil, err
 		}
 		keys = append(keys, ks...)
 	}
 	err = parallelN(checks, keys, func(key string) error {
-		r, err := b.get(key)
+		data, err := s.get(key)
 		if errors.Is(err, ErrNotFound) {
 			return nil
 		}
@@ -245,7 +237,7 @@ func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
 			return err
 		}
 		id := strings.TrimSuffix(key[strings.LastIndex(key, "/")+1:], ".json")
-		m, err := manifest.Parse(id, r.body)
+		m, err := manifest.Parse(id, data)
 		if err != nil {
 			// Can't tell what it uses: cleaning up could delete its files.
 			return fmt.Errorf("version %s can't be read (%w): storage not cleaned up", id[:min(10, len(id))], err)
@@ -276,11 +268,11 @@ func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
 		}
 		var next []string
 		err := parallelN(checks, todo, func(h string) error {
-			r, err := b.get(objectKey(h))
+			data, err := s.get(objectKey(h))
 			if err != nil {
 				return fmt.Errorf("a version's folder list %s can't be read (%w): storage not cleaned up", h[:10], err)
 			}
-			entries, err := manifest.ParseTree(h, r.body)
+			entries, err := manifest.ParseTree(h, data)
 			if err != nil {
 				return fmt.Errorf("%w: storage not cleaned up", err)
 			}
@@ -304,12 +296,12 @@ func (b *S3Backend) usedFiles(rep *GCReport) (map[string]bool, error) {
 }
 
 // chunkList reads the list of pieces stored for the file h.
-func (b *S3Backend) chunkList(h string) (*chunk.List, error) {
-	r, err := b.get(objectKey(h))
+func (s *BucketBackend) chunkList(h string) (*chunk.List, error) {
+	data, err := s.get(objectKey(h))
 	if err != nil {
 		return nil, err
 	}
-	rc, list, err := blob.Open(bytes.NewReader(r.body))
+	rc, list, err := blob.Open(bytes.NewReader(data))
 	if err != nil {
 		return nil, err
 	}
@@ -322,21 +314,4 @@ func (b *S3Backend) chunkList(h string) (*chunk.List, error) {
 		return nil, err
 	}
 	return chunk.Parse(text)
-}
-
-// listAll lists every key under dir with its size and time.
-func (b *S3Backend) listAll(dir string) ([]listItem, error) {
-	var out []listItem
-	token := ""
-	for {
-		page, err := b.listPage(dir, false, "", token)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, page.items...)
-		if page.next == "" {
-			return out, nil
-		}
-		token = page.next
-	}
 }

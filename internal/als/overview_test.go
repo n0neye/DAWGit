@@ -7,7 +7,7 @@ import (
 )
 
 func TestOverview(t *testing.T) {
-	path := filepath.Join("..", "..", "SampleProjects", "SampleAbletonProject Project", "MergeTest-1-both-add-tracks.als")
+	path := filepath.Join("..", "..", "testdata", "live", "MergeTest-1-both-add-tracks.als")
 	if _, err := os.Stat(path); err != nil {
 		t.Skip("fixture not present")
 	}
