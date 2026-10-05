@@ -1,14 +1,16 @@
 <script lang="ts">
   import { t, tn } from "./i18n.svelte";
-  import Tx from "./Tx.svelte";
   import { untrack } from "svelte";
   import { Events } from "@wailsio/runtime";
   import { api, ago, errorText, formatBytes, type State, type Result, type Preview, type Conflict, type TeamSummary,
-    type Progress, type Version, type RuleSuggestion, type SampleSpot } from "./api";
+    type Progress, type Version, type RuleSuggestion as Suggestion, type SampleSpot } from "./api";
   import { toast } from "./notify.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
   import ProjectHeader from "./ProjectHeader.svelte";
+  import ProjectBanners from "./ProjectBanners.svelte";
+  import RuleSuggestion from "./RuleSuggestion.svelte";
+  import { takenBackText } from "./teamText";
   import UndoDialog from "./UndoDialog.svelte";
   import CombineDialog from "./CombineDialog.svelte";
   import ProgressBar from "./ProgressBar.svelte";
@@ -60,18 +62,6 @@
   // Go to version: asked first when there are uncommitted changes.
   let leaving = $state<{ target: Version | null; message: string } | null>(null); // null target: latest
   let keepOpen = $state<string | null>(null); // message for "Make this the latest version"
-
-  // message: for a save, what to describe the version with (asked again when
-  // the team committed in the meantime: see combine).
-  // The warning about OneDrive & co., once understood, stays away (per project).
-  let cloudOk = $state<Record<string, boolean>>({});
-  $effect.pre(() => {
-    try { cloudOk[root] = localStorage.getItem(`dawgit.cloudOk:${root}`) === "1"; } catch { /* shown */ }
-  });
-  function okCloud(r: string) {
-    cloudOk[r] = true;
-    try { localStorage.setItem(`dawgit.cloudOk:${r}`, "1"); } catch { /* shown again next time */ }
-  }
 
   type Action = { name: string; call: (res: Record<string, string>, force: boolean) => Promise<Result | null>;
     done: (r: Result) => void; message?: string };
@@ -134,7 +124,6 @@
   // Samples the sets use that are missing (and DAWGit has a copy of): offered
   // back, into Samples/Imported. Read again when the project changes.
   let spots = $state<SampleSpot[]>([]);
-  let spotsDismissed = $state(-1); // the count "Later" was said to
   $effect(() => {
     root; refreshKey; st?.head; st?.changes.length;
     api.SampleSpots(root).then((s) => (spots = s ?? [])).catch(() => (spots = []));
@@ -242,16 +231,7 @@
     refreshing = false;
   }
 
-  // "Yi took back “x”": versions a teammate took back.
-  const takenBackText = (vs: Version[]) => tn(vs.length, "{who} took back “{version}”.", "{who} took back {n} versions.",
-    { who: [...new Set(vs.map((v) => v.author))].join(", "), version: vs[0]?.message || vs[0]?.short || "" });
-
   let incomingIds = $derived(new Set(st?.incoming.map((v) => v.id) ?? []));
-  // The team's new versions to tell about: a merge only combines the others.
-  let news = $derived.by(() => {
-    const own = st?.incoming.filter((v) => v.parents.length < 2) ?? [];
-    return own.length ? own : (st?.incoming ?? []);
-  });
 
   // Runs an action; handles conflicts (ask, retry with decisions) and a
   // running Live (ask, retry with force).
@@ -356,17 +336,9 @@
     : st?.tool ? " — " + t("switch back to {tool} to load the changes", { tool: t(st.tool) }) : "");
 
   // Projects of tools found in folders the rules don't name yet: their
-  // preset is suggested, and asked about before committing (or their
-  // caches would go up with the version).
-  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal", godot: "Godot",
-    design: t("design"), code: t("code") } as Record<string, string>)[p] ?? p;
-  // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
-  const leftOutText = (pats: string[]) => {
-    const names = [...new Set(pats.map((p) => p.replace(/^\/|\/$/g, "")))];
-    return names.length > 4 ? t("{names} and {n} more", { names: names.slice(0, 4).join(", "), n: names.length - 4 }) : names.join(", ");
-  };
+  // preset is suggested (RuleSuggestion), and asked about before committing.
   let rulesAsk = $state(false);
-  async function setPreset(s: RuleSuggestion, preset: string) {
+  async function setPreset(s: Suggestion, preset: string) {
     try {
       await api.SetPreset(root, s.folder, preset);
       await refresh();
@@ -695,120 +667,14 @@
     <ProjectHeader {st} {refreshing} onswitch={switchTo} onmerge={openMergePreview} onnewbranch={() => (newBranch = "")}
       {onsettings} oncheck={() => (checkOpen = "check")} onrefresh={refresh} />
 
-    {#if progress}
-      <div class="banner info"><ProgressBar p={progress} team={st.teamName || undefined} /></div>
-    {:else if busy === "first-share"}
-      <div class="banner info"><div>{t("Sharing “{name}” with the team…", { name: st.name })}</div></div>
-    {/if}
-
-    {#if st.remoteUrl && !st.head && !busy && !progress}
-      <div class="banner info">
-        <div>{t("Not shared with {team} yet. Look through the files and ignore the folders or files you don't need (right-click › Ignore), then commit a first version to share it.", { team: st.teamName || t("the team") })}</div>
-      </div>
-    {:else if st.remoteUrl && st.unshared && !busy && !progress}
-      <div class="banner info">
-        <div>{t("Not shared with {team} yet: its versions are on this computer only.", { team: st.teamName || t("the team") })}</div>
-        <button class="primary" onclick={shareVersions}>{t("Share now")}</button>
-      </div>
-    {/if}
-
-    {#if st.cloudFolder && !cloudOk[root]}
-      <div class="banner warn">
-        <div>
-          <Tx text={t("This project is in your {cloud} folder.")} strong={{ cloud: st.cloudFolder }} />
-          <span class="muted">{t("{cloud} also syncs DAWGit's history (the hidden .dawgit folder): used from two computers it can damage it, and files kept online-only aren't really here. Best keep projects in a folder {cloud} doesn't sync: DAWGit and your team storage already keep them safe.", { cloud: st.cloudFolder })}</span>
-        </div>
-        <button onclick={() => okCloud(root)}>{t("I understand")}</button>
-      </div>
-    {/if}
-    {#if st.unfinished}
-      {@const v = st.unfinished}
-      <div class="banner warn">
-        <div>
-          <Tx text={t("Switching to {version} didn't finish")} strong={{ version: `“${v.message || v.short}”` }} />
-          <span class="muted">{t("— DAWGit was closed or a file was in use. Some files are from that version, some aren't. Put them back as they were, then try again.")}</span>
-        </div>
-        <button class="primary" disabled={!!busy} onclick={() => run({ name: "goto", message: "",
-          call: (_res, force) => api.RecoverSwitch(root, force),
-          done: () => toast(t("Files put back as they were"), "ok") })}>{t("Put files back")}</button>
-      </div>
-    {/if}
-    {#each st.rules.suggestions as s (s.folder + s.preset)}
-      <div class="banner warn">
-        <div>{@render suggestionText(s)}</div>
-        {@render suggestionButtons(s)}
-      </div>
-    {/each}
-    {#if st.olderVersion}
-      {@const v = st.olderVersion}
-      <div class="banner older">
-        <div>
-          <Tx text={t("You're on an older version: {version}")} strong={{ version: `“${v.message || v.short}”` }} />
-          <span class="muted">— {v.author}, {ago(v.time)}. {t("Newer versions are kept.")}</span>
-        </div>
-        {#if st.remoteUrl && st.changes.length}
-          <button onclick={() => putOnBranch(message || "")} disabled={!!busy}
-            title={t("Commit your changes on a branch of your own, starting from this version")}>{t("New branch from here…")}</button>
-          <button onclick={() => goTo(null)} disabled={!!busy}>{t("Back to latest")}</button>
-          <button class="primary" onclick={() => openCombine(message)} disabled={!!busy}
-            title={t("Commit your changes after this version and combine them with the latest")}>{t("Preview & combine")}</button>
-        {:else if st.remoteUrl}
-          <button onclick={() => (newBranch = "")} disabled={!!busy}
-            title={t("Continue from this version on a branch of your own")}>{t("New branch from here…")}</button>
-        {:else}
-          <button onclick={() => (keepOpen = t("Back to “{version}”", { version: v.message || v.short }))} disabled={!!busy}
-            title={t("Continue from this version: it becomes a new, latest version")}>{t("Make this the latest…")}</button>
-        {/if}
-        {#if !(st.remoteUrl && st.changes.length)}
-          <button class="primary" onclick={() => goTo(null)} disabled={!!busy}>{t("Back to latest")}</button>
-        {/if}
-      </div>
-    {/if}
-    {#if st.takenBack?.length && !st.incoming.length}
-      <div class="banner info">
-        <div>
-          {takenBackText(st.takenBack)}
-          <span class="muted">{t("Get updates to take it out of your files too.")}</span>
-          {#if st.changes.length && !st.olderVersion}<span class="keep">{t("Your uncommitted changes stay as they are.")}</span>{/if}
-        </div>
-        {#if !st.olderVersion}
-          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>{t("Get updates")}</button>
-        {/if}
-      </div>
-    {/if}
-    {#if st.incoming.length}
-      <div class="banner info">
-        <div>
-          <Tx text={tn(news.length, "{who} shared {n} new version:", "{who} shared {n} new versions:")}
-            strong={{ who: [...new Set(news.map((v) => v.author))].join(", ") }} />
-          <span class="muted">{news.slice(0, 3).map((v) => `“${v.message}”`).join(", ")}{news.length > 3 ? "…" : ""}</span>
-          {#if st.changes.length && !st.olderVersion}<span class="keep">{t("Your uncommitted changes stay as they are.")}</span>{/if}
-        </div>
-        {#if st.olderVersion}
-          <!-- back to the latest version first -->
-        {:else}
-          <button onclick={openUpdatePreview} disabled={!!busy}>{t("Preview")}</button>
-          <button class="primary" onclick={() => run(updateAction)} disabled={!!busy}>{t("Get updates")}</button>
-        {/if}
-      </div>
-    {/if}
-
-    {#if restorable && spotsDismissed !== restorable}
-      <div class="banner warn">
-        <div>⚠ {tn(missingSamples, "{n} sample of this project is missing.", "{n} samples of this project are missing.")}
-          {tn(restorable, "DAWGit has a copy.", "DAWGit has copies of {n}.")}</div>
-        <button class="ghost" onclick={() => (spotsDismissed = restorable)} disabled={!!busy}>{t("Later")}</button>
-        <button class="primary" onclick={() => restoreSamples()} disabled={!!busy}
-          title={t("Copies them into Samples/Imported and points the sets there")}>{t("Restore from DAWGit")}</button>
-      </div>
-    {/if}
-
-    {#if st.rules.error}
-      <div class="banner warn">
-        <div>⚠ {st.rules.error}</div>
-        <button onclick={openRules}>{t("Open {file}", { file: ".dawgit.yaml" })}</button>
-      </div>
-    {/if}
+    <ProjectBanners {st} {busy} {progress} {restorable} {missingSamples} onshare={shareVersions}
+      onrecover={() => run({ name: "goto", message: "",
+        call: (_res, force) => api.RecoverSwitch(root, force),
+        done: () => toast(t("Files put back as they were"), "ok") })}
+      onpreset={setPreset} onbranchhere={() => putOnBranch(message || "")} onlatest={() => goTo(null)}
+      oncombine={() => openCombine(message)} onnewbranch={() => (newBranch = "")}
+      onkeep={() => (keepOpen = t("Back to “{version}”", { version: st!.olderVersion!.message || st!.olderVersion!.short }))}
+      onupdate={() => run(updateAction)} onpreview={openUpdatePreview} onrestore={() => restoreSamples()} onopenrules={openRules} />
 
     <nav>
       <button class:on={tab === "changes"} onclick={() => (tab = "changes")}>
@@ -965,28 +831,12 @@
     </Modal>
   {/if}
 
-  {#snippet suggestionText(s: RuleSuggestion)}
-    <Tx text={t(s.folder ? "{tool} project found in {folder}." : "{tool} project found in the project folder.")}
-      strong={{ folder: `${s.folder}/`, tool: presetName(s.preset) }} />
-    <span class="muted" title={s.leftOut.join("  ")}>{s.leftOutBytes > 0
-      ? t("Its rules leave out {what} ({size} here).", { what: leftOutText(s.leftOut), size: formatBytes(s.leftOutBytes) })
-      : t("Its rules leave out {what}.", { what: leftOutText(s.leftOut) })}</span>
-  {/snippet}
-  {#snippet suggestionButtons(s: RuleSuggestion)}
-    <div class="row">
-      <button class="primary" onclick={() => setPreset(s, s.preset)}>{t("Use {tool} rules", { tool: presetName(s.preset) })}</button>
-      <button class="ghost" onclick={() => setPreset(s, "none")} title={t("DAWGit won't ask about this folder again")}>{t("Not a project")}</button>
-    </div>
-  {/snippet}
   {#if rulesAsk && st?.rules.suggestions.length}
     <Modal title={t("Before you commit")} onclose={() => (rulesAsk = false)}>
       <p>{st.rules.suggestions.length === 1 ? t("DAWGit found a project of another tool in this one.") : t("DAWGit found projects of other tools in this one.")}
         {t("A tool's rules leave out what it makes again by itself (caches, backups), so that doesn't go up with the version.")}</p>
       {#each st.rules.suggestions as s (s.folder + s.preset)}
-        <div class="suggestion">
-          <div>{@render suggestionText(s)}</div>
-          {@render suggestionButtons(s)}
-        </div>
+        <div class="suggestion"><RuleSuggestion {s} onpreset={(p) => setPreset(s, p)} /></div>
       {/each}
       {#snippet footer()}
         <button onclick={() => (rulesAsk = false)}>{t("Cancel")}</button>
@@ -1131,13 +981,8 @@
   .warnings { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px;
     color: var(--warn); font-size: 13.5px; user-select: text; }
 
-  .banner { display: flex; align-items: center; gap: 10px; margin: 6px 24px; padding: 10px 14px; border-radius: 8px; }
-  .banner > div { flex: 1; }
-  .banner.info { background: #1d2c38; border: 1px solid #2c4557; }
-  .banner.older { background: #2a2536; border: 1px solid #463c5c; }
-  .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
   .suggestion { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
-  .suggestion > div:first-child { flex: 1; }
+  .suggestion > :global(div:first-child) { flex: 1; }
 
   nav { display: flex; gap: 4px; padding: 10px 24px 0; border-bottom: 1px solid var(--line); }
   nav button { border: none; background: transparent; border-radius: 6px 6px 0 0; padding: 8px 14px; color: var(--muted); border-bottom: 2px solid transparent; }
@@ -1155,7 +1000,6 @@
   .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
   .small { font-size: 12px; margin: 10px 0 0; }
   .restore-note { color: #f0d9a8; }
-  .keep { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
   .tracks li { display: flex; align-items: center; gap: 10px; }
