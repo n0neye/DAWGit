@@ -14,6 +14,12 @@ var procGetWindowTextW = windows.NewLazySystemDLL("user32.dll").NewProc("GetWind
 // Of returns the titles of the visible windows of programs named exe (e.g.
 // "Unity.exe").
 func Of(exe string) []string {
+	return Matching(func(name string) bool { return strings.EqualFold(name, exe) })
+}
+
+// Matching returns the titles of the visible windows of programs whose file
+// name matches (for editors whose name has their version in it).
+func Matching(match func(exe string) bool) []string {
 	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
 		return nil
@@ -23,7 +29,7 @@ func Of(exe string) []string {
 	var e windows.ProcessEntry32
 	e.Size = uint32(unsafe.Sizeof(e))
 	for err = windows.Process32First(snap, &e); err == nil; err = windows.Process32Next(snap, &e) {
-		if strings.EqualFold(windows.UTF16ToString(e.ExeFile[:]), exe) {
+		if match(windows.UTF16ToString(e.ExeFile[:])) {
 			pids[e.ProcessID] = true
 		}
 	}

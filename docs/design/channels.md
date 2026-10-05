@@ -5,7 +5,7 @@ Status: built (0.13).
 One repository, one `main`, two release lines:
 
 - **Nightly** is `main` as it is, built with the `nightly` build tag: the
-  project kinds still in testing (Unity, Unreal, code and design files, in
+  project kinds still in testing (Unity, Unreal, Godot, code and design files, in
   `presets/`) and whatever else is behind the tag.
 - **Stable** is cut from `main` when it is ready, built without the tag:
   Ableton Live projects on the team's own storage. A fix for a Stable
@@ -54,8 +54,8 @@ on, a DAWGit that doesn't know it stops before working with the team
 (`remote.CheckFeatures`, from `Repo.Client` and the team overview) and says
 to update or switch to Nightly (CLI: `team_needs_features`, exit 6).
 
-Project kinds a Stable build doesn't know say so too: initializing a Unity
-or Unreal folder, or a `.dawgit.yaml` naming a Nightly preset, fails with
+Project kinds a Stable build doesn't know say so too: initializing a Unity,
+Unreal or Godot folder, or a `.dawgit.yaml` naming a Nightly preset, fails with
 "needs DAWGit's Nightly channel" (CLI: `needs_nightly`, exit 6).
 
 ## From DAWGit Pro

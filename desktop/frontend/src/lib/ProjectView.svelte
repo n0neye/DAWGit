@@ -360,7 +360,7 @@
   // Projects of tools found in folders the rules don't name yet: their
   // preset is suggested, and asked about before committing (or their
   // caches would go up with the version).
-  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
+  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal", godot: "Godot",
     design: t("design"), code: t("code") } as Record<string, string>)[p] ?? p;
   // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
   const leftOutText = (pats: string[]) => {

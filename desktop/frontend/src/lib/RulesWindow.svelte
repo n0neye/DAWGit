@@ -12,7 +12,7 @@
   // left out, and why), and the rules the switches wrote.
   let { root, onclose }: { root: string; onclose: () => void } = $props();
 
-  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal",
+  const presetName = (p: string) => ({ ableton: "Ableton Live", unity: "Unity", unreal: "Unreal", godot: "Godot",
     design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[p] ?? p;
   // What a preset leaves out, for people: "Library, Temp, Obj and 9 more".
   const leftOutText = (pats: string[]) => {

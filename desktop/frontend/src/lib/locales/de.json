@@ -997,5 +997,6 @@
 "Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "Entfernt sie aus dem Verlauf. Ihre Änderungen werden wieder nicht committete Änderungen, damit du sie korrigieren und neu committen kannst.",
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Damit wird das Zurücknehmen von Versionen für das Team eingeschaltet: Teammitglieder mit einem älteren DAWGit werden gebeten, es zu aktualisieren.",
 "Keep it in the history instead": "Stattdessen im Verlauf behalten",
-"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit kann nicht erkennen, wer diese Version gemacht hat (wähle zuerst deinen Namen im Team), deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück."
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit kann nicht erkennen, wer diese Version gemacht hat (wähle zuerst deinen Namen im Team), deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück.",
+"Godot project": "Godot-Projekt"
 }

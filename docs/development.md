@@ -53,7 +53,7 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 - `internal/remote` — the `Backend` interface with two implementations: the team server's HTTP API and S3-compatible object storage
 - `internal/teams` — per-user team store (`%APPDATA%\DAWGit\teams.json`): team addresses, credentials, project locations
 - `internal/version` — release number, channel (Stable or Nightly) and Nightly build stamp
-- `presets/` — project kinds still in testing (Unity, Unreal, code, design files); only Nightly builds import them
+- `presets/` — project kinds still in testing (Unity, Unreal, Godot, code, design files); only Nightly builds import them
 - `cmd/publish` — publishes a Nightly installer and its signed feed to the releases bucket
 - `testdata/golden` — the expected output of diff and merge (made by the original Python prototype; now the specification)
 - `testdata/live/` — sets saved by Ableton Live 12.3.1 (a project, its Backup folder, two hand-made branches): the fixtures, read byte for byte

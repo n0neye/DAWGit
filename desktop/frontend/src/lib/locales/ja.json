@@ -997,5 +997,6 @@
 "Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "履歴から消します。その変更は未コミットの変更に戻るので、直して再びコミットできます。",
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "チームでバージョンの取り消しを有効にします。古い DAWGit を使っているチームメイトには更新が求められます。",
 "Keep it in the history instead": "代わりに履歴に残す",
-"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit はこのバージョンを誰が作ったか判断できないため（先にチームで名前を選んでください）、履歴に残ります。新しいバージョンで取り消します。"
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit はこのバージョンを誰が作ったか判断できないため（先にチームで名前を選んでください）、履歴に残ります。新しいバージョンで取り消します。",
+"Godot project": "Godot プロジェクト"
 }

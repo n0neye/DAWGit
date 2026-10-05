@@ -55,7 +55,7 @@
   let rulesOpen = $state(false);
   let unlinkSure = $state(false);
   const presetName = (preset: string) => ({ ableton: t("Ableton Live project"), unity: t("Unity project"),
-    unreal: t("Unreal project"), design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[preset] ?? preset;
+    unreal: t("Unreal project"), godot: t("Godot project"), design: t("Design files"), code: t("Code"), none: t("No preset") } as Record<string, string>)[preset] ?? preset;
 </script>
 
 {#if rulesOpen}
