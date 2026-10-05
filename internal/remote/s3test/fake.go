@@ -332,6 +332,15 @@ func (s *Server) Object(bucket, key string) ([]byte, bool) {
 	return append([]byte(nil), o.data...), true
 }
 
+// Put writes key in bucket directly (tests set up records as another
+// DAWGit would have written them).
+func (s *Server) Put(bucket, key string, data []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sum := md5.Sum(data)
+	s.buckets[bucket][key] = &object{data: append([]byte(nil), data...), etag: `"` + hex.EncodeToString(sum[:]) + `"`, modified: s.now()}
+}
+
 // Delete removes key from bucket (tests lose objects on purpose).
 func (s *Server) Delete(bucket, key string) {
 	s.mu.Lock()

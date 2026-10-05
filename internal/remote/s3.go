@@ -890,7 +890,11 @@ func (b *S3Backend) Info() (TeamInfo, error) {
 	if err != nil {
 		return info, err
 	}
-	json.Unmarshal(r.body, &info)
+	// A record that doesn't read is an error, not an empty one: written
+	// back empty, it would lose the team's name and features.
+	if err := json.Unmarshal(r.body, &info); err != nil {
+		return info, fmt.Errorf("team.json: %w", err)
+	}
 	return info, nil
 }
 

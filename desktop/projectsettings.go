@@ -77,7 +77,7 @@ func (a *App) RenameProject(teamID, projectID, root, name string) error {
 	if err != nil {
 		return err
 	}
-	return b.PutProject(remote.Project{ID: projectID, Name: name})
+	return remote.RenameProject(b, projectID, name)
 }
 
 // adoptName takes the team's name for a project here (someone renamed it).

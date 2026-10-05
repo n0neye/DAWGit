@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"dawgit/internal/jsonx"
 )
 
 // Backend is where a team's projects are shared: a DAWGit server, or an
@@ -82,6 +84,20 @@ var _ BodyStore = (*S3Backend)(nil)
 type Member struct {
 	ID   string `json:"id"` // 32 hex characters
 	Name string `json:"name"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Member) UnmarshalJSON(b []byte) error {
+	type plain Member
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Member) MarshalJSON() ([]byte, error) {
+	type plain Member
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // ValidMemberID reports whether id looks like a member id.
@@ -92,6 +108,20 @@ type TeamInfo struct {
 	Name string `json:"name"`
 	// Features the team turned on (see CheckFeatures).
 	Features []string `json:"features,omitempty"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *TeamInfo) UnmarshalJSON(b []byte) error {
+	type plain TeamInfo
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v TeamInfo) MarshalJSON() ([]byte, error) {
+	type plain TeamInfo
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // Config selects and configures a backend (stored in .dawgit/config.json).
@@ -105,6 +135,20 @@ type Config struct {
 	AccessKey string `json:"access_key,omitempty"`
 	SecretKey string `json:"secret_key,omitempty"`
 	Region    string `json:"region,omitempty"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Config) UnmarshalJSON(b []byte) error {
+	type plain Config
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Config) MarshalJSON() ([]byte, error) {
+	type plain Config
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // IsStorage reports whether the config points at object storage (no server).

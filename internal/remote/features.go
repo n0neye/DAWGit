@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -93,4 +94,38 @@ func EnableFeature(b Backend, name string) error {
 	}
 	info.Features = append(info.Features, name)
 	return b.SetInfo(info)
+}
+
+// RenameProject renames a project for the team, keeping the rest of its
+// record (fields a newer DAWGit may have added).
+func RenameProject(b Backend, pid, name string) error {
+	ps, err := b.Projects()
+	if err != nil {
+		return err
+	}
+	p := Project{ID: pid}
+	for _, q := range ps {
+		if q.ID == pid {
+			p = q
+		}
+	}
+	p.Name = name
+	return b.PutProject(p)
+}
+
+// RenameMember adds a member or renames one, keeping the rest of their
+// record.
+func RenameMember(b Backend, id, name string) error {
+	ms, err := b.Members()
+	if err != nil && !errors.Is(err, ErrOldServer) {
+		return err
+	}
+	m := Member{ID: id}
+	for _, q := range ms {
+		if q.ID == id {
+			m = q
+		}
+	}
+	m.Name = name
+	return b.PutMember(m)
 }

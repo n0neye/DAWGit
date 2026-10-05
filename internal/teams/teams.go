@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"dawgit/internal/jsonx"
 	"dawgit/internal/remote"
 	"dawgit/internal/version"
 )
@@ -47,6 +48,20 @@ type Team struct {
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.
 	KeysUnreadable bool `json:"-"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Team) UnmarshalJSON(b []byte) error {
+	type plain Team
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Team) MarshalJSON() ([]byte, error) {
+	type plain Team
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // Backup is where and how this computer backs up a team (internal/backup).
@@ -60,6 +75,20 @@ type Backup struct {
 	LastAttempt time.Time      `json:"lastAttempt,omitempty"`
 	LastError   string         `json:"lastError,omitempty"`
 	Size        int64          `json:"size,omitempty"` // bytes, at the last success
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Backup) UnmarshalJSON(b []byte) error {
+	type plain Backup
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Backup) MarshalJSON() ([]byte, error) {
+	type plain Backup
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 type Store struct {
@@ -80,6 +109,20 @@ type Store struct {
 	Channel string `json:"channel,omitempty"`
 
 	path string
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Store) UnmarshalJSON(b []byte) error {
+	type plain Store
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Store) MarshalJSON() ([]byte, error) {
+	type plain Store
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // Dir is where DAWGit keeps per-user settings.

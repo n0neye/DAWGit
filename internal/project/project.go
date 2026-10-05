@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"dawgit/internal/jsonx"
 	"dawgit/internal/profile"
 	"dawgit/internal/remote"
 	"dawgit/internal/store"
@@ -34,6 +35,20 @@ type Config struct {
 	// Tip is the latest version of the branch while the project is on an
 	// older one (see GoTo); empty otherwise.
 	Tip string `json:"tip,omitempty"`
+	// Extra: fields a newer DAWGit wrote, kept when this one rewrites the record.
+	Extra jsonx.Extra `json:"-"`
+}
+
+// UnmarshalJSON and MarshalJSON keep fields this build doesn't know (see
+// package jsonx).
+func (v *Config) UnmarshalJSON(b []byte) error {
+	type plain Config
+	return jsonx.Decode(b, (*plain)(v), &v.Extra)
+}
+
+func (v Config) MarshalJSON() ([]byte, error) {
+	type plain Config
+	return jsonx.Encode(plain(v), v.Extra)
 }
 
 // RemoteConfig selects the team's backend (server address and token).
@@ -120,7 +135,7 @@ func (r *Repo) Rename(name string) error {
 		if err != nil {
 			return err
 		}
-		if err := c.PutProject(remote.Project{ID: r.Config.ProjectID, Name: name}); err != nil {
+		if err := remote.RenameProject(c, r.Config.ProjectID, name); err != nil {
 			return err
 		}
 	}

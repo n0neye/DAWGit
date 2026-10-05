@@ -138,3 +138,28 @@ func TestImportFromPro(t *testing.T) {
 		t.Error("only on a first start")
 	}
 }
+
+// teams.json is shared by Stable and Nightly: a save keeps what the other
+// wrote, at every level.
+func TestKeepsUnknownFields(t *testing.T) {
+	t.Setenv("DAWGIT_CONFIG_DIR", t.TempDir())
+	os.MkdirAll(Dir(), 0o700)
+	path := filepath.Join(Dir(), "teams.json")
+	os.WriteFile(path, []byte(`{"author":"Yi","nightlyThing":1,
+		"teams":[{"id":"t1","name":"Band","remote":{"url":"s3+https://x/b/f","broker":"y"},"labs":true,
+			"backup":{"folder":"D:/B","cloud":"z"}}],"projects":{}}`), 0o600)
+	s, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Teams[0].Name = "Band 2"
+	if err := s.Save(); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	for _, want := range []string{`"nightlyThing"`, `"labs"`, `"broker"`, `"cloud"`, `"Band 2"`} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("lost %s:\n%s", want, data)
+		}
+	}
+}

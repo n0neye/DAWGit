@@ -213,7 +213,7 @@ func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
 	if err != nil {
 		return TeamSummary{}, err
 	}
-	if err := b.PutMember(remote.Member{ID: memberID, Name: name}); err != nil &&
+	if err := remote.RenameMember(b, memberID, name); err != nil &&
 		!errors.Is(err, remote.ErrOldServer) { // old server: the name still goes with new versions
 		return TeamSummary{}, err
 	}
