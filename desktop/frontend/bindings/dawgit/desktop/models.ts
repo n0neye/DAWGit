@@ -656,6 +656,47 @@ export class PresetOption {
     }
 }
 
+/**
+ * Preupload is a file going up in the background (event "preupload": Done
+ * false while it goes, true once it's up or stopped).
+ */
+export class Preupload {
+    "root": string;
+    "path": string;
+    "bytes": number;
+    "total": number;
+    "done": boolean;
+
+    /** Creates a new Preupload instance. */
+    constructor($$source: Partial<Preupload> = {}) {
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("total" in $$source)) {
+            this["total"] = 0;
+        }
+        if (!("done" in $$source)) {
+            this["done"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Preupload instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Preupload {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Preupload($$parsedSource as Partial<Preupload>);
+    }
+}
+
 export class Preview {
     /**
      * up-to-date | ahead | fast-forward | merge
@@ -2118,6 +2159,12 @@ export class TeamSummary {
     "canShareSetup": boolean;
 
     /**
+     * Preupload: big files go up in the background before they're
+     * committed (on this computer; storage teams).
+     */
+    "preupload": boolean;
+
+    /**
      * AskShareSetup: the app should ask whether to share it (not chosen yet,
      * e.g. a member from before the option).
      */
@@ -2157,6 +2204,9 @@ export class TeamSummary {
         }
         if (!("canShareSetup" in $$source)) {
             this["canShareSetup"] = false;
+        }
+        if (!("preupload" in $$source)) {
+            this["preupload"] = false;
         }
         if (!("askShareSetup" in $$source)) {
             this["askShareSetup"] = false;

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"dawgit/internal/manifest"
 	"dawgit/internal/profile"
@@ -116,6 +117,9 @@ type stamp struct{ size, mtime int64 }
 func (r *Repo) localCopy(h string) string {
 	if r.Store.Has(h) {
 		return r.Store.Path(h)
+	}
+	if p := r.pinnedCopy(h); p != "" {
+		return p
 	}
 	r.srcMu.Lock()
 	defer r.srcMu.Unlock()
@@ -383,8 +387,9 @@ func (r *Repo) GC() (int64, error) {
 	}
 	remote := r.remoteOnly()
 	changed := false
+	early := r.keptPreuploads(time.Now()) // not committed yet: still listed
 	for h := range remote {
-		if _, ok := all[h]; !ok {
+		if _, ok := all[h]; !ok && !early[h] {
 			delete(remote, h)
 			changed = true
 		}

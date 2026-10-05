@@ -1007,5 +1007,8 @@
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "Dónde está la copia: las claves solo necesitan leer ese bucket. Se usan solo para esta restauración y no se guardan.",
 "Look in this bucket": "Mirar en este bucket",
 "Don't change the project's files until this step is done.": "No cambies los archivos del proyecto hasta que termine este paso.",
-"It's in the history: you can keep working while it uploads.": "Ya está en el historial: puedes seguir trabajando mientras se sube."
+"It's in the history: you can keep working while it uploads.": "Ya está en el historial: puedes seguir trabajando mientras se sube.",
+"Upload big files in the background": "Subir archivos grandes en segundo plano",
+"Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "Los archivos de 50 MB o más (un vídeo, una grabación larga) suben al almacenamiento del equipo cuando dejan de cambiar, antes del commit, así el commit es rápido. El equipo no ve nada hasta que hagas commit.",
+"Uploading {file} in the background ({percent}%)": "Subiendo {file} en segundo plano ({percent} %)"
 }

@@ -72,6 +72,7 @@ type Repo struct {
 	sources map[string]string // contents found outside the store (sourcesByHash)
 	stamps  map[string]stamp  // the project files among them: as they were hashed
 	srcMu   sync.Mutex        // localCopy runs in parallel transfers
+	pinned  map[string]string // contents a step keeps outside the store (see pin)
 	prof    *profile.Profile  // the project's rules (Profile)
 	profErr error
 }

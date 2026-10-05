@@ -42,6 +42,17 @@
   let editingMe = $state(false);
   let shareSetup = $state(untrack(() => team.shareSetup));
   let shareError = $state("");
+  let preupload = $state(untrack(() => team.preupload));
+  async function togglePreupload(on: boolean) {
+    shareError = "";
+    try {
+      await api.SetPreupload(team.id, on);
+      preupload = on;
+      await reload();
+    } catch (e) {
+      shareError = errorText(e);
+    }
+  }
   async function toggleShare(on: boolean) {
     shareError = "";
     try {
@@ -207,6 +218,9 @@
       <label class="share"><input type="checkbox" checked={shareSetup} onchange={(e) => toggleShare(e.currentTarget.checked)} />
         {t("Share my setup with the team")}</label>
       <p class="faint small">{t("Your Ableton Live version and the names of your plugins and packs (never files), so a project check can tell who can open a project.")} {t("Turning it off removes it from the team's storage.")}</p>
+      <label class="share"><input type="checkbox" checked={preupload} onchange={(e) => togglePreupload(e.currentTarget.checked)} />
+        {t("Upload big files in the background")}</label>
+      <p class="faint small">{t("Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.")}</p>
       {#if shareError}<p class="error">{shareError}</p>{/if}
     </section>
   {/if}
