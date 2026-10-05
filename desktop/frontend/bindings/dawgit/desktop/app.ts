@@ -485,7 +485,8 @@ export function PauseBackup(teamID: string, paused: boolean): $CancellablePromis
 }
 
 /**
- * PlanUndo says what undoing version id would do.
+ * PlanUndo says what undoing version id would do: with a new version, or
+ * by taking it back.
  */
 export function PlanUndo(root: string, id: string): $CancellablePromise<$models.UndoPlan | null> {
     return $Call.ByID(3746162554, root, id).then(($result: any) => {
@@ -846,6 +847,18 @@ export function StopBackup(teamID: string): $CancellablePromise<void> {
 
 export function SwitchBranch(root: string, name: string, force: boolean): $CancellablePromise<$models.Result | null> {
     return $Call.ByID(2633693627, root, name, force).then(($result: any) => {
+        return $$createType6($result);
+    });
+}
+
+/**
+ * TakeBackVersion takes back the latest version id: gone from the history
+ * (and the team's, when it was shared), its changes stay in the files,
+ * uncommitted. turnOn turns taking back on for the team when it isn't.
+ * Action "taken-back", or "taken-back-locally" when it wasn't shared.
+ */
+export function TakeBackVersion(root: string, id: string, turnOn: boolean): $CancellablePromise<$models.Result | null> {
+    return $Call.ByID(4133025557, root, id, turnOn).then(($result: any) => {
         return $$createType6($result);
     });
 }

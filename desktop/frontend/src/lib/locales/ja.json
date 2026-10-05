@@ -983,5 +983,19 @@
 "A later version changed {n} of the same things: you'll choose what to keep.": "後のバージョンが同じ箇所を {n} か所変更しています。どちらを残すか選びます。",
 "Later versions changed {n} of the same things: you'll choose what to keep.": "後のバージョンが同じ箇所を {n} か所変更しています。どちらを残すか選びます。",
 "You have uncommitted changes in files this undo changes. Commit or discard them first:": "この取り消しで変わるファイルに、まだコミットしていない変更があります。先にコミットするか破棄してください：",
-"Your other uncommitted changes stay as they are.": "ほかの未コミットの変更はそのまま残ります。"
+"Your other uncommitted changes stay as they are.": "ほかの未コミットの変更はそのまま残ります。",
+"{who} took back “{version}”.": "{who} が「{version}」を取り消しました。",
+"{who} took back {n} versions.": "{who} が {n} 個のバージョンを取り消しました。",
+"It's taken out of your files too.": "あなたのファイルからも取り除きました。",
+"“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.": "「{version}」は履歴から消えました（あなたのものもチームのものも）。その変更は未コミットの変更に戻っています。",
+"“{version}” is gone from the history. Its changes are back in your uncommitted changes.": "「{version}」は履歴から消えました。その変更は未コミットの変更に戻っています。",
+"Get updates to take it out of your files too.": "更新を取得すると、あなたのファイルからも取り除かれます。",
+"{who} already has this version, so it stays in the history: a new version takes it back.": "{who} がすでにこのバージョンを持っているため、履歴に残ります。新しいバージョンで取り消します。",
+"The branch {branch} has this version too, so it stays in the history: a new version takes it back.": "ブランチ {branch} にもこのバージョンがあるため、履歴に残ります。新しいバージョンで取り消します。",
+"It's a teammate's version, so it stays in the history: a new version takes it back.": "チームメイトのバージョンなので、履歴に残ります。新しいバージョンで取り消します。",
+"Removes it from the history, yours and the team's. Its changes come back as uncommitted changes, so you can fix them and commit again.": "履歴から消します（あなたのものもチームのものも）。その変更は未コミットの変更に戻るので、直して再びコミットできます。",
+"Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "履歴から消します。その変更は未コミットの変更に戻るので、直して再びコミットできます。",
+"This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "チームでバージョンの取り消しを有効にします。古い DAWGit を使っているチームメイトには更新が求められます。",
+"Keep it in the history instead": "代わりに履歴に残す",
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit はこのバージョンを誰が作ったか判断できないため（先にチームで名前を選んでください）、履歴に残ります。新しいバージョンで取り消します。"
 }

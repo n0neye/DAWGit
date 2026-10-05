@@ -983,5 +983,19 @@
 "A later version changed {n} of the same things: you'll choose what to keep.": "之後的版本也改了其中 {n} 處：接下來由你選擇要保留哪個。",
 "Later versions changed {n} of the same things: you'll choose what to keep.": "之後的版本也改了其中 {n} 處：接下來由你選擇要保留哪個。",
 "You have uncommitted changes in files this undo changes. Commit or discard them first:": "這次撤銷會改到的檔案裡，有你還沒提交的變更。請先提交或丟棄：",
-"Your other uncommitted changes stay as they are.": "你其他未提交的變更會保持原樣。"
+"Your other uncommitted changes stay as they are.": "你其他未提交的變更會保持原樣。",
+"{who} took back “{version}”.": "{who} 撤回了「{version}」。",
+"{who} took back {n} versions.": "{who} 撤回了 {n} 個版本。",
+"It's taken out of your files too.": "你的檔案裡也已經拿掉了。",
+"“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.": "「{version}」已從歷史紀錄移除（你的和團隊的都是）。它的改動回到你的未提交變更中。",
+"“{version}” is gone from the history. Its changes are back in your uncommitted changes.": "「{version}」已從歷史紀錄移除。它的改動回到你的未提交變更中。",
+"Get updates to take it out of your files too.": "取得更新，把它從你的檔案裡也拿掉。",
+"{who} already has this version, so it stays in the history: a new version takes it back.": "{who} 已經拿到這個版本，所以它會留在歷史紀錄中：改用新版本把它撤回。",
+"The branch {branch} has this version too, so it stays in the history: a new version takes it back.": "分支 {branch} 也有這個版本，所以它會留在歷史紀錄中：改用新版本把它撤回。",
+"It's a teammate's version, so it stays in the history: a new version takes it back.": "這是隊友的版本，所以它會留在歷史紀錄中：改用新版本把它撤回。",
+"Removes it from the history, yours and the team's. Its changes come back as uncommitted changes, so you can fix them and commit again.": "從歷史紀錄移除（你的和團隊的都是）。它的改動會回到未提交變更，讓你修改後重新提交。",
+"Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "從歷史紀錄移除。它的改動會回到未提交變更，讓你修改後重新提交。",
+"This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "這會為團隊開啟撤回版本功能：使用舊版 DAWGit 的隊友會被要求更新。",
+"Keep it in the history instead": "改為保留在歷史紀錄中",
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit 無法判斷這個版本是誰做的（請先在團隊中選擇你的名字），所以它會留在歷史紀錄中：改用新版本把它撤回。"
 }

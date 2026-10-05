@@ -119,8 +119,10 @@ type State struct {
 	Changes  []Change            `json:"changes"`
 	MyEdits  []project.TrackEdit `json:"myEdits"`
 	Incoming []Version           `json:"incoming"`
-	History  []Version           `json:"history"`
-	Branches []Branch            `json:"branches"`
+	// TakenBack: versions here a teammate took back (Update takes them out).
+	TakenBack []Version `json:"takenBack"`
+	History   []Version `json:"history"`
+	Branches  []Branch  `json:"branches"`
 }
 
 // Result of save / update / merge / switch.
@@ -139,6 +141,8 @@ type Result struct {
 	// KeptWork: uncommitted changes were kept through an update (still
 	// uncommitted, the team's versions merged in).
 	KeptWork bool `json:"keptWork"`
+	// TakenBack: versions a teammate took back, taken out here too.
+	TakenBack []Version `json:"takenBack"`
 }
 
 type Preview struct {

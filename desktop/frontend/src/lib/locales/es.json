@@ -983,5 +983,19 @@
 "A later version changed {n} of the same things: you'll choose what to keep.": "Una versión posterior cambió {n} de las mismas cosas: elegirás qué conservar.",
 "Later versions changed {n} of the same things: you'll choose what to keep.": "Versiones posteriores cambiaron {n} de las mismas cosas: elegirás qué conservar.",
 "You have uncommitted changes in files this undo changes. Commit or discard them first:": "Tienes cambios sin confirmar en archivos que este deshacer cambia. Confírmalos o descártalos primero:",
-"Your other uncommitted changes stay as they are.": "Tus otros cambios sin confirmar quedan como están."
+"Your other uncommitted changes stay as they are.": "Tus otros cambios sin confirmar quedan como están.",
+"{who} took back “{version}”.": "{who} retiró “{version}”.",
+"{who} took back {n} versions.": "{who} retiró {n} versiones.",
+"It's taken out of your files too.": "También se quitó de tus archivos.",
+"“{version}” is gone from the history, yours and the team's. Its changes are back in your uncommitted changes.": "“{version}” desapareció del historial, el tuyo y el del equipo. Sus cambios volvieron a tus cambios sin confirmar.",
+"“{version}” is gone from the history. Its changes are back in your uncommitted changes.": "“{version}” desapareció del historial. Sus cambios volvieron a tus cambios sin confirmar.",
+"Get updates to take it out of your files too.": "Obtén las actualizaciones para quitarla también de tus archivos.",
+"{who} already has this version, so it stays in the history: a new version takes it back.": "{who} ya tiene esta versión, así que queda en el historial: una versión nueva la deshace.",
+"The branch {branch} has this version too, so it stays in the history: a new version takes it back.": "La rama {branch} también tiene esta versión, así que queda en el historial: una versión nueva la deshace.",
+"It's a teammate's version, so it stays in the history: a new version takes it back.": "Es la versión de un compañero, así que queda en el historial: una versión nueva la deshace.",
+"Removes it from the history, yours and the team's. Its changes come back as uncommitted changes, so you can fix them and commit again.": "La quita del historial, el tuyo y el del equipo. Sus cambios vuelven como cambios sin confirmar, para que los corrijas y confirmes de nuevo.",
+"Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "La quita del historial. Sus cambios vuelven como cambios sin confirmar, para que los corrijas y confirmes de nuevo.",
+"This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Esto activa retirar versiones para el equipo: a los compañeros con un DAWGit más antiguo se les pedirá que lo actualicen.",
+"Keep it in the history instead": "Mantenerla en el historial",
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit no puede saber quién hizo esta versión (elige primero tu nombre en el equipo), así que queda en el historial: una versión nueva la deshace."
 }
