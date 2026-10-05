@@ -7,6 +7,8 @@
   import { toast } from "./notify.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
+  import CommitBox from "./CommitBox.svelte";
+  import EditsSummary from "./EditsSummary.svelte";
   import ProjectHeader from "./ProjectHeader.svelte";
   import ProjectBanners from "./ProjectBanners.svelte";
   import RuleSuggestion from "./RuleSuggestion.svelte";
@@ -295,8 +297,6 @@
     }
   });
   let leftOut = $derived(st?.changes.filter((c) => excluded[c.path]).length ?? 0);
-  // The commit shortcut as the keyboard says it.
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   // The changes to commit, or none for all of them.
   // (a move commits both its places)
   const picked = () => (leftOut && st ? st.changes.filter((c) => !excluded[c.path]).flatMap((c) => (c.from ? [c.path, c.from] : [c.path])) : []);
@@ -692,44 +692,8 @@
 
     <main class:flush={tab === "changes"}>
       {#if tab === "changes"}
-        {#snippet summary()}
-          <section>
-            {#if st!.myEdits.length}
-              <h3>{t("Tracks you changed")}</h3>
-              <ul class="tracks">
-                {#each st!.myEdits as e}
-                  <li>
-                    <span class="chg {e.change}"></span>
-                    <span>{e.name}</span>
-                    <span class="faint">{e.set}</span>
-                  </li>
-                {/each}
-              </ul>
-            {:else}
-              <p class="muted">{st!.changes.length ? t("Pick a file on the left to see what changed.") : t("No uncommitted changes. Work in {tool} and save (Ctrl+S) — your changes show up here.", { tool: isLive ? "Live" : st!.tool ? t(st!.tool) : t("your app") })}</p>
-            {/if}
-            {#if st!.myEdits.length}<p class="faint small">{t("Pick a file on the left for its details, history and, for samples, to listen.")}</p>{/if}
-          </section>
-        {/snippet}
-        {#snippet commitBox()}
-          <textarea rows="3" bind:value={message} placeholder={t("What did you change? e.g. “New bassline in the chorus”")}
-            onkeydown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) commit(); }}></textarea>
-          {#if st!.olderVersion}
-            <p class="faint small older">{st!.remoteUrl
-              ? t("You're on an older version. Committing combines your changes with the latest version of “{branch}” (you'll see a preview first) — or start a new branch from here.", { branch: st!.branch })
-              : t("You're on an older version. Make it the latest version to commit changes, or go back to the latest version.")}</p>
-          {/if}
-          <button class="primary commit-btn" disabled={!message.trim() || !!busy || (!!st!.olderVersion && !st!.remoteUrl)
-            || (st!.changes.length > 0 && leftOut === st!.changes.length)} onclick={() => commit()}
-            title={st!.remoteUrl
-              ? t("Commits the project folder and shares it with the team on “{branch}”. If others committed in the meantime, you'll see what they changed and choose how to combine first.", { branch: st!.branch }) + (leftOut ? " " + t("Unticked files stay uncommitted.") : "")
-              : t("Commits on this computer. Share the project with a team to work on it together.") + (leftOut ? " " + t("Unticked files stay uncommitted.") : "")}>
-            <span>{busy === "save" || busy === "first-share" ? t("Committing…")
-              : leftOut ? t(st!.remoteUrl ? "Commit {done} of {total} & Share" : "Commit {done} of {total}", { done: st!.changes.length - leftOut, total: st!.changes.length })
-              : st!.remoteUrl ? t("Commit & Share") : t("Commit")}</span>
-            <kbd>{isMac ? "⌘" : "Ctrl"} ↵</kbd>
-          </button>
-        {/snippet}
+        {#snippet summary()}<EditsSummary st={st!} />{/snippet}
+        {#snippet commitBox()}<CommitBox st={st!} bind:message {busy} {leftOut} oncommit={() => commit()} />{/snippet}
         <ChangesPanel {root} st={st} {summary} {commitBox} bind:excluded onrules={() => load()} ondiscard={(p) => (discardFile = p)}
           ondiscardall={() => (discardAllOpen = true)} ondiscardsome={(paths) => (discardSome = paths)}
           onrestore={(path, version, label, source) => (restoreFile = { path, version, label, source })} />
@@ -882,17 +846,5 @@
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
   main.flush { padding: 0; overflow: hidden; min-height: 0; }
-  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
-  .older { margin: 6px 0 0; }
-  .commit-btn { width: 100%; margin-top: 8px; padding: 8px 14px; display: flex; align-items: center; justify-content: center; gap: 10px; }
-  .commit-btn kbd { font: inherit; font-size: 11px; opacity: .75; padding: 1px 5px; border-radius: 4px; border: 1px solid currentColor; }
-  /* nothing to commit yet (no message, no changes): outlined, still easy to see */
-  .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
-  .small { font-size: 12px; margin: 10px 0 0; }
 
-  .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
-  .tracks li { display: flex; align-items: center; gap: 10px; }
-  .chg { width: 8px; height: 8px; border-radius: 2px; background: var(--mod); }
-  .chg.added { background: var(--add); }
-  .chg.removed { background: var(--del); }
 </style>
