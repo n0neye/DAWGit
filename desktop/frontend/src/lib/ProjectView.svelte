@@ -19,6 +19,9 @@
   import PreviewDialog from "./PreviewDialog.svelte";
   import ProjectCheck from "./ProjectCheck.svelte";
   import ConflictDialog from "./ConflictDialog.svelte";
+  import ConfirmDialog from "./ConfirmDialog.svelte";
+  import LiveBlockedDialog from "./LiveBlockedDialog.svelte";
+  import CommitCheckDialog from "./CommitCheckDialog.svelte";
 
   // firstShare: the project was just added (to a team, or this computer).
   // With no versions yet, it asks whether to commit (and share) a first one
@@ -784,51 +787,34 @@
   {/if}
 
   {#if discardAllOpen}
-    <Modal title={t("Discard all your changes?")} onclose={() => (discardAllOpen = false)}>
-      <p>{tn(st.changes.length, "Your {n} uncommitted change will be lost: the project folder goes back to the version you're on. This can't be undone.",
-        "All {n} uncommitted changes will be lost: the project folder goes back to the version you're on. This can't be undone.")}</p>
-      {#snippet footer()}
-        <button onclick={() => (discardAllOpen = false)}>{t("Cancel")}</button>
-        <button class="danger" onclick={discardEverything}>{t("Discard all")}</button>
-      {/snippet}
-    </Modal>
+    <ConfirmDialog title={t("Discard all your changes?")} danger confirm={t("Discard all")}
+      text={tn(st.changes.length, "Your {n} uncommitted change will be lost: the project folder goes back to the version you're on. This can't be undone.",
+        "All {n} uncommitted changes will be lost: the project folder goes back to the version you're on. This can't be undone.")}
+      onconfirm={discardEverything} onclose={() => (discardAllOpen = false)} />
   {/if}
 
   {#if discardSome}
     {@const n = discardSome.length}
-    <Modal title={tn(n, "Discard {n} ticked change?", "Discard {n} ticked changes?")} onclose={() => (discardSome = null)}>
-      <p>{tn(n, "The file goes back to how it is in the version you're on. The unticked changes stay. This can't be undone.",
-        "These {n} files go back to how they are in the version you're on. The unticked changes stay. This can't be undone.")}</p>
-      {#snippet footer()}
-        <button onclick={() => (discardSome = null)}>{t("Cancel")}</button>
-        <button class="danger" onclick={discardTicked}>{t("Discard")}</button>
-      {/snippet}
-    </Modal>
+    <ConfirmDialog title={tn(n, "Discard {n} ticked change?", "Discard {n} ticked changes?")} danger confirm={t("Discard")}
+      text={tn(n, "The file goes back to how it is in the version you're on. The unticked changes stay. This can't be undone.",
+        "These {n} files go back to how they are in the version you're on. The unticked changes stay. This can't be undone.")}
+      onconfirm={discardTicked} onclose={() => (discardSome = null)} />
   {/if}
 
   {#if restoreFile}
     {@const r = restoreFile}
-    {@const pending = st.changes.some((c) => c.path === r.path)}
-    <Modal title={t("Restore {file} from “{version}”?", { file: r.path.slice(r.path.lastIndexOf("/") + 1), version: r.label })} onclose={() => (restoreFile = null)}>
-      <p>{t("The file goes back to how it was in that version. The rest of the project stays as it is; commit when you're happy with it.")}</p>
-      {#if pending}<p class="warn-text">{t("This file has uncommitted changes — they'll be replaced.")}</p>{/if}
-      {#snippet footer()}
-        <button onclick={() => (restoreFile = null)}>{t("Cancel")}</button>
-        <button class="primary" onclick={restoreOneFile}>{t("Restore")}</button>
-      {/snippet}
-    </Modal>
+    <ConfirmDialog title={t("Restore {file} from “{version}”?", { file: r.path.slice(r.path.lastIndexOf("/") + 1), version: r.label })}
+      text={t("The file goes back to how it was in that version. The rest of the project stays as it is; commit when you're happy with it.")}
+      warn={st.changes.some((c) => c.path === r.path) ? t("This file has uncommitted changes — they'll be replaced.") : ""}
+      confirm={t("Restore")} onconfirm={restoreOneFile} onclose={() => (restoreFile = null)} />
   {/if}
 
   {#if discardFile}
-    <Modal title={t("Discard your changes to {file}?", { file: discardFile.slice(discardFile.lastIndexOf("/") + 1) })} onclose={() => (discardFile = "")}>
-      {@const movedFrom = st?.changes.find((c) => c.path === discardFile)?.from}
-      <p>{movedFrom ? t("The file goes back to {path}, as it is in the version you're on. This can't be undone.", { path: movedFrom })
-        : t("The file goes back as it is in the version you're on. This can't be undone.")}</p>
-      {#snippet footer()}
-        <button onclick={() => (discardFile = "")}>{t("Cancel")}</button>
-        <button class="danger" onclick={discardOneFile}>{t("Discard changes")}</button>
-      {/snippet}
-    </Modal>
+    {@const movedFrom = st.changes.find((c) => c.path === discardFile)?.from}
+    <ConfirmDialog title={t("Discard your changes to {file}?", { file: discardFile.slice(discardFile.lastIndexOf("/") + 1) })}
+      text={movedFrom ? t("The file goes back to {path}, as it is in the version you're on. This can't be undone.", { path: movedFrom })
+        : t("The file goes back as it is in the version you're on. This can't be undone.")}
+      danger confirm={t("Discard changes")} onconfirm={discardOneFile} onclose={() => (discardFile = "")} />
   {/if}
 
   {#if rulesAsk && st?.rules.suggestions.length}
@@ -846,37 +832,10 @@
   {/if}
 
   {#if untrackedConfirm}
-    {@const files = untrackedConfirm}
-    <Modal title={commitWarnings.length || restorable ? t("Before you commit") : t("No longer tracked")} onclose={() => (untrackedConfirm = null)}>
-      {#if restorable}
-        <p class="restore-note">⚠ {tn(missingSamples, "{n} sample is missing.", "{n} samples are missing.")}
-          {tn(restorable, "DAWGit has a copy: restore it into the project first, so the team hears the same.", "DAWGit has copies of {n}: restore them into the project first, so the team hears the same.")}</p>
-      {/if}
-      {#if commitWarnings.length}
-        <ul class="warnings">
-          {#each commitWarnings.slice(0, 12) as w}<li>⚠ {w}</li>{/each}
-          {#if commitWarnings.length > 12}<li class="faint">… {t("and {n} more", { n: commitWarnings.length - 12 })}</li>{/if}
-        </ul>
-      {/if}
-      {#if files.length}
-        <p>{tn(files.length, "The project's rules now leave this file out of versions. It stays on this computer, and on your teammates' computers too.",
-          "The project's rules now leave these {n} files out of versions. They stay on this computer, and on your teammates' computers too.")}</p>
-        <ul class="untracked mono">
-          {#each files.slice(0, 12) as f}<li>{f}</li>{/each}
-          {#if files.length > 12}<li class="faint">… {t("and {n} more", { n: files.length - 12 })}</li>{/if}
-        </ul>
-      {/if}
-      {#snippet footer()}
-        <button onclick={() => (untrackedConfirm = null)}>{t("Cancel")}</button>
-        {#if restorable}
-          <button onclick={() => { untrackedConfirm = null; commit(true); }}>{t("Commit without them")}</button>
-          <button class="primary" onclick={() => { untrackedConfirm = null; restoreSamples(true); }}>{t("Restore and commit")}</button>
-        {:else}
-          <button class="primary" onclick={() => { untrackedConfirm = null; commit(true); }}>
-            {commitWarnings.length ? t("Commit anyway") : t("Commit")}</button>
-        {/if}
-      {/snippet}
-    </Modal>
+    <CommitCheckDialog leaving={untrackedConfirm} warnings={commitWarnings} {restorable} {missingSamples}
+      onclose={() => (untrackedConfirm = null)}
+      oncommit={() => { untrackedConfirm = null; commit(true); }}
+      onrestore={() => { untrackedConfirm = null; restoreSamples(true); }} />
   {/if}
 
   {#if preview}
@@ -894,24 +853,8 @@
 
   {#if liveBlocked}
     {@const b = liveBlocked}
-    <Modal title={isLive || !st?.tool ? (b.set ? t("“{set}” is open in Live", { set: b.set }) : t("Ableton Live is running"))
-      : t("{tool} has this project open", { tool: t(st.tool) })} onclose={() => (liveBlocked = null)}>
-      {#if isLive || !st?.tool}
-        <p>{t("DAWGit is about to change files in this project. Live keeps the open set in memory and would overwrite the changes the next time you save it.")}</p>
-        <p class="muted">{t("Save and close the set in Live first — you can leave Live open with another set.")}
-          {b.set ? t("Live only shows the set's name, so a set with the same name from another project counts too.")
-            : t("DAWGit cannot tell which set Live has open: close Live to go on.")}</p>
-      {:else}
-        <p>{t("DAWGit is about to change files in this project. {tool} may hold some of them open, or write over the changes.", { tool: t(st.tool) })}</p>
-        <p class="muted">{t("Save your work and close the project in {tool} first.", { tool: t(st.tool) })}</p>
-      {/if}
-      {#snippet footer()}
-        <button onclick={() => (liveBlocked = null)}>{t("Cancel")}</button>
-        <button class="primary" onclick={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }}>
-          {t("I closed it — continue")}
-        </button>
-      {/snippet}
-    </Modal>
+    <LiveBlockedDialog tool={st.tool} set={b.set} onclose={() => (liveBlocked = null)}
+      oncontinue={() => { const { run: action, resolutions } = b; liveBlocked = null; run(action, resolutions); }} />
   {/if}
 
   {#if leaving}
@@ -976,10 +919,6 @@
   .error { color: var(--danger); }
   h1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   h1 { margin: 0 0 6px; font-size: 22px; font-weight: 650; }
-  .untracked { list-style: none; padding: 8px 12px; margin: 10px 0 0; background: var(--bg); border-radius: 8px;
-    font-size: 12.5px; max-height: 220px; overflow: auto; }
-  .warnings { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px;
-    color: var(--warn); font-size: 13.5px; user-select: text; }
 
   .suggestion { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); }
   .suggestion > :global(div:first-child) { flex: 1; }
@@ -990,7 +929,6 @@
   .count { margin-left: 4px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #33363d; }
 
   main { flex: 1; overflow: auto; padding: 16px 24px 32px; }
-  .warn-text { color: var(--warn); }
   main.flush { padding: 0; overflow: hidden; min-height: 0; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 0 10px; }
   .older { margin: 6px 0 0; }
@@ -999,7 +937,6 @@
   /* nothing to commit yet (no message, no changes): outlined, still easy to see */
   .commit-btn:disabled { background: transparent; border: 1px solid var(--accent); color: var(--accent); opacity: .7; }
   .small { font-size: 12px; margin: 10px 0 0; }
-  .restore-note { color: #f0d9a8; }
 
   .tracks { list-style: none; padding: 0; margin: 0 0 18px; display: flex; flex-direction: column; gap: 4px; }
   .tracks li { display: flex; align-items: center; gap: 10px; }
