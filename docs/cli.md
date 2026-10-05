@@ -25,7 +25,7 @@ dawgit serve [--data DIR] [--addr :7331] [--name TEAM]
 It prints the address and the access token members need, for example:
 
 ```
-DAWGit server 0.13.3 for team "Team on STUDIO-PC"
+DAWGit server 0.13.4 for team "Team on STUDIO-PC"
   data:  C:\Users\you\DAWGit Server
   token: 3f9c…
 
