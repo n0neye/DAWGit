@@ -1,0 +1,35 @@
+# Godot projects (the folder with project.godot).
+name: godot
+tool: Godot
+open:
+  files: ["project.godot"] # opened with the Godot the computer opens it with
+detect: ["project.godot"]
+# Following GitHub's Godot.gitignore, except *.exe (tools a project keeps)
+# and *.pck (a project may need them at run time).
+ignore:
+  - .godot/              # Godot 4's import cache and editor state: rebuilt
+  - .import/             # the same, Godot 3
+  - .mono/               # C# builds
+  - "data_*/"
+  - "mono_crash.*.json"
+  - export.cfg
+  - export_credentials.cfg # keystore passwords: never shared
+  - "~*.dll"             # C# build leftovers (Godot 4.2+)
+  - .nomedia
+  - "*.tmp"
+  - "*.translation"      # made from the translation CSV files
+handlers:
+  # Scenes and resources saved as text (.tscn, .tres), scripts, project and
+  # import settings: merged line by line.
+  - files: ["*.gd", "*.cs", "*.gdshader", "*.gdshaderinc", "*.tscn", "*.tres", "*.godot", "*.import", "*.uid",
+            "*.cfg", "*.json", "*.csv", "*.txt", "*.md", "*.csproj", "*.sln"]
+    merge: text
+running: godot-editor
+kinds:
+  scene: ["*.tscn", "*.scn"]
+  asset: ["*.tres", "*.res"]
+  script: ["*.gd", "*.cs", "*.gdshader", "*.gdshaderinc"]
+  image: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.svg", "*.tga", "*.exr", "*.hdr", "*.psd"]
+  model: ["*.glb", "*.gltf", "*.blend", "*.fbx", "*.obj", "*.dae"]
+  audio: ["*.wav", "*.ogg", "*.mp3"]
+  meta: ["*.import", "*.uid"]

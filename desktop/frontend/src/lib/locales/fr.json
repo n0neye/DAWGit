@@ -997,5 +997,6 @@
 "Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "La retire de l'historique. Ses changements redeviennent des modifications non validées, pour les corriger et valider à nouveau.",
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Cela active le retrait de versions pour l'équipe : les coéquipiers avec un DAWGit plus ancien devront le mettre à jour.",
 "Keep it in the history instead": "La garder plutôt dans l'historique",
-"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit ne peut pas savoir qui a fait cette version (choisissez d'abord votre nom dans l'équipe), elle reste donc dans l'historique : une nouvelle version l'annule."
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit ne peut pas savoir qui a fait cette version (choisissez d'abord votre nom dans l'équipe), elle reste donc dans l'historique : une nouvelle version l'annule.",
+"Godot project": "Projet Godot"
 }

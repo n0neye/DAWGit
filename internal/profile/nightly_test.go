@@ -23,4 +23,9 @@ func TestNeedsNightly(t *testing.T) {
 	if !errors.As(err, &nn) || nn.Kind != "Unity" {
 		t.Errorf("load: %v", err)
 	}
+	godot := t.TempDir()
+	os.WriteFile(filepath.Join(godot, "project.godot"), nil, 0o644)
+	if k := NightlyKind(godot); k != "Godot" {
+		t.Errorf("godot kind %q", k)
+	}
 }

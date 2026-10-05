@@ -6,8 +6,8 @@ For AI agents working on DAWGit's code. To **use** DAWGit in a project
 
 ## The project
 
-DAWGit is version control for creative projects (Ableton Live sets, Unity
-and Unreal projects): a Go command line tool (`cmd/dawgit`, package `cli`)
+DAWGit is version control for creative projects (Ableton Live sets, Unity,
+Unreal and Godot projects): a Go command line tool (`cmd/dawgit`, package `cli`)
 and a Windows desktop app (`desktop/`, Wails v3 + Svelte 5). A private build
 adds extensions through `ext/`; keep `cli` and `desktop` usable as libraries
 (no `os.Exit` outside `cli.Main`).

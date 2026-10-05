@@ -997,5 +997,6 @@
 "Removes it from the history. Its changes come back as uncommitted changes, so you can fix them and commit again.": "从历史记录中移除。它的改动会回到未提交变更，方便你修改后重新提交。",
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "这会为团队开启撤回版本功能：使用旧版 DAWGit 的队友会被要求更新。",
 "Keep it in the history instead": "改为保留在历史记录中",
-"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit 无法判断这个版本是谁做的（请先在团队中选择你的名字），所以它会留在历史记录中：改用新版本把它撤回。"
+"DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit 无法判断这个版本是谁做的（请先在团队中选择你的名字），所以它会留在历史记录中：改用新版本把它撤回。",
+"Godot project": "Godot 项目"
 }
