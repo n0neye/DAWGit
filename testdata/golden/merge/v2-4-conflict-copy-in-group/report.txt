@@ -1,0 +1,4 @@
+  renumbered 422 colliding automation/modulation target id(s)
+
+1 conflict(s):
+  ! MidiTrack "3-Vital": modified on both sides -> kept both (theirs added as a copy)

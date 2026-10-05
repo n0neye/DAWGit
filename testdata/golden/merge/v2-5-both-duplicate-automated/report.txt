@@ -1,0 +1,2 @@
+  MidiTrack "Theirs Vital 2": added from theirs (id 16 also used by ours, renumbered)
+  renumbered 90 colliding automation/modulation target id(s)

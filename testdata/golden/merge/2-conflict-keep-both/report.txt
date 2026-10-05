@@ -1,0 +1,4 @@
+  renumbered 747 colliding automation/modulation target id(s)
+
+1 conflict(s):
+  ! MidiTrack "Bass (theirs edit)": modified on both sides -> kept both (theirs added as a copy)

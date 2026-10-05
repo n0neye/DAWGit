@@ -1,0 +1,8 @@
+  AudioTrack "5-80s Beat 90 bpm": kept ours
+  GroupTrack "Audios": added from theirs (id 16 also used by ours, renumbered)
+  AudioTrack "4-80s Beat 90 bpm": took theirs' group/output
+  AudioTrack "5 Bounce + Reverb": took theirs' group/output
+  renumbered 116 colliding automation/modulation target id(s)
+
+1 conflict(s):
+  ! AudioTrack "6 Bounce + Reverb": modified on both sides -> kept both (theirs added as a copy)

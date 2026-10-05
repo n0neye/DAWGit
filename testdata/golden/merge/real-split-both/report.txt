@@ -1,0 +1,6 @@
+  MidiTrack "Drum": added from theirs (id 16 also used by ours, renumbered)
+  AudioTrack "4-80s Beat 90 bpm": took theirs
+  renumbered 116 colliding automation/modulation target id(s)
+
+1 conflict(s):
+  ! AudioTrack "5 Bounce + Reverb": modified on both sides -> kept both (theirs added as a copy)

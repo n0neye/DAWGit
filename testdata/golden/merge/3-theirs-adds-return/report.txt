@@ -1,0 +1,2 @@
+  MidiTrack "2-Vital": kept ours
+  ReturnTrack "C-Theirs Return": added from theirs

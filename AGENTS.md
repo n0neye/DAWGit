@@ -34,9 +34,11 @@ cd desktop/frontend && npx svelte-check   # after any UI change
 - After changing Go methods the frontend calls: `wails3 generate bindings
   -ts` in `desktop/`, then check `git diff -w` on the bindings before
   committing.
-- `python/` is the reference implementation of diff and merge: the Go code
-  must stay output-identical (`go test ./internal/merge` compares against
-  `testdata/golden`).
+- `testdata/golden` pins the output of diff and merge byte for byte
+  (`go test ./internal/merge`); change it only on purpose.
+- The self-hosted team server (`dawgit serve`, `internal/server`) is frozen:
+  it keeps working, but new features go to storage teams (and the coming
+  hosted service), not to it.
 
 ## Conventions
 
