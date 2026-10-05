@@ -722,7 +722,13 @@ const keptWorkFile = "kept-work"
 // conflict), and the result written to the working files. The project is
 // then on target, the changes still uncommitted: no version is made.
 func (r *Repo) updateKeepingWork(c remote.Backend, head, target string, opts MergeOptions, res *SyncResult) (*SyncResult, error) {
+	// All the work is kept, whatever a commit picks (Repo.Only): the files
+	// are rewritten from what is kept, so a change left out of it would be
+	// lost. The commit picks from the files afterwards.
+	only := r.Only
+	r.Only = nil
 	work, ix, err := r.workingManifest("Uncommitted work, kept while getting the team's versions")
+	r.Only = only
 	if err != nil {
 		return nil, err
 	}
