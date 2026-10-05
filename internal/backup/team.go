@@ -30,7 +30,7 @@ func Storage(t teams.Team) (*remote.S3Backend, error) {
 	if !t.Remote.IsStorage() {
 		return nil, errors.New("only teams that keep their work in storage (R2, S3) can be backed up")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}

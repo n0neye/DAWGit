@@ -50,6 +50,9 @@ func (a *App) CreateStorageTeam(s remote.Storage, name string) (TeamSummary, err
 	if err != nil {
 		return TeamSummary{}, err
 	}
+	if err := remote.Supports(info); err != nil {
+		return TeamSummary{}, err
+	}
 	if name = strings.TrimSpace(name); info.Name == "" && name != "" {
 		if err := remote.Rename(b, name); err != nil {
 			return TeamSummary{}, err
@@ -193,7 +196,7 @@ func (a *App) CleanUpStorage(teamID string, remove bool) (*StorageCleanup, error
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}

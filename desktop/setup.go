@@ -68,7 +68,7 @@ func shareSetup(t teams.Team, setup health.Setup) error {
 }
 
 func setupStore(t teams.Team) (remote.SetupStore, error) {
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func teamSetups(t *teams.Team) (map[string]health.Setup, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}

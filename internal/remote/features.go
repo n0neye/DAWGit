@@ -50,6 +50,15 @@ func (e *ErrTeamFeatures) Error() string {
 		"the Nightly channel (Settings → Updates)", strings.Join(e.Missing, ", "))
 }
 
+// Supports fails with *ErrTeamFeatures when the team (its info) uses
+// features this build doesn't know: before connecting to it.
+func Supports(info TeamInfo) error {
+	if m := Missing(info); len(m) > 0 {
+		return &ErrTeamFeatures{Missing: m}
+	}
+	return nil
+}
+
 // featureChecks remembers recent checks (per team address): a team's
 // features rarely change, and every operation opens the team.
 var featureChecks sync.Map // url -> time.Time of a check that passed
@@ -65,8 +74,8 @@ func CheckFeatures(b Backend, url string) error {
 	if err != nil {
 		return nil
 	}
-	if m := Missing(info); len(m) > 0 {
-		return &ErrTeamFeatures{Missing: m}
+	if err := Supports(info); err != nil {
+		return err
 	}
 	featureChecks.Store(url, time.Now())
 	return nil

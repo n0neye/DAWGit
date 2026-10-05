@@ -128,10 +128,7 @@ func (a *App) Overview() (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
-	b, err := remote.Open(t.Remote)
-	if err == nil {
-		err = remote.CheckFeatures(b, t.Remote.URL)
-	}
+	b, err := t.Open()
 	if err == nil {
 		// Follow the team's name when whoever runs it renames it.
 		if info, err := b.Info(); err == nil && teams.SyncTeamName(t.ID, info.Name) {
@@ -202,7 +199,7 @@ func (a *App) TeamMembers(teamID string) ([]remote.Member, error) {
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +229,7 @@ func (a *App) SetIdentity(teamID, memberID, name string) (TeamSummary, error) {
 	if !remote.ValidMemberID(memberID) {
 		return TeamSummary{}, errors.New("invalid member id")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return TeamSummary{}, err
 	}
@@ -289,7 +286,7 @@ func (a *App) RenameTeam(id, name string) error {
 		return err
 	}
 	if !t.CustomName { // back to the team's own name
-		if b, err := remote.Open(t.Remote); err == nil {
+		if b, err := t.Open(); err == nil {
 			if info, err := b.Info(); err == nil {
 				teams.SyncTeamName(id, info.Name)
 			}
@@ -313,7 +310,7 @@ func (a *App) RenameTeamForEveryone(id, name string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return err
 	}
@@ -411,7 +408,7 @@ func (a *App) TeamProjectsHere(teamID string) ([]FoundProject, error) {
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +478,7 @@ func (a *App) DownloadProject(teamID, projectID, parent string) (TeamProject, er
 	if t == nil {
 		return TeamProject{}, errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return TeamProject{}, err
 	}
@@ -618,7 +615,7 @@ func (a *App) DeleteProjectFromTeam(teamID, projectID string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return err
 	}

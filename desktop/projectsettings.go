@@ -73,7 +73,7 @@ func (a *App) RenameProject(teamID, projectID, root, name string) error {
 	if t == nil {
 		return errors.New("unknown team")
 	}
-	b, err := remote.Open(t.Remote)
+	b, err := t.Open()
 	if err != nil {
 		return err
 	}

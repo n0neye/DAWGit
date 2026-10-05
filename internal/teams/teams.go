@@ -489,3 +489,18 @@ func importFrom(from, to string) (bool, error) {
 	})
 	return true, err
 }
+
+// Open connects to the team: its backend, checked for the team's features
+// (a team that turned on one this build lacks fails with
+// *remote.ErrTeamFeatures). Everything that works with a connected team
+// opens it here.
+func (t Team) Open() (remote.Backend, error) {
+	b, err := remote.Open(t.Remote)
+	if err != nil {
+		return nil, err
+	}
+	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
+		return nil, err
+	}
+	return b, nil
+}

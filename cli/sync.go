@@ -139,7 +139,7 @@ func refreshTeamName(id string) string {
 	if t == nil {
 		return ""
 	}
-	if b, err := remote.Open(t.Remote); err == nil {
+	if b, err := t.Open(); err == nil {
 		if info, err := b.Info(); err == nil && teams.SyncTeamName(id, info.Name) {
 			return info.Name
 		}

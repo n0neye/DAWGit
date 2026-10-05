@@ -63,14 +63,7 @@ func (r *Repo) Client() (remote.Backend, error) {
 	if err != nil {
 		return nil, err
 	}
-	b, err := remote.Open(t.Remote)
-	if err != nil {
-		return nil, err
-	}
-	if err := remote.CheckFeatures(b, t.Remote.URL); err != nil {
-		return nil, err
-	}
-	return b, nil
+	return t.Open()
 }
 
 // SetRemote connects the project to a team: a server (address + token) or
@@ -110,6 +103,9 @@ func Connect(address, token string) (*teams.Team, error) {
 	}
 	info, err := b.Info()
 	if err != nil {
+		return nil, err
+	}
+	if err := remote.Supports(info); err != nil {
 		return nil, err
 	}
 	if _, err := b.Projects(); err != nil {
@@ -984,7 +980,7 @@ func Clone(address, token, project, dir, author string) (*Repo, *Manifest, error
 // nil.
 func CloneFromTeam(t *teams.Team, project, dir, author string, onProgress func(Progress)) (*Repo, *Manifest, error) {
 	cfg := t.Remote
-	c, err := remote.Open(cfg)
+	c, err := t.Open()
 	if err != nil {
 		return nil, nil, err
 	}
