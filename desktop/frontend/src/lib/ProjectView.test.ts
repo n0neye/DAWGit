@@ -253,14 +253,15 @@ describe("ProjectView: an older version without a team", () => {
 });
 
 describe("ProjectView: while a version is made", () => {
-  it("covers the page while it reads the files, then says to go on working", async () => {
+  it("dims the changes while it reads the files, then says to go on working", async () => {
     await show({ changes: [change("Song.als")] });
     emit("progress", { root: ROOT, stage: "storing", done: 1, total: 3 });
-    await screen.findByText(/Don't change the project yet/);
-    expect(screen.getByText(/Wait to save in Live until this is done/)).toBeTruthy();
+    await screen.findByText("Don't save in Live until this step is done.");
+    expect(document.querySelector("main")!.classList.contains("reading")).toBe(true);
     emit("progress", { root: ROOT, stage: "uploading", done: 1, total: 3, bytes: 10, totalBytes: 100 });
     await screen.findByText(/you can keep working in Live while it uploads/);
-    expect(screen.queryByText(/Don't change the project yet/)).toBeNull();
+    expect(screen.queryByText(/Don't save in Live/)).toBeNull();
+    expect(document.querySelector("main")!.classList.contains("reading")).toBe(false);
     emit("progress", { root: ROOT, stage: "done", done: 0, total: 0 });
     await waitFor(() => expect(screen.queryByText(/keep working in Live/)).toBeNull());
   });

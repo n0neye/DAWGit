@@ -44,14 +44,17 @@
   }
   let spotsDismissed = $state(-1); // the count "Later" was said to
   let news = $derived(newsOf(st.incoming));
+  let toolName = $derived(st.tool === "Ableton Live" ? "Live" : st.tool ? t(st.tool) : t("your app"));
 </script>
 
 {#if progress}
   <div class="banner info">
     <div class="col">
       <ProgressBar p={progress} team={st.teamName || undefined} />
-      {#if progress.stage === "checking" || progress.stage === "uploading"}
-        <span class="go">✓ {t("It's in the history: you can keep working in {tool} while it uploads.", { tool: st.tool === "Ableton Live" ? "Live" : st.tool ? t(st.tool) : t("your app") })}</span>
+      {#if progress.stage === "scanning" || progress.stage === "storing"}
+        <span class="hold">{t("Don't save in {tool} until this step is done.", { tool: toolName })}</span>
+      {:else if progress.stage === "checking" || progress.stage === "uploading"}
+        <span class="go">✓ {t("It's in the history: you can keep working in {tool} while it uploads.", { tool: toolName })}</span>
       {/if}
     </div>
   </div>
@@ -173,5 +176,6 @@
   .banner.warn { background: var(--warn-bg); border: 1px solid #5a4623; color: #f0d9a8; }
   .col { display: flex; flex-direction: column; gap: 6px; }
   .go { font-size: 12.5px; color: var(--accent); }
+  .hold { font-size: 12.5px; color: var(--warn); }
   .keep { display: block; font-size: 12px; color: var(--faint); margin-top: 2px; }
 </style>

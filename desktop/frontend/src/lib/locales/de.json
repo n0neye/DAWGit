@@ -1001,12 +1001,11 @@
 "Godot project": "Godot-Projekt",
 "{team} can't be reached right now: download it once it's back.": "{team} ist gerade nicht erreichbar: lade es herunter, sobald es wieder da ist.",
 "Checking {team}…": "{team} wird geprüft…",
-"Don't change the project yet": "Ändere das Projekt noch nicht",
-"DAWGit is reading the project's files for the version. Wait to save in {tool} until this is done: it only takes a moment, and the upload after it doesn't need you to wait.": "DAWGit liest die Dateien des Projekts für die Version. Speichere in {tool} erst, wenn das fertig ist: es dauert nur einen Moment, und auf den Upload danach musst du nicht warten.",
 "It's in the history: you can keep working in {tool} while it uploads.": "Es ist im Verlauf: du kannst in {tool} weiterarbeiten, während es hochgeladen wird.",
 "A bucket": "Ein Bucket",
 "Choose the backup's folder or bucket": "Ordner oder Bucket des Backups wählen",
 "Bucket…": "Bucket…",
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "Wo das Backup liegt: die Schlüssel müssen den Bucket nur lesen können. Sie werden nur für diese Wiederherstellung verwendet, nicht gespeichert.",
-"Look in this bucket": "In diesem Bucket nachsehen"
+"Look in this bucket": "In diesem Bucket nachsehen",
+"Don't save in {tool} until this step is done.": "Speichere in {tool} erst, wenn dieser Schritt fertig ist."
 }
