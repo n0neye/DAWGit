@@ -59,8 +59,12 @@ func (a *App) Edition() string { return version.Edition }
 // teams, so notices keep coming whichever team is selected).
 func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
 	a.migrateLegacyConfig()
-	if ok, err := teams.ImportFromPro(); ok {
-		log.Printf("settings imported from DAWGit Pro (err: %v)", err)
+	if ok, err := teams.ImportFromPro(); ok || err != nil {
+		log.Printf("DAWGit Pro's teams brought over: %v (err: %v)", ok, err)
+	}
+	if store, err := teams.Load(); err == nil && store.ProImported {
+		// DAWGit Pro starting at sign-in would only install this again.
+		removeProAutostart()
 	}
 	store, err := teams.Load()
 	if err != nil {

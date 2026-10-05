@@ -67,6 +67,18 @@ type Overview struct {
 	CurrentTeam string        `json:"currentTeam"`
 	Projects    []TeamProject `json:"projects"` // of the current team
 	TeamError   string        `json:"teamError"`
+	// ProImported: DAWGit Pro's teams were just brought over; say so once
+	// (DismissProNotice).
+	ProImported bool `json:"proImported"`
+}
+
+// DismissProNotice: the notice about DAWGit Pro's teams was shown.
+func (a *App) DismissProNotice() error {
+	_, err := teams.Update(func(s *teams.Store) error {
+		s.ProNotice = false
+		return nil
+	})
+	return err
 }
 
 func teamSummary(t teams.Team) TeamSummary {
@@ -106,7 +118,7 @@ func (a *App) Overview() (*Overview, error) {
 			store = s
 		}
 	}
-	ov := &Overview{Author: store.Author, CurrentTeam: store.Current, Teams: []TeamSummary{},
+	ov := &Overview{Author: store.Author, CurrentTeam: store.Current, Teams: []TeamSummary{}, ProImported: store.ProNotice,
 		Projects: []TeamProject{}}
 	for _, t := range store.Teams {
 		ov.Teams = append(ov.Teams, teamSummary(t))

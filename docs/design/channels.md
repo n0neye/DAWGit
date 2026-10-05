@@ -63,11 +63,15 @@ or Unreal folder, or a `.dawgit.yaml` naming a Nightly preset, fails with
 DAWGit Pro (the private build with the Unity/Unreal presets) becomes the
 Nightly channel. Its users move without doing anything:
 
-1. Publish a Nightly installer to Pro's feed too:
+1. A Nightly installer is published to Pro's feed too:
    `go run ./cmd/publish <nightly installer> <version> -min 0.9.7 -feed latest.json`.
-2. Pro installs it as an update: that installs DAWGit (its own folder) and
-   starts it.
-3. On its first start, DAWGit finds no settings of its own and takes DAWGit
-   Pro's (`teams.ImportFromPro`: teams, keys, project locations), on the
-   Nightly channel. Keys are sealed per Windows user, so they carry over.
-4. DAWGit Pro stays installed until the user removes it (Settings → Apps).
+2. Pro installs it as an update: the installer installs DAWGit (its own
+   folder) and starts it.
+3. On its start, a Nightly DAWGit brings DAWGit Pro's teams over, once
+   (`teams.ImportFromPro`): teams this computer isn't connected to yet, with
+   their keys (sealed per Windows user, so they read the same), where their
+   projects are, the name; the channel becomes Nightly. A computer that
+   already has DAWGit keeps its own teams and settings; Pro's are added.
+4. DAWGit Pro no longer starts at sign-in (it would only install the update
+   again), and the app says once that Pro's teams are here and Pro can be
+   uninstalled.

@@ -108,6 +108,10 @@ type Store struct {
 	// "" for the one this build is from. Stable and Nightly share this file:
 	// what either writes, the other reads.
 	Channel string `json:"channel,omitempty"`
+	// ProImported: DAWGit Pro's teams were brought over (once); ProNotice:
+	// the app still has to say so.
+	ProImported bool `json:"proImported,omitempty"`
+	ProNotice   bool `json:"proNotice,omitempty"`
 
 	path   string
 	locked bool // inside Update: the lock is held
@@ -142,8 +146,10 @@ func Dir() string {
 }
 
 // Load reads the store; a missing file is an empty store.
-func Load() (*Store, error) {
-	s := &Store{path: filepath.Join(Dir(), "teams.json"), Projects: map[string]string{}}
+func Load() (*Store, error) { return loadFile(filepath.Join(Dir(), "teams.json")) }
+
+func loadFile(path string) (*Store, error) {
+	s := &Store{path: path, Projects: map[string]string{}}
 	data, err := os.ReadFile(s.path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
@@ -450,44 +456,75 @@ func (s *Store) RemoveLocal(root string) {
 	s.Local = out
 }
 
-// ImportFromPro gives a first start without settings DAWGit Pro's (its
-// users move to DAWGit's Nightly channel): teams, keys, where projects are,
-// names. Nothing happens once this computer has DAWGit settings, or with
-// DAWGIT_CONFIG_DIR set.
+// ImportFromPro brings DAWGit Pro's teams over, once (its users move to
+// DAWGit's Nightly channel, which has Pro's project kinds): the teams this
+// computer isn't connected to yet, with their keys, where their projects
+// are, and the name; the channel becomes Nightly. Only Nightly builds do it,
+// and not with DAWGIT_CONFIG_DIR set. It says whether it brought anything.
 func ImportFromPro() (bool, error) {
-	if os.Getenv("DAWGIT_CONFIG_DIR") != "" || version.Edition != "" {
+	if os.Getenv("DAWGIT_CONFIG_DIR") != "" || version.Edition != "" || version.Channel != "nightly" {
 		return false, nil
 	}
 	base, err := os.UserConfigDir()
 	if err != nil {
 		return false, nil
 	}
-	return importFrom(filepath.Join(base, "DAWGit Pro", "teams.json"), filepath.Join(Dir(), "teams.json"))
+	return importFrom(filepath.Join(base, "DAWGit Pro", "teams.json"))
 }
 
-func importFrom(from, to string) (bool, error) {
-	if _, err := os.Stat(to); !errors.Is(err, os.ErrNotExist) {
-		return false, nil
+func importFrom(from string) (bool, error) {
+	if _, err := os.Stat(from); err != nil {
+		return false, nil // no DAWGit Pro here
 	}
-	data, err := os.ReadFile(from)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
+	if s, err := Load(); err != nil || s.ProImported {
+		return false, err
 	}
+	// Keys are sealed for this Windows user: they read the same here.
+	pro, err := loadFile(from)
 	if err != nil {
 		return false, err
 	}
-	if err := os.MkdirAll(filepath.Dir(to), 0o700); err != nil {
-		return false, err
-	}
-	// Keys stay sealed as they are: same Windows user, same computer.
-	if err := os.WriteFile(to, data, 0o600); err != nil {
-		return false, err
-	}
+	imported := false
 	_, err = Update(func(s *Store) error {
+		if s.ProImported {
+			return nil
+		}
+		s.ProImported = true
+		ids := map[string]string{} // Pro's team id -> the team's id here
+		for _, t := range pro.Teams {
+			if t.KeysUnreadable {
+				continue
+			}
+			if here := s.FindByURL(t.Remote.URL); here != nil {
+				ids[t.ID] = here.ID
+				continue
+			}
+			t.Backup = nil // Pro's backups stay Pro's until set up here
+			s.Teams = append(s.Teams, t)
+			ids[t.ID] = t.ID
+			imported = true
+		}
+		for key, root := range pro.Projects {
+			tid, pid, ok := strings.Cut(key, "/")
+			if id, known := ids[tid]; ok && known && s.ProjectRoot(id, pid) == "" {
+				s.SetProjectRoot(id, pid, root)
+				imported = true
+			}
+		}
+		for _, root := range pro.Local {
+			s.AddLocal(root)
+		}
+		if s.Author == "" {
+			s.Author = pro.Author
+		}
+		if s.Current == "" && len(s.Teams) > 0 {
+			s.Current = s.Teams[0].ID
+		}
 		s.Channel = "nightly"
+		s.ProNotice = imported
 		return nil
 	})
-	return true, err
+	return imported, err
 }
 
 // Open connects to the team: its backend, checked for the team's features
