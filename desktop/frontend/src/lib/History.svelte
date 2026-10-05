@@ -8,9 +8,10 @@
   // onmerge is offered on versions the current branch does not contain yet
   // (other branches); the team's new versions of this branch come with Get updates.
   // Clicking a version shows what it changed.
-  let { root, versions, head, incoming, latest = head, ongoto, onexport, onmerge }: {
+  let { root, versions, head, incoming, latest = head, ongoto, onexport, onmerge, onundo }: {
     root: string; versions: Version[]; head: string; incoming: Set<string>; latest?: string;
     ongoto?: (v: Version) => void; onexport?: (v: Version) => void; onmerge?: (v: Version) => void;
+    onundo?: (v: Version) => void; // take back what a version of this branch changed
   } = $props();
 
   const ROW = 40, LANE = 16, PAD = 12;
@@ -101,7 +102,7 @@
             <span class="who">{v.author}</span>
             <span class="when faint">{ago(v.time)}</span>
             <span class="id mono faint">{v.short}</span>
-            {#if ongoto || onexport || onmerge}
+            {#if ongoto || onexport || onmerge || onundo}
               <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
               <span class="acts" onclick={(e) => e.stopPropagation()}>
                 {#if onmerge && !v.inBranch && !incoming.has(v.id)}
@@ -109,6 +110,9 @@
                 {/if}
                 {#if ongoto && v.id !== head && !incoming.has(v.id) && !v.notHere}
                   <button onclick={() => ongoto(v)} title={t("Put the project in the state of this version")}>{t("Go to")}</button>
+                {/if}
+                {#if onundo && v.inBranch && !incoming.has(v.id) && v.parents.length}
+                  <button onclick={() => onundo(v)} title={t("Make a new version that takes back what this version changed")}>{t("Undo commit")}</button>
                 {/if}
                 {#if onexport && !v.notHere}
                   <button onclick={() => onexport(v)} title={t("Save this version as a separate project folder")}>{t("Export…")}</button>

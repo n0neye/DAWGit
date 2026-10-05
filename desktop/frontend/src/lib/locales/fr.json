@@ -969,5 +969,19 @@
 "The latest Nightly is offered as an update.": "La dernière Nightly est proposée comme mise à jour.",
 "Log files": "Fichiers journaux",
 "What DAWGit did, to attach to a report. Keys and connection codes are left out.": "Ce que DAWGit a fait, à joindre à un signalement. Les clés et codes de connexion n'y figurent pas.",
-"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "Les équipes et projets de DAWGit Pro sont maintenant ici, sur le canal Nightly. Vous pouvez désinstaller DAWGit Pro (Paramètres Windows › Applications)."
+"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "Les équipes et projets de DAWGit Pro sont maintenant ici, sur le canal Nightly. Vous pouvez désinstaller DAWGit Pro (Paramètres Windows › Applications).",
+"Make a new version that takes back what this version changed": "Créer une nouvelle version qui annule ce que cette version a changé",
+"Undo commit": "Undo commit",
+"Undone: a new version takes back “{version}”": "Annulé : une nouvelle version annule « {version} »",
+"Undone and shared: a new version takes back “{version}”": "Annulé et partagé : une nouvelle version annule « {version} »",
+"Undo “{version}”": "Annuler « {version} »",
+"Undo “{version}”?": "Annuler « {version} » ?",
+"Makes a new version that takes back what this version changed. Versions after it keep their changes, and the history keeps everything.": "Crée une nouvelle version qui annule ce que cette version a changé. Les versions suivantes gardent leurs changements, et l'historique garde tout.",
+"Working out what changes…": "Calcul de ce qui change…",
+"{n} file goes back:": "{n} fichier revient en arrière :",
+"{n} files go back:": "{n} fichiers reviennent en arrière :",
+"A later version changed {n} of the same things: you'll choose what to keep.": "Une version ultérieure a modifié {n} des mêmes éléments : vous choisirez quoi garder.",
+"Later versions changed {n} of the same things: you'll choose what to keep.": "Des versions ultérieures ont modifié {n} des mêmes éléments : vous choisirez quoi garder.",
+"You have uncommitted changes in files this undo changes. Commit or discard them first:": "Vous avez des modifications non validées dans des fichiers que cette annulation change. Validez-les ou abandonnez-les d'abord :",
+"Your other uncommitted changes stay as they are.": "Vos autres modifications non validées restent telles quelles."
 }

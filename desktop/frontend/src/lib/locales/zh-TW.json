@@ -969,5 +969,19 @@
 "The latest Nightly is offered as an update.": "最新的 Nightly 會以更新的方式提供。",
 "Log files": "記錄檔",
 "What DAWGit did, to attach to a report. Keys and connection codes are left out.": "DAWGit 做了什麼，可附在問題回報裡。金鑰和 connection code 不會寫進去。",
-"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro 的團隊和專案都搬過來了，使用 Nightly 頻道。DAWGit Pro 可以解除安裝了（Windows 設定 › 應用程式）。"
+"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro 的團隊和專案都搬過來了，使用 Nightly 頻道。DAWGit Pro 可以解除安裝了（Windows 設定 › 應用程式）。",
+"Make a new version that takes back what this version changed": "建立一個新版本，把這個版本的改動撤回",
+"Undo commit": "Undo commit",
+"Undone: a new version takes back “{version}”": "已撤銷：新版本撤回了「{version}」",
+"Undone and shared: a new version takes back “{version}”": "已撤銷並分享：新版本撤回了「{version}」",
+"Undo “{version}”": "撤銷「{version}」",
+"Undo “{version}”?": "撤銷「{version}」？",
+"Makes a new version that takes back what this version changed. Versions after it keep their changes, and the history keeps everything.": "會建立一個新版本，把這個版本的改動撤回。之後的版本保留它們的改動，歷史紀錄也全部保留。",
+"Working out what changes…": "正在計算會改變什麼…",
+"{n} file goes back:": "{n} 個檔案會改回去：",
+"{n} files go back:": "{n} 個檔案會改回去：",
+"A later version changed {n} of the same things: you'll choose what to keep.": "之後的版本也改了其中 {n} 處：接下來由你選擇要保留哪個。",
+"Later versions changed {n} of the same things: you'll choose what to keep.": "之後的版本也改了其中 {n} 處：接下來由你選擇要保留哪個。",
+"You have uncommitted changes in files this undo changes. Commit or discard them first:": "這次撤銷會改到的檔案裡，有你還沒提交的變更。請先提交或丟棄：",
+"Your other uncommitted changes stay as they are.": "你其他未提交的變更會保持原樣。"
 }

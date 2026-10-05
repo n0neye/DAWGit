@@ -2183,6 +2183,52 @@ export class TrackWeight {
 }
 
 /**
+ * UndoPlan is what undoing a version would do (for its confirmation): the
+ * files it changes, the uncommitted changes in the way, and conflicts with
+ * later versions to decide.
+ */
+export class UndoPlan {
+    "changed": string[];
+    "blocked": string[];
+    "conflicts": Conflict[];
+
+    /** Creates a new UndoPlan instance. */
+    constructor($$source: Partial<UndoPlan> = {}) {
+        if (!("changed" in $$source)) {
+            this["changed"] = [];
+        }
+        if (!("blocked" in $$source)) {
+            this["blocked"] = [];
+        }
+        if (!("conflicts" in $$source)) {
+            this["conflicts"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UndoPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UndoPlan {
+        const $$createField0_0 = $$createType4;
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("changed" in $$parsedSource) {
+            $$parsedSource["changed"] = $$createField0_0($$parsedSource["changed"]);
+        }
+        if ("blocked" in $$parsedSource) {
+            $$parsedSource["blocked"] = $$createField1_0($$parsedSource["blocked"]);
+        }
+        if ("conflicts" in $$parsedSource) {
+            $$parsedSource["conflicts"] = $$createField2_0($$parsedSource["conflicts"]);
+        }
+        return new UndoPlan($$parsedSource as Partial<UndoPlan>);
+    }
+}
+
+/**
  * UpdateInfo describes a newer release than the one running.
  */
 export class UpdateInfo {
