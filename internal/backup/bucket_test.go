@@ -59,7 +59,7 @@ func TestBucketBackup(t *testing.T) {
 	team.PutSnapshot(pid, v2, []byte(`{"version":2}`))
 	team.UpdateBranch(pid, "main", v1, v2)
 	fake.Delete("band", "team/objects/"+h[:2]+"/"+h[2:])
-	if rep, err := Run(team, d, nil); err != nil || rep.Copied != 2 {
+	if rep, err := Run(team, d, nil); err != nil || rep.Copied != 3 { // the version, the branch and its log record
 		t.Fatalf("third run %+v %v", rep, err)
 	}
 	if b, _ := d.Read("projects/" + pid + "/branches/main"); !strings.Contains(string(b), v2) {

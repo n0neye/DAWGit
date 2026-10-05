@@ -141,6 +141,10 @@ every feature at once:
   cleanup with leases. Backups and restores (`internal/backup`) read and
   write through it too.
 
+Every branch move is also recorded (`projects/<pid>/branchlog/<time>-<random>.json`:
+branch, from, to, member, time), one new key per move, after the move
+succeeded: storage itself keeps only where branches are now.
+
 The team server (`dawgit serve`, `remote.Client`) implements `Backend`
 directly and is frozen: it doesn't get the features above.
 

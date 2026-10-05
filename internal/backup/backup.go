@@ -54,7 +54,7 @@ var skipped = []string{"gc/", "backups/"}
 // immutable: written once, never changed.
 func immutable(key string) bool {
 	return strings.HasPrefix(key, "objects/") || strings.HasPrefix(key, "chunked/") ||
-		strings.Contains(key, "/snapshots/")
+		strings.Contains(key, "/snapshots/") || strings.Contains(key, "/branchlog/")
 }
 
 // Run backs up src into d (claimed for the team: see Claim).

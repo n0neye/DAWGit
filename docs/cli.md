@@ -60,7 +60,10 @@ dawgit branch new yi-ideas       # start a branch from your current version
 dawgit switch main
 dawgit merge yi-ideas --preview  # what would come in and what conflicts
 dawgit merge yi-ideas            # merge into your branch and share
+dawgit branch log main           # who moved the branch, when, from which version to which
 ```
+
+Teams on storage keep a log of every branch move (since 0.13; each move is its own record, never changed). A branch moved by mistake can be put back: check out the version it was on and save from there.
 
 ## Older versions
 

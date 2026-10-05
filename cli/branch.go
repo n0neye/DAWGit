@@ -30,8 +30,15 @@ func cmdBranch(args []string) error {
 		fmt.Println("versions you save now go to this branch; merge back with `dawgit switch main` + `dawgit merge " + args[1] + "`")
 		return nil
 	}
+	if len(args) >= 1 && args[0] == "log" && len(args) <= 2 {
+		name := ""
+		if len(args) == 2 {
+			name = args[1]
+		}
+		return branchLog(r, name)
+	}
 	if len(args) > 0 {
-		return errors.New("usage: dawgit branch [new NAME]")
+		return errors.New("usage: dawgit branch [new NAME | log [NAME]]")
 	}
 	branches, err := r.Branches()
 	if err != nil {
@@ -190,6 +197,35 @@ func guardLiveAlways(r *project.Repo, force bool) error {
 	}
 	if set := openSet(r.Root); set != "" {
 		return liveOpenError(set, "")
+	}
+	return nil
+}
+
+// branchLog prints how the team's branches moved (who, when, from which
+// version to which): to put back one moved by mistake, `dawgit checkout`
+// the version it was on.
+func branchLog(r *project.Repo, name string) error {
+	moves, names, err := r.BranchLog(name)
+	if err != nil {
+		return err
+	}
+	if len(moves) == 0 {
+		fmt.Println("no branch moves recorded (DAWGit records them since 0.13)")
+		return nil
+	}
+	for _, m := range moves {
+		who := names[m.By]
+		if who == "" {
+			who = "?"
+		}
+		what := short(m.From) + " -> " + short(m.To)
+		switch {
+		case m.From == "":
+			what = "made at " + short(m.To)
+		case m.To == "":
+			what = "deleted (was " + short(m.From) + ")"
+		}
+		fmt.Printf("%s  %-14s %-16s %s\n", m.Time.Local().Format("2006-01-02 15:04:05"), who, m.Branch, what)
 	}
 	return nil
 }

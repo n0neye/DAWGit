@@ -39,6 +39,7 @@ setup:
 branches (advanced):
   branch                                 list branches
   branch new NAME                        start a branch from your current version
+  branch log [NAME]                      who moved the team's branches, when, from which version
   switch NAME                            work on another branch
   merge NAME [--preview]                 merge another branch into yours (or just look)
 

@@ -25,3 +25,27 @@ func TestJoinNeedsTeamFeatures(t *testing.T) {
 		t.Fatalf("join: %v", err)
 	}
 }
+
+// Sharing moves the team's branch, and the move is recorded.
+func TestBranchLogRecordsShares(t *testing.T) {
+	fake := s3test.New("team")
+	defer fake.Close()
+	code := remote.EncodeConnectionCode(remote.Config{URL: "s3+" + fake.URL + "/team/dawgit",
+		AccessKey: "key", SecretKey: "secret"})
+	a, _ := Init(newProject(t), "yi")
+	if err := a.SetRemote(code, ""); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "notes.txt", "one")
+	if _, _, err := a.Save("first", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, a.Root, "notes.txt", "two")
+	if _, _, err := a.Save("second", Strategy("fail")); err != nil {
+		t.Fatal(err)
+	}
+	moves, _, err := a.BranchLog("main")
+	if err != nil || len(moves) != 2 || moves[0].From != "" || moves[1].From != moves[0].To || moves[1].To != a.Head() {
+		t.Fatalf("log: %+v %v", moves, err)
+	}
+}

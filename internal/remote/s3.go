@@ -25,7 +25,8 @@ import (
 //	projects/<pid>/workspaces/<wsid>.json
 //	members/<id>.json, team.json, setups/, backups/, chunked/, gc/
 type BucketBackend struct {
-	b Bucket
+	b     Bucket
+	actor string // who branch moves are by (SetActor)
 }
 
 var _ Backend = (*BucketBackend)(nil)
@@ -270,6 +271,9 @@ func (s *BucketBackend) UpdateBranch(pid, name, old, new string) error {
 			return err
 		}
 		return &ErrConflict{Current: cur}
+	}
+	if err == nil {
+		s.logMove(pid, name, old, new)
 	}
 	return err
 }
