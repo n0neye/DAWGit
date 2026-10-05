@@ -351,18 +351,38 @@ type RestorePlan struct {
 	Bytes    int64                `json:"bytes"`
 }
 
-// restoreSource: the folder given, or where this computer backs team t up.
-func restoreSource(t teams.Team, folder string) (backup.Dest, error) {
-	if folder != "" {
-		return backup.Folder(folder), nil
-	}
-	if t.Backup == nil {
-		return nil, errors.New("this computer doesn't back up this team: choose the backup's folder")
+// RestoreSource is the backup to restore from: a folder, S3-compatible
+// storage (any bucket a backup went to, e.g. from another computer; its
+// keys are used for this restore only, and reading is enough), or, with
+// neither, where this computer backs the team up.
+type RestoreSource struct {
+	Folder  string          `json:"folder"`
+	Storage *remote.Storage `json:"storage"`
+}
+
+// ErrOwnStorage: the backup to restore from is the team's own storage.
+var ErrOwnStorage = errors.New("that is where the team keeps its work: choose where its backup is")
+
+func restoreSource(t teams.Team, from RestoreSource) (backup.Dest, error) {
+	switch {
+	case from.Folder != "":
+		return backup.Folder(from.Folder), nil
+	case from.Storage != nil:
+		cfg, err := from.Storage.Config()
+		if err != nil {
+			return nil, err
+		}
+		if backup.Overlaps(cfg, t) {
+			return nil, ErrOwnStorage
+		}
+		return backup.Bucket(cfg)
+	case t.Backup == nil:
+		return nil, errors.New("this computer doesn't back up this team: choose the backup's folder or bucket")
 	}
 	return backup.DestOf(t.Backup)
 }
 
-func (a *App) restoreParts(teamID, folder, run string) (backup.Dest, *backup.Plan, *teams.Team, error) {
+func (a *App) restoreParts(teamID string, from RestoreSource, run string) (backup.Dest, *backup.Plan, *teams.Team, error) {
 	store, err := teams.Load()
 	if err != nil {
 		return nil, nil, nil, err
@@ -371,7 +391,7 @@ func (a *App) restoreParts(teamID, folder, run string) (backup.Dest, *backup.Pla
 	if t == nil {
 		return nil, nil, nil, errors.New("unknown team")
 	}
-	src, err := restoreSource(*t, folder)
+	src, err := restoreSource(*t, from)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -380,16 +400,16 @@ func (a *App) restoreParts(teamID, folder, run string) (backup.Dest, *backup.Pla
 		return nil, nil, nil, err
 	}
 	p, err := backup.MakePlan(src, s3, run)
-	if errors.Is(err, backup.ErrNotBackup) && folder == "" {
+	if errors.Is(err, backup.ErrNotBackup) && from.Folder == "" && from.Storage == nil {
 		err = backup.ErrMissing // its drive is unplugged
 	}
 	return src, p, t, err
 }
 
-// RestorePlan says what restoring a backup (folder "": this computer's) as
-// of run ("": the latest) would bring back into team teamID's storage.
-func (a *App) RestorePlan(teamID, folder, run string) (*RestorePlan, error) {
-	src, p, _, err := a.restoreParts(teamID, folder, run)
+// RestorePlan says what restoring a backup (see RestoreSource) as of run
+// ("": the latest) would bring back into team teamID's storage.
+func (a *App) RestorePlan(teamID string, from RestoreSource, run string) (*RestorePlan, error) {
+	src, p, _, err := a.restoreParts(teamID, from, run)
 	if err != nil {
 		return nil, err
 	}
@@ -407,8 +427,8 @@ type RestoreProgress struct {
 // Restore brings back from a backup what team teamID's storage lacks (see
 // RestorePlan), never overwriting anything; it returns how many files it
 // copied.
-func (a *App) Restore(teamID, folder, run string) (int, error) {
-	src, p, t, err := a.restoreParts(teamID, folder, run)
+func (a *App) Restore(teamID string, from RestoreSource, run string) (int, error) {
+	src, p, t, err := a.restoreParts(teamID, from, run)
 	if err != nil {
 		return 0, err
 	}

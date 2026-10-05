@@ -103,7 +103,7 @@ the one chosen in the app. The first run can copy many gigabytes.
 `failing`, `members` (who backs the team up: `name`, `last_success`,
 `failing`), `covered` (one of them did in the last 7 days).
 
-`backup restore [folder] [--run TIME] [--preview]`: `team`, `from`,
+`backup restore [folder | connection code] [--run TIME] [--preview]`: `team`, `from`,
 `backup_of`, `run`, `runs` (newest first), `projects` (brought back whole:
 `id`, `name`, `versions`), `branches`, `files`, `bytes`, `restored` (files
 copied; `null` with `--preview`). It only adds to the team's storage; still,

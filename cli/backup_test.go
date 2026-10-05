@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"dawgit/internal/backup"
 	"dawgit/internal/project"
 	"dawgit/internal/remote"
 	"dawgit/internal/remote/s3test"
@@ -89,5 +90,48 @@ func TestBackupCommand(t *testing.T) {
 	}
 	if exit, rep := run(t, a, "backup", "restore", dst, "--run", "nope"); exit != 1 || rep.Error.Code != "no_such_run" {
 		t.Fatalf("no such run: %+v", rep.Error)
+	}
+}
+
+// A backup in a bucket is restored from by its connection code.
+func TestBackupRestoreFromBucket(t *testing.T) {
+	fake := s3test.New("band", "vault")
+	defer fake.Close()
+	team := remote.Config{URL: "s3+" + fake.URL + "/band/songs", AccessKey: "key", SecretKey: "secret"}
+	a := newFolder(t, map[string]string{"Samples/kick.wav": "kick"})
+	r, err := project.Init(a, "yi")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.SetRemote(remote.EncodeConnectionCode(team), ""); err != nil {
+		t.Fatal(err)
+	}
+	if exit, rep := run(t, a, "save", "-m", "first"); exit != 0 {
+		t.Fatalf("save: %+v", rep.Error)
+	}
+	c, _ := r.Client()
+	s3 := c.(*remote.BucketBackend)
+	vault := remote.Config{URL: "s3+" + fake.URL + "/vault/band-backup", AccessKey: "key", SecretKey: "secret"}
+	d, err := backup.Bucket(vault)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backup.Claim(d, "t1", "Band")
+	if _, err := backup.Run(s3, d, nil); err != nil {
+		t.Fatal(err)
+	}
+	s3.DeleteProject(r.Config.ProjectID)
+
+	if exit, rep := run(t, a, "backup", "restore", remote.EncodeConnectionCode(team)); exit != 2 || rep.Error.Code != "usage" {
+		t.Fatalf("from the team's own storage: %+v", rep.Error)
+	}
+	exit, rep := run(t, a, "backup", "restore", remote.EncodeConnectionCode(vault))
+	var rs restoreJSON
+	json.Unmarshal(rep.Result, &rs)
+	if exit != 0 || len(rs.Projects) != 1 || rs.Restored == nil || *rs.Restored == 0 {
+		t.Fatalf("restore: %s %+v", rep.Result, rep.Error)
+	}
+	if ps, _ := s3.Projects(); len(ps) != 1 {
+		t.Errorf("projects after restore: %+v", ps)
 	}
 }

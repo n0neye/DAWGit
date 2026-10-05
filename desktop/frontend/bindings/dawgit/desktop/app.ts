@@ -638,8 +638,8 @@ export function RenameTeamForEveryone(id: string, name: string): $CancellablePro
  * RestorePlan), never overwriting anything; it returns how many files it
  * copied.
  */
-export function Restore(teamID: string, folder: string, run: string): $CancellablePromise<number> {
-    return $Call.ByID(1113521027, teamID, folder, run);
+export function Restore(teamID: string, $from: $models.RestoreSource, run: string): $CancellablePromise<number> {
+    return $Call.ByID(1113521027, teamID, $from, run);
 }
 
 /**
@@ -654,11 +654,11 @@ export function RestoreFileVersion(root: string, file: string, version: string, 
 }
 
 /**
- * RestorePlan says what restoring a backup (folder "": this computer's) as
- * of run ("": the latest) would bring back into team teamID's storage.
+ * RestorePlan says what restoring a backup (see RestoreSource) as of run
+ * ("": the latest) would bring back into team teamID's storage.
  */
-export function RestorePlan(teamID: string, folder: string, run: string): $CancellablePromise<$models.RestorePlan | null> {
-    return $Call.ByID(3602019164, teamID, folder, run).then(($result: any) => {
+export function RestorePlan(teamID: string, $from: $models.RestoreSource, run: string): $CancellablePromise<$models.RestorePlan | null> {
+    return $Call.ByID(3602019164, teamID, $from, run).then(($result: any) => {
         return $$createType38($result);
     });
 }

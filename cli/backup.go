@@ -11,6 +11,7 @@ import (
 
 	"dawgit/internal/backup"
 	"dawgit/internal/project"
+	"dawgit/internal/remote"
 	"dawgit/internal/teams"
 )
 
@@ -19,7 +20,7 @@ import (
 // NAS or an agent: `dawgit backup run` backs up to the folder chosen in the
 // app; `dawgit backup run <folder>` to any folder.
 
-const backupUsage = "usage: dawgit backup run [folder] | status | restore [folder] [--run TIME] [--preview]  [--team NAME]"
+const backupUsage = "usage: dawgit backup run [folder] | status | restore [folder | connection code] [--run TIME] [--preview]  [--team NAME]"
 
 type backupRunJSON struct {
 	Team string `json:"team"`
@@ -255,18 +256,32 @@ type restoreJSON struct {
 	Restored *int                 `json:"restored"`  // files copied; null with --preview
 }
 
-// backupRestore: bring back from a backup (the folder given, or where the
-// app backs the team up) what the team's storage lacks; never overwrites.
+// backupRestore: bring back from a backup (the folder given, a bucket's
+// connection code, or where the app backs the team up) what the team's
+// storage lacks; never overwrites.
 func backupRestore(t *teams.Team, pos []string, run string, preview bool) error {
 	var src backup.Dest
-	if len(pos) == 1 {
+	if len(pos) == 1 && remote.IsConnectionCode(pos[0]) {
+		// A backup in S3-compatible storage (dawgit connection-code makes
+		// one from its address and keys; reading it is enough).
+		cfg, err := remote.ParseAddress(pos[0], "")
+		if err != nil {
+			return usageError("%v", err)
+		}
+		if backup.Overlaps(cfg, *t) {
+			return usageError("that is where %q keeps its work: give where its backup is", t.Name)
+		}
+		if src, err = backup.Bucket(cfg); err != nil {
+			return err
+		}
+	} else if len(pos) == 1 {
 		abs, err := filepath.Abs(pos[0])
 		if err != nil {
 			return err
 		}
 		src = backup.Folder(abs)
 	} else if t.Backup == nil {
-		return usageError("this computer doesn't back up %q: give the backup's folder (dawgit backup restore <folder>)", t.Name)
+		return usageError("this computer doesn't back up %q: give the backup's folder or its bucket's connection code (dawgit backup restore <folder | code>)", t.Name)
 	} else {
 		var err error
 		if src, err = backup.DestOf(t.Backup); err != nil {
