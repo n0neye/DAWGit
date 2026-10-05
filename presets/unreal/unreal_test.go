@@ -25,7 +25,9 @@ func TestUnrealPreset(t *testing.T) {
 	for path, ignored := range map[string]bool{
 		"Binaries/Win64/x.dll": true, "Saved/Logs/a.log": true, "Intermediate": true, "DerivedDataCache": true,
 		"Plugins/Fx/Binaries/Win64/y.dll": true, "Content/Hero.uasset": false, "Source/MyGame/Hero.cpp": false,
-		"Content/Binaries/b.uasset": false,
+		"Content/Binaries/b.uasset": false, "Game.code-workspace": true, ".vscode/launch.json": true,
+		"Plugins/Fx/Fx.sln": true, "Content/Maps/Level_BuiltData.uasset": false, "Content/Props/rock.obj": false,
+		"Plugins/Fx/Source/ThirdParty/lib/fx.dll": false, "Build/Windows/Application.ico": false,
 	} {
 		dir := filepath.Ext(path) == ""
 		if got := rules.Ignored(path, dir); got != ignored {

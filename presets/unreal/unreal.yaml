@@ -4,16 +4,37 @@ tool: Unreal Editor
 open:
   files: ["*.uproject"]  # opened with the engine it is associated with
 detect: ["*.uproject"]
+# Following GitHub's UnrealEngine.gitignore where it fits a team's project:
+# not *.obj (also a 3D model format), *.dll, *.lib and *.exe (plugins'
+# ThirdParty libraries and tools are kept; what the project builds is in
+# Binaries/), *_BuiltData.uasset (built lighting can take hours to build
+# again), or Build/ (icons and platform settings).
 ignore:
   - /Binaries/          # built from Source
   - /Intermediate/
   - /Saved/             # logs, autosaves, local settings
   - /DerivedDataCache/  # rebuilt from Content
-  - /.vs/
-  - /.idea/
-  - "/*.sln"            # generated project files
   - Plugins/**/Binaries/
   - Plugins/**/Intermediate/
+  - "*.ipa"             # packaged builds
+  - "*.pch"             # precompiled headers
+  - "*.gch"
+  # Project files the engine generates for code editors (with paths of
+  # this computer), and their caches.
+  - .vs/
+  - /.idea/
+  - /.vscode/
+  - "/*.code-workspace"
+  - .vsconfig
+  - "*.sln"
+  - "*.suo"
+  - "*.sdf"
+  - "*.opensdf"
+  - "*.VC.db"
+  - "*.VC.opendb"
+  - "*.xcodeproj"
+  - "*.xcworkspace"
+  - "*.DotSettings.user"
 handlers:
   - files: ["*.cpp", "*.h", "*.hpp", "*.inl", "*.cs", "*.ini", "*.uproject", "*.uplugin", "*.json", "*.txt",
             "*.md", "*.usf", "*.ush", "*.py"]
