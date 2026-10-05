@@ -998,5 +998,7 @@
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Damit wird das Zurücknehmen von Versionen für das Team eingeschaltet: Teammitglieder mit einem älteren DAWGit werden gebeten, es zu aktualisieren.",
 "Keep it in the history instead": "Stattdessen im Verlauf behalten",
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit kann nicht erkennen, wer diese Version gemacht hat (wähle zuerst deinen Namen im Team), deshalb bleibt sie im Verlauf: eine neue Version nimmt sie zurück.",
-"Godot project": "Godot-Projekt"
+"Godot project": "Godot-Projekt",
+"{team} can't be reached right now: download it once it's back.": "{team} ist gerade nicht erreichbar: lade es herunter, sobald es wieder da ist.",
+"Checking {team}…": "{team} wird geprüft…"
 }

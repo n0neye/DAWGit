@@ -1,12 +1,15 @@
 package desktop
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"dawgit/internal/backup"
@@ -151,7 +154,26 @@ func (a *App) overview(askTeam bool) (*Overview, error) {
 			ov.Projects = append(ov.Projects, p)
 		}
 	}
+	// The team's projects not downloaded here: as the team lists them, or as
+	// it did last time while it isn't asked or can't be reached (the app
+	// shows them, not to be downloaded until it can).
+	addRemote := func(ps []remote.Project, fresh bool) {
+		for _, p := range ps {
+			if i, ok := seen[p.ID]; !ok {
+				seen[p.ID] = len(ov.Projects)
+				ov.Projects = append(ov.Projects, TeamProject{ID: p.ID, Name: p.Name, Status: "remote"})
+			} else if fresh && p.Name != "" && ov.Projects[i].Name != p.Name {
+				// The team's name wins (someone renamed it, or the folder is
+				// gone); the copy here takes it on.
+				ov.Projects[i].Name = p.Name
+				if ov.Projects[i].Status == "downloaded" {
+					go a.adoptName(ov.Projects[i].Root, p.Name)
+				}
+			}
+		}
+	}
 	if !askTeam {
+		addRemote(lastTeamProjects(t.ID), false)
 		sortProjects(ov.Projects)
 		return ov, nil
 	}
@@ -167,23 +189,16 @@ func (a *App) overview(askTeam bool) (*Overview, error) {
 			}
 		}
 	}
+	var ps []remote.Project
+	if err == nil {
+		ps, err = b.Projects()
+	}
 	if err != nil {
 		ov.TeamError = err.Error()
-	} else if ps, err := b.Projects(); err != nil {
-		ov.TeamError = err.Error()
+		addRemote(lastTeamProjects(t.ID), false)
 	} else {
-		for _, p := range ps {
-			if i, ok := seen[p.ID]; !ok {
-				ov.Projects = append(ov.Projects, TeamProject{ID: p.ID, Name: p.Name, Status: "remote"})
-			} else if p.Name != "" && ov.Projects[i].Name != p.Name {
-				// The team's name wins (someone renamed it, or the folder is
-				// gone); the copy here takes it on.
-				ov.Projects[i].Name = p.Name
-				if ov.Projects[i].Status == "downloaded" {
-					go a.adoptName(ov.Projects[i].Root, p.Name)
-				}
-			}
-		}
+		rememberTeamProjects(t.ID, ps)
+		addRemote(ps, true)
 	}
 	sortProjects(ov.Projects)
 	return ov, nil
@@ -741,4 +756,43 @@ func (a *App) HistoryDownloadSize(root, teamID string) (int64, error) {
 		}
 	}
 	return total, nil
+}
+
+// team-projects.json keeps each team's project list as last seen, so the
+// app lists the team's projects at once, and while it can't be reached.
+var teamProjectsMu sync.Mutex
+
+func teamProjectsFile() string { return filepath.Join(teams.Dir(), "team-projects.json") }
+
+func readTeamProjects() map[string][]remote.Project {
+	all := map[string][]remote.Project{}
+	if data, err := os.ReadFile(teamProjectsFile()); err == nil {
+		json.Unmarshal(data, &all)
+	}
+	return all
+}
+
+func lastTeamProjects(teamID string) []remote.Project {
+	teamProjectsMu.Lock()
+	defer teamProjectsMu.Unlock()
+	return readTeamProjects()[teamID]
+}
+
+// rememberTeamProjects keeps the team's list (as well as can be: it's only
+// what the app shows while the team can't be asked).
+func rememberTeamProjects(teamID string, ps []remote.Project) {
+	teamProjectsMu.Lock()
+	defer teamProjectsMu.Unlock()
+	all := readTeamProjects()
+	keep := make([]remote.Project, len(ps))
+	for i, p := range ps {
+		keep[i] = remote.Project{ID: p.ID, Name: p.Name}
+	}
+	if slices.EqualFunc(all[teamID], keep, func(a, b remote.Project) bool { return a.ID == b.ID && a.Name == b.Name }) {
+		return // unchanged: not written every minute
+	}
+	all[teamID] = keep
+	if data, err := json.Marshal(all); err == nil {
+		os.WriteFile(teamProjectsFile(), data, 0o644)
+	}
 }

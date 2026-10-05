@@ -243,10 +243,13 @@
   // Where downloads go, and the size of the selected project.
   let downloadDir = $state(recall(DOWNLOAD_DIR_KEY));
   let dlSize = $state<{ id: string; size: DownloadSize | null; error: string } | null>(null);
+  // The team's projects not downloaded here are listed as it last listed
+  // them while it's being asked or can't be reached: not to be downloaded.
+  let teamLocked = $derived(!overview?.teamChecked || !!overview?.teamError);
   $effect(() => {
     const p = selectedEntry;
     const team = overview?.currentTeam;
-    if (!p || p.status !== "remote" || !team) return;
+    if (!p || p.status !== "remote" || !team || teamLocked) return;
     const id = p.id;
     dlSize = { id, size: null, error: "" };
     api.ProjectDownloadSize(team, id)
@@ -472,13 +475,16 @@
           <div class="big" aria-hidden="true">☁</div>
           <h1>{p.name}</h1>
           <p class="muted">{t("This project is on {team} but not on this computer yet.", { team: current?.name ?? "" })}</p>
-          {#if dlSize?.id === p.id && dlSize.size}
+          {#if teamLocked}
+            <p class="faint">{overview.teamError ? t("{team} can't be reached right now: download it once it's back.", { team: current?.name ?? "" })
+              : t("Checking {team}…", { team: current?.name ?? "" })}</p>
+          {:else if dlSize?.id === p.id && dlSize.size}
             {@const z = dlSize.size}
             <p class="size">{formatBytes(z.bytes)} · {tn(z.files, "{count} file", "{count} files", { count: z.files.toLocaleString() })}</p>
           {:else if dlSize?.id === p.id && !dlSize.error}
             <p class="size faint">{t("Checking the size…")}</p>
           {/if}
-          <button class="primary" onclick={() => download(p)} disabled={!!busy}>
+          <button class="primary" onclick={() => download(p)} disabled={!!busy || teamLocked}>
             {busy === p.id ? t("Downloading…") : `↓ ${t("Download")}`}
           </button>
           {#if busy === p.id && lastProgress}
@@ -538,6 +544,7 @@
 {#snippet row(p: TeamProject)}
   <li>
     <button class="proj {p.status}" class:on={selectedEntry === p} onclick={() => select(p)}
+      class:locked={p.status === "remote" && teamLocked}
       title={p.status === "remote" ? t("On the team, not on this computer yet") : p.root}>
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
@@ -665,6 +672,7 @@
   /* Not on this computer: dimmed, with a cloud icon (not colour alone). */
   .proj.remote .name { color: var(--muted); font-weight: 500; }
   .proj.remote .icon { color: var(--faint); }
+  .proj.locked { opacity: .6; }
   .proj.missing .icon, .proj.missing .meta { color: var(--warn); }
   .more {
     position: absolute; top: 4px; right: 4px; visibility: hidden; padding: 0 6px; line-height: 18px;

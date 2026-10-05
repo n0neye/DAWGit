@@ -998,5 +998,7 @@
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "這會為團隊開啟撤回版本功能：使用舊版 DAWGit 的隊友會被要求更新。",
 "Keep it in the history instead": "改為保留在歷史紀錄中",
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit 無法判斷這個版本是誰做的（請先在團隊中選擇你的名字），所以它會留在歷史紀錄中：改用新版本把它撤回。",
-"Godot project": "Godot 專案"
+"Godot project": "Godot 專案",
+"{team} can't be reached right now: download it once it's back.": "目前連不到 {team}：等它恢復後再下載。",
+"Checking {team}…": "正在檢查 {team}…"
 }

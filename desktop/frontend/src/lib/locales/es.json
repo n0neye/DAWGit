@@ -998,5 +998,7 @@
 "This turns on undoing versions for the team: teammates with an older DAWGit are asked to update it.": "Esto activa retirar versiones para el equipo: a los compañeros con un DAWGit más antiguo se les pedirá que lo actualicen.",
 "Keep it in the history instead": "Mantenerla en el historial",
 "DAWGit can't tell who made this version (choose your name in the team first), so it stays in the history: a new version takes it back.": "DAWGit no puede saber quién hizo esta versión (elige primero tu nombre en el equipo), así que queda en el historial: una versión nueva la deshace.",
-"Godot project": "Proyecto de Godot"
+"Godot project": "Proyecto de Godot",
+"{team} can't be reached right now: download it once it's back.": "No se puede conectar con {team} ahora: descárgalo cuando vuelva.",
+"Checking {team}…": "Comprobando {team}…"
 }
