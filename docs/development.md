@@ -60,7 +60,9 @@ bin\DAWGit-server.exe                         # then open http://localhost:8765/
 
 ## Tests
 
-- `go test ./...` runs everything that needs no network.
+- `go test ./...` runs everything that needs no network; `go test -tags nightly ./...` the Nightly build too.
+- `npm test` (in `desktop/frontend`) runs the frontend's tests: logic in `.ts` files and components rendered in jsdom, with the Go bindings mocked (`vi.mock("./api")`; see `KeptSamples.test.ts`).
+- `internal/project/crash_test.go` cuts a share off after each of its writes in turn and checks a teammate still gets a whole version.
 - `internal/remote/backendtest` is a contract test every storage backend must pass. It runs against the team server and an in-memory fake S3; to run it against a real bucket:
 
   ```

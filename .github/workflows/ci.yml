@@ -31,6 +31,7 @@ jobs:
           npm ci
           npm run build
           npx svelte-check --threshold error
+          npm test
           node scripts/i18n-check.mjs
 
       - name: gofmt

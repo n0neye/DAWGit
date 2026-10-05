@@ -28,7 +28,7 @@ go build ./...
 go vet ./...
 go test ./...                          # no network needed
 go test -tags nightly ./...            # the Nightly build too
-cd desktop/frontend && npx svelte-check   # after any UI change
+cd desktop/frontend && npx svelte-check && npm test   # after any UI change
 ```
 
 - After changing Go methods the frontend calls: `wails3 generate bindings
