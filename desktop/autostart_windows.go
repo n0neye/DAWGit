@@ -54,6 +54,15 @@ func (a *App) SetAutostart(on bool) error {
 	return k.SetStringValue(runValue(), cmd)
 }
 
+// removeProAutostart stops DAWGit Pro from starting at sign-in, once its
+// teams are here (it would only update itself into this app again).
+func removeProAutostart() {
+	if k, err := registry.OpenKey(registry.CURRENT_USER, runKey, registry.SET_VALUE); err == nil {
+		k.DeleteValue("DAWGit Pro")
+		k.Close()
+	}
+}
+
 // runValue names the sign-in entry: the app's name, so a build with
 // extensions ("DAWGit Pro") has its own next to the public app's.
 func runValue() string { return version.Name() }

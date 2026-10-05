@@ -563,6 +563,12 @@ export class Overview {
     "projects": TeamProject[];
     "teamError": string;
 
+    /**
+     * ProImported: DAWGit Pro's teams were just brought over; say so once
+     * (DismissProNotice).
+     */
+    "proImported": boolean;
+
     /** Creates a new Overview instance. */
     constructor($$source: Partial<Overview> = {}) {
         if (!("author" in $$source)) {
@@ -579,6 +585,9 @@ export class Overview {
         }
         if (!("teamError" in $$source)) {
             this["teamError"] = "";
+        }
+        if (!("proImported" in $$source)) {
+            this["proImported"] = false;
         }
 
         Object.assign(this, $$source);

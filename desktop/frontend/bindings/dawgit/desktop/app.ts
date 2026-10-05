@@ -292,6 +292,13 @@ export function DiscardFiles(root: string, files: string[], force: boolean): $Ca
 }
 
 /**
+ * DismissProNotice: the notice about DAWGit Pro's teams was shown.
+ */
+export function DismissProNotice(): $CancellablePromise<void> {
+    return $Call.ByID(1614749656);
+}
+
+/**
  * DownloadProject downloads a team project into parent/<name> Project.
  */
 export function DownloadProject(teamID: string, projectID: string, parent: string): $CancellablePromise<$models.TeamProject> {

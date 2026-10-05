@@ -92,6 +92,11 @@
     lastReload = Date.now();
     try {
       overview = await api.Overview();
+      if (overview?.proImported) {
+        // Once: DAWGit Pro's teams came over (it becomes the Nightly channel).
+        toast(t("DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps)."), "info", 15000);
+        api.DismissProNotice().catch(() => {});
+      }
     } catch (e) {
       toast(errorText(e), "error");
     } finally {

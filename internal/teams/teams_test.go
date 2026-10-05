@@ -121,23 +121,36 @@ func TestBackupKeysSealed(t *testing.T) {
 	}
 }
 
-// DAWGit Pro's settings come over on a first start, on the Nightly channel.
+// DAWGit Pro's teams come over once, merged with the ones here.
 func TestImportFromPro(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("DAWGIT_CONFIG_DIR", filepath.Join(dir, "DAWGit"))
 	pro := filepath.Join(dir, "DAWGit Pro", "teams.json")
 	os.MkdirAll(filepath.Dir(pro), 0o700)
-	os.WriteFile(pro, []byte(`{"author":"Yi","teams":[{"id":"t1","name":"Band","remote":{"url":"s3+https://x/b/f"}}],"projects":{}}`), 0o600)
-	to := filepath.Join(Dir(), "teams.json")
-	if ok, err := importFrom(pro, to); !ok || err != nil {
+	os.WriteFile(pro, []byte(`{"author":"Yi Pro","teams":[
+		{"id":"p1","name":"Band","remote":{"url":"s3+https://x/band/f"}},
+		{"id":"p2","name":"Game","remote":{"url":"s3+https://x/game/f"}}],
+		"projects":{"p1/aaa":"C:/Band/Song","p2/bbb":"C:/Game/Level"},"local":["C:/Mine"]}`), 0o600)
+	// This computer already has DAWGit, with the band.
+	Update(func(s *Store) error {
+		s.Author = "Yi"
+		t := s.Upsert(remote.Config{URL: "s3+https://x/band/f"}, "Band")
+		s.SetProjectRoot(t.ID, "aaa", "C:/Band/Song here")
+		return nil
+	})
+	if ok, err := importFrom(pro); !ok || err != nil {
 		t.Fatalf("import: %v %v", ok, err)
 	}
 	s, _ := Load()
-	if s.Author != "Yi" || len(s.Teams) != 1 || s.Channel != "nightly" {
-		t.Fatalf("imported: %+v", s)
+	game := s.FindByURL("s3+https://x/game/f")
+	band := s.FindByURL("s3+https://x/band/f")
+	if len(s.Teams) != 2 || game == nil || s.ProjectRoot(game.ID, "bbb") != "C:/Game/Level" ||
+		s.ProjectRoot(band.ID, "aaa") != "C:/Band/Song here" || s.Author != "Yi" ||
+		s.Channel != "nightly" || !s.ProNotice || len(s.Local) != 1 {
+		t.Fatalf("merged: %+v", s)
 	}
-	if ok, _ := importFrom(pro, to); ok {
-		t.Error("only on a first start")
+	if ok, _ := importFrom(pro); ok {
+		t.Error("only once")
 	}
 }
 
