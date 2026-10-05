@@ -82,18 +82,14 @@ func setupStore(t teams.Team) (remote.SetupStore, error) {
 // SetShareSetup turns sharing this computer's setup with a team on (it is
 // shared now) or off (the shared one is deleted).
 func (a *App) SetShareSetup(teamID string, on bool) error {
-	store, err := teams.Load()
+	saved, err := updateTeam(teamID, func(_ *teams.Store, t *teams.Team) error {
+		t.ShareSetup, t.SetupAsked = on, true
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	t := store.Find(teamID)
-	if t == nil {
-		return errors.New("unknown team")
-	}
-	t.ShareSetup, t.SetupAsked = on, true
-	if err := store.Save(); err != nil {
-		return err
-	}
+	t := &saved
 	sharedMu.Lock()
 	delete(shared, teamID)
 	sharedMu.Unlock()

@@ -1,6 +1,6 @@
 //go:build !windows
 
-package project
+package flock
 
 import (
 	"os"

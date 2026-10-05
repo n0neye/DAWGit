@@ -1,10 +1,12 @@
 package teams
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 
 	"dawgit/internal/remote"
@@ -161,5 +163,29 @@ func TestKeepsUnknownFields(t *testing.T) {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("lost %s:\n%s", want, data)
 		}
+	}
+}
+
+// Changes made at the same time all land (the app, the command line tool
+// and background work share teams.json).
+func TestUpdateKeepsEveryChange(t *testing.T) {
+	t.Setenv("DAWGIT_CONFIG_DIR", t.TempDir())
+	var wg sync.WaitGroup
+	for i := range 20 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := Update(func(s *Store) error {
+				s.AddLocal(fmt.Sprintf("C:/p%d", i))
+				return nil
+			}); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	s, _ := Load()
+	if len(s.Local) != 20 {
+		t.Fatalf("%d of 20 changes kept", len(s.Local))
 	}
 }

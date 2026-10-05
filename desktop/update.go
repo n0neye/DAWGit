@@ -139,12 +139,10 @@ func (a *App) SetChannel(channel string) (*UpdateInfo, error) {
 	if channel != "stable" && channel != "nightly" {
 		return nil, errors.New("unknown channel")
 	}
-	store, err := teams.Load()
-	if err != nil {
-		return nil, err
-	}
-	store.Channel = channel
-	if err := store.Save(); err != nil {
+	if _, err := teams.Update(func(s *teams.Store) error {
+		s.Channel = channel
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	updateCache.Lock()
@@ -264,12 +262,10 @@ func autoUpdate() bool {
 }
 
 func (a *App) SetAutoUpdate(on bool) error {
-	store, err := teams.Load()
-	if err != nil {
-		return err
-	}
-	store.ManualUpdates = !on
-	if err := store.Save(); err != nil {
+	if _, err := teams.Update(func(s *teams.Store) error {
+		s.ManualUpdates = !on
+		return nil
+	}); err != nil {
 		return err
 	}
 	a.emitUpdate()
