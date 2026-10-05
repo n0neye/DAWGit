@@ -564,6 +564,13 @@ export class Overview {
     "teamError": string;
 
     /**
+     * TeamChecked: the team was asked (its projects not downloaded here are
+     * listed, TeamError says if it couldn't be reached); LocalOverview
+     * doesn't ask it.
+     */
+    "teamChecked": boolean;
+
+    /**
      * ProImported: DAWGit Pro's teams were just brought over; say so once
      * (DismissProNotice).
      */
@@ -585,6 +592,9 @@ export class Overview {
         }
         if (!("teamError" in $$source)) {
             this["teamError"] = "";
+        }
+        if (!("teamChecked" in $$source)) {
+            this["teamChecked"] = false;
         }
         if (!("proImported" in $$source)) {
             this["proImported"] = false;
@@ -1800,7 +1810,7 @@ export class TakeBack {
     "ok": boolean;
 
     /**
-     * Why not: older-version | not-latest | not-yours | merge | first |
+     * Why not: older-version | not-latest | not-yours | who | merge | first |
      * has-it | on-branch; "" when OK.
      */
     "why": string;

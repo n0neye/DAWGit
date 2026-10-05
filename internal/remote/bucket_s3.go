@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -56,6 +57,9 @@ func newS3Bucket(endpoint, bucket, prefix, region, accessKey, secretKey string) 
 // than sending a small file.
 func keepAlive() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
+	// Storage that answers at all connects within a few seconds; without a
+	// network the default (30s, for every try) kept the app waiting minutes.
+	t.DialContext = (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext
 	t.MaxIdleConns = 128
 	t.MaxIdleConnsPerHost = 64
 	return t
