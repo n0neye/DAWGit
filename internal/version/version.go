@@ -3,13 +3,13 @@
 package version
 
 // Version is the release this build is (Stable) or leads up to (Nightly).
-const Version = "0.13.8"
+const Version = "0.13.9"
 
 // Build marks a Nightly build: "nightly.<UTC time>" (the build script sets
 // it with -ldflags -X), "" for a Stable one.
 var Build string
 
-// Full is the version with its build: "0.13.8" or "0.13.0-nightly.202610041530".
+// Full is the version with its build: "0.13.9" or "0.13.0-nightly.202610041530".
 func Full() string {
 	if Build == "" {
 		return Version
