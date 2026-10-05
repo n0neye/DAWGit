@@ -61,4 +61,5 @@ for (const f of readdirSync(locales).filter((n) => n.endsWith(".json"))) {
   const missing = [...keys].filter((k) => !dict[k]);
   console.log(`${lang}: ${keys.size - missing.length}/${keys.size}${missing.length ? `, ${missing.length} missing` : ""}`);
   if (only) for (const k of missing) console.log("  " + k);
+  if (missing.length) process.exitCode = 1; // CI fails on untranslated text
 }
