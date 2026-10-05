@@ -61,7 +61,7 @@ func TestCheck(t *testing.T) {
 		t.Fatalf("check: %v", err)
 	}
 	b, _ := Open(cfg)
-	if keys, _ := b.(*S3Backend).list("check/", false); len(keys) != 0 {
+	if keys, _ := b.(*BucketBackend).list("check/"); len(keys) != 0 {
 		t.Errorf("test file left behind: %v", keys)
 	}
 

@@ -159,7 +159,7 @@ func (f *folder) Open(key string) (io.ReadCloser, error) { return os.Open(f.path
 // --- a bucket ---
 
 type bucket struct {
-	s3   *remote.S3Backend
+	s3   *remote.BucketBackend
 	name string
 
 	mu  sync.Mutex
@@ -173,7 +173,7 @@ func Bucket(cfg remote.Config) (Dest, error) {
 	if err != nil {
 		return nil, err
 	}
-	s3, ok := b.(*remote.S3Backend)
+	s3, ok := b.(*remote.BucketBackend)
 	if !ok {
 		return nil, errors.New("a backup goes to a folder or to S3-compatible storage")
 	}

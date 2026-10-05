@@ -26,7 +26,7 @@ import (
 	"dawgit/internal/remote"
 )
 
-// Source is a team's storage, read key by key (remote.S3Backend).
+// Source is a team's storage, read key by key (remote.BucketBackend).
 type Source interface {
 	List(prefix string) ([]remote.Item, error)
 	Open(key string) (io.ReadCloser, error)
