@@ -1007,5 +1007,8 @@
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "バックアップのある場所：キーはそのバケットを読めれば十分です。この復元にだけ使い、保存しません。",
 "Look in this bucket": "このバケットを確認",
 "Don't change the project's files until this step is done.": "この手順が終わるまでプロジェクトのファイルを変更しないでください。",
-"It's in the history: you can keep working while it uploads.": "履歴に入りました。アップロード中も作業を続けられます。"
+"It's in the history: you can keep working while it uploads.": "履歴に入りました。アップロード中も作業を続けられます。",
+"Upload big files in the background": "大きなファイルをバックグラウンドでアップロード",
+"Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "50 MB 以上のファイル（動画、長い録音）は変更が止まると、コミット前にバックグラウンドでチームのストレージへ送られ、コミットがすぐ終わります。コミットするまでチームメイトには何も見えません。",
+"Uploading {file} in the background ({percent}%)": "{file} をバックグラウンドでアップロード中（{percent}%）"
 }

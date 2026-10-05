@@ -45,6 +45,9 @@ type TeamSummary struct {
 	// CanShareSetup: the team's storage keeps setups (a server doesn't yet).
 	ShareSetup    bool `json:"shareSetup"`
 	CanShareSetup bool `json:"canShareSetup"`
+	// Preupload: big files go up in the background before they're
+	// committed (on this computer; storage teams).
+	Preupload bool `json:"preupload"`
 	// AskShareSetup: the app should ask whether to share it (not chosen yet,
 	// e.g. a member from before the option).
 	AskShareSetup bool `json:"askShareSetup"`
@@ -92,6 +95,7 @@ func teamSummary(t teams.Team) TeamSummary {
 	return TeamSummary{ID: t.ID, Name: t.Name, Address: t.Remote.Display(), IsStorage: t.Remote.IsStorage(),
 		MemberID: t.MemberID, MemberName: t.MemberName, KeysUnreadable: t.KeysUnreadable,
 		ShareSetup: t.ShareSetup && t.Remote.IsStorage(), CanShareSetup: t.Remote.IsStorage(),
+		Preupload:     !t.NoPreupload && t.Remote.IsStorage(),
 		AskShareSetup: t.Remote.IsStorage() && t.MemberID != "" && !t.SetupAsked && !t.ShareSetup,
 		BackupFailing: backup.Failing(t.Backup)}
 }

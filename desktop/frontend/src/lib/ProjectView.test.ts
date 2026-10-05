@@ -23,6 +23,7 @@ vi.mock("@wailsio/runtime", async (orig) => ({ ...(await orig<typeof import("@wa
 const emit = (name: string, data: unknown) => (mocks.handlers[name] ?? []).forEach((fn) => fn({ data }));
 
 import ProjectView from "./ProjectView.svelte";
+import { preuploads } from "./preupload.svelte";
 
 // jsdom has no ResizeObserver (bind:clientHeight uses it).
 globalThis.ResizeObserver ??= class { observe() {} unobserve() {} disconnect() {} } as unknown as typeof ResizeObserver;
@@ -264,6 +265,17 @@ describe("ProjectView: while a version is made", () => {
     expect(document.querySelector("main")!.classList.contains("reading")).toBe(false);
     emit("progress", { root: ROOT, stage: "done", done: 0, total: 0 });
     await waitFor(() => expect(screen.queryByText(/keep working while it uploads/)).toBeNull());
+  });
+});
+
+describe("ProjectView: a big file going up in the background", () => {
+  it("shows a small moving icon by the team", async () => {
+    await show();
+    expect(screen.queryByTitle(/in the background/)).toBeNull();
+    preuploads[ROOT] = { root: ROOT, path: "Video/take.mov", bytes: 25, total: 100, done: false };
+    await screen.findByTitle("Uploading take.mov in the background (25%)");
+    delete preuploads[ROOT];
+    await waitFor(() => expect(screen.queryByTitle(/in the background/)).toBeNull());
   });
 });
 

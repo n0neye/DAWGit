@@ -1007,5 +1007,8 @@
 "Where the backup is: the keys only need to read that bucket. They're used for this restore only, not kept.": "备份所在的位置：密钥只需要能读取那个 bucket。只用于这次还原，不会保存。",
 "Look in this bucket": "查看这个 bucket",
 "Don't change the project's files until this step is done.": "这一步完成前，先不要修改项目文件。",
-"It's in the history: you can keep working while it uploads.": "已存入历史记录：上传的同时可以继续工作。"
+"It's in the history: you can keep working while it uploads.": "已存入历史记录：上传的同时可以继续工作。",
+"Upload big files in the background": "在后台上传大文件",
+"Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "50 MB 以上的文件（视频、长录音）在停止变动后，会先在后台上传到团队存储空间，之后 commit 就很快。在你 commit 之前，队友什么都看不到。",
+"Uploading {file} in the background ({percent}%)": "正在后台上传 {file}（{percent}%）"
 }

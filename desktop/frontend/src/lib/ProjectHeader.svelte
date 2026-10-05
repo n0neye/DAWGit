@@ -2,6 +2,8 @@
   import { t } from "./i18n.svelte";
   import { api, ago, errorText, type State } from "./api";
   import { toast } from "./notify.svelte";
+  import PreuploadIcon from "./PreuploadIcon.svelte";
+  import { preuploads } from "./preupload.svelte";
 
   // The top of a project's page: its name, the branch menu (switch, merge,
   // new branch), the team it's shared with, and opening it in its tool.
@@ -65,6 +67,7 @@
         <span class="faint" title={st.online ? st.remoteUrl : st.offline}>
           {st.teamName || st.remoteUrl}{!st.teamChecked ? ` · ${t("checking…")}` : st.online ? "" : ` · ${t("not reachable")}`}
         </span>
+        {#if preuploads[st.root]}<PreuploadIcon p={preuploads[st.root]} />{/if}
       {/if}
       <button class="ghost gear" class:bad={!!st.rules.error} onclick={onsettings}
         title={st.rules.error ? `${t("Project settings")} — ⚠ ${st.rules.error}` : t("Project settings: name, rules, …")}

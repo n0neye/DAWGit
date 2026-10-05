@@ -75,6 +75,7 @@ func (a *App) ServiceStartup(ctx context.Context, _ application.ServiceOptions) 
 	}
 	go a.shareSetups(ctx)
 	go a.backUpOnSchedule(ctx)
+	go a.preuploadOnSchedule(ctx)
 	return nil
 }
 

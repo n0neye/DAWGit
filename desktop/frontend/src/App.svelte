@@ -15,6 +15,8 @@
   import ProjectSettings from "./lib/ProjectSettings.svelte";
   import AppSettings from "./lib/AppSettings.svelte";
   import { t, tn } from "./lib/i18n.svelte";
+  import PreuploadIcon from "./lib/PreuploadIcon.svelte";
+  import { preuploads, watchPreuploads } from "./lib/preupload.svelte";
 
   let overview = $state<Overview | null>(null);
   let onboarding = $state(false);
@@ -362,6 +364,7 @@
   type WatchEvent = { root: string; kind: string; author: string; labels: string[]; text: string; versions: { author: string; message: string }[] };
 
   onMount(() => {
+    watchPreuploads();
     reload().then(() => {
       if (overview && overview.teams.length === 0) onboarding = true;
     });
@@ -548,7 +551,7 @@
       title={p.status === "remote" ? t("On the team, not on this computer yet") : p.root}>
       <span class="icon" aria-hidden="true">{statusIcon[p.status]}</span>
       <span class="text">
-        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label={t("Pinned")}><title>{t("Pinned")}</title><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>{/if}</span>
+        <span class="name">{p.name}{#if pinned.includes(rowKey(p))}<svg class="pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label={t("Pinned")}><title>{t("Pinned")}</title><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>{/if}{#if p.root && preuploads[p.root]}<PreuploadIcon p={preuploads[p.root]} />{/if}</span>
         <span class="meta" class:busy={p.root && activity[p.root]}>
           {p.root && activity[p.root] ? progressShort(activity[p.root]) : statusText(p.status) ?? `⑂ ${p.branch}`}
         </span>

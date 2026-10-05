@@ -20,6 +20,7 @@ export {
     MemberBackup,
     Overview,
     PresetOption,
+    Preupload,
     Preview,
     ProjectFile,
     ProjectInfo,

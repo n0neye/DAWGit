@@ -45,6 +45,9 @@ type Team struct {
 	Backup *Backup `json:"backup,omitempty"`
 	// BackupHushed: when the user last put off the reminder to set one up.
 	BackupHushed time.Time `json:"backupHushed,omitempty"`
+	// NoPreupload: big files aren't put in the team's storage before they
+	// are committed (see project.Preupload); on unless turned off.
+	NoPreupload bool `json:"noPreupload,omitempty"`
 	// KeysUnreadable: the team's keys were sealed by another Windows user
 	// or on another computer (teams.json copied): connect again with the
 	// team's connection code.
