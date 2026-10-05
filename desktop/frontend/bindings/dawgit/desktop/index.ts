@@ -42,6 +42,7 @@ export {
     TextChanges,
     TextContent,
     TrackWeight,
+    UndoPlan,
     UpdateInfo,
     UpdateState,
     VerifyProblem,

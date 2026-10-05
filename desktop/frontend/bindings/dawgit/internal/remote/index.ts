@@ -3,7 +3,10 @@
 
 export {
     Capabilities,
-    Member,
-    Project,
     Storage
+} from "./models.js";
+
+export type {
+    Member,
+    Project
 } from "./models.js";

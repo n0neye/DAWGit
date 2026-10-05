@@ -8,6 +8,7 @@
   import { toast } from "./notify.svelte";
   import { cachedState, rememberState } from "./stateCache";
   import ChangesPanel from "./ChangesPanel.svelte";
+  import UndoDialog from "./UndoDialog.svelte";
   import CombineDialog from "./CombineDialog.svelte";
   import ProgressBar from "./ProgressBar.svelte";
   import History from "./History.svelte";
@@ -590,6 +591,23 @@
     });
   }
 
+  // Undo commit: asked first (UndoDialog), then done like a save: Live
+  // closed, conflicts with later versions decided.
+  let undoing = $state<Version | null>(null);
+  function undoCommit(v: Version, msg: string) {
+    undoing = null;
+    run({
+      name: "undo",
+      message: msg,
+      call: (res, force) => api.UndoCommit(root, v.id, msg, res, force),
+      done: (r) => {
+        const version = v.message || v.short;
+        toast((r.action === "saved-locally" ? t("Undone: a new version takes back “{version}”", { version })
+          : t("Undone and shared: a new version takes back “{version}”", { version })) + reopen(), "ok", 8000);
+      },
+    });
+  }
+
   async function exportVersion(v: Version) {
     const parent = await api.ChooseFolder(t("Where should the copy of this version go?"));
     if (!parent) return;
@@ -887,6 +905,7 @@
       {:else if tab === "history"}
         <History {root} versions={st.history} head={st.head} incoming={incomingIds} latest={st.latest}
           ongoto={(v) => goTo(v)} onexport={exportVersion}
+          onundo={!st.olderVersion ? (v) => (undoing = v) : undefined}
           onmerge={st.remoteUrl && !st.olderVersion ? openVersionMerge : undefined} />
       {/if}
     </main>
@@ -1109,6 +1128,11 @@
         {/if}
       {/snippet}
     </Modal>
+  {/if}
+
+  {#if undoing}
+    {@const v = undoing}
+    <UndoDialog {root} version={v} onclose={() => (undoing = null)} onundo={(msg) => undoCommit(v, msg)} />
   {/if}
 
   {#if keepOpen !== null}

@@ -969,5 +969,19 @@
 "The latest Nightly is offered as an update.": "最新的 Nightly 会以更新的方式提供。",
 "Log files": "日志文件",
 "What DAWGit did, to attach to a report. Keys and connection codes are left out.": "DAWGit 做了什么，可附在问题反馈里。密钥和 connection code 不会写进去。",
-"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro 的团队和项目都搬过来了，使用 Nightly 渠道。DAWGit Pro 可以卸载了（Windows 设置 › 应用）。"
+"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro 的团队和项目都搬过来了，使用 Nightly 渠道。DAWGit Pro 可以卸载了（Windows 设置 › 应用）。",
+"Make a new version that takes back what this version changed": "创建一个新版本，把这个版本的改动撤回",
+"Undo commit": "Undo commit",
+"Undone: a new version takes back “{version}”": "已撤销：新版本撤回了“{version}”",
+"Undone and shared: a new version takes back “{version}”": "已撤销并分享：新版本撤回了“{version}”",
+"Undo “{version}”": "撤销“{version}”",
+"Undo “{version}”?": "撤销“{version}”？",
+"Makes a new version that takes back what this version changed. Versions after it keep their changes, and the history keeps everything.": "会创建一个新版本，把这个版本的改动撤回。之后的版本保留它们的改动，历史记录也全部保留。",
+"Working out what changes…": "正在计算会改变什么…",
+"{n} file goes back:": "{n} 个文件会改回去：",
+"{n} files go back:": "{n} 个文件会改回去：",
+"A later version changed {n} of the same things: you'll choose what to keep.": "之后的版本也改了其中 {n} 处：接下来由你选择保留哪个。",
+"Later versions changed {n} of the same things: you'll choose what to keep.": "之后的版本也改了其中 {n} 处：接下来由你选择保留哪个。",
+"You have uncommitted changes in files this undo changes. Commit or discard them first:": "这次撤销会改到的文件里，有你尚未提交的变更。请先提交或丢弃：",
+"Your other uncommitted changes stay as they are.": "你其他未提交的变更会保持原样。"
 }

@@ -969,5 +969,19 @@
 "The latest Nightly is offered as an update.": "최신 Nightly가 업데이트로 제공됩니다.",
 "Log files": "로그 파일",
 "What DAWGit did, to attach to a report. Keys and connection codes are left out.": "DAWGit이 한 일을 기록한 것으로, 문제 보고에 첨부할 수 있습니다. 키와 연결 코드는 들어가지 않습니다.",
-"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro의 팀과 프로젝트가 이제 여기 있습니다(Nightly 채널). DAWGit Pro는 제거해도 됩니다(Windows 설정 › 앱)."
+"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro의 팀과 프로젝트가 이제 여기 있습니다(Nightly 채널). DAWGit Pro는 제거해도 됩니다(Windows 설정 › 앱).",
+"Make a new version that takes back what this version changed": "이 버전의 변경을 되돌리는 새 버전을 만듭니다",
+"Undo commit": "Undo commit",
+"Undone: a new version takes back “{version}”": "취소됨: 새 버전이 “{version}”을(를) 되돌렸습니다",
+"Undone and shared: a new version takes back “{version}”": "취소하고 공유함: 새 버전이 “{version}”을(를) 되돌렸습니다",
+"Undo “{version}”": "“{version}” 취소",
+"Undo “{version}”?": "“{version}”을(를) 취소할까요?",
+"Makes a new version that takes back what this version changed. Versions after it keep their changes, and the history keeps everything.": "이 버전의 변경을 되돌리는 새 버전을 만듭니다. 이후 버전의 변경은 그대로 남고, 기록도 모두 남습니다.",
+"Working out what changes…": "무엇이 바뀌는지 확인 중…",
+"{n} file goes back:": "파일 {n}개가 되돌아갑니다:",
+"{n} files go back:": "파일 {n}개가 되돌아갑니다:",
+"A later version changed {n} of the same things: you'll choose what to keep.": "이후 버전이 같은 부분을 {n}곳 변경했습니다: 무엇을 남길지 선택하게 됩니다.",
+"Later versions changed {n} of the same things: you'll choose what to keep.": "이후 버전이 같은 부분을 {n}곳 변경했습니다: 무엇을 남길지 선택하게 됩니다.",
+"You have uncommitted changes in files this undo changes. Commit or discard them first:": "이 취소로 바뀌는 파일에 아직 커밋하지 않은 변경이 있습니다. 먼저 커밋하거나 버리세요:",
+"Your other uncommitted changes stay as they are.": "다른 커밋하지 않은 변경은 그대로 남습니다."
 }

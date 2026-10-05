@@ -969,5 +969,19 @@
 "The latest Nightly is offered as an update.": "最新の Nightly がアップデートとして提供されます。",
 "Log files": "ログファイル",
 "What DAWGit did, to attach to a report. Keys and connection codes are left out.": "DAWGit が何をしたかの記録。報告に添付できます。キーや接続コードは含まれません。",
-"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro のチームとプロジェクトがこちらに移りました（Nightly チャンネル）。DAWGit Pro はアンインストールできます（Windows の設定 › アプリ）。"
+"DAWGit Pro's teams and projects are here now, on the Nightly channel. You can uninstall DAWGit Pro (Windows Settings › Apps).": "DAWGit Pro のチームとプロジェクトがこちらに移りました（Nightly チャンネル）。DAWGit Pro はアンインストールできます（Windows の設定 › アプリ）。",
+"Make a new version that takes back what this version changed": "このバージョンの変更を取り消す新しいバージョンを作ります",
+"Undo commit": "Undo commit",
+"Undone: a new version takes back “{version}”": "取り消しました：新しいバージョンが「{version}」を取り消しています",
+"Undone and shared: a new version takes back “{version}”": "取り消して共有しました：新しいバージョンが「{version}」を取り消しています",
+"Undo “{version}”": "「{version}」を取り消す",
+"Undo “{version}”?": "「{version}」を取り消しますか？",
+"Makes a new version that takes back what this version changed. Versions after it keep their changes, and the history keeps everything.": "このバージョンの変更を取り消す新しいバージョンを作ります。後のバージョンの変更はそのまま残り、履歴もすべて残ります。",
+"Working out what changes…": "何が変わるか確認しています…",
+"{n} file goes back:": "{n} 個のファイルが元に戻ります：",
+"{n} files go back:": "{n} 個のファイルが元に戻ります：",
+"A later version changed {n} of the same things: you'll choose what to keep.": "後のバージョンが同じ箇所を {n} か所変更しています。どちらを残すか選びます。",
+"Later versions changed {n} of the same things: you'll choose what to keep.": "後のバージョンが同じ箇所を {n} か所変更しています。どちらを残すか選びます。",
+"You have uncommitted changes in files this undo changes. Commit or discard them first:": "この取り消しで変わるファイルに、まだコミットしていない変更があります。先にコミットするか破棄してください：",
+"Your other uncommitted changes stay as they are.": "ほかの未コミットの変更はそのまま残ります。"
 }

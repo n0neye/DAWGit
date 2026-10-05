@@ -1003,3 +1003,56 @@ func (a *App) MergeBranch(root, name, message string, resolutions map[string]str
 	}
 	return syncResult(res), nil
 }
+
+// UndoPlan is what undoing a version would do (for its confirmation): the
+// files it changes, the uncommitted changes in the way, and conflicts with
+// later versions to decide.
+type UndoPlan struct {
+	Changed   []string   `json:"changed"`
+	Blocked   []string   `json:"blocked"`
+	Conflicts []Conflict `json:"conflicts"`
+}
+
+// PlanUndo says what undoing version id would do.
+func (a *App) PlanUndo(root, id string) (*UndoPlan, error) {
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	plan, err := r.PlanUndo(id, opts(nil))
+	var c *project.MergeConflictError
+	if errors.As(err, &c) {
+		return &UndoPlan{Changed: []string{}, Blocked: []string{}, Conflicts: toConflicts(c.Conflicts)}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &UndoPlan{Changed: nonNil(plan.Changed), Blocked: nonNil(plan.Blocked), Conflicts: []Conflict{}}, nil
+}
+
+// UndoCommit makes a version that takes back version id's changes (keeping
+// what came after it) and shares it. Uncommitted changes in other files
+// stay. It rewrites files: not while Live has a set of the project open
+// (unless force).
+func (a *App) UndoCommit(root, id, message string, resolutions map[string]string, force bool) (*Result, error) {
+	defer a.tidyLater(root)
+	r, unlock, err := a.open(root)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if set := liveGuard(r, force); set != "" {
+		return blocked(set), nil
+	}
+	_, res, err := r.UndoCommit(id, message, opts(resolutions))
+	if err != nil {
+		return conflictResult(err)
+	}
+	if res == nil { // no team: committed here
+		out := syncResult(nil)
+		out.Action = "saved-locally"
+		return out, nil
+	}
+	return syncResult(res), nil
+}
