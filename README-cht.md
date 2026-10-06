@@ -1,5 +1,7 @@
 # DAWGit
 
+> **本專案已搬到 [R3V](https://github.com/nonlabhq/r3v)。** DAWGit 不再開發，這個 repository 已封存。
+
 [English](README.md) | **繁體中文**
 
 專為音樂人設計的 Ableton Live 版本管理與協作工具。

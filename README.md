@@ -1,5 +1,7 @@
 # DAWGit
 
+> **This project has moved to [R3V](https://github.com/nonlabhq/r3v).** DAWGit is no longer developed, and this repository is archived.
+
 **English** | [繁體中文](README-cht.md)
 
 Version control and collaboration for Ableton Live, made for musicians.
