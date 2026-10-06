@@ -1010,5 +1010,7 @@
 "It's in the history: you can keep working while it uploads.": "È nella cronologia: puoi continuare a lavorare mentre viene caricato.",
 "Upload big files in the background": "Carica i file grandi in background",
 "Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "I file da 50 MB in su (un video, una registrazione lunga) vanno nello spazio del team appena smettono di cambiare, prima del commit, così il commit è rapido. Il team non vede nulla finché non fai commit.",
-"Uploading {file} in the background ({percent}%)": "Caricamento di {file} in background ({percent}%)"
+"Uploading {file} in the background ({percent}%)": "Caricamento di {file} in background ({percent}%)",
+"When the team's work matters, keep a second copy on a drive or another bucket: team settings (⚙) › Backup.": "Quando il lavoro del team conta, tieni una seconda copia su un disco o in un altro bucket: impostazioni del team (⚙) › Backup.",
+"Set it up now…": "Configuralo ora…"
 }

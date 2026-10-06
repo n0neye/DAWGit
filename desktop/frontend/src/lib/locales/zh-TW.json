@@ -1010,5 +1010,7 @@
 "It's in the history: you can keep working while it uploads.": "已存進歷史紀錄：上傳的同時可以繼續工作。",
 "Upload big files in the background": "在背景上傳大檔案",
 "Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "50 MB 以上的檔案（影片、長錄音）在停止變動後，會先在背景上傳到團隊儲存空間，之後 commit 就很快。在你 commit 之前，隊友什麼都看不到。",
-"Uploading {file} in the background ({percent}%)": "正在背景上傳 {file}（{percent}%）"
+"Uploading {file} in the background ({percent}%)": "正在背景上傳 {file}（{percent}%）",
+"When the team's work matters, keep a second copy on a drive or another bucket: team settings (⚙) › Backup.": "當團隊的作品變得重要時，可以在硬碟或另一個 bucket 留一份副本：團隊設定（⚙）› Backup。",
+"Set it up now…": "現在設定…"
 }

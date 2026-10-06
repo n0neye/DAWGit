@@ -14,8 +14,9 @@
   // One team's settings: its name, your name in it, the connection code for
   // teammates, how this computer reaches it (storage keys, or a server's
   // address), and disconnecting.
-  let { team, author = "", reload, onclose, roots = [] }: {
+  let { team, author = "", reload, onclose, roots = [], offline = false }: {
     team: TeamSummary;
+    offline?: boolean; // its storage can't be reached now
     roots?: string[]; // its projects on this computer (kept under Local when leaving)
     author?: string; // this computer's name, suggested when you have none here
     reload: () => Promise<void>;
@@ -225,7 +226,7 @@
     </section>
   {/if}
 
-  <BackupSection teamId={team.id} />
+  {#if !offline}<BackupSection teamId={team.id} />{/if}
 
   <Fold title={t("Connection")} warn={!!connError || team.keysUnreadable} bind:open={connOpen}>
     {#snippet summary()}

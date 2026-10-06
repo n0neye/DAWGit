@@ -46,6 +46,7 @@ cd desktop/frontend && npx svelte-check && npm test   # after any UI change
   messages users see; the app translates its UI (`desktop/frontend/src/lib/
   locales`, English text is the key: `node scripts/i18n-check.mjs` in
   `desktop/frontend` lists what is missing).
+- What users see follows [docs/ux-principles.md](docs/ux-principles.md).
 - Match the surrounding code: short doc comments that say why, no
   boilerplate.
 - `go vet` and `gofmt` clean.

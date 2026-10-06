@@ -45,6 +45,9 @@ type Team struct {
 	Backup *Backup `json:"backup,omitempty"`
 	// BackupHushed: when the user last put off the reminder to set one up.
 	BackupHushed time.Time `json:"backupHushed,omitempty"`
+	// Added: when this computer joined (or made) the team; zero for teams
+	// from before it was noted.
+	Added time.Time `json:"added,omitempty"`
 	// NoPreupload: big files aren't put in the team's storage before they
 	// are committed (see project.Preupload); on unless turned off.
 	NoPreupload bool `json:"noPreupload,omitempty"`
@@ -304,7 +307,7 @@ func (s *Store) Upsert(cfg remote.Config, name string) *Team {
 	if name == "" {
 		name = DefaultName(cfg)
 	}
-	s.Teams = append(s.Teams, Team{ID: hex.EncodeToString(b), Name: name, Remote: cfg})
+	s.Teams = append(s.Teams, Team{ID: hex.EncodeToString(b), Name: name, Remote: cfg, Added: time.Now().UTC()})
 	if s.Current == "" {
 		s.Current = s.Teams[len(s.Teams)-1].ID
 	}

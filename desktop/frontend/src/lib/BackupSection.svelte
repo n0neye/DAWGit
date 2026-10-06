@@ -20,12 +20,17 @@
   let bucketForm = $state(false);
   let restoring = $state(false);
 
+  // This computer's backup at once; the other members' (asking the team)
+  // after.
+  type Others = Awaited<ReturnType<typeof api.BackupOthers>>;
+  let theirs = $state<Others>(null);
   async function load() {
     try {
       info = await api.BackupInfo(teamId);
     } catch (e) {
       error = errorText(e);
     }
+    if (info?.supported) api.BackupOthers(teamId).then((o) => (theirs = o)).catch(() => {});
   }
 
   $effect(() => {
@@ -59,7 +64,7 @@
     }
   }
 
-  const others = $derived(info?.others ?? []);
+  const others = $derived(theirs?.others ?? []);
   let open = $state(false);
   // Opened by what needs a choice here (a problem picking a place).
   $effect(() => { if (problem || error) open = true; });
@@ -86,7 +91,7 @@
 {/snippet}
 
 {#if info?.supported}
-  <Fold title={t("Backup")} {summary} warn={info.failing || (!info.folder && !info.covered)} bind:open>
+  <Fold title={t("Backup")} {summary} warn={info.failing} bind:open>
     {#if !info.folder}
       <p class="faint small">{t("Keep a copy of the whole team — every project, every version — on a drive, a NAS or another bucket. Once a day while DAWGit is open, it copies what's new. Nothing is ever deleted from the backup.")}</p>
     {:else}
