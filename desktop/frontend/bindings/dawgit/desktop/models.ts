@@ -64,13 +64,6 @@ export class BackupInfo {
     "failing": boolean;
     "size": number;
 
-    /**
-     * Others: the team's other members who back it up; Covered: one of
-     * them did lately.
-     */
-    "others": MemberBackup[];
-    "covered": boolean;
-
     /** Creates a new BackupInfo instance. */
     constructor($$source: Partial<BackupInfo> = {}) {
         if (!("supported" in $$source)) {
@@ -112,6 +105,33 @@ export class BackupInfo {
         if (!("size" in $$source)) {
             this["size"] = 0;
         }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BackupInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BackupInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BackupInfo($$parsedSource as Partial<BackupInfo>);
+    }
+}
+
+/**
+ * BackupOthers is how the team's other members back it up (asks the team:
+ * BackupInfo shows this computer's at once, then this).
+ */
+export class BackupOthers {
+    "others": MemberBackup[];
+
+    /**
+     * Covered: one of them backed it up lately.
+     */
+    "covered": boolean;
+
+    /** Creates a new BackupOthers instance. */
+    constructor($$source: Partial<BackupOthers> = {}) {
         if (!("others" in $$source)) {
             this["others"] = [];
         }
@@ -123,15 +143,15 @@ export class BackupInfo {
     }
 
     /**
-     * Creates a new BackupInfo instance from a string or object.
+     * Creates a new BackupOthers instance from a string or object.
      */
-    static createFrom($$source: any = {}): BackupInfo {
-        const $$createField13_0 = $$createType1;
+    static createFrom($$source: any = {}): BackupOthers {
+        const $$createField0_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("others" in $$parsedSource) {
-            $$parsedSource["others"] = $$createField13_0($$parsedSource["others"]);
+            $$parsedSource["others"] = $$createField0_0($$parsedSource["others"]);
         }
-        return new BackupInfo($$parsedSource as Partial<BackupInfo>);
+        return new BackupOthers($$parsedSource as Partial<BackupOthers>);
     }
 }
 

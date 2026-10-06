@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -59,10 +60,6 @@ type BackupInfo struct {
 	Error   string `json:"error"`
 	Failing bool   `json:"failing"` // failing for a while: worth a warning
 	Size    int64  `json:"size"`
-	// Others: the team's other members who back it up; Covered: one of
-	// them did lately.
-	Others  []MemberBackup `json:"others"`
-	Covered bool           `json:"covered"`
 }
 
 type MemberBackup struct {
@@ -88,7 +85,7 @@ func (a *App) BackupInfo(teamID string) (*BackupInfo, error) {
 	if t == nil {
 		return nil, errors.New("unknown team")
 	}
-	info := &BackupInfo{Supported: t.Remote.IsStorage(), Others: []MemberBackup{}}
+	info := &BackupInfo{Supported: t.Remote.IsStorage()}
 	if b := t.Backup; b != nil {
 		if d, err := backup.DestOf(b); err == nil {
 			info.Kind, info.Folder = d.Kind(), d.Name()
@@ -110,17 +107,41 @@ func (a *App) BackupInfo(teamID string) (*BackupInfo, error) {
 	if !info.Supported {
 		return info, nil
 	}
-	if members, err := backup.Members(*t); err == nil {
-		var others []backup.Member
-		for _, m := range members {
-			if m.ID != t.MemberID {
-				others = append(others, m)
-				info.Others = append(info.Others, MemberBackup{Name: m.Name, LastSuccess: stamp(m.LastSuccess), Failing: m.Failing})
-			}
-		}
-		info.Covered = backup.Covered(others)
-	}
 	return info, nil
+}
+
+// BackupOthers is how the team's other members back it up (asks the team:
+// BackupInfo shows this computer's at once, then this).
+type BackupOthers struct {
+	Others []MemberBackup `json:"others"`
+	// Covered: one of them backed it up lately.
+	Covered bool `json:"covered"`
+}
+
+// BackupOthers says how team teamID's other members back it up.
+func (a *App) BackupOthers(teamID string) (*BackupOthers, error) {
+	store, err := teams.Load()
+	if err != nil {
+		return nil, err
+	}
+	t := store.Find(teamID)
+	if t == nil {
+		return nil, errors.New("unknown team")
+	}
+	out := &BackupOthers{Others: []MemberBackup{}}
+	members, err := backup.Members(*t)
+	if err != nil {
+		return nil, err
+	}
+	var others []backup.Member
+	for _, m := range members {
+		if m.ID != t.MemberID {
+			others = append(others, m)
+			out.Others = append(out.Others, MemberBackup{Name: m.Name, LastSuccess: stamp(m.LastSuccess), Failing: m.Failing})
+		}
+	}
+	out.Covered = backup.Covered(others)
+	return out, nil
 }
 
 // SetBackupFolder makes folder where this computer backs up team teamID,
@@ -251,14 +272,16 @@ func (a *App) StopBackup(teamID string) error {
 }
 
 // BackupReminder: whether to suggest setting up a backup of team teamID:
-// a storage team nobody has backed up lately, not put off this week.
+// a storage team in use for a while (settled), nobody has backed up lately,
+// not put off this week.
 func (a *App) BackupReminder(teamID string) bool {
 	store, err := teams.Load()
 	if err != nil {
 		return false
 	}
 	t := store.Find(teamID)
-	if t == nil || t.Backup != nil || t.MemberID == "" || time.Since(t.BackupHushed) < backupRemind {
+	if t == nil || t.Backup != nil || t.MemberID == "" || time.Since(t.BackupHushed) < backupRemind ||
+		!settled(store, *t, time.Now()) {
 		return false
 	}
 	members, err := backup.Members(*t)
@@ -448,4 +471,29 @@ func (a *App) Restore(teamID string, from RestoreSource, run string) (int, error
 		return 0, err
 	}
 	return rep.Copied, err
+}
+
+// A team is settled on this computer once it has been here settleAfter or
+// has settleProjects projects: someone trying DAWGit out isn't reminded of
+// what could go wrong (see docs/ux-principles.md). Teams from before
+// their joining was noted are settled.
+const (
+	settleAfter    = 3 * 24 * time.Hour
+	settleProjects = 3
+)
+
+func settled(store *teams.Store, t teams.Team, now time.Time) bool {
+	if t.Added.IsZero() || now.Sub(t.Added) >= settleAfter {
+		return true
+	}
+	ids := map[string]bool{}
+	for key := range store.Projects {
+		if id, ok := strings.CutPrefix(key, t.ID+"/"); ok {
+			ids[id] = true
+		}
+	}
+	for _, p := range lastTeamProjects(t.ID) {
+		ids[p.ID] = true
+	}
+	return len(ids) >= settleProjects
 }

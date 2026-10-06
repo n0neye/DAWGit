@@ -82,8 +82,15 @@ Each member who backs up notes it in the team's storage,
 paths. With that:
 
 - Nobody is reminded to set one up while some member backed up in the last
-  7 days. Otherwise the sidebar suggests it, at most weekly.
-- Creating a team on storage ends with the suggestion (or **Set up later**).
+  7 days. Otherwise the sidebar suggests it, at most weekly, and only once
+  the team is settled on this computer: 3 days after joining it, or 3
+  projects (someone trying DAWGit out isn't warned of what could go wrong;
+  see [../ux-principles.md](../ux-principles.md)).
+- Creating a team on storage offers it in one quiet line (**Set it up
+  now…**), not as a step of its own.
+- Team Settings shows this computer's backup at once and the other
+  members' after; it leaves the section out while the team's storage can't
+  be reached.
 - A member's own failures are only shown after 3 days without a backup: a
   drive unplugged for a day is normal.
 

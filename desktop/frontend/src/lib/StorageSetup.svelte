@@ -28,7 +28,8 @@
   let error = $state("");
   let created = $state<{ team: TeamSummary; code: string } | null>(null);
 
-  // After the code: the backup step.
+  // After the code: a backup, only if asked for (a quiet line offers it; a
+  // new team is often a try-out).
   let backupStep = $state(false);
   let backupFolder = $state("");
   let backupProblem = $state("");
@@ -41,18 +42,8 @@
     backupFolder = info?.folder || "…";
   }
 
-  async function afterCode() {
-    const team = created!.team;
-    try {
-      const info = await api.BackupInfo(team.id);
-      if (info?.supported && !info.covered && !info.folder) {
-        backupStep = true;
-        return;
-      }
-    } catch {
-      // can't tell: no backup step; Team Settings has it
-    }
-    onconnected(team);
+  function afterCode() {
+    onconnected(created!.team);
   }
 
   async function chooseBackup() {
@@ -141,6 +132,8 @@
     <p><Tx text={t("Send this {code} to each teammate. They choose {join} and paste it.")} strong={{ code: t("connection code") }} em={{ join: t("Join a team") }} /></p>
     <CodeBox code={created.code} />
     <p class="faint small">{t("The code contains the storage key: send it privately (a direct message, not a public channel). You can copy it again later from the ⚙ next to the team in the Team menu.")}</p>
+    <p class="faint small">{t("When the team's work matters, keep a second copy on a drive or another bucket: team settings (⚙) › Backup.")}
+      <button class="link" onclick={() => (backupStep = true)}>{t("Set it up now…")}</button></p>
     <div class="row actions">
       <span class="spacer"></span>
       <button class="primary" onclick={afterCode}>{t("Continue")}</button>
@@ -253,4 +246,5 @@
   .done p { margin: 0 0 10px; }
   .step-h { margin: 0 0 10px; font-size: 15px; }
   .done .small { font-size: 12.5px; }
+  .link { border: none; background: none; padding: 0; color: var(--muted); text-decoration: underline; font-size: inherit; }
 </style>

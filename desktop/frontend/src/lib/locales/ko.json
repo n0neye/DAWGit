@@ -1010,5 +1010,7 @@
 "It's in the history: you can keep working while it uploads.": "기록에 들어갔습니다. 업로드하는 동안 계속 작업할 수 있습니다.",
 "Upload big files in the background": "큰 파일을 백그라운드에서 업로드",
 "Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "50 MB 이상 파일(영상, 긴 녹음)은 변경이 멈추면 커밋 전에 백그라운드에서 팀 스토리지로 올라가, 커밋이 빨라집니다. 커밋하기 전까지 팀원에게는 아무것도 보이지 않습니다.",
-"Uploading {file} in the background ({percent}%)": "{file} 백그라운드 업로드 중 ({percent}%)"
+"Uploading {file} in the background ({percent}%)": "{file} 백그라운드 업로드 중 ({percent}%)",
+"When the team's work matters, keep a second copy on a drive or another bucket: team settings (⚙) › Backup.": "팀의 작업이 중요해지면 드라이브나 다른 버킷에 두 번째 사본을 두세요: 팀 설정(⚙) › Backup.",
+"Set it up now…": "지금 설정…"
 }

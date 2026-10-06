@@ -8,6 +8,7 @@ export {
 
 export {
     BackupInfo,
+    BackupOthers,
     Branch,
     Change,
     ChannelInfo,

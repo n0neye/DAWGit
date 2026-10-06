@@ -1010,5 +1010,7 @@
 "It's in the history: you can keep working while it uploads.": "履歴に入りました。アップロード中も作業を続けられます。",
 "Upload big files in the background": "大きなファイルをバックグラウンドでアップロード",
 "Files of 50 MB or more (a video, a long recording) go up to the team's storage once they stop changing, before you commit, so the commit is quick. Teammates see nothing until you commit.": "50 MB 以上のファイル（動画、長い録音）は変更が止まると、コミット前にバックグラウンドでチームのストレージへ送られ、コミットがすぐ終わります。コミットするまでチームメイトには何も見えません。",
-"Uploading {file} in the background ({percent}%)": "{file} をバックグラウンドでアップロード中（{percent}%）"
+"Uploading {file} in the background ({percent}%)": "{file} をバックグラウンドでアップロード中（{percent}%）",
+"When the team's work matters, keep a second copy on a drive or another bucket: team settings (⚙) › Backup.": "チームの作品が大切になったら、ドライブや別のバケットに 2 つ目のコピーを：チーム設定（⚙）› Backup。",
+"Set it up now…": "今すぐ設定…"
 }
